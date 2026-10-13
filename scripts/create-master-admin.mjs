@@ -23,6 +23,8 @@
  */
 
 import { createInterface } from 'node:readline/promises'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { stdin, stdout, env, exit } from 'node:process'
 import pg from 'pg'
 
@@ -90,11 +92,49 @@ async function ask(question, hidden = false) {
   })
 }
 
-const connectionString = env.SUPABASE_DB_URL ?? LOCAL_DEFAULT
-if (!env.SUPABASE_DB_URL) {
-  console.warn(`SUPABASE_DB_URL tidak diset — memakai database LOKAL (${LOCAL_DEFAULT}).`)
-  console.warn('Untuk project nyata, set SUPABASE_DB_URL ke connection string project tersebut.\n')
+/**
+ * Tentukan database tujuan, dan TAMPILKAN host-nya sebelum bertanya apa pun.
+ *
+ * Urutannya: environment -> `.env.setup.local` -> database lokal. Menampilkan
+ * host penting karena kesalahan yang paling mahal di skrip ini adalah membuat
+ * akun di database yang salah, dan itu tidak terlihat dari prompt username.
+ *
+ * Nilai rahasianya sendiri tidak pernah ditampilkan — hanya host-nya.
+ */
+function resolveConnectionString() {
+  if (env.SUPABASE_DB_URL !== undefined && env.SUPABASE_DB_URL !== '') {
+    return { connectionString: env.SUPABASE_DB_URL, source: 'environment SUPABASE_DB_URL' }
+  }
+
+  try {
+    const text = readFileSync(resolve(process.cwd(), '.env.setup.local'), 'utf8')
+    const line = text.split('\n').find((row) => row.startsWith('SUPABASE_DB_URL='))
+    const value = line?.slice('SUPABASE_DB_URL='.length).trim()
+    if (value !== undefined && value !== '') {
+      return { connectionString: value, source: '.env.setup.local' }
+    }
+  } catch {
+    // Berkas isian belum ada; jatuh ke database lokal.
+  }
+
+  return { connectionString: LOCAL_DEFAULT, source: 'database LOKAL (default)' }
 }
+
+const { connectionString, source } = resolveConnectionString()
+
+let targetHost = '(tidak terbaca)'
+try {
+  targetHost = new URL(connectionString).host
+} catch {
+  // Biarkan apa adanya; kegagalan koneksi akan menjelaskannya.
+}
+
+console.log(`Target database : ${targetHost}`)
+console.log(`Sumber          : ${source}`)
+if (targetHost.startsWith('127.0.0.1') || targetHost.startsWith('localhost')) {
+  console.log('(ini database LOKAL — bukan project Supabase sungguhan)')
+}
+console.log('')
 
 try {
   const username = (await ask('Username Master Admin: ')).trim()

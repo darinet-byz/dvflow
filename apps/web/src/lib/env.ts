@@ -12,16 +12,26 @@ export type PublicEnv = {
   apiBaseUrl: string
 }
 
+/**
+ * PENTING: setiap nilai dibaca dengan akses properti STATIS
+ * (`import.meta.env.VITE_X`), bukan lewat variabel perantara seperti
+ * `const source = import.meta.env`.
+ *
+ * Vite mengganti nilai env saat BUILD dengan mencocokkan pola
+ * `import.meta.env.NAMA` secara literal. Lewat variabel perantara, penggantian
+ * itu tidak terjadi: di dev server nilainya ada (karena `import.meta.env`
+ * adalah objek sungguhan), tetapi di hasil build nilainya hilang — dan
+ * aplikasi produksi terkirim tanpa konfigurasi Supabase sama sekali.
+ * Kesalahan ini tidak terlihat di dev, hanya di bundel hasil build.
+ */
 export function readPublicEnv(): PublicEnv {
-  const source = import.meta.env
-
   return {
-    supabaseUrl: requireValue(source.VITE_SUPABASE_URL, 'VITE_SUPABASE_URL'),
+    supabaseUrl: requireValue(import.meta.env.VITE_SUPABASE_URL, 'VITE_SUPABASE_URL'),
     supabasePublishableKey: requireValue(
-      source.VITE_SUPABASE_PUBLISHABLE_KEY,
+      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
       'VITE_SUPABASE_PUBLISHABLE_KEY',
     ),
-    apiBaseUrl: typeof source.VITE_API_BASE_URL === 'string' ? source.VITE_API_BASE_URL : '',
+    apiBaseUrl: typeof import.meta.env.VITE_API_BASE_URL === 'string' ? import.meta.env.VITE_API_BASE_URL : '',
   }
 }
 

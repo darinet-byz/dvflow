@@ -11,9 +11,20 @@ import tailwindcss from '@tailwindcss/vite'
  */
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  // Satu `.env` untuk seluruh repo (sejajar dengan `.env.example`), bukan satu
-  // per paket — supaya nilai publik tidak perlu disalin ke dua tempat.
-  envDir: '..',
+  /**
+   * CATATAN PENTING soal env: nilainya HARUS berada di `apps/web/`
+   * (`.env` untuk dev, `.env.production` untuk build).
+   *
+   * Awalnya berkas env ditaruh di root repo dengan `envDir: '..'`, dan itu
+   * TIDAK bekerja: Vite 8 tidak memuat berkas env dari luar root aplikasi —
+   * `loadEnv()` mengembalikan objek kosong, build tetap "berhasil", tetapi
+   * bundelnya terkirim tanpa konfigurasi Supabase sama sekali. Gejalanya:
+   * aplikasi produksi menampilkan "Konfigurasi frontend tidak lengkap".
+   *
+   * Templatenya tetap satu di root repo (`.env.example`) supaya tidak ada dua
+   * sumber kebenaran; salin ke sini:
+   *   cp .env.example apps/web/.env
+   */
   build: {
     outDir: 'dist',
     emptyOutDir: true,

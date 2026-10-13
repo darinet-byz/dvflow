@@ -36,10 +36,35 @@ async function request(path, init) {
   return { status: response.status, type: response.headers.get('content-type') ?? '', headers: response.headers, body }
 }
 
+/**
+ * Secret webhook untuk target yang diuji.
+ *
+ * Dua sumber, dan urutannya penting:
+ *   1. `.env.setup.local` — dipakai saat menguji project SUNGGUHAN
+ *      (`SMOKE_BASE_URL=https://<domain>`), karena secret di sana berbeda dari
+ *      yang dipakai dev server lokal;
+ *   2. `.dev.vars` — dipakai saat menguji `wrangler pages dev` lokal.
+ *
+ * Kalau salah sumber, gejalanya menyesatkan: webhook selalu 404 walaupun
+ * endpoint dan secret-nya benar-benar cocok dengan server yang lain.
+ */
 function webhookSecret() {
-  const vars = readFileSync('.dev.vars', 'utf8')
-  const match = /ORDERONLINE_WEBHOOK_SECRET="([^"]+)"/.exec(vars)
-  if (match === null) throw new Error('ORDERONLINE_WEBHOOK_SECRET tidak ada di .dev.vars')
+  try {
+    const setup = readFileSync('.env.setup.local', 'utf8')
+    const line = setup.split('\n').find((row) => row.startsWith('ORDERONLINE_WEBHOOK_SECRET='))
+    const value = line?.slice('ORDERONLINE_WEBHOOK_SECRET='.length).trim()
+    if (value !== undefined && value !== '') {
+      return value.startsWith('"') && value.endsWith('"') ? JSON.parse(value) : value
+    }
+  } catch {
+    // .env.setup.local belum ada; coba sumber lokal.
+  }
+
+  const devVars = readFileSync('.dev.vars', 'utf8')
+  const match = /ORDERONLINE_WEBHOOK_SECRET="([^"]+)"/.exec(devVars)
+  if (match === null) {
+    throw new Error('ORDERONLINE_WEBHOOK_SECRET tidak ada di .env.setup.local maupun .dev.vars')
+  }
   return match[1]
 }
 
@@ -130,10 +155,26 @@ check('status tak dikenal -> 422 (tidak dipetakan diam-diam)', unknownStatus.sta
 // 4. Halaman peserta untuk order nyata --------------------------------------
 console.log('\n4. Halaman peserta')
 const ticket = await request(`/access/${orderId}`)
-check('order Paid + Seminar -> halaman tiket', ticket.status === 200 && ticket.body.includes('Peserta Smoke'))
-check('tiket memuat payload QR', ticket.body.includes(`data-checkin-payload="/checkin/${orderId}"`))
-check('tiket merujuk skrip QR same-origin', ticket.body.includes('/assets/ticket-qr.js'))
-check('tiket TIDAK memuat nomor WA (04 §12)', !ticket.body.includes('+628000'))
+
+// Yang paling penting di sini: respons datang dari FUNCTIONS, bukan fallback SPA.
+check('halaman peserta dilayani Functions, bukan index.html', ticket.type.includes('html') && !ticket.body.includes('id="root"'))
+
+/**
+ * Pada project yang baru dibuat, konfigurasi Produk/Pengiklan masih kosong,
+ * sehingga produk pada order percobaan tidak dapat dipetakan dan akses memang
+ * DITOLAK (01 §9 + K8: konfigurasi datang dari layar Konfigurasi Produk, bukan
+ * dari kode). Itu perilaku yang benar — bukan kegagalan deploy — jadi
+ * dilaporkan sebagai catatan, bukan sebagai langkah gagal.
+ */
+if (ticket.body.includes('Data acara tidak dikenali')) {
+  check('konfigurasi produk belum diisi -> akses peserta ditolak', ticket.status === 403, `status ${ticket.status}`)
+  console.log('         ℹ️  setelah Produk & Pengiklan diisi di Konfigurasi Produk, tiket akan terbuka')
+} else {
+  check('order Paid + Seminar -> halaman tiket', ticket.status === 200 && ticket.body.includes('Peserta Smoke'))
+  check('tiket memuat payload QR', ticket.body.includes(`data-checkin-payload="/checkin/${orderId}"`))
+  check('tiket merujuk skrip QR same-origin', ticket.body.includes('/assets/ticket-qr.js'))
+  check('tiket TIDAK memuat nomor WA (04 §12)', !ticket.body.includes('+628000'))
+}
 
 console.log(`\n${failures === 0 ? 'Semua langkah lulus.' : `${failures} langkah GAGAL.`}\n`)
 process.exit(failures === 0 ? 0 : 1)
