@@ -1,4 +1,4 @@
-import type { AppRole } from '@dvflow/shared'
+import { isMasterAdminRole, type AppRole } from '@dvflow/shared'
 import { createApi, type Api } from '../src/router'
 import { ROUTES } from '../src/routes'
 import { DbError, type Db } from '../src/db/types'
@@ -28,6 +28,7 @@ export type FakeUser = {
   role: AppRole
   avatar_emoji: string | null
   active: boolean
+  has_all_product_access?: boolean
   /** "Hash" di tiruan ini adalah plaintext; database sungguhan memakai bcrypt. */
   password: string
 }
@@ -49,6 +50,65 @@ export type FakeConfigRows = {
   feeRules: Array<Record<string, unknown>>
 }
 
+export const DEFAULT_ROLES = [
+  { id: 'developer', name: 'Developer', description: 'Akses teknis sistem', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
+  { id: 'owner', name: 'Owner', description: 'Pemilik bisnis', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
+  { id: 'manajer', name: 'Manajer', description: 'Pengelola operasional', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
+  { id: 'admin', name: 'Admin', description: 'Administrasi harian acara', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
+  { id: 'pimpro', name: 'Pimpro', description: 'Pimpinan proyek produk', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
+  { id: 'member', name: 'Member', description: 'Operator registrasi', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
+  { id: 'master_admin', name: 'Admin Master (Legacy)', description: 'Role legacy setara Owner/Developer', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
+  { id: 'staff', name: 'Staff (Legacy)', description: 'Role legacy setara Member', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
+]
+
+export const DEFAULT_PERMISSIONS = [
+  { key: 'operasional.scan_qr', name: 'Scan QR Tiket', module: 'operasional', description: 'Memindai QR tiket', sort_order: 1 },
+  { key: 'operasional.dashboard', name: 'Dashboard Resume', module: 'operasional', description: 'Melihat dashboard', sort_order: 2 },
+  { key: 'operasional.order', name: 'Data Order', module: 'operasional', description: 'Melihat order', sort_order: 3 },
+  { key: 'operasional.presensi', name: 'Presensi Acara', module: 'operasional', description: 'Melihat presensi', sort_order: 4 },
+  { key: 'operasional.generator', name: 'Product Name Generator', module: 'operasional', description: 'Generator nama produk', sort_order: 5 },
+  { key: 'config.produk', name: 'Konfigurasi Produk', module: 'konfigurasi', description: 'Kelola produk', sort_order: 10 },
+  { key: 'config.tax', name: 'Konfigurasi Tax & Fee', module: 'konfigurasi', description: 'Kelola tax fee', sort_order: 11 },
+  { key: 'config.report_tax', name: 'Report Tax', module: 'konfigurasi', description: 'Laporan pajak', sort_order: 12 },
+  { key: 'config.zoom', name: 'Konfigurasi Link Zoom', module: 'konfigurasi', description: 'Kelola link zoom', sort_order: 13 },
+  { key: 'config.tiket', name: 'Konfigurasi Tiket Seminar', module: 'konfigurasi', description: 'Kelola tiket', sort_order: 14 },
+  { key: 'config.integrasi', name: 'API & Webhook', module: 'konfigurasi', description: 'Kelola integrasi', sort_order: 15 },
+  { key: 'config.roles', name: 'Konfigurasi Role & Permission', module: 'konfigurasi', description: 'Kelola role & permissions', sort_order: 16 },
+  { key: 'team.manage', name: 'Manajemen Tim', module: 'team', description: 'Kelola tim', sort_order: 20 },
+  { key: 'account.profile', name: 'Profil & Password', module: 'account', description: 'Kelola profil', sort_order: 30 },
+  { key: 'action.export_data', name: 'Export Data Order & Presensi', module: 'aksi', description: 'Export data', sort_order: 40 },
+  { key: 'action.manual_checkin', name: 'Manual Check-in', module: 'aksi', description: 'Check-in manual', sort_order: 41 },
+  { key: 'action.delete_master', name: 'Hapus Data Master', module: 'aksi', description: 'Hapus master', sort_order: 42 },
+]
+
+export const DEFAULT_ROLE_PERMISSIONS: Array<{ role_id: string; permission_key: string }> = [
+  ...DEFAULT_PERMISSIONS.flatMap((p) => [
+    { role_id: 'developer', permission_key: p.key },
+    { role_id: 'owner', permission_key: p.key },
+    { role_id: 'master_admin', permission_key: p.key },
+  ]),
+  ...[
+    'operasional.scan_qr', 'operasional.dashboard', 'operasional.order', 'operasional.presensi', 'operasional.generator',
+    'config.produk', 'config.zoom', 'config.tiket',
+    'account.profile', 'action.export_data', 'action.manual_checkin'
+  ].map((key) => ({ role_id: 'manajer', permission_key: key })),
+  ...[
+    'operasional.scan_qr', 'operasional.dashboard', 'operasional.order', 'operasional.presensi', 'operasional.generator',
+    'config.zoom', 'config.tiket',
+    'account.profile', 'action.export_data', 'action.manual_checkin'
+  ].map((key) => ({ role_id: 'admin', permission_key: key })),
+  ...[
+    'operasional.scan_qr', 'operasional.dashboard', 'operasional.order', 'operasional.presensi', 'operasional.generator',
+    'account.profile', 'action.export_data', 'action.manual_checkin'
+  ].map((key) => ({ role_id: 'pimpro', permission_key: key })),
+  ...[
+    'operasional.scan_qr', 'operasional.presensi', 'account.profile', 'action.manual_checkin'
+  ].flatMap((key) => [
+    { role_id: 'member', permission_key: key },
+    { role_id: 'staff', permission_key: key },
+  ]),
+]
+
 export type FakeState = {
   users: FakeUser[]
   sessions: FakeSession[]
@@ -57,6 +117,10 @@ export type FakeState = {
   attendanceEvents: Array<Record<string, unknown>>
   appSettings: Array<Record<string, unknown>>
   webhookLogs: Array<Record<string, unknown>>
+  roles: Array<Record<string, unknown>>
+  permissions: Array<Record<string, unknown>>
+  rolePermissions: Array<Record<string, unknown>>
+  userProductAccess: Array<Record<string, unknown>>
   /** Semua panggilan RPC, untuk memastikan handler tidak melewati database. */
   rpcCalls: Array<{ name: string; args: Record<string, unknown> }>
 }
@@ -69,6 +133,10 @@ export function createFakeState(
     orders?: Array<Record<string, unknown>>
     attendanceEvents?: Array<Record<string, unknown>>
     appSettings?: Array<Record<string, unknown>>
+    roles?: Array<Record<string, unknown>>
+    permissions?: Array<Record<string, unknown>>
+    rolePermissions?: Array<Record<string, unknown>>
+    userProductAccess?: Array<Record<string, unknown>>
   } = {},
 ): FakeState {
   return {
@@ -85,6 +153,10 @@ export function createFakeState(
     attendanceEvents: seed.attendanceEvents ?? [],
     appSettings: seed.appSettings ?? [],
     webhookLogs: [],
+    roles: seed.roles ?? [...DEFAULT_ROLES],
+    permissions: seed.permissions ?? [...DEFAULT_PERMISSIONS],
+    rolePermissions: seed.rolePermissions ?? [...DEFAULT_ROLE_PERMISSIONS],
+    userProductAccess: seed.userProductAccess ?? [],
     rpcCalls: [],
   }
 }
@@ -315,12 +387,12 @@ export function createFakeDb(state: FakeState): Db {
       if (name === 'admin_create_user') {
         const actorId = String(args['p_actor_user_id'] ?? '')
         const actor = state.users.find((candidate) => candidate.id === actorId)
-        if (actor === undefined || !actor.active || actor.role !== 'master_admin') {
+        if (actor === undefined || !actor.active || !isMasterAdminRole(actor.role)) {
           throw new DbError(FORBIDDEN, 'fake')
         }
 
         const role = String(args['p_role'] ?? '')
-        if (role === 'master_admin' && args['p_allow_master'] !== true) {
+        if (isMasterAdminRole(role) && args['p_allow_master'] !== true) {
           throw new DbError(MASTER_ADMIN_CREATE_FORBIDDEN, 'fake')
         }
 
@@ -333,6 +405,7 @@ export function createFakeDb(state: FakeState): Db {
         if (password.length < 8) throw new DbError(WEAK_PASSWORD, 'fake')
 
         nextId += 1
+        const hasAll = args['p_has_all_product_access'] !== false
         const created: FakeUser = {
           id: `user-${nextId}`,
           username,
@@ -340,9 +413,16 @@ export function createFakeDb(state: FakeState): Db {
           role: role as AppRole,
           avatar_emoji: (args['p_avatar_emoji'] as string | null) ?? null,
           active: true,
+          has_all_product_access: hasAll,
           password,
         }
         state.users.push(created)
+
+        if (!hasAll && Array.isArray(args['p_product_codes'])) {
+          for (const pc of args['p_product_codes']) {
+            state.userProductAccess.push({ user_id: created.id, product_code: String(pc) })
+          }
+        }
 
         return {
           user_id: created.id,
@@ -351,6 +431,7 @@ export function createFakeDb(state: FakeState): Db {
           role: created.role,
           avatar_emoji: created.avatar_emoji,
           active: true,
+          has_all_product_access: hasAll,
         } as T
       }
 
@@ -358,7 +439,7 @@ export function createFakeDb(state: FakeState): Db {
         const actorId = String(args['p_actor_user_id'] ?? '')
         const targetId = String(args['p_target_user_id'] ?? '')
         const actor = state.users.find((candidate) => candidate.id === actorId)
-        if (actor === undefined || !actor.active || actor.role !== 'master_admin') {
+        if (actor === undefined || !actor.active || !isMasterAdminRole(actor.role)) {
           throw new DbError(FORBIDDEN, 'fake')
         }
 
@@ -367,10 +448,10 @@ export function createFakeDb(state: FakeState): Db {
 
         const role = String(args['p_role'] ?? '')
         const active = Boolean(args['p_active'])
-        if (actorId === targetId && (!active || role !== 'master_admin')) {
+        if (actorId === targetId && (!active || !isMasterAdminRole(role))) {
           throw new DbError(FORBIDDEN, 'fake')
         }
-        if (role === 'master_admin' && target.role !== 'master_admin' && args['p_allow_master'] !== true) {
+        if (isMasterAdminRole(role) && !isMasterAdminRole(target.role) && args['p_allow_master'] !== true) {
           throw new DbError(MASTER_ADMIN_CREATE_FORBIDDEN, 'fake')
         }
 
@@ -394,6 +475,19 @@ export function createFakeDb(state: FakeState): Db {
         target.display_name = String(args['p_display_name'] ?? target.display_name)
         target.role = role as AppRole
         target.active = active
+        const hasAll = args['p_has_all_product_access'] !== false
+        target.has_all_product_access = hasAll
+
+        for (let i = state.userProductAccess.length - 1; i >= 0; i--) {
+          if (state.userProductAccess[i]?.user_id === target.id) {
+            state.userProductAccess.splice(i, 1)
+          }
+        }
+        if (!hasAll && Array.isArray(args['p_product_codes'])) {
+          for (const pc of args['p_product_codes']) {
+            state.userProductAccess.push({ user_id: target.id, product_code: String(pc) })
+          }
+        }
 
         return {
           id: target.id,
@@ -403,6 +497,7 @@ export function createFakeDb(state: FakeState): Db {
           role: target.role,
           avatar_emoji: target.avatar_emoji,
           active: target.active,
+          has_all_product_access: hasAll,
         } as T
       }
 
@@ -448,9 +543,9 @@ export function createFakeDb(state: FakeState): Db {
         return project(row, columns) as T
       }
 
-      // Tabel konfigurasi.
+      // Tabel konfigurasi atau tabel dinamis lainnya.
       const configRows = rowsOf(state, table)
-      const created = { id: generatedUuid(nextId), active: true, ...row }
+      const created = { id: row['id'] ?? generatedUuid(nextId), active: true, ...row }
       assertFakeUnique(table, configRows, created)
       configRows.push(created)
       return project(created, columns) as T
@@ -516,6 +611,14 @@ function rowsOf(state: FakeState, table: string): Array<Record<string, unknown>>
       return state.config.sessions
     case 'payment_fee_rules':
       return state.config.feeRules
+    case 'app_roles':
+      return state.roles
+    case 'app_permissions':
+      return state.permissions
+    case 'app_role_permissions':
+      return state.rolePermissions
+    case 'user_product_access':
+      return state.userProductAccess
     default:
       throw new Error(`tabel tidak dikenal di tiruan: ${table}`)
   }
@@ -646,7 +749,7 @@ export async function createTestEnv(overrides: Partial<Env> = {}): Promise<Env> 
 export const TEST_ORIGIN = 'https://app.example.com'
 
 export function makeRequest(options: {
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT'
   path: string
   /** Body yang akan di-JSON-stringify. */
   body?: unknown

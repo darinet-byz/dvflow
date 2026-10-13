@@ -268,6 +268,25 @@ export async function checkinSeminar(
     throw new ApiFailure('ORDER_NOT_FOUND', `order id tidak berbentuk wajar: ${input.orderId}`)
   }
 
+  if (operator.has_all_product_access === false) {
+    const orderBefore = await loadOrder(context.db, input.orderId)
+    if (!orderBefore) {
+      throw new ApiFailure('ORDER_NOT_FOUND', `order tidak ditemukan: ${input.orderId}`)
+    }
+    const accessRows = await context.db.selectRows<{ product_code: string }>(
+      'user_product_access',
+      { user_id: `eq.${operator.id}` },
+      'product_code',
+    ).catch(() => [])
+    const allowedCodes = accessRows.map((r) => r.product_code)
+    if (!orderBefore.product_code || !allowedCodes.includes(orderBefore.product_code)) {
+      throw new ApiFailure(
+        'FORBIDDEN',
+        `Akses ditolak: Anda tidak memiliki wewenang untuk memeriksa tiket produk ini (Produk: ${orderBefore.product_name || orderBefore.product_code || '-'})`,
+      )
+    }
+  }
+
   const result = await context.db.rpc<CheckinResult>('checkin_seminar', {
     p_order_id: input.orderId,
     p_source: input.source,

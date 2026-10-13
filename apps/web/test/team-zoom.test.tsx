@@ -133,16 +133,16 @@ describe('requested team, Zoom, and Barcode Ticket screens', () => {
     )
   })
 
-  it('Team sees restricted menus disabled, while operational links remain available', () => {
+  it('Team sees restricted menus omitted completely (Fitur 2.0 strict hiding), while operational links remain available', () => {
     state.role = 'staff'
     render(
       <MemoryRouter>
         <Sidebar />
       </MemoryRouter>,
     )
-    for (const name of ['Add Team', 'Konfigurasi Produk', 'Konfigurasi Tax', 'Report Tax']) {
+    for (const name of ['Add Team', 'Konfigurasi Produk', 'Konfigurasi Tax', 'Report Tax', 'Konfigurasi Role']) {
       expect(screen.queryByRole('link', { name })).toBeNull()
-      expect(screen.getByText(name).getAttribute('aria-disabled')).toBe('true')
+      expect(screen.queryByText(name)).toBeNull()
     }
     expect(screen.getByRole('link', { name: 'Konfigurasi Zoom' })).toBeDefined()
     expect(screen.getByRole('link', { name: 'Konfigurasi Barcode / Tiket' })).toBeDefined()

@@ -22,33 +22,42 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto">
-        {NAV_SECTIONS.map((section) => (
-          <div key={section.title}>
-            <p className="px-3 pb-1.5 text-[10px] font-semibold tracking-[0.12em] text-ink-muted">{section.title}</p>
-            <ul className="flex flex-col gap-1">
-              {section.items.map((item) => (
-                <li key={item.path}>
-                  {session.profile && !canAccessPath(session.profile.role, item.path) ? <span aria-disabled="true" className="flex min-h-11 items-center rounded-[11px] px-3 text-[13px] text-ink-muted" title="Tidak tersedia untuk role Anda">{item.label}</span> : <NavLink
-                    to={item.path}
-                    onClick={onNavigate}
-                    end={item.path === '/'}
-                    className={({ isActive }) =>
-                      cn(
-                        'flex h-11 items-center rounded-[11px] px-3 text-[13px] font-medium transition-colors',
-                        isActive
-                          ? // Guideline §7 memakai gradien primary untuk item aktif.
-                            'bg-[linear-gradient(135deg,#564cff,#424bf4)] text-white shadow-card'
-                          : 'text-ink-soft hover:bg-soft hover:text-ink',
-                      )
-                    }
-                  >
-                    {item.label}
-                  </NavLink>}
-                </li>
-              ))}
-            </ul>
-          </div>
-        ))}
+        {NAV_SECTIONS.map((section) => {
+          const visibleItems = section.items.filter((item) => {
+            if (!session.profile) return true
+            return canAccessPath(session.profile, item.path)
+          })
+
+          if (visibleItems.length === 0) return null
+
+          return (
+            <div key={section.title}>
+              <p className="px-3 pb-1.5 text-[10px] font-semibold tracking-[0.12em] text-ink-muted">{section.title}</p>
+              <ul className="flex flex-col gap-1">
+                {visibleItems.map((item) => (
+                  <li key={item.path}>
+                    <NavLink
+                      to={item.path}
+                      onClick={onNavigate}
+                      end={item.path === '/'}
+                      className={({ isActive }) =>
+                        cn(
+                          'flex h-11 items-center rounded-[11px] px-3 text-[13px] font-medium transition-colors',
+                          isActive
+                            ? // Guideline §7 memakai gradien primary untuk item aktif.
+                              'bg-[linear-gradient(135deg,#564cff,#424bf4)] text-white shadow-card'
+                            : 'text-ink-soft hover:bg-soft hover:text-ink',
+                        )
+                      }
+                    >
+                      {item.label}
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )
+        })}
       </div>
 
       {session.profile === null ? null : (
@@ -58,7 +67,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </span>
           <div className="min-w-0">
             <p className="truncate text-[12px] font-semibold text-ink">{session.profile.display_name}</p>
-            <p className="truncate text-[11px] text-ink-muted">{ROLE_LABELS[session.profile.role]}</p>
+            <p className="truncate text-[11px] text-ink-muted">{ROLE_LABELS[session.profile.role] ?? session.profile.role}</p>
           </div>
         </div>
       )}

@@ -1,4 +1,4 @@
-import type { AppRole } from '@dvflow/shared'
+import { isMasterAdminRole, type AppRole } from '@dvflow/shared'
 import type { RouteContext } from './router'
 import { ApiFailure } from './http/errors'
 
@@ -18,6 +18,7 @@ export type UserRow = {
   role: AppRole
   avatar_emoji: string | null
   active: boolean
+  has_all_product_access?: boolean
 }
 
 export type VerifiedUser = {
@@ -26,6 +27,7 @@ export type VerifiedUser = {
   display_name: string
   role: AppRole
   avatar_emoji: string | null
+  has_all_product_access?: boolean
 }
 
 export type Profile = {
@@ -34,10 +36,13 @@ export type Profile = {
   display_name: string
   role: AppRole
   avatar_emoji: string | null
+  has_all_product_access?: boolean
+  allowed_product_codes?: string[]
+  permissions?: string[]
 }
 
 /** Kolom aman saja — tidak memuat kolom kredensial. */
-export const USER_COLUMNS = 'id,username,display_name,role,avatar_emoji,active'
+export const USER_COLUMNS = 'id,username,display_name,role,avatar_emoji,active,has_all_product_access'
 
 export const DISPLAY_NAME_MAX_LENGTH = 200
 export const AVATAR_EMOJI_MAX_LENGTH = 16
@@ -50,6 +55,9 @@ export function profileFromRow(row: UserRow): Profile {
     display_name: row.display_name,
     role: row.role,
     avatar_emoji: row.avatar_emoji,
+    has_all_product_access: row.has_all_product_access ?? true,
+    allowed_product_codes: [],
+    permissions: [],
   }
 }
 
@@ -60,6 +68,101 @@ export function profileFromVerified(user: VerifiedUser): Profile {
     display_name: user.display_name,
     role: user.role,
     avatar_emoji: user.avatar_emoji,
+    has_all_product_access: user.has_all_product_access ?? true,
+    allowed_product_codes: [],
+    permissions: [],
+  }
+}
+
+export async function buildUserProfile(
+  context: RouteContext,
+  user: {
+    id?: string
+    user_id?: string
+    username: string
+    display_name: string
+    role: AppRole
+    avatar_emoji: string | null
+    has_all_product_access?: boolean
+  },
+): Promise<Profile> {
+  const userId = user.id ?? user.user_id ?? ''
+  let hasAll = user.has_all_product_access
+
+  if (hasAll === undefined && userId) {
+    try {
+      const userRows = await context.db.selectRows<{ has_all_product_access: boolean }>(
+        'users',
+        { id: `eq.${userId}` },
+        'has_all_product_access',
+      )
+      if (userRows[0]?.has_all_product_access !== undefined) {
+        hasAll = Boolean(userRows[0].has_all_product_access)
+      }
+    } catch {
+      // fallback
+    }
+  }
+
+  const hasAllProductAccess = hasAll ?? true
+  let allowed_product_codes: string[] = []
+  let permissions: string[] = []
+
+  try {
+    const permRows = await context.db.selectRows<{ permission_key: string }>(
+      'app_role_permissions',
+      { role_id: `eq.${user.role}` },
+      'permission_key',
+    )
+    permissions = permRows.map((r) => r.permission_key)
+  } catch {
+    // ignore
+  }
+
+  if (permissions.length === 0 && isMasterAdminRole(user.role)) {
+    permissions = [
+      'operasional.scan_qr',
+      'operasional.dashboard',
+      'operasional.order',
+      'operasional.presensi',
+      'operasional.generator',
+      'config.produk',
+      'config.tax',
+      'config.report_tax',
+      'config.zoom',
+      'config.tiket',
+      'config.integrasi',
+      'config.roles',
+      'team.manage',
+      'account.profile',
+      'action.export_data',
+      'action.manual_checkin',
+      'action.delete_master',
+    ]
+  }
+
+  if (!hasAllProductAccess && userId) {
+    try {
+      const accessRows = await context.db.selectRows<{ product_code: string }>(
+        'user_product_access',
+        { user_id: `eq.${userId}` },
+        'product_code',
+      )
+      allowed_product_codes = accessRows.map((r) => r.product_code)
+    } catch {
+      // ignore
+    }
+  }
+
+  return {
+    user_id: userId,
+    username: user.username,
+    display_name: user.display_name,
+    role: user.role,
+    avatar_emoji: user.avatar_emoji,
+    has_all_product_access: hasAllProductAccess,
+    allowed_product_codes,
+    permissions,
   }
 }
 

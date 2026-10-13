@@ -11,6 +11,7 @@ import {
   saveWebinar,
 } from './webinar/handlers'
 import { createUser, deleteUser, listUsers, updateUser } from './internal-users/handlers'
+import { createRole, deleteRole, getRole, listPermissions, listRoles, updateRolePermissions } from './roles/handlers'
 import { accessOrder, checkinByQr, checkinInfoPage } from './participant/handlers'
 import { getProfile, updateProfile } from './profile/handlers'
 import { scannerManualCheckin, scannerSearch } from './scanner/handlers'
@@ -65,6 +66,14 @@ export const ROUTES: Route[] = [
   { method: 'GET', path: '/api/internal/users', handler: listUsers, auth: 'access' },
   { method: 'PATCH', path: '/api/internal/users/:id', handler: updateUser, auth: 'access' },
   { method: 'DELETE', path: '/api/internal/users/:id', handler: deleteUser, auth: 'access' },
+
+  // Role & Permission Management (Fitur 2.0).
+  { method: 'GET', path: '/api/roles', handler: listRoles, auth: 'access' },
+  { method: 'POST', path: '/api/roles', handler: createRole, auth: 'access' },
+  { method: 'GET', path: '/api/roles/:id', handler: getRole, auth: 'access' },
+  { method: 'PUT', path: '/api/roles/:id/permissions', handler: updateRolePermissions, auth: 'access' },
+  { method: 'DELETE', path: '/api/roles/:id', handler: deleteRole, auth: 'access' },
+  { method: 'GET', path: '/api/permissions', handler: listPermissions, auth: 'access' },
 
   // Webinar Zoom & Seminar Ticket / Barcode.
   { method: 'GET', path: '/api/webinar-destinations', handler: listWebinars, auth: 'access' },

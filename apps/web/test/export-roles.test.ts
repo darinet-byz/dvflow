@@ -24,8 +24,15 @@ describe('filtered export', () => {
 })
 
 describe('requested role matrix', () => {
-  it('uses the three requested labels and restricts direct page navigation', () => {
-    expect(Object.values(ROLE_LABELS)).toEqual(['Admin Master', 'Admin', 'Team'])
+  it('uses standard labels and restricts direct page navigation', () => {
+    expect(ROLE_LABELS['developer']).toBe('Developer')
+    expect(ROLE_LABELS['owner']).toBe('Owner')
+    expect(ROLE_LABELS['manajer']).toBe('Manajer')
+    expect(ROLE_LABELS['admin']).toBe('Admin')
+    expect(ROLE_LABELS['pimpro']).toBe('Pimpro')
+    expect(ROLE_LABELS['member']).toBe('Member')
+    expect(ROLE_LABELS['master_admin']).toBe('Admin Master')
+    expect(ROLE_LABELS['staff']).toBe('Team')
     for (const path of ['/add-team', '/konfigurasi-produk', '/konfigurasi-tax', '/report-tax']) {
       expect(canAccessPath('master_admin', path)).toBe(true)
       expect(canAccessPath('staff', path)).toBe(false)

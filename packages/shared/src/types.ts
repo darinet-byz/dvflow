@@ -6,9 +6,77 @@
  * docs/02-DATABASE-SCHEMA-AND-DATA-DICTIONARY.md tanpa amendemen (docs/AMENDMENTS.md).
  */
 
-export type AppRole = 'master_admin' | 'admin' | 'staff'
+export type StandardAppRole =
+  | 'developer'
+  | 'owner'
+  | 'manajer'
+  | 'admin'
+  | 'pimpro'
+  | 'member'
+  | 'master_admin'
+  | 'staff'
 
-export const APP_ROLES: readonly AppRole[] = ['master_admin', 'admin', 'staff']
+export type AppRole = StandardAppRole | string
+
+export const APP_ROLES: readonly string[] = [
+  'developer',
+  'owner',
+  'manajer',
+  'admin',
+  'pimpro',
+  'member',
+  'master_admin',
+  'staff',
+]
+
+export function isMasterAdminRole(role: string | null | undefined): boolean {
+  return role === 'master_admin' || role === 'developer' || role === 'owner'
+}
+
+export type AppPermissionKey =
+  | 'operasional.scan_qr'
+  | 'operasional.dashboard'
+  | 'operasional.order'
+  | 'operasional.presensi'
+  | 'operasional.generator'
+  | 'config.produk'
+  | 'config.tax'
+  | 'config.report_tax'
+  | 'config.zoom'
+  | 'config.tiket'
+  | 'config.integrasi'
+  | 'config.roles'
+  | 'team.manage'
+  | 'account.profile'
+  | 'action.export_data'
+  | 'action.manual_checkin'
+  | 'action.delete_master'
+
+export type AppRoleItem = {
+  id: string
+  name: string
+  description?: string | null
+  is_system: boolean
+  user_count?: number
+  permission_count?: number
+  permissions?: string[]
+  created_at?: string
+  updated_at?: string
+}
+
+export type AppPermissionItem = {
+  key: string
+  name: string
+  module: string
+  description?: string | null
+  sort_order: number
+}
+
+export type AppPermissionModuleGroup = {
+  module: string
+  module_name: string
+  permissions: AppPermissionItem[]
+}
 
 /** Nilai app_status. Hanya tiga ini (02-DATABASE-SCHEMA §9). */
 export type AppStatus = 'Pending' | 'Paid' | 'Cancelled'

@@ -36,7 +36,7 @@ export type RouteContext = {
 export type RouteHandler = (context: RouteContext) => Promise<Response>
 
 export type Route = {
-  method: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT'
   /** Mendukung segmen `:nama` untuk path parameter (dipakai webhook & halaman peserta). */
   path: string
   handler: RouteHandler

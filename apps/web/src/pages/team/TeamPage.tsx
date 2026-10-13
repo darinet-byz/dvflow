@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { AppRole } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
 import { ROLE_LABELS } from '../../lib/roles'
+import { fetchConfigLists } from '../../lib/queries'
 import { useAsyncData } from '../../lib/useAsyncData'
 import { useSession } from '../../lib/useSession'
 import { PageHeader } from '../../layout/PageHeader'
@@ -20,12 +21,15 @@ type Member = {
   display_name: string
   role: AppRole
   active: boolean
+  has_all_product_access?: boolean
+  allowed_product_codes?: string[]
 }
 
 const columns = [
   { key: 'username', header: 'Username' },
   { key: 'display_name', header: 'Nama' },
   { key: 'role', header: 'Role' },
+  { key: 'product_access', header: 'Akses Produk' },
   { key: 'active', header: 'Status' },
   { key: 'actions', header: 'Aksi' },
 ]
@@ -35,6 +39,9 @@ export function TeamPage() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<AppRole>('staff')
+  const [hasAllProducts, setHasAllProducts] = useState(true)
+  const [selectedProductCodes, setSelectedProductCodes] = useState<string[]>([])
+
   const [search, setSearch] = useState('')
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
@@ -44,6 +51,8 @@ export function TeamPage() {
   const [editRole, setEditRole] = useState<AppRole>('staff')
   const [editActive, setEditActive] = useState(true)
   const [editPassword, setEditPassword] = useState('')
+  const [editHasAllProducts, setEditHasAllProducts] = useState(true)
+  const [editSelectedProductCodes, setEditSelectedProductCodes] = useState<string[]>([])
 
   const [deleting, setDeleting] = useState<Member | null>(null)
 
@@ -53,9 +62,12 @@ export function TeamPage() {
     [],
   )
 
+  const { data: configLists } = useAsyncData(fetchConfigLists, [])
+  const productOptions = configLists?.products ?? []
+
   const term = search.trim().toLowerCase()
   const rows = (data?.users ?? []).filter((row) =>
-    [row.username, row.display_name, ROLE_LABELS[row.role]].some((value) =>
+    [row.username, row.display_name, ROLE_LABELS[row.role] ?? row.role].some((value) =>
       value.toLowerCase().includes(term),
     ),
   )
@@ -75,21 +87,32 @@ export function TeamPage() {
       setFailure('Username wajib diisi tanpa spasi. Password minimal 8 karakter.')
       return
     }
+    if (!hasAllProducts && selectedProductCodes.length === 0) {
+      setFailure('Pilih minimal satu produk jika akses produk dibatasi.')
+      return
+    }
     setBusy(true)
     setFailure(null)
     try {
+      const body: Record<string, unknown> = {
+        username: username.trim(),
+        display_name: username.trim(),
+        initial_password: password,
+        role,
+      }
+      if (!hasAllProducts) {
+        body.has_all_product_access = false
+        body.product_codes = selectedProductCodes
+      }
       await authorizedRequest('/api/internal/users', {
         method: 'POST',
-        body: {
-          username: username.trim(),
-          display_name: username.trim(),
-          initial_password: password,
-          role,
-        },
+        body,
       })
       setUsername('')
       setPassword('')
       setRole('staff')
+      setHasAllProducts(true)
+      setSelectedProductCodes([])
       reload()
       toast.show('Member berhasil ditambahkan.', 'success')
     } catch (e) {
@@ -105,6 +128,8 @@ export function TeamPage() {
     setEditRole(row.role)
     setEditActive(row.active)
     setEditPassword('')
+    setEditHasAllProducts(row.has_all_product_access !== false)
+    setEditSelectedProductCodes(row.allowed_product_codes ?? [])
   }
 
   async function saveEdit() {
@@ -117,12 +142,18 @@ export function TeamPage() {
       toast.show('Password baru minimal 8 karakter.', 'danger')
       return
     }
+    if (!editHasAllProducts && editSelectedProductCodes.length === 0) {
+      toast.show('Pilih minimal satu produk jika akses produk dibatasi.', 'danger')
+      return
+    }
     setBusy(true)
     try {
       const body: Record<string, unknown> = {
         display_name: editDisplayName.trim(),
         role: editRole,
         active: editActive,
+        has_all_product_access: editHasAllProducts,
+        product_codes: editHasAllProducts ? [] : editSelectedProductCodes,
       }
       if (editPassword !== '') body['new_password'] = editPassword
       await authorizedRequest(`/api/internal/users/${editing.id}`, {
@@ -160,46 +191,100 @@ export function TeamPage() {
     <>
       <PageHeader
         title="Add Team"
-        description="Tambahkan akun, ubah akses, atau hapus member. Hanya Admin Master yang dapat mengakses menu ini."
+        description="Tambahkan akun, ubah akses, atau hapus member. Hanya Master Admin yang dapat mengakses menu ini."
       />
       <Card>
         <form
-          className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+          className="flex flex-col gap-3"
           onSubmit={(e) => {
             e.preventDefault()
             void submit()
           }}
         >
-          <TextInput
-            id="team-username"
-            label="Username"
-            value={username}
-            onChange={setUsername}
-            disabled={busy}
-            autoComplete="off"
-          />
-          <TextInput
-            id="team-password"
-            label="Password awal"
-            type="password"
-            value={password}
-            onChange={setPassword}
-            disabled={busy}
-            autoComplete="new-password"
-            placeholder="Minimal 8 karakter"
-          />
-          <Select
-            id="team-role"
-            label="Role"
-            value={role}
-            onChange={(value) => setRole(value as AppRole)}
-            disabled={busy}
-            options={roleOptions}
-          />
-          <div className="flex items-end">
-            <Button type="submit" variant="primary" loading={busy}>
-              Tambah member
-            </Button>
+          <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <TextInput
+              id="team-username"
+              label="Username"
+              value={username}
+              onChange={setUsername}
+              disabled={busy}
+              autoComplete="off"
+            />
+            <TextInput
+              id="team-password"
+              label="Password awal"
+              type="password"
+              value={password}
+              onChange={setPassword}
+              disabled={busy}
+              autoComplete="new-password"
+              placeholder="Minimal 8 karakter"
+            />
+            <Select
+              id="team-role"
+              label="Role"
+              value={role}
+              onChange={(value) => setRole(value as AppRole)}
+              disabled={busy}
+              options={roleOptions}
+            />
+            <div className="flex items-end">
+              <Button type="submit" variant="primary" loading={busy}>
+                Tambah member
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-line bg-page p-3 flex flex-col gap-2">
+            <span className="text-[12px] font-semibold text-ink">Akses Produk:</span>
+            <div className="flex flex-wrap gap-4 text-[13px]">
+              <label className="flex items-center gap-2 cursor-pointer font-medium text-ink">
+                <input
+                  type="radio"
+                  name="team-create-scope"
+                  checked={hasAllProducts}
+                  onChange={() => setHasAllProducts(true)}
+                  className="text-primary focus:ring-primary"
+                />
+                Semua Produk (All Products)
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer font-medium text-ink">
+                <input
+                  type="radio"
+                  name="team-create-scope"
+                  checked={!hasAllProducts}
+                  onChange={() => setHasAllProducts(false)}
+                  className="text-primary focus:ring-primary"
+                />
+                Produk Tertentu (Specific Products)
+              </label>
+            </div>
+
+            {!hasAllProducts && (
+              <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 max-h-48 overflow-y-auto p-1">
+                {productOptions.length === 0 ? (
+                  <p className="text-[12px] text-ink-muted">Memuat daftar produk...</p>
+                ) : (
+                  productOptions.map((p) => {
+                    const checked = selectedProductCodes.includes(p.value)
+                    return (
+                      <label key={p.value} className="flex items-center gap-2 rounded p-1 hover:bg-soft cursor-pointer text-[12px]">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            if (e.target.checked) setSelectedProductCodes([...selectedProductCodes, p.value])
+                            else setSelectedProductCodes(selectedProductCodes.filter((c) => c !== p.value))
+                          }}
+                          className="h-3.5 w-3.5 rounded border-line text-primary focus:ring-primary"
+                        />
+                        <span className="truncate text-ink">{p.label}</span>
+                      </label>
+                    )
+                  })
+                )}
+              </div>
+            )}
           </div>
         </form>
         {failure ? (
@@ -231,7 +316,8 @@ export function TeamPage() {
                   rows.map((row) => ({
                     username: row.username,
                     display_name: row.display_name,
-                    role: ROLE_LABELS[row.role],
+                    role: ROLE_LABELS[row.role] ?? row.role,
+                    product_access: row.has_all_product_access !== false ? 'Semua Produk' : (row.allowed_product_codes ?? []).join(', '),
                     active: row.active ? 'Aktif' : 'Nonaktif',
                   })),
               }}
@@ -242,7 +328,24 @@ export function TeamPage() {
                   <TableRow key={row.id}>
                     <TableCell>{row.username}</TableCell>
                     <TableCell>{row.display_name}</TableCell>
-                    <TableCell>{ROLE_LABELS[row.role]}</TableCell>
+                    <TableCell>{ROLE_LABELS[row.role] ?? row.role}</TableCell>
+                    <TableCell>
+                      {row.has_all_product_access !== false ? (
+                        <Badge tone="neutral">Semua Produk</Badge>
+                      ) : (
+                        <div className="flex flex-wrap gap-1">
+                          {row.allowed_product_codes && row.allowed_product_codes.length > 0 ? (
+                            row.allowed_product_codes.map((code) => (
+                              <Badge key={code} tone="primary">
+                                {code}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-[12px] text-ink-muted">-</span>
+                          )}
+                        </div>
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Badge tone={row.active ? 'success' : 'danger'}>
                         {row.active ? 'Aktif' : 'Nonaktif'}
@@ -275,6 +378,7 @@ export function TeamPage() {
         </Card>
       </div>
 
+      {/* Modal Edit Member */}
       <Modal
         open={editing !== null}
         title={editing ? `Edit Member: ${editing.username}` : 'Edit Member'}
@@ -330,6 +434,54 @@ export function TeamPage() {
               />
               Akun aktif (dapat login)
             </label>
+
+            <div className="rounded-lg border border-line bg-page p-3 flex flex-col gap-2">
+              <span className="text-[12px] font-semibold text-ink">Akses Produk:</span>
+              <div className="flex flex-wrap gap-4 text-[13px]">
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-ink">
+                  <input
+                    type="radio"
+                    name="team-edit-scope"
+                    checked={editHasAllProducts}
+                    onChange={() => setEditHasAllProducts(true)}
+                    className="text-primary focus:ring-primary"
+                  />
+                  Semua Produk
+                </label>
+                <label className="flex items-center gap-2 cursor-pointer font-medium text-ink">
+                  <input
+                    type="radio"
+                    name="team-edit-scope"
+                    checked={!editHasAllProducts}
+                    onChange={() => setEditHasAllProducts(false)}
+                    className="text-primary focus:ring-primary"
+                  />
+                  Produk Tertentu
+                </label>
+              </div>
+
+              {!editHasAllProducts && (
+                <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 max-h-40 overflow-y-auto p-1">
+                  {productOptions.map((p) => {
+                    const checked = editSelectedProductCodes.includes(p.value)
+                    return (
+                      <label key={p.value} className="flex items-center gap-2 rounded p-1 hover:bg-soft cursor-pointer text-[12px]">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            if (e.target.checked) setEditSelectedProductCodes([...editSelectedProductCodes, p.value])
+                            else setEditSelectedProductCodes(editSelectedProductCodes.filter((c) => c !== p.value))
+                          }}
+                          className="h-3.5 w-3.5 rounded border-line text-primary focus:ring-primary"
+                        />
+                        <span className="truncate text-ink">{p.label}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
           </form>
         )}
       </Modal>

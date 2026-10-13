@@ -12,8 +12,7 @@ import type { RouteContext } from '../router'
 import { generateSessionToken, hashSessionToken } from './session-token'
 import {
   USER_COLUMNS,
-  profileFromRow,
-  profileFromVerified,
+  buildUserProfile,
   requireActiveUser,
   type UserRow,
   type VerifiedUser,
@@ -59,7 +58,7 @@ export async function login(context: RouteContext): Promise<Response> {
 
   return ok(
     {
-      profile: profileFromVerified(verified),
+      profile: await buildUserProfile(context, verified),
       access_token: accessToken,
       expires_in: ACCESS_TOKEN_LIFETIME_SECONDS,
     },
@@ -105,7 +104,7 @@ export async function refresh(context: RouteContext): Promise<Response> {
   ).mint({ userId: user.id, appRole: user.role, now: context.now })
 
   return ok({
-    profile: profileFromRow(user),
+    profile: await buildUserProfile(context, user),
     access_token: accessToken,
     expires_in: ACCESS_TOKEN_LIFETIME_SECONDS,
   })

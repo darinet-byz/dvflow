@@ -21,6 +21,7 @@ import { ReportTaxPage } from './pages/report-tax/ReportTaxPage'
 import { ScanQrPage } from './pages/scanner/ScanQrPage'
 import { OrderPage } from './pages/order/OrderPage'
 import { PresensiPage } from './pages/presensi/PresensiPage'
+import { RoleConfigPage } from './pages/config/RoleConfigPage'
 import { Card } from './ui/Card'
 
 /**
@@ -69,6 +70,7 @@ export function App() {
           <Route path="/konfigurasi-zoom" element={<ZoomPage />} />
           <Route path="/konfigurasi-tiket" element={<TicketConfigPage />} />
           <Route path="/integrasi" element={<RoleGuard path="/integrasi"><IntegrationsPage /></RoleGuard>} />
+          <Route path="/konfigurasi-role" element={<RoleGuard path="/konfigurasi-role"><RoleConfigPage /></RoleGuard>} />
           <Route path="/profil" element={<ProfilePage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
@@ -109,6 +111,6 @@ function NotFound() {
 
 function RoleGuard({ path, children }: { path: string; children: import('react').ReactNode }) {
   const session = useSession()
-  if (!session.profile || !canAccessPath(session.profile.role, path)) return <ErrorState title="Tidak punya akses" message="Menu ini tidak tersedia untuk role Anda." />
+  if (!session.profile || !canAccessPath(session.profile, path)) return <ErrorState title="Tidak punya akses" message="Menu ini tidak tersedia untuk role Anda." />
   return children
 }

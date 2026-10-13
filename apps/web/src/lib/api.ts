@@ -1,3 +1,4 @@
+import type { AppRole } from '@dvflow/shared'
 import { readPublicEnv } from './env'
 
 /**
@@ -44,7 +45,7 @@ export class ApiError extends Error {
 type Envelope<T> = { ok: true; data: T } | { ok: false; error: { code: ApiErrorCode; message: string } }
 
 export type ApiRequestOptions = {
-  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'
+  method?: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT'
   body?: unknown
   /** Access token; dikirim sebagai `Authorization: Bearer`. */
   accessToken?: string | null
@@ -101,8 +102,11 @@ export type Profile = {
   user_id: string
   username: string
   display_name: string
-  role: 'master_admin' | 'admin' | 'staff'
+  role: AppRole
   avatar_emoji: string | null
+  has_all_product_access?: boolean
+  allowed_product_codes?: string[]
+  permissions?: string[]
 }
 
 export type SessionPayload = {

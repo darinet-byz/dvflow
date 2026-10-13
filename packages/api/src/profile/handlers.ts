@@ -5,7 +5,7 @@ import {
   AVATAR_EMOJI_MAX_LENGTH,
   DISPLAY_NAME_MAX_LENGTH,
   USER_COLUMNS,
-  profileFromRow,
+  buildUserProfile,
   requireActiveUser,
   type UserRow,
 } from '../users'
@@ -13,7 +13,7 @@ import {
 /** GET /api/profile (03 §13). */
 export async function getProfile(context: RouteContext): Promise<Response> {
   const user = await requireActiveUser(context)
-  return ok({ profile: profileFromRow(user) })
+  return ok({ profile: await buildUserProfile(context, user) })
 }
 
 /**
@@ -65,5 +65,5 @@ export async function updateProfile(context: RouteContext): Promise<Response> {
   const updated = rows[0]
   if (updated === undefined) throw new ApiFailure('SESSION_INVALID', 'user menghilang saat update')
 
-  return ok({ profile: profileFromRow(updated) })
+  return ok({ profile: await buildUserProfile(context, updated) })
 }

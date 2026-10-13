@@ -35,6 +35,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Konfigurasi Zoom', path: '/konfigurasi-zoom', icon: 'video' },
       { label: 'Konfigurasi Barcode / Tiket', path: '/konfigurasi-tiket', icon: 'qr-code' },
       { label: 'API & Webhook', path: '/integrasi', icon: 'plug' },
+      { label: 'Konfigurasi Role', path: '/konfigurasi-role', icon: 'shield' },
     ],
   },
   {

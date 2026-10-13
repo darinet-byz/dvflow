@@ -36,7 +36,7 @@ describe('A. Authentication', () => {
 
     const body = await readBody<{ ok: true; data: LoginData }>(response)
     expect(body.ok).toBe(true)
-    expect(body.data.profile).toEqual({
+    expect(body.data.profile).toMatchObject({
       user_id: 'user-admin',
       username: 'admin1',
       display_name: 'Admin Satu',

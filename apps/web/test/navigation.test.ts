@@ -24,6 +24,7 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
       'Konfigurasi Zoom',
       'Konfigurasi Barcode / Tiket',
       'API & Webhook',
+      'Konfigurasi Role',
       'Add Team',
       'Profil',
       'Logout',

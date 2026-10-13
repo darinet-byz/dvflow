@@ -136,7 +136,7 @@ export async function changePassword(input: ChangePasswordInput): Promise<{ revo
  */
 export async function authorizedRequest<T>(
   path: string,
-  options: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE'; body?: unknown } = {},
+  options: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT'; body?: unknown } = {},
 ): Promise<T> {
   if (accessToken === null) throw new ApiError('SESSION_INVALID', 'Belum login.', 401)
 

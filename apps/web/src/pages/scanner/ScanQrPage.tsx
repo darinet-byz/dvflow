@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { extractOrderIdFromQrPayload } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
 import { useAsyncData, useDebouncedValue } from '../../lib/useAsyncData'
@@ -54,7 +54,32 @@ export function ScanQrPage() {
   const toast = useToast()
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null)
   const [busy, setBusy] = useState(false)
+  const [scanMode, setScanMode] = useState<'camera' | 'scanner_stick'>('camera')
   const lastQrRef = useRef<{ orderId: string; at: number } | null>(null)
+  const barcodeBufferRef = useRef<string>('')
+  const lastKeyTimeRef = useRef<number>(0)
+
+  function playAudioFeedback(success: boolean) {
+    try {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      if (!AudioCtx) return
+      const ctx = new AudioCtx()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = 'sine'
+      osc.frequency.value = success ? 880 : 330
+      gain.gain.setValueAtTime(0.12, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.15)
+    } catch {
+      // Audio context blocked by browser until user gesture
+    }
+  }
 
   const runCheckin = useCallback(
     async (orderId: string, source: 'qr' | 'manual'): Promise<void> => {
@@ -69,9 +94,11 @@ export function ScanQrPage() {
               })
 
         setOutcome(fromCheckinSuccess(payload))
+        playAudioFeedback(true)
         if (payload.state === 'ALREADY_CHECKED_IN') toast.show('Peserta sudah check-in sebelumnya.', 'info')
       } catch (error) {
         setOutcome(fromCheckinError(error))
+        playAudioFeedback(false)
       } finally {
         setBusy(false)
       }
@@ -84,6 +111,7 @@ export function ScanQrPage() {
       const orderId = extractOrderIdFromQrPayload(rawPayload)
       if (orderId === null) {
         setOutcome(fromUnknownQr(rawPayload))
+        playAudioFeedback(false)
         return
       }
 
@@ -99,48 +127,132 @@ export function ScanQrPage() {
 
   const scanner = useQrScanner(handlePayload)
 
+  // Listener keyboard wedge untuk Scanner Stick (USB / Bluetooth HID)
+  useEffect(() => {
+    if (scanMode !== 'scanner_stick') return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null
+      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+        return
+      }
+
+      const now = Date.now()
+      if (now - lastKeyTimeRef.current > 1000) {
+        barcodeBufferRef.current = ''
+      }
+      lastKeyTimeRef.current = now
+
+      if (e.key === 'Enter') {
+        const payload = barcodeBufferRef.current.trim()
+        barcodeBufferRef.current = ''
+        if (payload.length > 0) {
+          e.preventDefault()
+          handlePayload(payload)
+        }
+      } else if (e.key.length === 1) {
+        barcodeBufferRef.current += e.key
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [scanMode, handlePayload])
+
   return (
     <>
       <PageHeader
         title="Scan Presensi Seminar"
-        description="Arahkan kamera ke kode QR pada tiket peserta."
+        description="Arahkan kamera atau gunakan scanner stick ke kode QR pada tiket peserta."
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
-          <div className="relative overflow-hidden rounded-md bg-ink">
-            <video
-              ref={scanner.videoRef}
-              // `playsInline` wajib: tanpa itu iOS membuka pemutar layar penuh.
-              playsInline
-              muted
-              className={cn('h-[260px] w-full object-cover', scanner.status !== 'scanning' && 'opacity-30')}
-            />
-            {scanner.status === 'scanning' ? null : (
-              <div className="absolute inset-0 grid place-items-center p-4 text-center">
-                <p className="text-[13px] font-semibold text-white">
-                  {scanner.failure === null ? 'Kamera belum aktif.' : scanner.failure.title}
-                </p>
+          <div className="mb-3 flex border-b border-line">
+            <button
+              type="button"
+              onClick={() => setScanMode('camera')}
+              className={cn(
+                'px-4 py-2 text-[13px] font-semibold border-b-2 transition-colors',
+                scanMode === 'camera'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-ink-muted hover:text-ink',
+              )}
+            >
+              📷 Mode Kamera (HP / Webcam)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setScanMode('scanner_stick')
+                if (scanner.status === 'scanning') scanner.stop()
+              }}
+              className={cn(
+                'px-4 py-2 text-[13px] font-semibold border-b-2 transition-colors',
+                scanMode === 'scanner_stick'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-ink-muted hover:text-ink',
+              )}
+            >
+              🔫 Mode Scanner Stick (USB / Bluetooth)
+            </button>
+          </div>
+
+          {scanMode === 'camera' ? (
+            <>
+              <div className="relative overflow-hidden rounded-md bg-ink">
+                <video
+                  ref={scanner.videoRef}
+                  // `playsInline` wajib: tanpa itu iOS membuka pemutar layar penuh.
+                  playsInline
+                  muted
+                  className={cn('h-[260px] w-full object-cover', scanner.status !== 'scanning' && 'opacity-30')}
+                />
+                {scanner.status === 'scanning' ? null : (
+                  <div className="absolute inset-0 grid place-items-center p-4 text-center">
+                    <p className="text-[13px] font-semibold text-white">
+                      {scanner.failure === null ? 'Kamera belum aktif.' : scanner.failure.title}
+                    </p>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <div className="mt-3 flex items-center gap-2">
-            {scanner.status === 'scanning' ? (
-              <Button variant="secondary" onClick={scanner.stop}>
-                Hentikan kamera
-              </Button>
-            ) : (
-              <Button variant="primary" loading={scanner.status === 'starting'} onClick={() => void scanner.start()}>
-                Nyalakan kamera
-              </Button>
-            )}
-            <span className="text-[12px] text-ink-soft">
-              {scanner.status === 'scanning' ? 'Kamera aktif — memindai…' : 'Kamera tidak aktif'}
-            </span>
-          </div>
+              <div className="mt-3 flex items-center gap-2">
+                {scanner.status === 'scanning' ? (
+                  <Button variant="secondary" onClick={scanner.stop}>
+                    Hentikan kamera
+                  </Button>
+                ) : (
+                  <Button variant="primary" loading={scanner.status === 'starting'} onClick={() => void scanner.start()}>
+                    Nyalakan kamera
+                  </Button>
+                )}
+                <span className="text-[12px] text-ink-soft">
+                  {scanner.status === 'scanning' ? 'Kamera aktif — memindai…' : 'Kamera tidak aktif'}
+                </span>
+              </div>
 
-          {scanner.failure === null ? null : <CameraHelp failure={scanner.failure} onRetry={() => void scanner.start()} />}
+              {scanner.failure === null ? null : <CameraHelp failure={scanner.failure} onRetry={() => void scanner.start()} />}
+            </>
+          ) : (
+            <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-success/40 bg-success-soft/30 p-8 text-center min-h-[295px]">
+              <div className="relative mb-3 flex h-16 w-16 items-center justify-center">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success/20 opacity-75" />
+                <span className="relative inline-flex h-12 w-12 items-center justify-center rounded-full bg-success text-white shadow-md">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+                  </svg>
+                </span>
+              </div>
+              <Badge tone="success" className="mb-2">🟢 SCANNER STICK AKTIF</Badge>
+              <p className="text-[14px] font-semibold text-ink">Siap Menerima Tembakan Laser Scanner</p>
+              <p className="mt-1 max-w-xs text-[12px] text-ink-muted">
+                Arahkan laser scanner USB atau dongle Bluetooth ke barcode/QR tiket peserta. Tembakan laser akan diproses seketika (0% CPU, tanpa izin kamera).
+              </p>
+            </div>
+          )}
         </Card>
 
         <div className="flex flex-col gap-4">
