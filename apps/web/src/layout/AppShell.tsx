@@ -40,7 +40,7 @@ export function AppShell() {
             >
               ☰
             </button>
-            <p className="text-[14px] font-bold text-ink">dvflow</p>
+            <p className="text-[14px] font-bold text-ink">DVFLOW</p>
           </header>
 
           <main className="min-w-0 flex-1 p-3 sm:p-4 md:p-6">

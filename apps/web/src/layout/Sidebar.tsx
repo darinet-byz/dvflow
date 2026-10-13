@@ -17,7 +17,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   return (
     <nav aria-label="Menu utama" className="flex h-full w-[230px] min-w-[230px] flex-col gap-4 bg-sidebar p-4">
       <div className="px-1">
-        <p className="text-[15px] font-bold tracking-tight text-ink">dvflow</p>
+        <p className="text-[15px] font-bold tracking-tight text-ink">DVFLOW</p>
         <p className="text-[11px] text-ink-muted">Operasional event</p>
       </div>
 

@@ -6,6 +6,7 @@ import { useSession } from '../lib/useSession'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { TextInput } from '../ui/Field'
+import { LoginMascot } from '../ui/LoginMascot'
 import { DASHBOARD_PATH } from '../layout/navigation'
 
 /**
@@ -47,11 +48,13 @@ export function LoginPage() {
 
   return (
     <div className="grid min-h-screen place-items-center bg-page p-4">
-      <Card className="w-full max-w-sm">
-        <div className="mb-4">
-          <p className="text-[18px] font-bold tracking-tight text-ink">dvflow</p>
-          <p className="text-ink-soft">Masuk untuk mengelola operasional event.</p>
-        </div>
+      <div className="flex w-full max-w-sm flex-col items-center">
+        <LoginMascot />
+        <Card className="w-full">
+          <div className="mb-5 text-center">
+            <h1 className="text-[20px] font-bold tracking-tight text-ink">Selamat Datang di DVFLOW</h1>
+            <p className="mt-1 text-[13px] text-ink-soft">Masuk untuk mengelola operasional event.</p>
+          </div>
 
         <form onSubmit={onSubmit} className="flex flex-col gap-3" noValidate>
           <TextInput
@@ -83,6 +86,7 @@ export function LoginPage() {
           </Button>
         </form>
       </Card>
+      </div>
     </div>
   )
 }
