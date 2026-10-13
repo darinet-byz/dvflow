@@ -20,7 +20,9 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
       'Konfigurasi Produk',
       'Konfigurasi Tax',
       'Report Tax',
+      'Konfigurasi Zoom',
       'Product Name Generator',
+      'Add Team',
       'Profil',
       'Logout',
     ])

@@ -24,7 +24,7 @@ export const SCANNER_SEARCH_LIMIT = 20
 export const TIMESTAMP_DISPLAY_LIMIT = 10
 
 /** Retensi raw attendance (PRD §106). Master Order tidak ikut terhapus. */
-export const ATTENDANCE_RETENTION_DAYS = 30
+export const ATTENDANCE_RETENTION_DAYS = 60
 
 /** Retensi webhook log (01-IMPLEMENTATION-DECISIONS §19). */
 export const WEBHOOK_LOG_RETENTION_DAYS = 7

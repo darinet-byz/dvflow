@@ -28,8 +28,8 @@ const VARIANT_CLASSES: Record<ButtonVariant, string> = {
 }
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {
-  sm: 'h-8 px-3 text-[12px] gap-1.5',
-  md: 'h-10 px-4 text-[13px] gap-2',
+  sm: 'min-h-8 py-1 px-3 text-[12px] gap-1.5',
+  md: 'min-h-10 py-2 px-4 text-[13px] gap-2',
 }
 
 export function Button({
@@ -49,7 +49,7 @@ export function Button({
       type={type}
       disabled={disabled === true || loading}
       className={cn(
-        'inline-flex items-center justify-center rounded-sm font-semibold transition-colors',
+        'inline-flex max-w-full shrink-0 items-center justify-center rounded-sm font-semibold transition-colors',
         'disabled:cursor-not-allowed',
         VARIANT_CLASSES[variant],
         SIZE_CLASSES[size],

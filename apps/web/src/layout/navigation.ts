@@ -1,14 +1,4 @@
-/**
- * Sidebar MVP (CLAUDE.md §5, 05 §K02).
- *
- * Daftar ini SENGAJA dipaku: jumlah, nama, urutan, dan pengelompokannya tidak
- * boleh berubah tanpa perubahan requirement. Yang dilarang ditambahkan ke sini
- * antara lain: User Management, Notification Center, Export, Audit Log, menu
- * report tambahan, dan chart dashboard.
- *
- * Test `navigation.test.ts` membandingkan berkas ini dengan daftar di dokumen,
- * supaya "perbaikan" yang menambah menu tertangkap lebih awal.
- */
+/** Sidebar: original navigation plus user-requested Zoom and Add Team (AMENDMENTS A10). */
 export type NavItem = {
   label: string
   path: string
@@ -41,12 +31,14 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Konfigurasi Produk', path: '/konfigurasi-produk', icon: 'package' },
       { label: 'Konfigurasi Tax', path: '/konfigurasi-tax', icon: 'percent' },
       { label: 'Report Tax', path: '/report-tax', icon: 'file-text' },
+      { label: 'Konfigurasi Zoom', path: '/konfigurasi-zoom', icon: 'video' },
       { label: 'Product Name Generator', path: '/generator', icon: 'wand' },
     ],
   },
   {
     title: 'ACCOUNT',
     items: [
+      { label: 'Add Team', path: '/add-team', icon: 'users' },
       { label: 'Profil', path: '/profil', icon: 'user' },
       { label: 'Logout', path: '/logout', icon: 'log-out' },
     ],

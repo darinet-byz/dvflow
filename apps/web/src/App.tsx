@@ -1,3 +1,6 @@
+import { TeamPage } from './pages/team/TeamPage'
+import { ZoomPage } from './pages/config/ZoomPage'
+import { canAccessPath } from './lib/roles'
 import { useEffect } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AppShell } from './layout/AppShell'
@@ -56,10 +59,12 @@ export function App() {
           <Route path="/scan-qr" element={<ScanQrPage />} />
           <Route path="/order" element={<OrderPage />} />
           <Route path="/presensi" element={<PresensiPage />} />
-          <Route path="/konfigurasi-produk" element={<KonfigurasiProdukPage />} />
-          <Route path="/konfigurasi-tax" element={<KonfigurasiTaxPage />} />
-          <Route path="/report-tax" element={<ReportTaxPage />} />
+          <Route path="/konfigurasi-produk" element={<RoleGuard path="/konfigurasi-produk"><KonfigurasiProdukPage /></RoleGuard>} />
+          <Route path="/konfigurasi-tax" element={<RoleGuard path="/konfigurasi-tax"><KonfigurasiTaxPage /></RoleGuard>} />
+          <Route path="/report-tax" element={<RoleGuard path="/report-tax"><ReportTaxPage /></RoleGuard>} />
           <Route path="/generator" element={<GeneratorPage />} />
+          <Route path="/add-team" element={<RoleGuard path="/add-team"><TeamPage /></RoleGuard>} />
+          <Route path="/konfigurasi-zoom" element={<ZoomPage />} />
           <Route path="/profil" element={<ProfilePage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
@@ -96,4 +101,10 @@ function NotFound() {
       }
     />
   )
+}
+
+function RoleGuard({ path, children }: { path: string; children: import('react').ReactNode }) {
+  const session = useSession()
+  if (!session.profile || !canAccessPath(session.profile.role, path)) return <ErrorState title="Tidak punya akses" message="Menu ini tidak tersedia untuk role Anda." />
+  return children
 }

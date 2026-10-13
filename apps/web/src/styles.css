@@ -85,3 +85,8 @@
     outline-offset: 2px;
   }
 }
+
+@media (max-width: 639px) {
+  .filter-bar > div { width: 100%; }
+  .filter-bar input, .filter-bar select { width: 100%; }
+}

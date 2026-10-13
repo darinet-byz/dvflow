@@ -21,7 +21,7 @@ pages_build_output_dir = "apps/web/dist"
 
 # Nilai NON-secret. Yang rahasia selalu lewat `pages secret put`.
 [vars]
-# Biarkan `false` di produksi: hanya ini yang membuka pembuatan Master Admin baru.
-ALLOW_MASTER_ADMIN_CREATE_MASTER = "false"
+# Add Team: Admin Master boleh membuat seluruh role sesuai revisi pengguna.
+ALLOW_MASTER_ADMIN_CREATE_MASTER = "true"
 # Localhost TIDAK diizinkan di produksi (05 §F08).
 ALLOW_INSECURE_WEBINAR_DESTINATION = "false"

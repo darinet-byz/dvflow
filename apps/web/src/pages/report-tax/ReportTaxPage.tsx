@@ -92,7 +92,7 @@ export function ReportTaxPage() {
         <Card>
           <ErrorState
             title="Tidak punya akses"
-            message={error ?? 'Report Tax hanya untuk admin dan master admin.'}
+            message={error ?? 'Report Tax hanya untuk Admin dan Admin Master.'}
           />
         </Card>
       </>
@@ -161,7 +161,7 @@ export function ReportTaxPage() {
               />
             </div>
 
-            <DataTable columns={COLUMNS}>
+            <DataTable columns={COLUMNS} exportConfig={{ filename: `report-tax-${dimension}`, loadRows: async () => (await supabaseRpc<TaxReport>('tax_report', { p_dimension: dimension, ...toFilterArgs(state.applied) })).rows.map(row => ({ ...row })) }}>
               {(data?.rows ?? []).map((row) => (
                 <TableRow key={row.label}>
                   <TableCell>{row.label}</TableCell>

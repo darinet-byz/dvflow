@@ -15,7 +15,7 @@ tidak meninggalkan data di database lokal.
 |---|---|
 | `01_rls_and_grants.sql` | batas RLS/grant, kolom kredensial, penolakan staff, anon |
 | `02_webhook_upsert.sql` | C01–C14: idempotensi, validasi, `paid_at`, `product_raw` |
-| `03_seminar_checkin.sql` | G/H: idempotensi check-in seminar, penolakan, retensi 30 hari |
+| `03_seminar_checkin.sql` | G/H: idempotensi check-in seminar, penolakan, retensi 60 hari |
 | `04_tax_snapshot.sql` | E01–E10: aritmetika, snapshot, paritas angka dengan TypeScript |
 | `05_read_rpcs.sql` | I/J: KPI, filter, sort, pagination, paritas filter, Report Tax |
 

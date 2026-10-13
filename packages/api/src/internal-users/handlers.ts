@@ -2,6 +2,7 @@ import { APP_ROLES, type AppRole } from '@dvflow/shared'
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
 import type { RouteContext } from '../router'
+import { requireActiveUser, USER_COLUMNS, type UserRow } from '../users'
 import { AVATAR_EMOJI_MAX_LENGTH, DISPLAY_NAME_MAX_LENGTH, USERNAME_MAX_LENGTH } from '../users'
 
 type CreatedUser = {
@@ -16,7 +17,7 @@ type CreatedUser = {
 /**
  * POST /api/internal/users (03 §14).
  *
- * Provisioning admin/staff oleh Master Admin, tanpa menu sidebar. Pembuatan
+ * Provisioning melalui Add Team oleh Admin Master (AMENDMENTS A10). Pembuatan
  * Master Admin baru hanya bila environment mengizinkannya — dan keputusan itu
  * TIDAK diambil di sini saja: RPC `admin_create_user` memeriksa ulang peran
  * actor dan flag yang sama, sehingga melewati handler ini tidak menolong
@@ -28,6 +29,9 @@ export async function createUser(context: RouteContext): Promise<Response> {
   if (context.claims?.app_role !== 'master_admin') {
     throw new ApiFailure('FORBIDDEN', `app_role=${context.claims?.app_role ?? 'tidak ada'}`)
   }
+
+  const actor = await requireActiveUser(context)
+  if (actor.role !== 'master_admin') throw new ApiFailure('FORBIDDEN', 'Admin Master diperlukan')
 
   const body = await readJsonObject(context.request)
   const username = readString(body, 'username')
@@ -71,4 +75,17 @@ export async function createUser(context: RouteContext): Promise<Response> {
   })
 
   return ok({ user: created }, { status: 201 })
+}
+
+/** Add Team lists safe profile columns only, never credentials. */
+export async function listUsers(context: RouteContext): Promise<Response> {
+  const actor = await requireActiveUser(context)
+  if (actor.role !== 'master_admin') throw new ApiFailure('FORBIDDEN', 'Admin Master diperlukan')
+  const users: UserRow[] = []
+  for (let offset = 0; ; offset += 500) {
+    const rows = await context.db.selectRows<UserRow>('users', { order: 'username.asc,id.asc', limit: '500', offset: String(offset) }, USER_COLUMNS)
+    users.push(...rows.map(row => ({ id: row.id, username: row.username, display_name: row.display_name, role: row.role, avatar_emoji: row.avatar_emoji, active: row.active })))
+    if (rows.length < 500) break
+  }
+  return ok({ users })
 }

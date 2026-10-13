@@ -1,3 +1,4 @@
+import { collectPages } from '../../lib/export'
 import { useState } from 'react'
 import { EMPTY_ORDER_FILTERS, activeCommonFilters, type OrderFilters } from '../../lib/filters'
 import { formatCount, formatDateTime, formatMoney, formatText } from '../../lib/format'
@@ -202,6 +203,10 @@ export function OrderPage() {
         ) : (
           <Card padding="none">
             <DataTable
+              exportConfig={{ filename: 'order', loadRows: async () => {
+                const rows = await collectPages(page => fetchOrdersPage(state.applied, { sort: sort.key, direction: sort.direction, page, pageSize: 100 }))
+                return rows.map(row => ({ ...row }))
+              } }}
               columns={COLUMNS}
               sort={{ key: sort.key, direction: sort.direction }}
               onSortChange={toggleSort}

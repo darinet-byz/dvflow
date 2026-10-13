@@ -151,7 +151,7 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
     <Card padding="none">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4">
         <CardHeader title={spec.title} description={spec.description} />
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
           <SearchInput
             id={`config-search-${spec.resource}`}
             value={search}
@@ -176,7 +176,7 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
         </div>
       ) : (
         <>
-          <DataTable columns={spec.columns}>
+          <DataTable columns={[...spec.columns, { key: 'actions', header: 'Aksi' }]} exportConfig={{ filename: spec.resource, loadRows: () => rows, disabled: loading || error !== null }}>
             {rows.map((row) => (
               <TableRow key={String(row['id'])}>
                 {spec.columns.map((column) => (

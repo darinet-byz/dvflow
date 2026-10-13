@@ -17,13 +17,13 @@ export function Card({
   padding?: 'sm' | 'md' | 'none'
 }) {
   const paddingClass = padding === 'none' ? '' : padding === 'sm' ? 'p-3' : 'p-4'
-  return <section className={cn('rounded-lg border border-line bg-card shadow-card', paddingClass, className)}>{children}</section>
+  return <section className={cn('min-w-0 max-w-full rounded-lg border border-line bg-card shadow-card', paddingClass, className)}>{children}</section>
 }
 
 export function CardHeader({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
   return (
-    <header className="mb-3 flex items-start justify-between gap-3">
-      <div>
+    <header className="mb-3 flex min-w-0 flex-wrap items-start justify-between gap-3">
+      <div className="min-w-0 break-words">
         <h2 className="text-[14px] font-semibold text-ink">{title}</h2>
         {description === undefined ? null : <p className="text-ink-soft">{description}</p>}
       </div>
@@ -40,7 +40,7 @@ export function CardHeader({ title, description, action }: { title: string; desc
  */
 export function DetailList({ items }: { items: Array<{ label: string; value: ReactNode }> }) {
   return (
-    <dl className="grid grid-cols-[130px_1fr] gap-x-3 gap-y-1.5 text-[13px]">
+    <dl className="grid grid-cols-1 sm:grid-cols-[130px_1fr] gap-x-3 gap-y-1.5 text-[13px]">
       {items.map((item) => (
         <div key={item.label} className="contents">
           <dt className="text-ink-soft">{item.label}</dt>
@@ -71,14 +71,14 @@ export function KpiCard({
   return (
     <div
       className={cn(
-        'rounded-md border p-3',
+        'min-w-0 rounded-md border p-3',
         highlight ? 'border-primary/20 bg-primary-soft' : 'border-line bg-card',
       )}
     >
       <p className={cn('text-[11px] font-semibold uppercase tracking-wide', highlight ? 'text-primary' : 'text-ink-soft')}>
         {label}
       </p>
-      <p className="mt-1 text-[20px] font-bold text-ink">{value}</p>
+      <p className="mt-1 break-words text-[20px] font-bold text-ink">{value}</p>
       {hint === undefined ? null : <p className="text-[11px] text-ink-soft">{hint}</p>}
     </div>
   )

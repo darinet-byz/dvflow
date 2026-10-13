@@ -140,15 +140,15 @@ select is((select count(*) from public.attendance_events where order_id = '20000
   'presensi webinar tidak unik — setiap klik dicatat');
 
 -- ---------------------------------------------------------------------------
--- Retensi 30 hari hanya menghapus attendance; Master Order tetap ada (I07, I08).
+-- Retensi 60 hari hanya menghapus attendance; Master Order tetap ada (I07, I08).
 -- ---------------------------------------------------------------------------
-update public.attendance_events set clicked_at = now() - interval '31 days'
+update public.attendance_events set clicked_at = now() - interval '61 days'
  where order_id = '200002';
 
-delete from public.attendance_events where clicked_at < now() - interval '30 days';
+delete from public.attendance_events where clicked_at < now() - interval '60 days';
 
 select is((select count(*) from public.attendance_events where order_id = '200002'), 0::bigint,
-  'I07 attendance lebih dari 30 hari terhapus');
+  'I07 attendance lebih dari 60 hari terhapus');
 select is((select count(*) from public.orders where order_id = '200002'), 1::bigint,
   'I08 Master Order tetap ada setelah attendance dihapus');
 
@@ -178,8 +178,8 @@ select ok(
   'kedua job retensi terjadwal di pg_cron');
 
 select ok(
-  (select command like '%interval ''30 days''%' from cron.job where jobname = 'dvflow_attendance_retention'),
-  'job attendance memakai retensi 30 hari');
+  (select command like '%interval ''60 days''%' from cron.job where jobname = 'dvflow_attendance_retention'),
+  'job attendance memakai retensi 60 hari');
 
 select ok(
   (select command like '%interval ''7 days''%' from cron.job where jobname = 'dvflow_webhook_logs_retention'),

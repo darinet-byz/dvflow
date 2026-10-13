@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router-dom'
 import { cn } from '../ui/cn'
 import { useSession } from '../lib/useSession'
+import { ROLE_LABELS, canAccessPath } from '../lib/roles'
 import { NAV_SECTIONS } from './navigation'
 
 /**
@@ -27,7 +28,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
             <ul className="flex flex-col gap-1">
               {section.items.map((item) => (
                 <li key={item.path}>
-                  <NavLink
+                  {session.profile && !canAccessPath(session.profile.role, item.path) ? <span aria-disabled="true" className="flex min-h-11 items-center rounded-[11px] px-3 text-[13px] text-ink-muted" title="Tidak tersedia untuk role Anda">{item.label}</span> : <NavLink
                     to={item.path}
                     onClick={onNavigate}
                     end={item.path === '/'}
@@ -42,7 +43,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                     }
                   >
                     {item.label}
-                  </NavLink>
+                  </NavLink>}
                 </li>
               ))}
             </ul>
@@ -57,16 +58,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </span>
           <div className="min-w-0">
             <p className="truncate text-[12px] font-semibold text-ink">{session.profile.display_name}</p>
-            <p className="truncate text-[11px] text-ink-muted">{roleLabel(session.profile.role)}</p>
+            <p className="truncate text-[11px] text-ink-muted">{ROLE_LABELS[session.profile.role]}</p>
           </div>
         </div>
       )}
     </nav>
   )
-}
-
-function roleLabel(role: 'master_admin' | 'admin' | 'staff'): string {
-  if (role === 'master_admin') return 'Master Admin'
-  if (role === 'admin') return 'Admin'
-  return 'Staff'
 }

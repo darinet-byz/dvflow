@@ -14,7 +14,7 @@ export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
-    <div className="min-h-screen bg-page p-4 md:p-8">
+    <div className="min-h-screen bg-page p-2 sm:p-4 md:p-8">
       <div className="mx-auto flex min-h-[calc(100vh-32px)] w-full max-w-[1440px] overflow-hidden rounded-xl bg-app shadow-app md:min-h-[calc(100vh-64px)]">
         {/* Sidebar tetap untuk md ke atas. */}
         <div className="hidden md:flex">
@@ -43,7 +43,7 @@ export function AppShell() {
             <p className="text-[14px] font-bold text-ink">dvflow</p>
           </header>
 
-          <main className="min-w-0 flex-1 p-4 md:p-6">
+          <main className="min-w-0 flex-1 p-3 sm:p-4 md:p-6">
             <Outlet />
           </main>
         </div>

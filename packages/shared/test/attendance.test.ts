@@ -65,7 +65,7 @@ describe('rolling timestamp (PRD §105)', () => {
     expect(selectLatestTimestamps([])).toEqual([])
   })
 
-  it('I07 retensi raw attendance ditetapkan 30 hari', () => {
-    expect(ATTENDANCE_RETENTION_DAYS).toBe(30)
+  it('I07 retensi raw attendance ditetapkan 60 hari', () => {
+    expect(ATTENDANCE_RETENTION_DAYS).toBe(60)
   })
 })

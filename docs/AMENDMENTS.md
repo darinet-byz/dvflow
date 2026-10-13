@@ -386,3 +386,15 @@ termasuk idempotensi dan snapshot tax. Yang masih kurang adalah butir 1–3 di `
 bentuk payload pada transisi status lain, payment method kedua, dan granularitas identifier
 untuk fee per bank. Karena itu integrasi webhook **tetap tidak boleh** disebut production-ready
 (`06 §13`).
+
+
+## A10 ? Revisi operasional pengguna, 13 Oktober 2026
+
+Permintaan pengguna menggantikan pembatasan MVP terkait export, sidebar, provisioning, dan retensi:
+
+- Semua tabel memiliki export CSV UTF-8 sesuai filter/pencarian dan sort aktif, mencakup seluruh halaman hasil. Export hanya kolom operasional yang ditampilkan; kredensial tidak pernah diekspor.
+- Konfigurasi Zoom memetakan nama produk webinar persis ke URL HTTPS Zoom di app_settings. Link followup adalah /access/{{order_id}}; tetap menggunakan pemeriksaan Paid, parsing produk, dan pencatatan presensi yang sudah ada. Endpoint GET/POST /api/webinar-destinations hanya untuk pengguna aktif. Team boleh memakai menu ini sesuai daftar pembatasan pengguna.
+- Add Team hanya untuk Admin Master: daftar profil aman (GET /api/internal/users), tambah username/password/role lewat endpoint provisioning yang sudah ada. Display name awal memakai username. Admin Master dapat membuat ketiga role; ALLOW_MASTER_ADMIN_CREATE_MASTER=true di produksi.
+- Label role: master_admin = Admin Master, admin = Admin, staff = Team. Identifier database/JWT tetap agar akun dan sesi lama kompatibel. Admin tidak dapat Add Team; Team tidak dapat Add Team, Konfigurasi Produk, Konfigurasi Tax, Report Tax. Route guard dan menu disabled melengkapi backend/RLS. Pembacaan kode untuk filter/generator tetap tersedia.
+- Retensi attendance_events menjadi 60 hari melalui migrasi 0021; master order dan retensi webhook_logs 7 hari tetap. Data yang sudah terhapus sebelumnya tidak dipulihkan.
+- Mobile: kontrol dapat membungkus, field mengikuti kontainer, modal dapat digulir, tabel tetap menggulir di dalam kontainernya. Warna, tipografi, dan alur selain revisi ini tetap.

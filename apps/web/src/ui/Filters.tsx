@@ -27,7 +27,7 @@ export function FilterBar({
   actions?: ReactNode
 }) {
   return (
-    <div className="flex flex-wrap items-center gap-2.5 rounded-lg border border-line bg-card p-3.5">
+    <div className="filter-bar flex min-w-0 flex-wrap items-center gap-2.5 rounded-lg border border-line bg-card p-3.5">
       {search}
       {filters}
       {actions}
@@ -51,13 +51,13 @@ export function FilterBar({
 
 export function FilterChip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex h-[30px] items-center gap-1.5 rounded-full bg-primary-soft px-2.5 text-[11px] font-semibold text-primary">
+    <span className="inline-flex min-h-[30px] max-w-full [overflow-wrap:anywhere] items-center gap-1.5 rounded-full bg-primary-soft px-2.5 text-[11px] font-semibold text-primary">
       {label}
       <button
         type="button"
         onClick={onRemove}
         aria-label={`Hapus filter ${label}`}
-        className={cn('grid h-4 w-4 place-items-center rounded-full text-primary/70 hover:bg-primary/10 hover:text-primary')}
+        className={cn('grid h-4 w-4 shrink-0 place-items-center rounded-full text-primary/70 hover:bg-primary/10 hover:text-primary')}
       >
         ×
       </button>

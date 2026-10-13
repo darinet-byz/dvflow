@@ -17,7 +17,12 @@ import { getAccessToken } from './session'
 export type Query = Record<string, string>
 
 export async function supabaseSelect<T>(table: string, query: Query, columns: string): Promise<T[]> {
-  return restRequest<T[]>(`/${table}?${buildQuery({ ...query, select: columns })}`, 'GET')
+  const rows: T[] = []
+  for (let offset = 0; ; offset += 500) {
+    const page = await restRequest<T[]>(`/${table}?${buildQuery({ ...query, order: query['order'] ?? 'id.asc', limit: '500', offset: String(offset), select: columns })}`, 'GET')
+    rows.push(...page)
+    if (page.length < 500) return rows
+  }
 }
 
 export async function supabaseRpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
@@ -67,7 +72,7 @@ const SQLSTATE_TO_CODE: Record<string, ApiErrorCode> = {
 const LOCAL_MESSAGES: Partial<Record<ApiErrorCode, string>> = {
   SESSION_INVALID: 'Sesi berakhir. Silakan login kembali.',
   FORBIDDEN: 'Anda tidak memiliki akses ke data ini.',
-  FORBIDDEN_REPORT_TAX: 'Report Tax hanya untuk admin dan master admin.',
+  FORBIDDEN_REPORT_TAX: 'Report Tax hanya untuk Admin dan Admin Master.',
   INVALID_ARGUMENT: 'Permintaan data tidak valid.',
   NOT_FOUND: 'Data tidak ditemukan.',
   INTERNAL_ERROR: 'Data tidak dapat dimuat.',

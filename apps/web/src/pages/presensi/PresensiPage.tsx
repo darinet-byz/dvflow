@@ -1,3 +1,4 @@
+import { collectPages } from '../../lib/export'
 import { useState } from 'react'
 import { TIMESTAMP_DISPLAY_LIMIT } from '@dvflow/shared'
 import { EMPTY_PRESENSI_FILTERS, activeCommonFilters, toCommonFilters, type PresensiFilters } from '../../lib/filters'
@@ -201,7 +202,11 @@ export function PresensiPage() {
           </Card>
         ) : (
           <Card padding="none">
-            <DataTable columns={COLUMNS} sort={{ key: sort.key, direction: sort.direction }} onSortChange={toggleSort}>
+            <DataTable
+              exportConfig={{ filename: 'presensi', columns: [...COLUMNS, { key: 'attendance_status', header: 'Status presensi' }, { key: 'app_status', header: 'Status order' }], loadRows: async () => {
+                const rows = await collectPages(page => fetchPresensiPage(state.applied, { sort: sort.key, direction: sort.direction, page, pageSize: 100 }))
+                return rows.map(row => ({ ...row, ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`t${i + 1}`, row.timestamps?.[i] ?? ''])) }))
+              } }} columns={COLUMNS} sort={{ key: sort.key, direction: sort.direction }} onSortChange={toggleSort}>
               {(table.data?.rows ?? []).map((row) => (
                 <TableRow key={row.order_id}>
                   <TableCell mono>

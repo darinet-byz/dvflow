@@ -47,7 +47,7 @@ export function TextInput({
   className,
 }: TextInputProps) {
   return (
-    <div>
+    <div className="min-w-0 max-w-full">
       {label === undefined ? null : <FieldLabel htmlFor={id}>{label}</FieldLabel>}
       <input
         id={id}
@@ -62,7 +62,7 @@ export function TextInput({
         aria-describedby={error === null ? undefined : `${id}-error`}
         onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
         className={cn(
-          'h-9 w-full rounded-sm border bg-card px-3 text-[13px] text-ink placeholder:text-ink-muted',
+          'h-9 min-w-0 max-w-full w-full rounded-sm border bg-card px-3 text-[13px] text-ink placeholder:text-ink-muted',
           'focus:border-primary focus:outline-none disabled:bg-soft disabled:text-ink-muted',
           error === null ? 'border-line' : 'border-danger',
           className,
@@ -98,7 +98,7 @@ export function SearchInput({
   disabled?: boolean
 }) {
   return (
-    <div className="relative">
+    <div className="relative min-w-0 max-w-full">
       <input
         id={id}
         type="search"
@@ -149,7 +149,7 @@ export function Select({
   className,
 }: SelectProps) {
   return (
-    <div>
+    <div className="min-w-0 max-w-full">
       {label === undefined ? null : <FieldLabel htmlFor={id}>{label}</FieldLabel>}
       <select
         id={id}
@@ -158,7 +158,7 @@ export function Select({
         aria-label={ariaLabel}
         onChange={(event: ChangeEvent<HTMLSelectElement>) => onChange(event.target.value)}
         className={cn(
-          'h-9 w-full rounded-sm border border-line bg-card px-2 text-[13px] text-ink',
+          'h-9 min-w-0 max-w-full w-full rounded-sm border border-line bg-card px-2 text-[13px] text-ink',
           'focus:border-primary focus:outline-none disabled:bg-soft disabled:text-ink-muted',
           className,
         )}

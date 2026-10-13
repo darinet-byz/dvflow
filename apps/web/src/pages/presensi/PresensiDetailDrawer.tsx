@@ -65,7 +65,7 @@ export function PresensiDetailDrawer({ row, onClose }: { row: PresensiRow | null
             ) : (
               <ol className="flex flex-col gap-1 text-[13px]">
                 {timestamps.map((timestamp, index) => (
-                  <li key={`${timestamp}-${index}`} className="flex items-center justify-between gap-3">
+                  <li key={`${timestamp}-${index}`} className="flex flex-wrap items-center justify-between gap-3">
                     <span className="text-ink-soft">T{index + 1}</span>
                     <span className="font-mono">{formatTime(timestamp)}</span>
                     <span className="text-[11px] text-ink-muted">{formatDateTime(timestamp)}</span>
@@ -73,9 +73,9 @@ export function PresensiDetailDrawer({ row, onClose }: { row: PresensiRow | null
                 ))}
               </ol>
             )}
-            {/* Retensi 30 hari: yang lebih tua sudah dihapus cron (PRD §106). */}
+            {/* Retensi 60 hari: yang lebih tua sudah dihapus cron (PRD §106). */}
             <p className="mt-2 text-[11px] text-ink-muted">
-              Total {row.total_activity} aktivitas. Timestamp lebih tua dari 30 hari dihapus otomatis.
+              Total {row.total_activity} aktivitas. Timestamp lebih tua dari 60 hari dihapus otomatis.
             </p>
           </section>
         </div>

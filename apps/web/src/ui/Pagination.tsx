@@ -32,8 +32,8 @@ export function Pagination({
         <strong className="text-ink">{range.to}</strong> dari <strong className="text-ink">{total}</strong> baris
       </p>
 
-      <div className="flex items-center gap-3">
-        <label className="flex items-center gap-1.5">
+      <div className="flex max-w-full flex-wrap items-center gap-3">
+        <label className="flex max-w-full flex-wrap items-center gap-1.5">
           Baris
           <select
             value={pageSize}

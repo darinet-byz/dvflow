@@ -187,6 +187,15 @@ export function createFakeDb(state: FakeState): Db {
         } as T
       }
 
+      if (name === 'save_webinar_destination') {
+        const key = 'webinar_destination::' + String(args['p_product_raw'])
+        const row = { key, value_text: args['p_destination'], updated_by: args['p_actor'] }
+        const existing = state.appSettings.find(item => item['key'] === key)
+        if (existing) Object.assign(existing, row)
+        else state.appSettings.push(row)
+        return undefined as T
+      }
+
       if (name === 'upsert_order_webhook') {
         const payload = args['p_payload']
         if (!isFakeObject(payload)) throw new DbError('DF014', 'fake: payload bukan objek')
@@ -342,7 +351,9 @@ export function createFakeDb(state: FakeState): Db {
     async selectRows<T>(table: string, query: Record<string, string>, columns: string): Promise<T[]> {
       const rows = rowsOf(state, table)
       const matched = rows.filter((row) => matchesQuery(row, query))
-      return matched.map((row) => project(row, columns) as T)
+      const offset = Number(query['offset'] ?? 0)
+      const end = query['limit'] === undefined ? undefined : offset + Number(query['limit'])
+      return matched.slice(offset, end).map((row) => project(row, columns) as T)
     },
 
     async insertRow<T>(table: string, row: Record<string, unknown>, columns = '*'): Promise<T> {
@@ -483,6 +494,8 @@ function normalizeFakeIdentifier(value: string): string {
  */
 function matchesQuery(row: Record<string, unknown>, query: Record<string, string>): boolean {
   return Object.entries(query).every(([key, expression]) => {
+    if (['order', 'offset', 'limit'].includes(key)) return true
+    if (expression.startsWith('like.')) return String(row[key] ?? '').startsWith(expression.slice(5).replace(/\*$/, ''))
     if (key === 'or') return matchesOrExpression(row, expression)
 
     const value = row[key]

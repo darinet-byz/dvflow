@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { ExportButton, type ExportConfig } from './ExportButton'
 import { cn } from './cn'
 
 /**
@@ -34,7 +35,9 @@ export function DataTable({
   className,
   sort,
   onSortChange,
+  exportConfig,
 }: {
+  exportConfig?: ExportConfig
   columns: readonly TableColumn[]
   /** Baris tabel; dipisah supaya pemanggil yang memutuskan isinya. */
   children: ReactNode
@@ -44,7 +47,9 @@ export function DataTable({
   onSortChange?: (key: string) => void
 }) {
   return (
-    <div className={cn('overflow-x-auto rounded-md border border-line bg-card', className)}>
+    <div className="min-w-0 max-w-full">
+      {exportConfig ? <ExportButton config={exportConfig} columns={columns.filter(c => c.key !== 'actions')} /> : null}
+    <div className={cn('max-w-full overflow-x-auto rounded-md border border-line bg-card', className)}>
       <table className="w-full border-collapse text-[13px]">
         <thead className={cn('bg-soft text-left', stickyHeader && 'sticky top-0 z-10')}>
           <tr>
@@ -84,6 +89,7 @@ export function DataTable({
         </thead>
         <tbody>{children}</tbody>
       </table>
+    </div>
     </div>
   )
 }

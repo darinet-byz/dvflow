@@ -1,7 +1,8 @@
 import type { Route } from './router'
 import { changePassword, login, logout, refresh } from './auth/handlers'
 import { createConfig, deactivateConfig, updateConfig } from './config/handlers'
-import { createUser } from './internal-users/handlers'
+import { listWebinars, saveWebinar } from './webinar/handlers'
+import { createUser, listUsers } from './internal-users/handlers'
 import { accessOrder, checkinByQr, checkinInfoPage } from './participant/handlers'
 import { getProfile, updateProfile } from './profile/handlers'
 import { scannerManualCheckin, scannerSearch } from './scanner/handlers'
@@ -46,6 +47,10 @@ export const ROUTES: Route[] = [
   { method: 'GET', path: '/api/profile', handler: getProfile, auth: 'access' },
   { method: 'PATCH', path: '/api/profile', handler: updateProfile, auth: 'access' },
   { method: 'POST', path: '/api/internal/users', handler: createUser, auth: 'access' },
+
+  { method: 'GET', path: '/api/internal/users', handler: listUsers, auth: 'access' },
+  { method: 'GET', path: '/api/webinar-destinations', handler: listWebinars, auth: 'access' },
+  { method: 'POST', path: '/api/webinar-destinations', handler: saveWebinar, auth: 'access' },
 
   // Peserta (publik: Order ID adalah identitas akses — 04 §12).
   { method: 'GET', path: '/access/:orderId', handler: accessOrder, auth: 'none' },
