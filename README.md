@@ -107,6 +107,22 @@ npm run deploy
 SMOKE_BASE_URL=https://<domain> npm run smoke:local
 ```
 
+### Deploy otomatis dari GitHub
+
+Workflow `.github/workflows/deploy.yml` berjalan setiap push ke `main` dan dapat
+dijalankan manual melalui tab Actions. Setelah `npm ci`, typecheck, lint, test,
+dan build berhasil, workflow mengunggah frontend serta Pages Functions ke project
+Cloudflare Pages `dvflow` (`https://dvflow.pages.dev`). Pemeriksaan yang gagal
+menghentikan deployment. Migrasi database tetap dijalankan terpisah sesuai runbook.
+
+Konfigurasi repository GitHub (Settings > Secrets and variables > Actions):
+
+- Secrets: `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_API_TOKEN` (izin Pages Edit).
+- Variables: `VITE_SUPABASE_URL`, `VITE_SUPABASE_PUBLISHABLE_KEY` (nilai publik frontend).
+
+Secret backend tetap disimpan di Cloudflare Pages. Berkas `.env.setup.local`
+tidak diperlukan oleh workflow dan tidak diunggah ke GitHub.
+
 ### Isian setup (GitHub, Supabase, Cloudflare)
 
 ```bash
