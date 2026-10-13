@@ -159,6 +159,17 @@ jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to the local API URL (http://127.0.0.1:<port>/auth/v1).
 # jwt_issuer = ""
 # Path to JWT signing key. DO NOT commit your signing keys file to git.
+#
+# SENGAJA MASIH DINONAKTIFKAN. Sudah dicoba: menunjuk berkas JWK ES256 buatan
+# kita sendiri membuat container `supabase_auth` menjadi UNHEALTHY di CLI 2.90,
+# sehingga seluruh stack gagal start. Format JWK yang diterima versi ini belum
+# diketahui, jadi jangan diaktifkan tanpa diuji lebih dulu.
+#
+# Akibatnya, pembacaan data lewat browser (K41) belum dapat dijalankan di
+# Supabase LOKAL: PostgREST menolak access JWT kita dengan
+# `PGRST301: No suitable key was found to decode the JWT`. Di project Supabase
+# sungguhan langkah ini didukung lewat Dashboard (import public key sebagai
+# signing key ES256), dan itulah jalur yang dipakai (STATE.md §6 langkah 2).
 # signing_keys_path = "./signing_keys.json"
 # If disabled, the refresh token will never expire.
 enable_refresh_token_rotation = true

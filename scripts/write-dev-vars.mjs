@@ -16,7 +16,7 @@
  */
 
 import { execFileSync } from 'node:child_process'
-import { generateKeyPairSync } from 'node:crypto'
+import { generateKeyPairSync, randomBytes } from 'node:crypto'
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -35,18 +35,20 @@ function supabaseEnv() {
   }
 }
 
+// Kunci ES256 untuk access JWT — sama bentuknya dengan yang dipakai produksi.
+const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
+const privatePem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
+const keyId = `local-dev-key-${randomBytes(3).toString('hex')}`
+
 const supabase = supabaseEnv()
 const apiUrl = supabase['API_URL']
 const secretKey = supabase['SECRET_KEY']
 
 if (apiUrl === undefined || secretKey === undefined) {
   console.error('API_URL / SECRET_KEY tidak ada di keluaran `supabase status -o env`.')
+  console.error('Jalankan `npm run db:start` lalu ulangi.')
   process.exit(1)
 }
-
-// Kunci ES256 untuk access JWT — sama bentuknya dengan yang dipakai produksi.
-const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' })
-const privatePem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString()
 
 const webhookSecret = `secret-lokal-webhook-${Math.random().toString(36).slice(2, 10)}`
 
@@ -64,11 +66,16 @@ const vars = [
   '# Berisi secret; sudah tercantum di .gitignore.',
   `SUPABASE_URL=${JSON.stringify(apiUrl)}`,
   `SUPABASE_SECRET_KEY=${JSON.stringify(secretKey)}`,
-  'APP_JWT_KEY_ID="local-dev-key"',
+  `APP_JWT_KEY_ID=${JSON.stringify(keyId)}`,
   `APP_JWT_PRIVATE_KEY=${JSON.stringify(privatePem)}`,
   `ORDERONLINE_WEBHOOK_SECRET=${JSON.stringify(webhookSecret)}`,
+  // Dev server Vite berjalan di origin berbeda, dan backend memeriksa
+  // same-origin (K19). Tanpa origin ini, refresh session dari `npm run dev:web`
+  // akan ditolak 403 dan halaman terus meminta login.
+  'APP_ALLOWED_ORIGINS="http://localhost:5173,http://127.0.0.1:5173"',
   'ALLOW_MASTER_ADMIN_CREATE_MASTER="false"',
-  'ALLOW_INSECURE_WEBINAR_DESTINATION="false"',
+  // Dinaikkan HANYA di lokal supaya tujuan webinar boleh `http://localhost`.
+  'ALLOW_INSECURE_WEBINAR_DESTINATION="true"',
   '',
 ].join('\n')
 
@@ -79,4 +86,5 @@ writeFileSync(target, vars, 'utf8')
 console.log(`.dev.vars dibuat di ${target}`)
 console.log(`SUPABASE_URL = ${apiUrl}`)
 console.log('APP_JWT_PRIVATE_KEY = (kunci baru, hanya lokal)')
-console.log('\nJalankan backend lokal dengan: npm run dev:backend')
+console.log('')
+console.log('Lalu jalankan backend lokal: npm run dev:backend')

@@ -87,3 +87,18 @@ verify-ticket-qr.mjs   artefak: bundel hasil build dijalankan dengan DOM tiruan,
 Test render (jsdom) memeriksa kontrak yang berbentuk tampilan: urutan kolom Master Order,
 T1–T10, tidak adanya kontrol signup, hasil generator persis kontrak, dan penolakan Report Tax
 untuk staff.
+
+## Catatan penting untuk pengembangan lokal
+
+**Pembacaan data lewat browser belum bisa dijalankan terhadap Supabase lokal.** PostgREST
+menolak access JWT yang ditandatangani Worker dengan
+`PGRST301: No suitable key was found to decode the JWT`, karena Supabase lokal belum
+mempercayai kunci kita (STATE.md K63).
+
+Yang **masih** berjalan terhadap Supabase lokal: seluruh halaman auth (login/logout/sesi),
+halaman peserta (`/access`, `/checkin`), webhook, dan scanner.
+
+Untuk mengerjakan halaman data (Dashboard, Order, Presensi, Report Tax, konfigurasi), arahkan
+`.env` ke **project Supabase dev sungguhan** yang sudah dipasangi signing key ES256
+(STATE.md §6 langkah 2). Jangan mengaktifkan `signing_keys_path` di `supabase/config.toml`
+tanpa menguji lebih dulu: percobaan itu membuat container `supabase_auth` tidak sehat.
