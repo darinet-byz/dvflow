@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // `WebWorker`, bukan `DOM`: paket ini berjalan di Worker / Pages Functions,
+    // jadi Request/Response/fetch/crypto harus bertipe, sedangkan `document`
+    // dan `window` memang tidak ada — memakai `DOM` akan membuat kode yang
+    // mustahil jalan tetap lolos typecheck.
+    "lib": ["ES2022", "WebWorker"]
+  },
+  "include": ["src", "test"]
+}

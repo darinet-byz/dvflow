@@ -1,0 +1,11 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    // Aplikasi web berjalan di browser: `DOM` memang tersedia di sini
+    // (berbeda dari packages/api yang memakai `WebWorker`).
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "types": ["vite/client"]
+  },
+  "include": ["src", "test", "vite.config.ts", "vite.ticket.config.ts", "vitest.config.ts"]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@dvflow/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Handler HTTP murni dvflow (Request -> Response). Nol dependensi runtime.",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dvflow/shared": "0.0.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

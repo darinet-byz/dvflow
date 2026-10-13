@@ -1,0 +1,16 @@
+{
+  "name": "@dvflow/worker",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Entry Cloudflare Worker dvflow (dipakai saat domain sendiri sudah aktif).",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@dvflow/api": "0.0.0"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3"
+  }
+}

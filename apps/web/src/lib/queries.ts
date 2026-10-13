@@ -1,0 +1,225 @@
+import { supabaseRpc, supabaseSelect } from './supabase-rest'
+import type { CommonFilters, OrderFilters, PageSize, PresensiFilters } from './filters'
+import { toFilterArgs, toOrderArgs, toPresensiArgs } from './filters'
+
+/**
+ * Akses data halaman baca.
+ *
+ * Semuanya lewat RPC yang sudah ada di database (SECURITY INVOKER, jadi RLS
+ * tetap berlaku) — bukan query PostgREST yang disusun di browser. Alasannya ada
+ * di header `0020_orders_page.sql`: satu definisi filter, whitelist sort
+ * ditegakkan server, dan ringkasan dihitung dari himpunan yang sama.
+ */
+
+export type DashboardSummary = {
+  leads: number
+  paid: number
+  pending: number
+  cancelled: number
+  conversion_rate: number | null
+  gross_amount: number
+  tax_amount: number
+  net_amount: number
+  sudah_hadir: number
+  belum_hadir: number
+  attendance_rate: number | null
+}
+
+export type AppStatus = 'Pending' | 'Paid' | 'Cancelled'
+export type EventTypeName = 'Seminar Offline' | 'Webinar Online'
+export type AttendanceStatus = 'Hadir' | 'Belum Hadir' | 'Pending' | 'Cancelled'
+
+/** Satu baris Master Order (PRD §45 + data snapshot untuk drawer). */
+export type OrderRow = {
+  id: string
+  order_id: string
+  name: string | null
+  phone: string | null
+  email: string | null
+  product_raw: string | null
+  product_parse_status: 'valid' | 'invalid'
+  product_code: string | null
+  product_name: string | null
+  advertiser_code: string | null
+  advertiser_name: string | null
+  event_type: EventTypeName | null
+  batch: string | null
+  session: string | null
+  city: string | null
+  raw_status: string | null
+  app_status: AppStatus
+  payment_method: string | null
+  payment_provider: string | null
+  payment_identifier: string | null
+  gross_amount: number
+  tax_amount: number
+  net_amount: number
+  tax_mapping_status: 'mapped' | 'unmapped'
+  fee_rule_name_snapshot: string | null
+  fee_type_snapshot: 'flat' | 'percentage' | null
+  fee_value_snapshot: number | null
+  source_created_at: string | null
+  source_updated_at: string | null
+  created_at: string
+  paid_at: string | null
+  updated_at: string
+}
+
+export type OrdersPage = {
+  rows: OrderRow[]
+  total: number
+  summary: { total: number; paid: number; pending: number }
+}
+
+export type OrderSortKey =
+  | 'order_id'
+  | 'name'
+  | 'app_status'
+  | 'gross_amount'
+  | 'tax_amount'
+  | 'net_amount'
+  | 'created_at'
+  | 'paid_at'
+  | 'updated_at'
+
+/** Baris presensi (PRD §103). `timestamps` sudah 10 terbaru dari database. */
+export type PresensiRow = {
+  order_id: string
+  name: string | null
+  phone: string | null
+  product_code: string | null
+  product_name: string | null
+  advertiser_code: string | null
+  advertiser_name: string | null
+  event_type: EventTypeName | null
+  batch: string | null
+  session: string | null
+  city: string | null
+  product_parse_status: 'valid' | 'invalid'
+  app_status: AppStatus
+  attendance_status: AttendanceStatus
+  total_activity: number
+  latest_activity: string | null
+  timestamps: string[] | null
+  created_at: string
+  paid_at: string | null
+  updated_at: string
+}
+
+export type PresensiPage = {
+  rows: PresensiRow[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export type PresensiSortKey =
+  | 'order_id'
+  | 'name'
+  | 'total_activity'
+  | 'latest_activity'
+  | 'product_name'
+  | 'batch'
+  | 'session'
+  | 'city'
+
+export type SortDirection = 'asc' | 'desc'
+
+/**
+ * PRD §41: Dashboard memakai satu set filter yang sama untuk seluruh KPI.
+ * Tidak ada KPI yang boleh memakai filter sendiri.
+ */
+export async function fetchDashboardSummary(filters: CommonFilters): Promise<DashboardSummary> {
+  return supabaseRpc<DashboardSummary>('dashboard_summary', toFilterArgs(filters))
+}
+
+export async function fetchOrdersPage(
+  filters: OrderFilters,
+  options: { sort: OrderSortKey; direction: SortDirection; page: number; pageSize: PageSize },
+): Promise<OrdersPage> {
+  return supabaseRpc<OrdersPage>('orders_page', {
+    ...toOrderArgs(filters),
+    p_sort: options.sort,
+    p_sort_dir: options.direction,
+    p_page: options.page,
+    p_page_size: options.pageSize,
+  })
+}
+
+export async function fetchPresensiPage(
+  filters: PresensiFilters,
+  options: { sort: PresensiSortKey; direction: SortDirection; page: number; pageSize: PageSize },
+): Promise<PresensiPage> {
+  return supabaseRpc<PresensiPage>('presensi_page', {
+    ...toPresensiArgs(filters),
+    p_sort: options.sort,
+    p_sort_dir: options.direction,
+    p_page: options.page,
+    p_page_size: options.pageSize,
+  })
+}
+
+/**
+ * Daftar konfigurasi untuk pilihan filter dan generator.
+ *
+ * Hanya baris AKTIF yang ditawarkan (05 §D02: "inactive product not offered in
+ * selector"). Baris nonaktif tetap dipakai parser untuk order lama (K8) — itu
+ * urusan ingestion, bukan urusan selector.
+ *
+ * Perhatikan `eventTypes` vs `eventTypeNames`: keduanya dibutuhkan dan nilainya
+ * BERBEDA.
+ *   * Generator butuh **kode** (`SO`), karena nama produk kanonik memakai kode —
+ *     dan nama seperti "Seminar Offline" mengandung spasi sehingga selalu
+ *     ditolak validator kode (01 §10).
+ *   * Filter Order/Presensi butuh **nama** (`Seminar Offline`), karena itulah
+ *     isi kolom `orders.event_type` (02 §9, K7).
+ * Menukar keduanya adalah bug yang sulit terlihat: generator akan menolak
+ * setiap input, dan filter tidak akan pernah cocok.
+ */
+export type ConfigOption = { value: string; label: string }
+
+export type ConfigLists = {
+  /** value = KODE produk. */
+  products: ConfigOption[]
+  /** value = KODE pengiklan. */
+  advertisers: ConfigOption[]
+  /** value = KODE event type (`SO`/`WO`) — untuk generator. */
+  eventTypes: ConfigOption[]
+  /** value = NAMA event type (`Seminar Offline`) — untuk filter. */
+  eventTypeNames: ConfigOption[]
+  /** value = KODE sesi. */
+  sessions: ConfigOption[]
+  /** Saran payment method dari identifier fee rule yang aktif. */
+  paymentMethods: string[]
+}
+
+type CodeRow = { code: string; name: string }
+type EventTypeRow = { code: string; name: string }
+
+export async function fetchConfigLists(): Promise<ConfigLists> {
+  const [products, advertisers, eventTypes, sessions, feeRules] = await Promise.all([
+    supabaseSelect<CodeRow>('products', { active: 'is.true' }, 'code,name'),
+    supabaseSelect<CodeRow>('advertisers', { active: 'is.true' }, 'code,name'),
+    supabaseSelect<EventTypeRow>('event_types', { active: 'is.true' }, 'code,name'),
+    supabaseSelect<CodeRow>('sessions_config', { active: 'is.true' }, 'code,name'),
+    supabaseSelect<{ identifier: string }>('payment_fee_rules', { active: 'is.true' }, 'identifier'),
+  ])
+
+  return {
+    products: toOptions(products),
+    advertisers: toOptions(advertisers),
+    eventTypes: toOptions(eventTypes),
+    eventTypeNames: eventTypes
+      .map((row) => ({ value: row.name, label: row.name }))
+      .sort((left, right) => left.label.localeCompare(right.label, 'id')),
+    sessions: toOptions(sessions),
+    paymentMethods: [...new Set(feeRules.map((row) => row.identifier))].sort(),
+  }
+}
+
+/** Label pilihan: "Kode — Nama" supaya kode dan namanya sama-sama terbaca. */
+function toOptions(rows: CodeRow[]): ConfigOption[] {
+  return rows
+    .map((row) => ({ value: row.code, label: `${row.code} — ${row.name}` }))
+    .sort((left, right) => left.value.localeCompare(right.value, 'id'))
+}

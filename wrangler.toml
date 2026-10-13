@@ -1,0 +1,27 @@
+# Konfigurasi Cloudflare Pages untuk dvflow (06 §2, STATE.md K2).
+#
+# Backend dan frontend SENGAJA satu origin: Pages Functions (`functions/`)
+# melayani `/api/*`, `/access/*`, dan `/checkin/*`, sedangkan aset statis
+# dilayani Pages dari `apps/web/dist`. Dengan begitu cookie refresh
+# (`HttpOnly` + `Secure` + `SameSite=Lax`) terkirim tanpa konfigurasi CORS —
+# memisahkannya ke `*.workers.dev` akan mematikan login.
+#
+# Secret TIDAK ditulis di sini. Setel lewat:
+#   wrangler pages secret put SUPABASE_SECRET_KEY
+#   wrangler pages secret put APP_JWT_PRIVATE_KEY
+#   ... (daftar lengkap di README)
+#
+# `compatibility_flags = ["nodejs_compat"]` sengaja TIDAK dipakai: seluruh kode
+# backend hanya memakai API web standar (fetch + Web Crypto), sehingga runtime
+# tetap sekecil mungkin.
+
+name = "dvflow"
+compatibility_date = "2026-09-01"
+pages_build_output_dir = "apps/web/dist"
+
+# Nilai NON-secret. Yang rahasia selalu lewat `pages secret put`.
+[vars]
+# Biarkan `false` di produksi: hanya ini yang membuka pembuatan Master Admin baru.
+ALLOW_MASTER_ADMIN_CREATE_MASTER = "false"
+# Localhost TIDAK diizinkan di produksi (05 §F08).
+ALLOW_INSECURE_WEBINAR_DESTINATION = "false"

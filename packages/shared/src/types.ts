@@ -1,0 +1,114 @@
+/**
+ * Tipe kanonik lintas layer.
+ *
+ * Tipe di sini adalah kontrak antara packages/api, apps/web, dan SQL.
+ * Jangan menambah field yang tidak ada di
+ * docs/02-DATABASE-SCHEMA-AND-DATA-DICTIONARY.md tanpa amendemen (docs/AMENDMENTS.md).
+ */
+
+export type AppRole = 'master_admin' | 'admin' | 'staff'
+
+export const APP_ROLES: readonly AppRole[] = ['master_admin', 'admin', 'staff']
+
+/** Nilai app_status. Hanya tiga ini (02-DATABASE-SCHEMA §9). */
+export type AppStatus = 'Pending' | 'Paid' | 'Cancelled'
+
+export type ProductParseStatus = 'valid' | 'invalid'
+export type TaxMappingStatus = 'mapped' | 'unmapped'
+export type FeeType = 'flat' | 'percentage'
+
+export type EventKind = 'seminar' | 'webinar'
+
+/**
+ * Nilai orders.event_type dipatok oleh CHECK constraint ke dua literal ini
+ * (02-DATABASE-SCHEMA §9), jadi ia diturunkan dari `kind`, bukan dari nama baris
+ * konfigurasi. Dengan begitu mengganti nama event type di konfigurasi tidak
+ * merusak ingestion webhook.
+ */
+export type EventTypeName = 'Seminar Offline' | 'Webinar Online'
+
+export const EVENT_TYPE_NAME_BY_KIND: Record<EventKind, EventTypeName> = {
+  seminar: 'Seminar Offline',
+  webinar: 'Webinar Online',
+}
+
+export const EVENT_KIND_BY_EVENT_TYPE_NAME: Record<EventTypeName, EventKind> = {
+  'Seminar Offline': 'seminar',
+  'Webinar Online': 'webinar',
+}
+
+export type AttendanceType = 'webinar' | 'seminar'
+export type AttendanceSource = 'webinar_redirect' | 'seminar_qr' | 'seminar_manual'
+
+export const ATTENDANCE_SOURCE_BY_TYPE: Record<AttendanceType, AttendanceSource> = {
+  webinar: 'webinar_redirect',
+  seminar: 'seminar_qr',
+}
+
+/**
+ * Objek kanonik webhook (03-WORKER-API-CONTRACT §2).
+ *
+ * Business logic HANYA boleh membaca objek ini, tidak pernah key mentah provider.
+ * Nama key eksternal OrderOnline belum tersedia dan DILARANG ditebak —
+ * lihat BLOCKED_BY_EXTERNAL_ORDERONLINE_PAYLOAD.
+ */
+export type CanonicalOrderWebhook = {
+  orderId: string
+  customerName?: string | null
+  phone?: string | null
+  email?: string | null
+  productRaw?: string | null
+  rawStatus: string
+  paymentMethod?: string | null
+  paymentProvider?: string | null
+  paymentIdentifier?: string | null
+  grossAmount: number
+  sourceCreatedAt?: string | null
+  sourceUpdatedAt?: string | null
+}
+
+/**
+ * Baris konfigurasi yang dibutuhkan parser/validator.
+ *
+ * Sengaja hanya memuat field yang dipakai logika. Bentuk lengkap baris database
+ * ditangani di layer SQL/api.
+ */
+export type ProductConfigRow = {
+  name: string
+  code: string
+  active: boolean
+}
+
+export type AdvertiserConfigRow = {
+  name: string
+  code: string
+  active: boolean
+}
+
+export type EventTypeConfigRow = {
+  name: string
+  code: string
+  kind: EventKind
+  active: boolean
+}
+
+export type SessionConfigRow = {
+  name: string
+  code: string
+  active: boolean
+}
+
+export type ProductConfigSet = {
+  products: readonly ProductConfigRow[]
+  advertisers: readonly AdvertiserConfigRow[]
+  eventTypes: readonly EventTypeConfigRow[]
+  sessions: readonly SessionConfigRow[]
+}
+
+/** Fee rule yang sudah dicocokkan exact dengan payment identifier sebuah order. */
+export type MatchedFeeRule = {
+  id: string | null
+  name: string
+  fee_type: FeeType
+  fee_value: number
+}

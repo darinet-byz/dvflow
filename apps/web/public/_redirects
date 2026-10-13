@@ -1,0 +1,8 @@
+# Fallback SPA untuk Cloudflare Pages: rute aplikasi dilayani index.html.
+#
+# CATATAN PENTING (diverifikasi di P10): rute `/api/*`, `/access/*`, dan
+# `/checkin/*` ditangani Pages Functions, bukan aset statis. Fallback ini TIDAK
+# boleh menelannya. Sebelum deploy, pastikan Functions tetap diprioritaskan
+# untuk ketiga prefiks itu — bila tidak, halaman peserta dan webhook akan
+# menerima HTML aplikasi, bukan response-nya.
+/* /index.html 200

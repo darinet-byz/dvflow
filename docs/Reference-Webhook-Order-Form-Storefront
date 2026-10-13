@@ -1,0 +1,247 @@
+{
+  "_id": {
+    "$oid": "6ac4bcf797d2d6102c0871b0"
+  },
+  "user_id": {
+    "$oid": "5b18dd619f05aa772122b262"
+  },
+  "is_deleted": false,
+  "order_id": 283033796,
+  "product_data": [],
+  "products": [
+    {
+      "product_id": {
+        "$oid": "693a81872cebdf401653d845"
+      },
+      "name": "Product A",
+      "product_code": "SKU001",
+      "type": "simple",
+      "price": 125000,
+      "slug": "product-a",
+      "sale_price": {
+        "enabled": false,
+        "price": 0,
+        "schedule": {
+          "enabled": false,
+          "since": "11-12-2025 08:32:07",
+          "until": "12-12-2025 08:32:07"
+        }
+      },
+      "cogs": 5000,
+      "variations": {
+        "attributes": [],
+        "prices": [],
+        "multiple_variations": {
+          "enabled": false
+        }
+      },
+      "picture": "https://cdn.dribbble.com/users/2405508/screenshots/11196379/media/54037241a379c529ead1b8ee0043779c.jpg",
+      "wholesale": []
+    },
+    {
+      "product_id": {
+        "$oid": "693a81982cebdf401653d84e"
+      },
+      "name": "Product D",
+      "product_code": "SKU004",
+      "type": "simple",
+      "price": 125000,
+      "slug": "product-d",
+      "sale_price": {
+        "enabled": false,
+        "price": 0,
+        "schedule": {
+          "enabled": false,
+          "since": "11-12-2025 08:32:24",
+          "until": "12-12-2025 08:32:24"
+        }
+      },
+      "cogs": 50000,
+      "variations": {
+        "attributes": [],
+        "prices": [],
+        "multiple_variations": {
+          "enabled": false
+        }
+      },
+      "picture": "https://cdn.dribbble.com/users/2405508/screenshots/11196379/media/54037241a379c529ead1b8ee0043779c.jpg",
+      "wholesale": []
+    }
+  ],
+  "cart_items": [
+    {
+      "product_id": {
+        "$oid": "693a81872cebdf401653d845"
+      },
+      "product_name": "Product A",
+      "qty": 1,
+      "notes": "",
+      "origin": {
+        "id": 338,
+        "type": "subdistrict"
+      },
+      "destination": {
+        "id": 338,
+        "type": "subdistrict"
+      },
+      "weight": 100,
+      "price": 125000,
+      "reseller_price": null,
+      "reseller_margin": null
+    },
+    {
+      "product_id": {
+        "$oid": "693a81982cebdf401653d84e"
+      },
+      "product_name": "Product D",
+      "qty": 2,
+      "notes": "",
+      "origin": {
+        "id": 338,
+        "type": "subdistrict"
+      },
+      "destination": {
+        "id": 338,
+        "type": "subdistrict"
+      },
+      "weight": 100,
+      "price": 250000,
+      "reseller_price": 250000,
+      "reseller_margin": null
+    }
+  ],
+  "shipping_costs": [
+    {
+      "code": "jne",
+      "courier": "jne",
+      "service": "CTC",
+      "description": "",
+      "label": "JNE CTC",
+      "cost": {
+        "etd": "(1-2)",
+        "note": "",
+        "value": 9000,
+        "original": 9000
+      },
+      "insurance": {
+        "percentage": 0.3,
+        "admin_fee": 5000
+      }
+    }
+  ],
+  "shipping_origin": "store",
+  "form_data": [],
+  "customer_data": {
+    "name": "Test",
+    "phone": "+628080080808",
+    "email": "testing@gmail.com",
+    "address": "Jl. Test",
+    "province_name": "Jawa Barat",
+    "province_id": 9,
+    "city_name": "Kota Bandung",
+    "city_id": 23,
+    "subdistrict_name": "Andir",
+    "subdistrict_id": 338,
+    "zip": 40184
+  },
+  "product_price": 375000,
+  "product_weight": 300,
+  "shipping": {
+    "courier": "jne",
+    "service": "CTC",
+    "cost": 9000,
+    "cod": false,
+    "cod_cost": 0,
+    "cod_fee_type": "product_shipping",
+    "cod_min": 5000,
+    "cod_max": 15000,
+    "cod_percentage": 5,
+    "markup": 0,
+    "original_cost": 9000,
+    "sla_min": null,
+    "sla_max": 2,
+    "origin_id": 338,
+    "weight": 300,
+    "mode": "normal",
+    "insurance_enabled": false,
+    "insurance_value": 0
+  },
+  "bump": [],
+  "coupon": {
+    "id": "",
+    "code": "",
+    "discount": 0,
+    "discount_for": ""
+  },
+  "total_product_price": 375942,
+  "total_price": 384942,
+  "total_reseller_margin": 0,
+  "unique_code_price": {
+    "type": "increase",
+    "unique_code": 942
+  },
+  "cogs": 105000,
+  "progress": {
+    "welcome": false,
+    "follow_up_1": false,
+    "follow_up_2": false,
+    "follow_up_3": false,
+    "follow_up_4": false,
+    "processing": false,
+    "closing": false,
+    "cancelled": false,
+    "up_selling": false
+  },
+  "progress_sms": {
+    "welcome": false,
+    "follow_up_1": false,
+    "follow_up_2": false,
+    "follow_up_3": false,
+    "follow_up_4": false,
+    "processing": false,
+    "closing": false,
+    "cancelled": false,
+    "up_selling": false
+  },
+  "payment": {
+    "method": "bank_transfer",
+    "status": "unpaid",
+    "providers": {
+      "name": "bca",
+      "label": "BCA",
+      "account_name": "Fazlur Rahman",
+      "account_number": "123123123"
+    }
+  },
+  "status": "pending",
+  "is_printed": false,
+  "meta": {
+    "url": "rahman.orderonline.id",
+    "ip": "10.0.1.241",
+    "os": "Mac OS",
+    "browser": "Chrome",
+    "location": "",
+    "network": "",
+    "device_type": "desktop",
+    "device_model": "",
+    "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/154.0.0.0 Safari/537.36",
+    "embed": false,
+    "referrer": ""
+  },
+  "belongs_to": [],
+  "type": "storefront",
+  "dropship": {
+    "enabled": false,
+    "name": "",
+    "phone": ""
+  },
+  "customer_id": {
+    "$oid": "629deb74a78fc6063d7907eb"
+  },
+  "updated_at": {
+    "$date": "2026-10-06T09:18:47.000Z"
+  },
+  "created_at": {
+    "$date": "2026-10-06T09:18:47.000Z"
+  }
+}

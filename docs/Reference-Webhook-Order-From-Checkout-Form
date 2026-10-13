@@ -1,0 +1,220 @@
+{
+  "type": "order",
+  "action": "create",
+  "payload": {
+    "user_id": "5b18dd619f05aa772122b262",
+    "product_id": "5b5542469f05aa28a00e1712",
+    "form_id": "5b5542469f05aa28a00e1713",
+    "is_deleted": false,
+    "order_id": 281343516,
+    "product_data": {
+      "name": "Test",
+      "slug": "test",
+      "code": "121",
+      "type": "variable",
+      "price": 10000,
+      "sale_price": {
+        "enabled": true,
+        "price": 20000,
+        "schedule": {
+          "enabled": false,
+          "since": "05-06-2022 00:00:01",
+          "until": "05-06-2022 23:59:59"
+        }
+      },
+      "cogs": 0,
+      "variations": {
+        "attributes": [
+          {
+            "name": "Ukuran",
+            "values": [
+              "L",
+              "XL"
+            ]
+          }
+        ],
+        "prices": [
+          {
+            "variant_id": "7918dc05-7afd-48f0-a129-45871cc2b9a8",
+            "variant_code": "",
+            "name": "L",
+            "price": 10000,
+            "weight": 1000,
+            "cogs": 0,
+            "stock": {
+              "enabled": false,
+              "quantity": 102,
+              "backorder": 1,
+              "status": 1,
+              "visible": false
+            },
+            "wholesale": []
+          },
+          {
+            "variant_id": "f07f8d60-312f-4e54-b129-a3d96357de6f",
+            "variant_code": "",
+            "name": "XL",
+            "price": 10000,
+            "weight": 1000,
+            "cogs": 0,
+            "stock": {
+              "enabled": false,
+              "quantity": 100,
+              "backorder": 1,
+              "status": 1,
+              "visible": false
+            },
+            "wholesale": []
+          }
+        ],
+        "multiple_variations": {
+          "enabled": false
+        }
+      },
+      "wholesale": [],
+      "picture": ""
+    },
+    "form_data": {
+      "name": "Form 1"
+    },
+    "customer_data": {
+      "name": "Test",
+      "phone": "+628080080808",
+      "email": "testing@gmail.com",
+      "notes": "",
+      "address": "Jl. Test",
+      "quantity": 1,
+      "state": "Jawa Barat",
+      "city": "Kota Bandung",
+      "district": "Andir",
+      "province_id": 9,
+      "province_name": "Jawa Barat",
+      "city_id": 23,
+      "city_name": "Kota Bandung",
+      "subdistrict_id": "338",
+      "subdistrict_name": "Andir",
+      "zip": 40184,
+      "variation": "Ukuran: L",
+      "meta": [
+        {
+          "name": "custom_1715583544285",
+          "label": "Upload File",
+          "value": ""
+        }
+      ]
+    },
+    "product_price": 10000,
+    "product_weight": 1000,
+    "shipping": {
+      "courier": "jne",
+      "service": "REG",
+      "cost": 12000,
+      "cod": false,
+      "cod_cost": 0,
+      "cod_include_shipping": true,
+      "cod_fee_type": "product",
+      "cod_min": 5000,
+      "cod_max": 15000,
+      "cod_percentage": 5,
+      "markup": 0,
+      "original_cost": 12000,
+      "sla_min": 1,
+      "sla_max": 2,
+      "origin_id": 2105,
+      "warehouse": {
+        "warehouse_id": "6704b068bdce299d0f04fb93",
+        "warehouse_label": "Jakarta",
+        "province_id": 6,
+        "province_name": "DKI Jakarta",
+        "city_id": 153,
+        "city_name": "Kota Jakarta Selatan",
+        "subdistrict_id": 2105,
+        "subdistrict_name": "Kebayoran Baru",
+        "address": "TEST ONLY  DONT PICKUP",
+        "zip": 12150,
+        "phone_primary": "0898989899",
+        "phone_secondary": "0898989899"
+      },
+      "weight": 1000,
+      "mode": "normal"
+    },
+    "bump": {
+      "checked": false,
+      "name": "Yeah",
+      "price": 50000,
+      "weight": 1
+    },
+    "coupon": {
+      "id": "",
+      "code": "",
+      "discount": 0,
+      "discount_for": ""
+    },
+    "total_product_price": 10000,
+    "total_price": 22000,
+    "unique_code_price": {
+      "type": "decrease",
+      "unique_code": 0
+    },
+    "cogs": 0,
+    "progress": {
+      "welcome": false,
+      "follow_up_1": false,
+      "follow_up_2": false,
+      "follow_up_3": false,
+      "follow_up_4": false,
+      "processing": false,
+      "closing": false,
+      "cancelled": false,
+      "up_selling": false
+    },
+    "progress_sms": {
+      "welcome": false,
+      "follow_up_1": false,
+      "follow_up_2": false,
+      "follow_up_3": false,
+      "follow_up_4": false,
+      "processing": false,
+      "closing": false,
+      "cancelled": false,
+      "up_selling": false
+    },
+    "payment": {
+      "method": "bank_transfer",
+      "data": [],
+      "channels": [],
+      "status": "unpaid"
+    },
+    "status": "pending",
+    "is_printed": false,
+    "meta": {
+      "url": "rahman.ordivo.id",
+      "ip": "114.10.45.96",
+      "os": "Windows",
+      "browser": "Chrome",
+      "location": "",
+      "network": "",
+      "device_type": "desktop",
+      "device_model": "",
+      "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/153.0.0.0 Safari/537.36",
+      "embed": false,
+      "referrer": "",
+      "uuid": "da1e806f-2e8e-9c95-1580-eb7c29c26d9d",
+      "is_short_form": false
+    },
+    "belongs_to": [],
+    "type": "form",
+    "hash": "09d6bd9fc90a56ee",
+    "other_cost": 0,
+    "dropship": {
+      "enabled": false,
+      "name": "",
+      "phone": ""
+    },
+    "is_stock_reduced": false,
+    "customer_id": "629deb74a78fc6063d7907eb",
+    "updated_at": "2026-09-15 02:31:33",
+    "created_at": "2026-09-15 02:31:33",
+    "_id": "6aa8ae0573f13d620207ff25"
+  }
+}

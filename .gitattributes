@@ -1,0 +1,15 @@
+# Normalisasi akhir baris.
+#
+# Repositori ini dibangun di Windows tetapi di-deploy dari Linux (Cloudflare
+# Pages build), dan nilai di dalam berkas lingkungan sangat sensitif terhadap
+# `\r`: satu CRLF yang lolos ke nilai secret membuat perbandingan gagal tanpa
+# pesan yang jelas (kelas bug yang sudah pernah terjadi di proyek ini).
+# Karena itu seluruh berkas disimpan dengan LF, di platform apa pun.
+* text=auto eol=lf
+
+# Berkas biner tidak boleh disentuh.
+*.png binary
+*.jpg binary
+*.ico binary
+*.woff binary
+*.woff2 binary

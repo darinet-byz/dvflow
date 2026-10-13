@@ -1,0 +1,38 @@
+{
+  "name": "dvflow",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "dvflow",
+  "engines": {
+    "node": ">=20"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present && tsc -p functions/tsconfig.json",
+    "test": "npm run test --workspaces --if-present",
+    "test:db": "supabase test db",
+    "test:integration": "npm -w @dvflow/api run test:integration",
+    "lint": "npm run lint --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "verify:ticket-qr": "node scripts/verify-ticket-qr.mjs",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop",
+    "db:reset": "supabase db reset",
+    "dev:web": "npm -w @dvflow/web run dev",
+    "dev:backend": "wrangler pages dev apps/web/dist --port 8788",
+    "dev:vars": "node scripts/write-dev-vars.mjs",
+    "smoke:local": "node scripts/smoke-pages-local.mjs",
+    "deploy": "npm run build && wrangler pages deploy",
+    "create-master-admin": "node scripts/create-master-admin.mjs",
+    "rotate-jwt-key": "node scripts/rotate-jwt-key.mjs"
+  },
+  "devDependencies": {
+    "pg": "^8.16.3",
+    "typescript": "5.9.3",
+    "wrangler": "4.149.0"
+  }
+}

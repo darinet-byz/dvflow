@@ -1,0 +1,254 @@
+import { buildCheckinPath, isOrderIdShaped } from '@dvflow/shared'
+import type { Db } from '../db/types'
+import { ApiFailure } from '../http/errors'
+import { ok } from '../http/response'
+import type { RouteContext } from '../router'
+import type { UserRow } from '../users'
+import { requireActiveUser } from '../users'
+import { renderErrorPage, renderTicketPage, type TicketData } from './pages'
+
+/**
+ * Rute peserta (03 §8–§9, PRD §87–§93).
+ *
+ * Aturan tunggalnya: **akses hanya bila order ada + Paid + produk terparse
+ * valid**. Pending, Cancelled, order tidak dikenal, atau produk yang tidak
+ * dapat dipetakan acara — semuanya ditolak, tanpa pengecualian.
+ *
+ * Rute ini PUBLIK: Order ID adalah identitas akses peserta (04 §12), jadi tidak
+ * ada token tambahan yang ditambahkan di sini.
+ */
+
+type OrderRow = {
+  order_id: string
+  name: string | null
+  app_status: string
+  product_parse_status: string
+  event_type: string | null
+  product_raw: string | null
+  product_name: string | null
+  advertiser_name: string | null
+  batch: string | null
+  session: string | null
+  city: string | null
+}
+
+const ORDER_COLUMNS =
+  'order_id,name,app_status,product_parse_status,event_type,product_raw,product_name,advertiser_name,batch,session,city'
+
+export async function loadOrder(db: Db, orderId: string): Promise<OrderRow | null> {
+  const rows = await db.selectRows<OrderRow>('orders', { order_id: `eq.${orderId}` }, ORDER_COLUMNS)
+  return rows[0] ?? null
+}
+
+/**
+ * GET /access/:orderId (03 §8).
+ *
+ * Webinar: catat presensi lalu **302** ke destination.
+ * Seminar: halaman tiket + payload QR (QR sendiri dibuat browser — Worker tidak
+ * pernah membuat gambar QR).
+ */
+export async function accessOrder(context: RouteContext): Promise<Response> {
+  const orderId = context.params['orderId'] ?? ''
+
+  // Order ID dari URL adalah input tak terpercaya: bentuknya diperiksa sebelum
+  // menyentuh database supaya tidak ada nilai aneh yang sampai ke query.
+  if (!isOrderIdShaped(orderId)) return renderErrorPage('ORDER_NOT_FOUND', null)
+
+  const order = await loadOrder(context.db, orderId)
+  if (order === null) return renderErrorPage('ORDER_NOT_FOUND', orderId)
+
+  if (order.app_status !== 'Paid') return renderErrorPage('ORDER_NOT_PAID', orderId)
+
+  // Event harus dapat ditentukan. parse invalid berarti event_type NULL dan
+  // akses acara ditolak (01 §9).
+  if (order.product_parse_status !== 'valid' || order.event_type === null) {
+    return renderErrorPage('INVALID_EVENT_PRODUCT', orderId)
+  }
+
+  if (order.event_type === 'Webinar Online') {
+    return redirectToWebinar(context, order)
+  }
+
+  const data: TicketData = {
+    orderId: order.order_id,
+    participantName: order.name,
+    eventType: order.event_type,
+    productName: order.product_name,
+    advertiserName: order.advertiser_name,
+    batch: order.batch,
+    session: order.session,
+    city: order.city,
+    checkinPath: buildCheckinPath(order.order_id),
+  }
+  return renderTicketPage(data)
+}
+
+/**
+ * Destination webinar (01 §15).
+ *
+ * Lookup memakai key **exact** `webinar_destination::<product_raw>`.
+ *
+ * Bila mapping tidak ada: JANGAN catat presensi, JANGAN redirect ke URL
+ * sembarang, dan tampilkan error konfigurasi. Presensi yang tercatat untuk
+ * peserta yang tidak pernah sampai ke Zoom akan merusak laporan kehadiran.
+ */
+async function redirectToWebinar(context: RouteContext, order: OrderRow): Promise<Response> {
+  if (order.product_raw === null || order.product_raw === '') {
+    return renderErrorPage('WEBINAR_DESTINATION_NOT_CONFIGURED', order.order_id)
+  }
+
+  const key = `webinar_destination::${order.product_raw}`
+  const rows = await context.db.selectRows<{ value_text: string | null }>(
+    'app_settings',
+    { key: `eq.${key}` },
+    'value_text',
+  )
+
+  const destination = rows[0]?.value_text ?? null
+  if (destination === null || destination.trim() === '') {
+    return renderErrorPage('WEBINAR_DESTINATION_NOT_CONFIGURED', order.order_id)
+  }
+
+  if (!isAcceptableDestination(destination, context)) {
+    // Destination yang tidak aman diperlakukan sama seperti destination yang
+    // tidak ada: tidak ada presensi, tidak ada redirect.
+    return renderErrorPage('WEBINAR_DESTINATION_NOT_CONFIGURED', order.order_id)
+  }
+
+  // Setiap klik valid = satu baris presensi baru (PRD §91 — sengaja TIDAK
+  // di-deduplicate supaya keluar/masuk peserta terlihat).
+  await context.db.insertRow('attendance_events', {
+    order_id: order.order_id,
+    attendance_type: 'webinar',
+    source: 'webinar_redirect',
+  })
+
+  return new Response(null, {
+    status: 302,
+    headers: { location: destination.trim(), 'cache-control': 'no-store' },
+  })
+}
+
+/** 05 §F08: destination wajib HTTPS, kecuali localhost yang diizinkan eksplisit. */
+function isAcceptableDestination(destination: string, context: RouteContext): boolean {
+  let url: URL
+  try {
+    url = new URL(destination.trim())
+  } catch {
+    return false
+  }
+
+  if (url.protocol === 'https:') return true
+  if (context.env.ALLOW_INSECURE_WEBINAR_DESTINATION !== 'true') return false
+
+  return url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1')
+}
+
+/**
+ * GET /checkin/:orderId (03 §9).
+ *
+ * Rute GET **tidak pernah mengubah apa pun** — kontraknya eksplisit: mutasi
+ * hanya lewat POST. Halaman ini untuk orang yang membuka isi QR dengan kamera
+ * biasa: yang tampil adalah instruksi, bukan hasil check-in.
+ */
+export async function checkinInfoPage(context: RouteContext): Promise<Response> {
+  const orderId = context.params['orderId'] ?? ''
+  const hint =
+    isOrderIdShaped(orderId)
+      ? `Tunjukkan Order ID <strong>${escapeForPage(orderId)}</strong> kepada panitia.`
+      : 'Tunjukkan Order ID Anda kepada panitia.'
+
+  return new Response(
+    `<!doctype html>
+<html lang="id"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Check-in Seminar</title>
+<style>
+  :root { color-scheme: light; }
+  body { margin: 0 auto; padding: 32px 16px; max-width: 420px;
+    font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 14px; line-height: 1.5; color: #171821; background: #f7f8fc; text-align: center; }
+  .card { padding: 20px; background: #fff; border: 1px solid #eceef4; border-radius: 18px; }
+  h1 { margin: 0 0 8px; font-size: 18px; }
+  p { margin: 0; color: #737786; }
+</style></head>
+<body><div class="card">
+<h1>Bukan halaman check-in</h1>
+<p>Check-in dilakukan panitia melalui aplikasi scanner, bukan dengan membuka tautan ini. ${hint}</p>
+</div></body></html>`,
+    {
+      status: 200,
+      headers: {
+        'content-type': 'text/html; charset=utf-8',
+        'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'",
+        'cache-control': 'no-store',
+        'x-content-type-options': 'nosniff',
+      },
+    },
+  )
+}
+
+function escapeForPage(value: string): string {
+  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
+}
+
+export type CheckinResult = {
+  order_id: string
+  state: 'CHECKIN_SUCCESS' | 'ALREADY_CHECKED_IN'
+  attendance_id: string
+  clicked_at: string
+  scanner_user_id: string | null
+}
+
+/**
+ * Check-in seminar (03 §9, §11).
+ *
+ * Dipakai `POST /checkin/:orderId` (QR) dan `POST /api/scanner/manual-checkin`
+ * (manual) — validasinya satu dan sama, dijalankan RPC `checkin_seminar`, dan
+ * tidak ada jalur yang melewatinya (01 §14).
+ *
+ * Mutasi diverifikasi ulang di database (order ada, Paid, Seminar Offline) walau
+ * handler sudah memeriksa peran operator: QR bukan otorisasi (04 §11).
+ */
+export async function checkinSeminar(
+  context: RouteContext,
+  input: { orderId: string; source: 'seminar_qr' | 'seminar_manual' },
+): Promise<Response> {
+  const operator = await requireActiveUser(context)
+
+  if (!isOrderIdShaped(input.orderId)) {
+    throw new ApiFailure('ORDER_NOT_FOUND', `order id tidak berbentuk wajar: ${input.orderId}`)
+  }
+
+  const result = await context.db.rpc<CheckinResult>('checkin_seminar', {
+    p_order_id: input.orderId,
+    p_source: input.source,
+    p_scanner_user_id: operator.id,
+  })
+
+  // Nama peserta dibaca setelah RPC berhasil, hanya untuk ditampilkan di kartu
+  // hasil scanner (PRD §96). Satu query tambahan lebih murah daripada
+  // mengubah tanda tangan RPC yang sudah teruji.
+  const order = await loadOrder(context.db, result.order_id)
+
+  return ok({
+    state: result.state,
+    order_id: result.order_id,
+    name: order?.name ?? null,
+    event_type: order?.event_type ?? null,
+    session: order?.session ?? null,
+    clicked_at: result.clicked_at,
+    attendance_id: result.attendance_id,
+    scanner: describeOperator(operator),
+  })
+}
+
+function describeOperator(user: UserRow): { user_id: string; display_name: string } {
+  return { user_id: user.id, display_name: user.display_name }
+}
+
+/** POST /checkin/:orderId — jalur QR (03 §9). */
+export async function checkinByQr(context: RouteContext): Promise<Response> {
+  return checkinSeminar(context, { orderId: context.params['orderId'] ?? '', source: 'seminar_qr' })
+}

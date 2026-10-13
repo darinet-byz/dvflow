@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    // Pages Functions berjalan di runtime Workers, sama seperti apps/worker.
+    "lib": ["ES2022", "WebWorker"],
+    "types": []
+  },
+  "include": ["**/*.ts"]
+}
