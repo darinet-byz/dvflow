@@ -324,6 +324,20 @@ describe('penyuntingan & penonaktifan', () => {
     expect(stillThere).toBeDefined()
   })
 
+  it('DELETE ?permanent=true menghapus baris secara permanen', async () => {
+    const ctx = await setup()
+    const product = ctx.state.config.products.find((row) => row['code'] === 'BM')
+    const id = String(product?.['id'])
+
+    const response = await write(ctx, ctx.admin, {
+      method: 'DELETE',
+      path: `/api/config/products/${id}?permanent=true`,
+    })
+
+    expect(response.status).toBe(200)
+    expect(ctx.state.config.products.find((row) => row['id'] === id)).toBeUndefined()
+  })
+
   it('PATCH dapat mengaktifkan kembali', async () => {
     const ctx = await setup()
     const id = String(ctx.state.config.products.find((row) => row['code'] === 'KM')?.['id'])

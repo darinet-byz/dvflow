@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { flattenNavigation, NAV_SECTIONS } from '../src/layout/navigation'
 
 /**
- * Sidebar dipaku oleh dokumen (CLAUDE.md §5, 05 §K02).
+ * Sidebar dipaku oleh dokumen (CLAUDE.md §5, 05 §K02, AMENDMENTS).
  *
  * Test ini menyalin daftarnya dari dokumen, bukan dari kode. Gunanya: setiap
  * penambahan menu "yang kelihatannya membantu" akan gagal di sini, bukan lolos
@@ -17,12 +17,13 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
       'Dashboard Resume',
       'Order',
       'Presensi Acara',
+      'Product Name Generator',
       'Konfigurasi Produk',
       'Konfigurasi Tax',
       'Report Tax',
       'Konfigurasi Zoom',
+      'Konfigurasi Barcode / Tiket',
       'API & Webhook',
-      'Product Name Generator',
       'Add Team',
       'Profil',
       'Logout',

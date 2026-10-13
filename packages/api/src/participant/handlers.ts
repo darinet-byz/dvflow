@@ -5,6 +5,12 @@ import { ok } from '../http/response'
 import type { RouteContext } from '../router'
 import type { UserRow } from '../users'
 import { requireActiveUser } from '../users'
+import {
+  candidateSettingKeys,
+  parseSeminarTicketValue,
+  TICKET_PREFIX,
+  WEBINAR_PREFIX,
+} from '../webinar/handlers'
 import { renderErrorPage, renderTicketPage, type TicketData } from './pages'
 
 /**
@@ -25,6 +31,7 @@ type OrderRow = {
   product_parse_status: string
   event_type: string | null
   product_raw: string | null
+  product_code?: string | null
   product_name: string | null
   advertiser_name: string | null
   batch: string | null
@@ -33,7 +40,7 @@ type OrderRow = {
 }
 
 const ORDER_COLUMNS =
-  'order_id,name,app_status,product_parse_status,event_type,product_raw,product_name,advertiser_name,batch,session,city'
+  'order_id,name,app_status,product_parse_status,event_type,product_raw,product_code,product_name,advertiser_name,batch,session,city'
 
 export async function loadOrder(db: Db, orderId: string): Promise<OrderRow | null> {
   const rows = await db.selectRows<OrderRow>('orders', { order_id: `eq.${orderId}` }, ORDER_COLUMNS)
@@ -69,6 +76,26 @@ export async function accessOrder(context: RouteContext): Promise<Response> {
     return redirectToWebinar(context, order)
   }
 
+  const ticketRows = await context.db.selectRows<{ key: string; value_text: string | null }>(
+    'app_settings',
+    { key: `like.${TICKET_PREFIX}*` },
+    'key,value_text',
+  )
+  const byKey = new Map(ticketRows.map((row) => [row.key, row.value_text]))
+  let matchedRaw: string | null = null
+  for (const candidate of candidateSettingKeys(order, TICKET_PREFIX)) {
+    const val = byKey.get(candidate)
+    if (val !== undefined && val !== null && val.trim() !== '') {
+      matchedRaw = val
+      break
+    }
+  }
+
+  const ticketMeta = matchedRaw !== null ? parseSeminarTicketValue(matchedRaw) : null
+  if (ticketMeta !== null && !ticketMeta.active) {
+    return renderErrorPage('WEBINAR_DESTINATION_NOT_CONFIGURED', order.order_id)
+  }
+
   const data: TicketData = {
     orderId: order.order_id,
     participantName: order.name,
@@ -78,6 +105,9 @@ export async function accessOrder(context: RouteContext): Promise<Response> {
     batch: order.batch,
     session: order.session,
     city: order.city,
+    venue: ticketMeta?.venue ?? null,
+    schedule: ticketMeta?.schedule ?? null,
+    notes: ticketMeta?.notes ?? null,
     checkinPath: buildCheckinPath(order.order_id),
   }
   return renderTicketPage(data)
@@ -86,25 +116,30 @@ export async function accessOrder(context: RouteContext): Promise<Response> {
 /**
  * Destination webinar (01 §15).
  *
- * Lookup memakai key **exact** `webinar_destination::<product_raw>`.
+ * Lookup memakai urutan prioritas dari paling spesifik (`product_raw` persis,
+ * lalu kombinasi `product_code`, `batch`, `session_code`) hingga link global `*:*:*`.
  *
  * Bila mapping tidak ada: JANGAN catat presensi, JANGAN redirect ke URL
  * sembarang, dan tampilkan error konfigurasi. Presensi yang tercatat untuk
  * peserta yang tidak pernah sampai ke Zoom akan merusak laporan kehadiran.
  */
 async function redirectToWebinar(context: RouteContext, order: OrderRow): Promise<Response> {
-  if (order.product_raw === null || order.product_raw === '') {
-    return renderErrorPage('WEBINAR_DESTINATION_NOT_CONFIGURED', order.order_id)
-  }
-
-  const key = `webinar_destination::${order.product_raw}`
-  const rows = await context.db.selectRows<{ value_text: string | null }>(
+  const rows = await context.db.selectRows<{ key: string; value_text: string | null }>(
     'app_settings',
-    { key: `eq.${key}` },
-    'value_text',
+    { key: `like.${WEBINAR_PREFIX}*` },
+    'key,value_text',
   )
 
-  const destination = rows[0]?.value_text ?? null
+  const byKey = new Map(rows.map((row) => [row.key, row.value_text]))
+  let destination: string | null = null
+  for (const candidate of candidateSettingKeys(order, WEBINAR_PREFIX)) {
+    const val = byKey.get(candidate)
+    if (val !== undefined && val !== null && val.trim() !== '') {
+      destination = val
+      break
+    }
+  }
+
   if (destination === null || destination.trim() === '') {
     return renderErrorPage('WEBINAR_DESTINATION_NOT_CONFIGURED', order.order_id)
   }

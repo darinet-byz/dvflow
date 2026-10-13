@@ -38,6 +38,9 @@ describe('L. Batas keamanan', () => {
       async updateRows() {
         throw new DbError('42P01', 'relation "secret_table" does not exist')
       },
+      async deleteRows() {
+        throw new DbError('42P01', 'relation "secret_table" does not exist')
+      },
     }
 
     const api = createApi({ env, db: explodingDb, routes: ROUTES, now: FIXED_NOW })

@@ -51,6 +51,9 @@ export type TicketData = {
   batch: string | null
   session: string | null
   city: string | null
+  venue?: string | null
+  schedule?: string | null
+  notes?: string | null
   /** Payload yang nantinya diubah menjadi QR di browser (03 §8, 05 §G03). */
   checkinPath: string
 }
@@ -62,6 +65,9 @@ export function renderTicketPage(data: TicketData): Response {
     ['Batch', data.batch],
     ['Sesi', data.session],
     ['Kota', data.city],
+    ['Lokasi', data.venue ?? null],
+    ['Jadwal', data.schedule ?? null],
+    ['Catatan', data.notes ?? null],
   ]
 
   const body = `

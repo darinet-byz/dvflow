@@ -69,3 +69,10 @@ export async function validateConnectionWebhook(context: RouteContext): Promise<
   if (!row.active) return false
   return await hash(context.params['webhookSecret'] ?? '') === row.webhook_secret_hash
 }
+export async function deleteConnection(context: RouteContext): Promise<Response> {
+  await requireAdmin(context)
+  const row = await getConnection(context)
+  await context.db.deleteRows('orderonline_connections', { id: `eq.${row.id}` })
+  return ok({ deleted: row.id })
+}
+

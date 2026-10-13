@@ -17,6 +17,8 @@ export type Db = {
   insertRow<T>(table: string, row: Record<string, unknown>, columns?: string): Promise<T>
   /** UPDATE baris yang cocok dengan `query`. */
   updateRows(table: string, query: Record<string, string>, patch: Record<string, unknown>): Promise<void>
+  /** DELETE baris yang cocok dengan `query`. */
+  deleteRows(table: string, query: Record<string, string>): Promise<void>
 }
 
 /**

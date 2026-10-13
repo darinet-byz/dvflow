@@ -1,6 +1,8 @@
 import { Badge, appStatusTone, attendanceTone, eventTypeTone } from '../../ui/Badge'
+import { Button } from '../../ui/Button'
 import { DetailList } from '../../ui/Card'
 import { Drawer } from '../../ui/Overlay'
+import { useToast } from '../../ui/Toast'
 import { formatDateTime, formatText, formatTime } from '../../lib/format'
 import type { PresensiRow } from '../../lib/queries'
 
@@ -15,7 +17,19 @@ import type { PresensiRow } from '../../lib/queries'
  * dipakai kolom tabel.
  */
 export function PresensiDetailDrawer({ row, onClose }: { row: PresensiRow | null; onClose: () => void }) {
+  const toast = useToast()
   const timestamps = row?.timestamps ?? []
+  const accessUrl = row ? `${window.location.origin}/access/${encodeURIComponent(row.order_id)}` : ''
+
+  async function copyAccessLink() {
+    if (!accessUrl) return
+    try {
+      await navigator.clipboard.writeText(accessUrl)
+      toast.show('Link akses peserta disalin.', 'success')
+    } catch {
+      toast.show('Salin link secara manual dari kotak link.', 'danger')
+    }
+  }
 
   return (
     <Drawer
@@ -36,6 +50,28 @@ export function PresensiDetailDrawer({ row, onClose }: { row: PresensiRow | null
               { label: 'Aktivitas terbaru', value: formatDateTime(row.latest_activity) },
             ]}
           />
+
+          <section>
+            <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+              Tautan Akses Peserta (Tiket QR / Zoom)
+            </h3>
+            <div className="flex flex-col gap-2 rounded-md border border-line bg-page p-2.5">
+              <span className="break-all font-mono text-[12px] text-ink">{accessUrl}</span>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={() => void copyAccessLink()}>
+                  Salin Link
+                </Button>
+                <a
+                  href={`/access/${encodeURIComponent(row.order_id)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-8 items-center rounded-sm border border-line bg-card px-2.5 text-[12px] font-semibold text-primary hover:bg-soft"
+                >
+                  Buka Tiket / Link
+                </a>
+              </div>
+            </div>
+          </section>
 
           <section>
             <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Acara</h3>

@@ -89,3 +89,70 @@ export async function listUsers(context: RouteContext): Promise<Response> {
   }
   return ok({ users })
 }
+
+export async function updateUser(context: RouteContext): Promise<Response> {
+  if (context.claims?.app_role !== 'master_admin') {
+    throw new ApiFailure('FORBIDDEN', `app_role=${context.claims?.app_role ?? 'tidak ada'}`)
+  }
+  const actor = await requireActiveUser(context)
+  if (actor.role !== 'master_admin') throw new ApiFailure('FORBIDDEN', 'Admin Master diperlukan')
+
+  const targetId = (context.params['id'] ?? '').trim()
+  if (targetId === '') throw new ApiFailure('RESOURCE_NOT_FOUND', 'User tidak ditemukan')
+
+  const [existing] = await context.db.selectRows<UserRow>('users', { id: `eq.${targetId}` }, USER_COLUMNS)
+  if (!existing) throw new ApiFailure('RESOURCE_NOT_FOUND', 'User tidak ditemukan')
+
+  const body = await readJsonObject(context.request)
+  const displayName = (readString(body, 'display_name') ?? existing.display_name).trim()
+  const role = (readString(body, 'role') ?? existing.role).trim()
+  const active = typeof body['active'] === 'boolean' ? body['active'] : existing.active
+  const newPassword = readString(body, 'new_password') ?? ''
+
+  if (displayName === '' || displayName.length > DISPLAY_NAME_MAX_LENGTH) {
+    throw new ApiFailure('INVALID_ARGUMENT', 'Nama tampilan wajib diisi (maks 200 karakter)')
+  }
+  if (!APP_ROLES.includes(role as AppRole)) {
+    throw new ApiFailure('INVALID_ARGUMENT', `role=${role}`)
+  }
+  if (actor.id === existing.id && (!active || role !== 'master_admin')) {
+    throw new ApiFailure('FORBIDDEN', 'Tidak dapat menonaktifkan atau mengubah role akun Anda sendiri')
+  }
+  if (newPassword !== '' && newPassword.length < 8) {
+    throw new ApiFailure('WEAK_PASSWORD', 'Password baru minimal 8 karakter')
+  }
+
+  const updated = await context.db.rpc<CreatedUser>('admin_update_user', {
+    p_actor_user_id: actor.id,
+    p_target_user_id: existing.id,
+    p_display_name: displayName,
+    p_role: role,
+    p_active: active,
+    p_new_password: newPassword === '' ? null : newPassword,
+    p_allow_master: context.env.ALLOW_MASTER_ADMIN_CREATE_MASTER === 'true' || existing.role === 'master_admin',
+  })
+
+  return ok({ user: updated })
+}
+
+export async function deleteUser(context: RouteContext): Promise<Response> {
+  if (context.claims?.app_role !== 'master_admin') {
+    throw new ApiFailure('FORBIDDEN', `app_role=${context.claims?.app_role ?? 'tidak ada'}`)
+  }
+  const actor = await requireActiveUser(context)
+  if (actor.role !== 'master_admin') throw new ApiFailure('FORBIDDEN', 'Admin Master diperlukan')
+
+  const targetId = (context.params['id'] ?? '').trim()
+  if (targetId === '') throw new ApiFailure('RESOURCE_NOT_FOUND', 'User tidak ditemukan')
+  if (targetId === actor.id) {
+    throw new ApiFailure('FORBIDDEN', 'Tidak dapat menghapus akun Anda sendiri')
+  }
+
+  const [existing] = await context.db.selectRows<UserRow>('users', { id: `eq.${targetId}` }, USER_COLUMNS)
+  if (!existing) throw new ApiFailure('RESOURCE_NOT_FOUND', 'User tidak ditemukan')
+
+  await context.db.deleteRows('app_sessions', { user_id: `eq.${existing.id}` })
+  await context.db.deleteRows('users', { id: `eq.${existing.id}` })
+  return ok({ deleted: existing.id })
+}
+

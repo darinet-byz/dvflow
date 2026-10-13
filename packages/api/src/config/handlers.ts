@@ -101,6 +101,11 @@ export async function deactivateConfig(context: RouteContext): Promise<Response>
   const existing = await loadRow(context.db, resource, id)
   if (existing === null) throw new ApiFailure('RESOURCE_NOT_FOUND', `id=${id}`)
 
+  if (context.url.searchParams.get('permanent') === 'true') {
+    await context.db.deleteRows(resource.table, { id: `eq.${id}` })
+    return ok({ resource: resource.urlName, deleted: id })
+  }
+
   await context.db.updateRows(resource.table, { id: `eq.${id}` }, { active: false })
 
   const updated = await loadRow(context.db, resource, id)

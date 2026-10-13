@@ -65,6 +65,17 @@ export function createPostgrestDb(env: Env, fetchImpl: typeof fetch = fetch): Db
       })
       await ensureOk(response, `update ${table}`)
     },
+
+    async deleteRows(table: string, query: Record<string, string>): Promise<void> {
+      const response = await fetchImpl(`${restUrl}/${table}?${buildQuery(query)}`, {
+        method: 'DELETE',
+        headers: {
+          ...authHeaders,
+          prefer: 'return=minimal',
+        },
+      })
+      await ensureOk(response, `delete ${table}`)
+    },
   }
 }
 

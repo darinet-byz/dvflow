@@ -196,6 +196,15 @@ export function createFakeDb(state: FakeState): Db {
         return undefined as T
       }
 
+      if (name === 'save_seminar_ticket') {
+        const key = 'seminar_ticket::' + String(args['p_scope_key'])
+        const row = { key, value_text: args['p_value_json'], updated_by: args['p_actor'] }
+        const existing = state.appSettings.find(item => item['key'] === key)
+        if (existing) Object.assign(existing, row)
+        else state.appSettings.push(row)
+        return undefined as T
+      }
+
       if (name === 'upsert_order_webhook') {
         const payload = args['p_payload']
         if (!isFakeObject(payload)) throw new DbError('DF014', 'fake: payload bukan objek')
@@ -345,6 +354,58 @@ export function createFakeDb(state: FakeState): Db {
         } as T
       }
 
+      if (name === 'admin_update_user') {
+        const actorId = String(args['p_actor_user_id'] ?? '')
+        const targetId = String(args['p_target_user_id'] ?? '')
+        const actor = state.users.find((candidate) => candidate.id === actorId)
+        if (actor === undefined || !actor.active || actor.role !== 'master_admin') {
+          throw new DbError(FORBIDDEN, 'fake')
+        }
+
+        const target = state.users.find((candidate) => candidate.id === targetId)
+        if (target === undefined) throw new DbError('DF011', 'fake')
+
+        const role = String(args['p_role'] ?? '')
+        const active = Boolean(args['p_active'])
+        if (actorId === targetId && (!active || role !== 'master_admin')) {
+          throw new DbError(FORBIDDEN, 'fake')
+        }
+        if (role === 'master_admin' && target.role !== 'master_admin' && args['p_allow_master'] !== true) {
+          throw new DbError(MASTER_ADMIN_CREATE_FORBIDDEN, 'fake')
+        }
+
+        const newPassword = args['p_new_password']
+        if (typeof newPassword === 'string' && newPassword !== '') {
+          if (newPassword.length < 8) throw new DbError(WEAK_PASSWORD, 'fake')
+          target.password = newPassword
+          for (const session of state.sessions) {
+            if (session.user_id === target.id && session.revoked_at === null) {
+              session.revoked_at = new Date().toISOString()
+            }
+          }
+        } else if (!active) {
+          for (const session of state.sessions) {
+            if (session.user_id === target.id && session.revoked_at === null) {
+              session.revoked_at = new Date().toISOString()
+            }
+          }
+        }
+
+        target.display_name = String(args['p_display_name'] ?? target.display_name)
+        target.role = role as AppRole
+        target.active = active
+
+        return {
+          id: target.id,
+          user_id: target.id,
+          username: target.username,
+          display_name: target.display_name,
+          role: target.role,
+          avatar_emoji: target.avatar_emoji,
+          active: target.active,
+        } as T
+      }
+
       throw new Error(`RPC tidak dikenal di tiruan: ${name}`)
     },
 
@@ -403,6 +464,16 @@ export function createFakeDb(state: FakeState): Db {
         // Perubahan kode tetap melewati aturan unik, seperti di database.
         assertFakeUnique(table, rows, { ...row, ...patch })
         Object.assign(row, patch)
+      }
+    },
+
+    async deleteRows(table: string, query: Record<string, string>): Promise<void> {
+      const rows = rowsOf(state, table)
+      for (let i = rows.length - 1; i >= 0; i -= 1) {
+        const row = rows[i]
+        if (row !== undefined && matchesQuery(row, query)) {
+          rows.splice(i, 1)
+        }
       }
     },
   }

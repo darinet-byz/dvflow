@@ -23,6 +23,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Dashboard Resume', path: DASHBOARD_PATH, icon: 'layout-dashboard' },
       { label: 'Order', path: '/order', icon: 'receipt' },
       { label: 'Presensi Acara', path: '/presensi', icon: 'user-check' },
+      { label: 'Product Name Generator', path: '/generator', icon: 'wand' },
     ],
   },
   {
@@ -32,8 +33,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Konfigurasi Tax', path: '/konfigurasi-tax', icon: 'percent' },
       { label: 'Report Tax', path: '/report-tax', icon: 'file-text' },
       { label: 'Konfigurasi Zoom', path: '/konfigurasi-zoom', icon: 'video' },
+      { label: 'Konfigurasi Barcode / Tiket', path: '/konfigurasi-tiket', icon: 'qr-code' },
       { label: 'API & Webhook', path: '/integrasi', icon: 'plug' },
-      { label: 'Product Name Generator', path: '/generator', icon: 'wand' },
     ],
   },
   {

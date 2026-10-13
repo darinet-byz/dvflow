@@ -1,6 +1,7 @@
 import { TeamPage } from './pages/team/TeamPage'
 import { IntegrationsPage } from './pages/config/IntegrationsPage'
 import { ZoomPage } from './pages/config/ZoomPage'
+import { TicketConfigPage } from './pages/config/TicketConfigPage'
 import { canAccessPath } from './lib/roles'
 import { useEffect } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
@@ -66,6 +67,7 @@ export function App() {
           <Route path="/generator" element={<GeneratorPage />} />
           <Route path="/add-team" element={<RoleGuard path="/add-team"><TeamPage /></RoleGuard>} />
           <Route path="/konfigurasi-zoom" element={<ZoomPage />} />
+          <Route path="/konfigurasi-tiket" element={<TicketConfigPage />} />
           <Route path="/integrasi" element={<RoleGuard path="/integrasi"><IntegrationsPage /></RoleGuard>} />
           <Route path="/profil" element={<ProfilePage />} />
           <Route path="*" element={<NotFound />} />

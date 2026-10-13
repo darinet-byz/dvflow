@@ -407,3 +407,24 @@ User requested API/webhook settings supporting more than one connection. Admin M
 POST https://api.orderonline.id/v1/auth tests the saved personal access token according to https://developers.orderonline.id/reference/auth (checked 2026-10-13). No automatic historical import or remote webhook registration is implied: paste the generated URL into OrderOnline's order webhook settings. Tests discard upstream JWTs and sanitize provider errors.
 
 Migration 0022 adds service-only connection/source tables and a wrapper around existing ingestion. Multiple managed connections cannot overwrite each other's Order IDs. Existing global Order ID participant links and legacy environment-secret webhook remain compatible; legacy webhook order ownership cannot be inferred retroactively. Existing payload/status limitations still apply. Last received time tracks successful managed ingestion. Deployment requires migration 0022 and INTEGRATION_ENCRYPTION_KEY before publishing the new app.
+
+
+## A12 — Scoped Zoom & Seminar Barcode/QR Ticket Configuration, Full CRUD, and Sidebar Placement (2026-10-13)
+
+Atas permintaan eksplisit pengguna:
+
+1. **Konfigurasi Link Zoom Berjenjang (`/konfigurasi-zoom`)**:
+   - Selain pemetaan `product_raw` persis (`webinar_destination::<product_raw>`), `app_settings` kini mendukung aturan cakupan (`webinar_destination::__scope__::<product_code|*>:<batch|*>:<session_code|*>`).
+   - Operator dapat mengatur 1 link Zoom untuk semua produk & sesi (`*:*:*`), per produk, per batch, per sesi, atau kombinasinya.
+   - Saat peserta membuka `GET /access/:orderId` untuk order `Webinar Online` yang `Paid`, sistem mencari aturan yang paling spesifik (`exact product_raw` > `product+batch+session` > `product+batch` > `product+session` > `product` > `batch+session` > `batch` > `session` > `global *:*:*`).
+2. **Konfigurasi Barcode / Tiket QR Seminar (`/konfigurasi-tiket`)**:
+   - Menu baru `Konfigurasi Barcode / Tiket` di bawah `KONFIGURASI` (terbuka untuk seluruh role aktif termasuk `Team`, sama seperti `Konfigurasi Zoom`).
+   - Menyimpan aturan cakupan tiket seminar (`seminar_ticket::__scope__::<product_code|*>:<batch|*>:<session_code|*>`) berisi info opsional (`venue`, `schedule`, `notes`, `active`) serta menyediakan template link `/access/{{order_id}}` dan fitur **Preview Tiket QR** di browser.
+   - Saat peserta membuka `GET /access/:orderId` untuk order `Seminar Offline` yang `Paid`, halaman tiket QR menampilkan `Lokasi`, `Jadwal`, dan `Catatan` dari aturan yang paling spesifik. Drawer detail `Order` dan `Presensi Acara` juga menampilkan pintasan salin/buka link `/access/:orderId`.
+3. **Kelengkapan CRUD (Edit & Delete Permanen)**:
+   - **Add Team**: Admin Master dapat mengedit (`PATCH /api/internal/users/:id`) dan menghapus permanen (`DELETE /api/internal/users/:id`) member lain (tidak boleh menghapus/menonaktifkan akun sendiri).
+   - **Konfigurasi Produk & Tax**: selain tombol `Nonaktifkan`/`Aktifkan` (soft-deactivate), tersedia tombol `Hapus` dengan modal konfirmasi yang memanggil `DELETE /api/config/:resource/:id?permanent=true`. FK `orders.fee_rule_id` diubah menjadi `ON DELETE SET NULL` di migrasi `0023` agar snapshot tax order historis tetap utuh.
+   - **Konfigurasi Zoom, Konfigurasi Tiket, dan API & Webhook**: masing-masing dilengkapi tombol `Hapus` dengan modal konfirmasi (`DELETE /api/webinar-destinations`, `DELETE /api/seminar-tickets`, `DELETE /api/integrations/orderonline/:id`).
+4. **Penempatan Menu Sidebar**:
+   - `Product Name Generator` (`/generator`) dipindahkan dari kategori `KONFIGURASI` ke kategori `OPERASIONAL`.
+

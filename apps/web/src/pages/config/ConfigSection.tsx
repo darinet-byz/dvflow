@@ -59,6 +59,7 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
   const [editing, setEditing] = useState<ConfigRow | null>(null)
   const [adding, setAdding] = useState(false)
   const [confirming, setConfirming] = useState<ConfigRow | null>(null)
+  const [deleting, setDeleting] = useState<ConfigRow | null>(null)
   const [busy, setBusy] = useState(false)
 
   const { data, loading, error, reload } = useAsyncData(
@@ -131,6 +132,22 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
     }
   }
 
+  async function removePermanently(row: ConfigRow): Promise<void> {
+    setBusy(true)
+    try {
+      await authorizedRequest(`/api/config/${spec.resource}/${String(row['id'])}?permanent=true`, {
+        method: 'DELETE',
+      })
+      toast.show(`${spec.title} berhasil dihapus.`, 'success')
+      setDeleting(null)
+      reload()
+    } catch (failure) {
+      toast.show(failure instanceof ApiError ? failure.message : 'Tidak dapat menghapus.', 'danger')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   async function reactivate(row: ConfigRow): Promise<void> {
     setBusy(true)
     try {
@@ -190,7 +207,7 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
                       Edit
                     </Button>
                     {row['active'] === true ? (
-                      <Button size="sm" variant="danger" onClick={() => setConfirming(row)}>
+                      <Button size="sm" variant="secondary" onClick={() => setConfirming(row)}>
                         Nonaktifkan
                       </Button>
                     ) : (
@@ -198,6 +215,9 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
                         Aktifkan
                       </Button>
                     )}
+                    <Button size="sm" variant="danger" disabled={busy} onClick={() => setDeleting(row)}>
+                      Hapus
+                    </Button>
                   </div>
                 </TableCell>
               </TableRow>
@@ -240,6 +260,30 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
         <p>
           Baris ini tidak dihapus, hanya dinonaktifkan: ia tidak lagi ditawarkan pada pemilih dan
           generator, tetapi order lama yang memakainya tetap dapat dijelaskan.
+        </p>
+      </Modal>
+
+      <Modal
+        open={deleting !== null}
+        title={`Hapus Permanen ${spec.title}`}
+        onClose={() => setDeleting(null)}
+        footer={
+          <>
+            <Button onClick={() => setDeleting(null)}>Batal</Button>
+            <Button
+              variant="danger"
+              loading={busy}
+              onClick={() => deleting !== null && void removePermanently(deleting)}
+            >
+              Hapus Permanen
+            </Button>
+          </>
+        }
+      >
+        <p>
+          Apakah Anda yakin ingin menghapus permanen{' '}
+          <strong>{deleting ? String(deleting['name'] ?? deleting[spec.identityKey] ?? '') : ''}</strong>? Jika hanya
+          ingin menyembunyikan dari pemilih tanpa menghapus data, gunakan tombol <strong>Nonaktifkan</strong>.
         </p>
       </Modal>
     </Card>

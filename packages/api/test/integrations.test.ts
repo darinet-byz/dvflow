@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { RouteContext } from '../src/router'
 import type { Db } from '../src/db/types'
 import { encrypt, decrypt } from '../src/integrations/crypto'
-import { listConnections, saveConnection, connectionWebhookUrl, testConnection, validateConnectionWebhook } from '../src/integrations/handlers'
+import { listConnections, saveConnection, connectionWebhookUrl, testConnection, validateConnectionWebhook, deleteConnection } from '../src/integrations/handlers'
 
 function setup() {
   const rows: Record<string, unknown>[] = []
@@ -11,6 +11,10 @@ function setup() {
     selectRows: vi.fn(async (table: string, query: Record<string, string>) => table === 'users' ? [user] : rows.filter(row => !query.id || `eq.${row.id}` === query.id)),
     insertRow: vi.fn(async (_: string, row: Record<string, unknown>) => { const value = { id: crypto.randomUUID(), ...row }; rows.push(value); return value }),
     updateRows: vi.fn(async (_: string, query: Record<string, string>, patch: Record<string, unknown>) => { Object.assign(rows.find(row => `eq.${row.id}` === query.id)!, patch) }),
+    deleteRows: vi.fn(async (_: string, query: Record<string, string>) => {
+      const idx = rows.findIndex(row => `eq.${row.id}` === query.id)
+      if (idx !== -1) rows.splice(idx, 1)
+    }),
     rpc: vi.fn(),
   } as unknown as Db
   const context = { db, env: { INTEGRATION_ENCRYPTION_KEY: btoa('x'.repeat(32)) }, claims: { sub: 'admin' }, url: new URL('https://dvflow.test'), params: {}, now: new Date() } as unknown as RouteContext
@@ -19,7 +23,7 @@ function setup() {
 }
 afterEach(() => vi.unstubAllGlobals())
 describe('OrderOnline connections', () => {
-  it('encrypts credentials, separates multiple webhooks, masks lists and disables delivery', async () => {
+  it('encrypts credentials, separates multiple webhooks, masks lists, disables delivery and deletes connection', async () => {
     const { context, rows, body } = setup()
     for (const name of ['Shop A', 'Shop B']) { body({ name, api_token: 'private-token', active: true }); expect((await saveConnection(context)).status).toBe(201) }
     expect(rows).toHaveLength(2)
@@ -38,6 +42,9 @@ describe('OrderOnline connections', () => {
     context.params.connectionId = String(rows[0]!.id)
     rows[0]!.active = false
     expect(await validateConnectionWebhook(context)).toBe(false)
+    context.params = { id: String(rows[0]!.id) }
+    expect((await deleteConnection(context)).status).toBe(200)
+    expect(rows).toHaveLength(1)
   })
   it('preserves token on blank edit and never returns upstream credentials', async () => {
     const { context, rows, body } = setup()
@@ -59,7 +66,7 @@ describe('OrderOnline connections', () => {
   it('denies Team and inactive users across settings operations', async () => {
     const { context, user } = setup()
     user.role = 'staff'
-    for (const fn of [listConnections, saveConnection, connectionWebhookUrl, testConnection]) await expect(fn(context)).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    for (const fn of [listConnections, saveConnection, connectionWebhookUrl, testConnection, deleteConnection]) await expect(fn(context)).rejects.toMatchObject({ code: 'FORBIDDEN' })
     user.role = 'admin'; user.active = false
     await expect(listConnections(context)).rejects.toMatchObject({ code: 'USER_DISABLED' })
   })
@@ -70,3 +77,4 @@ describe('OrderOnline connections', () => {
     await expect(encrypt('secret', undefined)).rejects.toBeDefined()
   })
 })
+

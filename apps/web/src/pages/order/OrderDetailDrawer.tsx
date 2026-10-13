@@ -1,6 +1,8 @@
 import { Badge, appStatusTone, eventTypeTone } from '../../ui/Badge'
+import { Button } from '../../ui/Button'
 import { DetailList } from '../../ui/Card'
 import { Drawer } from '../../ui/Overlay'
+import { useToast } from '../../ui/Toast'
 import { formatDateTime, formatMoney, formatText } from '../../lib/format'
 import type { OrderRow } from '../../lib/queries'
 
@@ -13,6 +15,19 @@ import type { OrderRow } from '../../lib/queries'
  * (PRD §49–§50) dan tidak boleh ditambahkan atas dasar asumsi.
  */
 export function OrderDetailDrawer({ order, onClose }: { order: OrderRow | null; onClose: () => void }) {
+  const toast = useToast()
+  const accessUrl = order ? `${window.location.origin}/access/${encodeURIComponent(order.order_id)}` : ''
+
+  async function copyAccessLink() {
+    if (!accessUrl) return
+    try {
+      await navigator.clipboard.writeText(accessUrl)
+      toast.show('Link akses peserta disalin.', 'success')
+    } catch {
+      toast.show('Salin link secara manual dari kotak link.', 'danger')
+    }
+  }
+
   return (
     <Drawer open={order !== null} title={order === null ? 'Detail Order' : `Order ${order.order_id}`} onClose={onClose}>
       {order === null ? null : (
@@ -25,6 +40,25 @@ export function OrderDetailDrawer({ order, onClose }: { order: OrderRow | null; 
               { label: 'Email', value: formatText(order.email) },
             ]}
           />
+
+          <Section title="Tautan Akses Peserta (Tiket QR / Zoom)">
+            <div className="flex flex-col gap-2 rounded-md border border-line bg-page p-2.5">
+              <span className="break-all font-mono text-[12px] text-ink">{accessUrl}</span>
+              <div className="flex flex-wrap gap-2">
+                <Button size="sm" onClick={() => void copyAccessLink()}>
+                  Salin Link
+                </Button>
+                <a
+                  href={`/access/${encodeURIComponent(order.order_id)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-8 items-center rounded-sm border border-line bg-card px-2.5 text-[12px] font-semibold text-primary hover:bg-soft"
+                >
+                  Buka Tiket / Link
+                </a>
+              </div>
+            </div>
+          </Section>
 
           <Section title="Produk">
             <DetailList
