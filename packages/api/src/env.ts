@@ -5,6 +5,8 @@
  * (`.env.example` hanya memuat `VITE_*`).
  */
 export type Env = {
+  /** Base64-encoded 32-byte AES key for integration credentials. */
+  INTEGRATION_ENCRYPTION_KEY?: string
   /** URL project Supabase, mis. `https://xxxx.supabase.co`. */
   SUPABASE_URL: string
   /** Service key. Hanya backend (04 §5). */

@@ -32,6 +32,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Konfigurasi Tax', path: '/konfigurasi-tax', icon: 'percent' },
       { label: 'Report Tax', path: '/report-tax', icon: 'file-text' },
       { label: 'Konfigurasi Zoom', path: '/konfigurasi-zoom', icon: 'video' },
+      { label: 'API & Webhook', path: '/integrasi', icon: 'plug' },
       { label: 'Product Name Generator', path: '/generator', icon: 'wand' },
     ],
   },

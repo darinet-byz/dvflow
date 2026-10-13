@@ -309,6 +309,7 @@ describe('A. Authentication', () => {
     // akun. Webhook terbuka karena otorisasinya secret pada path (01 §20);
     // rute peserta terbuka karena Order ID adalah identitas akses (04 §12).
     expect(ROUTES.filter((route) => route.auth === 'none').map((route) => route.path)).toEqual([
+      '/api/webhooks/orderonline/:connectionId/:webhookSecret',
       '/api/webhooks/orderonline/:webhookSecret',
       '/api/auth/login',
       '/api/auth/refresh',

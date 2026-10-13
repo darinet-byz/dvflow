@@ -21,6 +21,7 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
       'Konfigurasi Tax',
       'Report Tax',
       'Konfigurasi Zoom',
+      'API & Webhook',
       'Product Name Generator',
       'Add Team',
       'Profil',

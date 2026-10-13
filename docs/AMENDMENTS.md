@@ -398,3 +398,12 @@ Permintaan pengguna menggantikan pembatasan MVP terkait export, sidebar, provisi
 - Label role: master_admin = Admin Master, admin = Admin, staff = Team. Identifier database/JWT tetap agar akun dan sesi lama kompatibel. Admin tidak dapat Add Team; Team tidak dapat Add Team, Konfigurasi Produk, Konfigurasi Tax, Report Tax. Route guard dan menu disabled melengkapi backend/RLS. Pembacaan kode untuk filter/generator tetap tersedia.
 - Retensi attendance_events menjadi 60 hari melalui migrasi 0021; master order dan retensi webhook_logs 7 hari tetap. Data yang sudah terhapus sebelumnya tidak dipulihkan.
 - Mobile: kontrol dapat membungkus, field mengikuti kontainer, modal dapat digulir, tabel tetap menggulir di dalam kontainernya. Warna, tipografi, dan alur selain revisi ini tetap.
+
+
+## A11 ? Multi-connection OrderOnline API & Webhook (2026-10-13)
+
+User requested API/webhook settings supporting more than one connection. Admin Master and Admin can create/edit named connections, enable/disable delivery, save a personal access token, test authentication and copy a per-connection webhook URL. Team cannot access these credentials. API tokens are optional for inbound webhooks, encrypted with AES-256-GCM using backend-only INTEGRATION_ENCRYPTION_KEY (base64 32 bytes); retain this key across deployments and back it up securely. Tokens and webhook secrets are excluded from lists and CSV exports. Blank token edits preserve the saved token.
+
+POST https://api.orderonline.id/v1/auth tests the saved personal access token according to https://developers.orderonline.id/reference/auth (checked 2026-10-13). No automatic historical import or remote webhook registration is implied: paste the generated URL into OrderOnline's order webhook settings. Tests discard upstream JWTs and sanitize provider errors.
+
+Migration 0022 adds service-only connection/source tables and a wrapper around existing ingestion. Multiple managed connections cannot overwrite each other's Order IDs. Existing global Order ID participant links and legacy environment-secret webhook remain compatible; legacy webhook order ownership cannot be inferred retroactively. Existing payload/status limitations still apply. Last received time tracks successful managed ingestion. Deployment requires migration 0022 and INTEGRATION_ENCRYPTION_KEY before publishing the new app.

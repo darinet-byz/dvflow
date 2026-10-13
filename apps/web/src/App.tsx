@@ -1,4 +1,5 @@
 import { TeamPage } from './pages/team/TeamPage'
+import { IntegrationsPage } from './pages/config/IntegrationsPage'
 import { ZoomPage } from './pages/config/ZoomPage'
 import { canAccessPath } from './lib/roles'
 import { useEffect } from 'react'
@@ -65,6 +66,7 @@ export function App() {
           <Route path="/generator" element={<GeneratorPage />} />
           <Route path="/add-team" element={<RoleGuard path="/add-team"><TeamPage /></RoleGuard>} />
           <Route path="/konfigurasi-zoom" element={<ZoomPage />} />
+          <Route path="/integrasi" element={<RoleGuard path="/integrasi"><IntegrationsPage /></RoleGuard>} />
           <Route path="/profil" element={<ProfilePage />} />
           <Route path="*" element={<NotFound />} />
         </Route>

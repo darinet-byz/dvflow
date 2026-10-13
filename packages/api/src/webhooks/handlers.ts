@@ -18,6 +18,7 @@ import { DbError } from '../db/types'
 import { fail, ok } from '../http/response'
 import type { RouteContext } from '../router'
 import { adaptOrderOnlineWebhook } from './adapter'
+import { validateConnectionWebhook } from '../integrations/handlers'
 
 /**
  * POST /api/webhooks/orderonline/:webhookSecret (03 §3, 01 §20, 01 §21).
@@ -34,7 +35,8 @@ import { adaptOrderOnlineWebhook } from './adapter'
  *     ingestion dapat didiagnosa tanpa membocorkan data pelanggan.
  */
 export async function orderOnlineWebhook(context: RouteContext): Promise<Response> {
-  if (!isWebhookSecretValid(context)) return fail('NOT_FOUND')
+  const connected = !!context.params['connectionId']
+  if (connected ? !await validateConnectionWebhook(context) : !isWebhookSecretValid(context)) return fail('NOT_FOUND')
 
   const body = await readJsonWithinLimit(context.request, WEBHOOK_MAX_BODY_BYTES)
   if (!body.ok) {
@@ -92,7 +94,8 @@ export async function orderOnlineWebhook(context: RouteContext): Promise<Respons
 
   let result: { order_id: string; action: string }
   try {
-    result = await context.db.rpc<{ order_id: string; action: string }>('upsert_order_webhook', {
+    result = await context.db.rpc<{ order_id: string; action: string }>(connected ? 'upsert_connected_order' : 'upsert_order_webhook', {
+      ...(connected ? { p_connection_id: context.params['connectionId'] } : {}),
       p_payload: buildRpcPayload(canonical, appStatus, parse),
     })
   } catch (error) {
@@ -272,7 +275,7 @@ async function logWebhook(context: RouteContext, input: WebhookLogInput): Promis
       order_id: input.orderId,
       outcome: input.outcome,
       error_code: input.errorCode,
-      payload_sanitized: input.summary,
+      payload_sanitized: { ...input.summary, ...(context.params['connectionId'] ? { connection_id: context.params['connectionId'] } : {}) },
     })
   } catch {
     // Diabaikan dengan sengaja; lihat komentar di atas.

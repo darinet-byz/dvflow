@@ -1,4 +1,5 @@
 import type { Route } from './router'
+import { listConnections, saveConnection, connectionWebhookUrl, testConnection } from './integrations/handlers'
 import { changePassword, login, logout, refresh } from './auth/handlers'
 import { createConfig, deactivateConfig, updateConfig } from './config/handlers'
 import { listWebinars, saveWebinar } from './webinar/handlers'
@@ -29,6 +30,12 @@ import { orderOnlineWebhook } from './webhooks/handlers'
  * berotorisasi Order ID (04 §12).
  */
 export const ROUTES: Route[] = [
+  { method: 'GET', path: '/api/integrations/orderonline', handler: listConnections, auth: 'access' },
+  { method: 'POST', path: '/api/integrations/orderonline', handler: saveConnection, auth: 'access' },
+  { method: 'PATCH', path: '/api/integrations/orderonline/:id', handler: saveConnection, auth: 'access' },
+  { method: 'GET', path: '/api/integrations/orderonline/:id/webhook', handler: connectionWebhookUrl, auth: 'access' },
+  { method: 'POST', path: '/api/integrations/orderonline/:id/test', handler: testConnection, auth: 'access' },
+  { method: 'POST', path: '/api/webhooks/orderonline/:connectionId/:webhookSecret', handler: orderOnlineWebhook, auth: 'none' },
   // Ingestion.
   {
     method: 'POST',
