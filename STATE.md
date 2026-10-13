@@ -342,7 +342,13 @@ grant dan tanpa policy. Tidak ada satu pun policy tulis; seluruh penulisan lewat
 
 Konfigurasi deploy sudah ada dan **sudah diverifikasi secara lokal** lewat
 `npm run smoke:local` (18 langkah, termasuk webhook end-to-end melalui jalur deploy). Yang
-tersisa adalah menjalankannya terhadap akun & project nyata:
+tersisa adalah menjalankannya terhadap akun & project nyata.
+
+**Langkah 0 — isi `.env.setup.local`.** Dibuat dengan `node scripts/make-setup-file.mjs`.
+Isinya delapan nilai yang hanya pemilik project yang tahu (repo GitHub, project Supabase,
+akun Cloudflare); kunci JWT, webhook secret, dan public JWK sudah diisi otomatis. Berkas itu
+tercakup pola `.env.*` di `.gitignore` sehingga **tidak pernah ikut ter-commit** — jangan
+menyalin isinya ke berkas lain di dalam repo.
 
 1. **Project Supabase** — buat project, lalu:
    - `node scripts/rotate-jwt-key.mjs`: import public JWK sebagai signing key ES256 dengan `kid`

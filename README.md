@@ -107,6 +107,20 @@ npm run deploy
 SMOKE_BASE_URL=https://<domain> npm run smoke:local
 ```
 
+### Isian setup (GitHub, Supabase, Cloudflare)
+
+```bash
+node scripts/make-setup-file.mjs      # membuat .env.setup.local
+```
+
+`.env.setup.local` adalah **satu berkas isian** untuk nilai yang hanya pemilik
+project yang tahu (kunci Supabase, akun Cloudflare, repo). Kunci JWT, webhook
+secret, dan public JWK sudah diisi otomatis di dalamnya — tidak perlu disalin
+manual.
+
+Berkas itu **diabaikan git** (tercakup pola `.env.*`), sehingga tidak akan pernah
+ikut ter-commit. Jangan menyalin isinya ke berkas lain di dalam repo.
+
 Berkas `_headers` memasang CSP, `Permissions-Policy: camera=(self)`, `nosniff`, dan anti-framing
 untuk aset statis; Pages Functions mengatur headernya sendiri (halaman peserta punya CSP lebih
 ketat). Rute `/access/*` dan `/checkin/*` **memerlukan berkas fungsinya sendiri** — tanpa itu ia
