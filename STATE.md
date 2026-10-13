@@ -8,7 +8,7 @@
 > pekerjaan sudah berjalan, bukan aturan baru.
 
 Terakhir diperbarui: 2026-10-13
-Repo: `C:\Users\MyBook Z Series\dvflow` (git sudah `init -b main`, **belum ada commit**)
+Repo: `C:\Users\MyBook Z Series\dvflow` (git `main`, **sudah di-commit lokal** — belum di-push)
 Rencana lengkap: `~/.claude/plans/baca-file-claude-md-dan-glowing-pike.md`
 Nama aplikasi: **dvflow** (`OrderOnline` tetap nama provider, bukan nama aplikasi)
 
@@ -183,7 +183,7 @@ Keputusan yang diambil bersama pengguna. Jangan diubah tanpa keputusan baru.
 | **Deploy ke Cloudflare** | P10 selesai | Akun Cloudflare + nama project Pages + secret produksi (`SUPABASE_*`, `APP_JWT_*`, `ORDERONLINE_WEBHOOK_SECRET`). Konfigurasi dan verifikasinya sudah siap; yang belum hanya menjalankannya |
 | **Project Supabase nyata** | Trust JWT, RLS teruji, cron terverifikasi | URL + publishable/secret key project; import public key hasil `npm run rotate-jwt-key` sebagai signing key ES256 |
 | `BLOCKED_BY_EXTERNAL_ORDERONLINE_PAYLOAD` (**sebagian besar terbuka**) | Klaim production-ready P4 | Ingestion berjalan dan teruji end-to-end. Masih kurang: sample `processing`/`complete`/`cancelled`, payment method kedua, dan sample paid dengan `payment.data`/`channels` terisi bila fee per bank diinginkan |
-| **Belum ada commit git** | Semua | Konfirmasi pengguna + repo GitHub. Repo sudah `init -b main` dengan seluruh berkas belum di-commit — ini risiko kehilangan pekerjaan, bukan sekadar kerapian |
+| **Belum di-push ke remote** | Backup & kolaborasi | Commit lokal sudah ada (seluruh pekerjaan aman di git), tetapi belum ada remote. Risiko kehilangan hanya bila mesinnya hilang: siapkan repo GitHub lalu `git push -u origin main` |
 
 ### Butir yang sengaja belum selesai (bukan blocker)
 
@@ -448,3 +448,4 @@ sering terlanggar:
 | 2026-10-13 | P10 | Assertion pgTAP di dalam blok `DO` dihitung sebagai rencana tetapi tidak dicetak → berkas gagal "Bad plan". Ditulis ulang sebagai pernyataan biasa: **238 pgTAP** lulus |
 | 2026-10-13 | P10 | Audit menemukan advisory `undici` lewat `wrangler` (dev-only). Dinaikkan ke 4.149.0 — lebih baru dari batas 2 minggu, dengan alasan dicatat (K62) — lalu smoke test jalur deploy dijalankan ulang dan tetap lulus seluruhnya |
 | 2026-10-13 | P10 | Gate lulus: typecheck PASS, **342 test unit** (96 shared + 145 api + 101 web), build PASS, verifikasi artefak QR OK, **238 pgTAP**, **34 test integrasi**, **smoke jalur deploy 18/18**, **npm audit 0 vulnerabilities** |
+| 2026-10-13 | — | **Pekerjaan disimpan**: commit pertama di `main` (203 berkas, 38.401 baris). Diverifikasi sebelum commit: tidak ada secret di antara berkas yang di-commit, `.dev.vars`/`.env`/`.wrangler`/`node_modules`/`dist` tidak ikut, dan `.gitattributes` memaku LF supaya `\r` tidak pernah masuk ke nilai secret. Belum di-push (pilihan pengguna) |
