@@ -56,6 +56,29 @@ export type TicketData = {
   notes?: string | null
   /** Payload yang nantinya diubah menjadi QR di browser (03 §8, 05 §G03). */
   checkinPath: string
+  alreadyCheckedIn?: boolean
+  checkedInAt?: string | null
+}
+
+export function formatCheckinTime(isoDate: string | null | undefined): string | null {
+  if (!isoDate) return null
+  try {
+    const d = new Date(isoDate)
+    if (Number.isNaN(d.getTime())) return null
+    return (
+      d.toLocaleString('id-ID', {
+        timeZone: 'Asia/Jakarta',
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hourCycle: 'h23',
+      }) + ' WIB'
+    )
+  } catch {
+    return isoDate
+  }
 }
 
 export function renderTicketPage(data: TicketData): Response {
@@ -69,6 +92,36 @@ export function renderTicketPage(data: TicketData): Response {
     ['Jadwal', data.schedule ?? null],
     ['Catatan', data.notes ?? null],
   ]
+
+  const formattedDate = formatCheckinTime(data.checkedInAt)
+
+  const checkinSection = data.alreadyCheckedIn
+    ? `
+    <section class="card checkin checkin-card">
+      <p class="event">Status Kehadiran</p>
+      <div class="badge-success">✓ Check-in Telah Berhasil</div>
+      <p class="hint">
+        Tiket ini sudah digunakan untuk masuk ke acara dan tidak dapat dipindai ulang.
+      </p>
+      ${formattedDate ? `<p class="checkin-time">Waktu check-in: <strong>${escapeHtml(formattedDate)}</strong></p>` : ''}
+      <p class="payload">${escapeHtml(data.orderId)}</p>
+    </section>`
+    : `
+    <section class="card checkin">
+      <p class="event">Check-in panitia</p>
+      <div
+        id="${CHECKIN_QR_ELEMENT_ID}"
+        class="qr"
+        data-checkin-payload="${escapeHtml(data.checkinPath)}"
+      ></div>
+      <p class="hint">
+        Tunjukkan kode QR di atas kepada panitia. Bila kamera panitia bermasalah,
+        sebutkan Order ID di bawah — panitia dapat mencarinya secara manual.
+      </p>
+      <p class="payload">${escapeHtml(data.orderId)}</p>
+    </section>`
+
+  const scriptTag = data.alreadyCheckedIn ? '' : `\n    <script src="${TICKET_QR_SCRIPT_PATH}" defer></script>`
 
   const body = `
     <header>
@@ -86,23 +139,9 @@ export function renderTicketPage(data: TicketData): Response {
           .join('\n        ')}
       </dl>
     </section>
+${checkinSection}
 
-    <section class="card checkin">
-      <p class="event">Check-in panitia</p>
-      <div
-        id="${CHECKIN_QR_ELEMENT_ID}"
-        class="qr"
-        data-checkin-payload="${escapeHtml(data.checkinPath)}"
-      ></div>
-      <p class="hint">
-        Tunjukkan kode QR di atas kepada panitia. Bila kamera panitia bermasalah,
-        sebutkan Order ID di bawah — panitia dapat mencarinya secara manual.
-      </p>
-      <p class="payload">${escapeHtml(data.orderId)}</p>
-    </section>
-
-    <footer>Simpan halaman ini sampai acara selesai.</footer>
-    <script src="${TICKET_QR_SCRIPT_PATH}" defer></script>
+    <footer>Simpan halaman ini sampai acara selesai.</footer>${scriptTag}
   `
 
   return htmlResponse(200, 'Tiket Peserta', body, TICKET_CSP)
@@ -196,6 +235,19 @@ function htmlResponse(status: number, title: string, body: string, contentSecuri
   .qr { width: 100%; max-width: 260px; aspect-ratio: 1 / 1; margin: 0 auto; background: #fff; }
   .qr svg { display: block; width: 100%; height: 100%; }
   .payload { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: .06em; text-align: center; }
+  .badge-success {
+    display: inline-block;
+    padding: 8px 16px;
+    border-radius: 9999px;
+    background: #e6f7ec;
+    color: #0e8345;
+    font-weight: 700;
+    font-size: 15px;
+    margin: 4px auto 12px;
+  }
+  .checkin-card { text-align: center; }
+  .checkin-time { margin: 8px 0 16px; color: #737786; font-size: 13px; }
+  .checkin-time strong { color: #171821; }
   footer { margin-top: 20px; font-size: 12px; color: #737786; text-align: center; }
 </style>
 </head>

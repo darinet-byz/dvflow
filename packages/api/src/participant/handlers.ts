@@ -76,11 +76,19 @@ export async function accessOrder(context: RouteContext): Promise<Response> {
     return redirectToWebinar(context, order)
   }
 
-  const ticketRows = await context.db.selectRows<{ key: string; value_text: string | null }>(
-    'app_settings',
-    { key: `like.${TICKET_PREFIX}*` },
-    'key,value_text',
-  )
+  const [ticketRows, attendanceRows] = await Promise.all([
+    context.db.selectRows<{ key: string; value_text: string | null }>(
+      'app_settings',
+      { key: `like.${TICKET_PREFIX}*` },
+      'key,value_text',
+    ),
+    context.db.selectRows<{ id: string; clicked_at: string }>(
+      'attendance_events',
+      { order_id: `eq.${order.order_id}`, attendance_type: 'eq.seminar' },
+      'id,clicked_at',
+    ),
+  ])
+
   const byKey = new Map(ticketRows.map((row) => [row.key, row.value_text]))
   let matchedRaw: string | null = null
   for (const candidate of candidateSettingKeys(order, TICKET_PREFIX)) {
@@ -96,6 +104,8 @@ export async function accessOrder(context: RouteContext): Promise<Response> {
     return renderErrorPage('WEBINAR_DESTINATION_NOT_CONFIGURED', order.order_id)
   }
 
+  const checkedInEvent = attendanceRows[0] ?? null
+
   const data: TicketData = {
     orderId: order.order_id,
     participantName: order.name,
@@ -109,6 +119,8 @@ export async function accessOrder(context: RouteContext): Promise<Response> {
     schedule: ticketMeta?.schedule ?? null,
     notes: ticketMeta?.notes ?? null,
     checkinPath: buildCheckinPath(order.order_id),
+    alreadyCheckedIn: checkedInEvent !== null,
+    checkedInAt: checkedInEvent?.clicked_at ?? null,
   }
   return renderTicketPage(data)
 }

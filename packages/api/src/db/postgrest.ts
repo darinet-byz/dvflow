@@ -24,7 +24,10 @@ export function createPostgrestDb(env: Env, fetchImpl: typeof fetch = fetch): Db
         body: JSON.stringify(args),
       })
       await ensureOk(response, `rpc ${name}`)
-      return (await response.json()) as T
+      if (response.status === 204) return undefined as T
+      const text = await response.text()
+      if (!text || text.trim() === '') return undefined as T
+      return JSON.parse(text) as T
     },
 
     async selectRows<T>(table: string, query: Record<string, string>, columns: string): Promise<T[]> {

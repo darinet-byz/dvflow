@@ -129,6 +129,34 @@ describe('akses peserta seminar: halaman tiket (PRD §93, §G01, §G03)', () => 
     expect(html).not.toContain('<svg')
   })
 
+  it('tiket yang sudah check-in menampilkan status Check-in Telah Berhasil dan TANPA QR', async () => {
+    const { api } = await setup({
+      orders: [fakeOrder()],
+      attendanceEvents: [
+        {
+          id: 'event-uuid-1',
+          order_id: '283033796',
+          attendance_type: 'seminar',
+          source: 'seminar_qr',
+          clicked_at: '2026-10-13T07:30:00.000Z',
+        },
+      ],
+    })
+
+    const html = await (await access(api, '283033796')).text()
+
+    // Menampilkan pesan sukses check-in dan Order ID
+    expect(html).toContain('Check-in Telah Berhasil')
+    expect(html).toContain('Tiket ini sudah digunakan untuk masuk ke acara dan tidak dapat dipindai ulang.')
+    expect(html).toContain('Waktu check-in:')
+    expect(html).toContain('283033796')
+
+    // TIDAK menampilkan wadah QR dan TIDAK memuat skrip ticket-qr.js
+    expect(html).not.toContain(`id="${CHECKIN_QR_ELEMENT_ID}"`)
+    expect(html).not.toContain('data-checkin-payload')
+    expect(html).not.toContain(TICKET_QR_SCRIPT_PATH)
+  })
+
   it('halaman error tidak memuat skrip sama sekali', async () => {
     const { api } = await setup()
     const response = await access(api, '999999')
