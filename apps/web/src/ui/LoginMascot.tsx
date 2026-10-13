@@ -203,22 +203,22 @@ export function LoginMascot() {
         </g>
 
         {/* 2. LOGO META ADS (Melayang di samping atas kanan maskot) */}
-        <g className="anim-meta-orbit" style={{ transformOrigin: '152px 40px' }}>
+        <g className="anim-meta-orbit" style={{ transformOrigin: '153px 44px' }}>
           {/* Glow Lingkaran Denyut di belakang Logo Meta */}
           <circle
             cx="153"
-            cy="40"
-            r="26"
+            cy="44"
+            r="30"
             fill="#0081FB"
-            opacity="0.15"
+            opacity="0.18"
             className="anim-meta-glow"
           />
 
           {/* Tag "META ADS" Pill kecil mengambang */}
-          <rect x="127" y="12" width="52" height="13" rx="6.5" fill="#0081FB" />
+          <rect x="127" y="10" width="52" height="13" rx="6.5" fill="#0081FB" />
           <text
             x="153"
-            y="21"
+            y="19"
             fill="#FFFFFF"
             fontSize="7"
             fontWeight="bold"
@@ -229,37 +229,15 @@ export function LoginMascot() {
             META ADS
           </text>
 
-          {/* Official Meta Infinity Shape Ribbon */}
-          {/* Loop Kiri */}
-          <path
-            d="M142.5 40 C142.5 33 137.5 28.5 132.5 28.5 C126.5 28.5 122 34 122 41 C122 48 126.5 53.5 132.5 53.5 C137.5 53.5 142.5 47 142.5 40 Z"
-            fill="none"
-            stroke="url(#metaGrad)"
-            strokeWidth="5.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          {/* Gambar Logo Asli Meta Ads Transparan */}
+          <image
+            href="/meta-ads.png"
+            x="125"
+            y="21"
+            width="56"
+            height="46"
+            preserveAspectRatio="xMidYMid meet"
           />
-          {/* Loop Kanan */}
-          <path
-            d="M163.5 40 C163.5 33 168.5 28.5 173.5 28.5 C179.5 28.5 184 34 184 41 C184 48 179.5 53.5 173.5 53.5 C168.5 53.5 163.5 47 163.5 40 Z"
-            fill="none"
-            stroke="url(#metaGrad)"
-            strokeWidth="5.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-          {/* Silang Tengah Meta Ribbon */}
-          <path
-            d="M136 33.5 C141 38 165 47 170 33.5 M136 48.5 C141 44 165 35 170 48.5"
-            fill="none"
-            stroke="url(#metaGrad)"
-            strokeWidth="5.5"
-            strokeLinecap="round"
-          />
-
-          {/* Kilau Permukaan Meta Logo */}
-          <circle cx="178" cy="34" r="1.8" fill="#FFFFFF" opacity="0.9" />
-          <circle cx="128" cy="34" r="1.8" fill="#FFFFFF" opacity="0.9" />
         </g>
 
         {/* 3. PARTIKEL DATA & KILAU KONVERSI (Mengalir antara Meta Ads & Maskot) */}
