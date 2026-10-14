@@ -22,6 +22,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Scan QR', path: OPERASIONAL_PATH, icon: 'scan-line' },
       { label: 'Dashboard Resume', path: DASHBOARD_PATH, icon: 'layout-dashboard' },
       { label: 'Order', path: '/order', icon: 'receipt' },
+      { label: 'Order Unmapped', path: '/order-unmapped', icon: 'alert-circle' },
       { label: 'Presensi Acara', path: '/presensi', icon: 'user-check' },
       { label: 'Product Name Generator', path: '/generator', icon: 'wand' },
     ],

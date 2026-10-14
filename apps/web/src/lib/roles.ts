@@ -15,6 +15,7 @@ export const PATH_PERMISSION_MAP: Record<string, string> = {
   '/scan-qr': 'operasional.scan_qr',
   '/': 'operasional.dashboard',
   '/order': 'operasional.order',
+  '/order-unmapped': 'operasional.order_unmapped',
   '/presensi': 'operasional.presensi',
   '/generator': 'operasional.generator',
   '/konfigurasi-produk': 'config.produk',

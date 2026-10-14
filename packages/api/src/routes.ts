@@ -16,6 +16,7 @@ import { accessOrder, checkinByQr, checkinInfoPage } from './participant/handler
 import { getProfile, updateProfile } from './profile/handlers'
 import { scannerManualCheckin, scannerSearch } from './scanner/handlers'
 import { orderOnlineWebhook } from './webhooks/handlers'
+import { batchRemapOrders, deleteAlias, listAliases, listUnmappedOrders, saveAlias } from './aliases/handlers'
 
 /**
  * Tabel rute backend (03 §4–§7, §13, §14).
@@ -84,9 +85,17 @@ export const ROUTES: Route[] = [
   { method: 'DELETE', path: '/api/seminar-tickets', handler: deleteSeminarTicket, auth: 'access' },
 
   // Peserta (publik: Order ID adalah identitas akses — 04 §12).
+  { method: 'GET', path: '/access/:kodeToko/:orderId', handler: accessOrder, auth: 'none' },
   { method: 'GET', path: '/access/:orderId', handler: accessOrder, auth: 'none' },
   // GET check-in sengaja tidak mengubah apa pun; mutasi hanya lewat POST (03 §9).
   { method: 'GET', path: '/checkin/:orderId', handler: checkinInfoPage, auth: 'none' },
+
+  // Alias Produk & Order Unmapped (Masa Transisi).
+  { method: 'GET', path: '/api/product-aliases', handler: listAliases, auth: 'access' },
+  { method: 'POST', path: '/api/product-aliases', handler: saveAlias, auth: 'access' },
+  { method: 'DELETE', path: '/api/product-aliases/:id', handler: deleteAlias, auth: 'access' },
+  { method: 'GET', path: '/api/orders/unmapped', handler: listUnmappedOrders, auth: 'access' },
+  { method: 'POST', path: '/api/orders/batch-remap', handler: batchRemapOrders, auth: 'access' },
 
   // Scanner (operator terautentikasi).
   { method: 'POST', path: '/checkin/:orderId', handler: checkinByQr, auth: 'access' },

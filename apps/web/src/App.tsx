@@ -20,6 +20,7 @@ import { ProfilePage } from './pages/profile/ProfilePage'
 import { ReportTaxPage } from './pages/report-tax/ReportTaxPage'
 import { ScanQrPage } from './pages/scanner/ScanQrPage'
 import { OrderPage } from './pages/order/OrderPage'
+import { OrderUnmappedPage } from './pages/order/OrderUnmappedPage'
 import { PresensiPage } from './pages/presensi/PresensiPage'
 import { RoleConfigPage } from './pages/config/RoleConfigPage'
 import { Card } from './ui/Card'
@@ -61,6 +62,7 @@ export function App() {
           <Route path={DASHBOARD_PATH} element={<DashboardPage />} />
           <Route path="/scan-qr" element={<ScanQrPage />} />
           <Route path="/order" element={<OrderPage />} />
+          <Route path="/order-unmapped" element={<RoleGuard path="/order-unmapped"><OrderUnmappedPage /></RoleGuard>} />
           <Route path="/presensi" element={<PresensiPage />} />
           <Route path="/konfigurasi-produk" element={<RoleGuard path="/konfigurasi-produk"><KonfigurasiProdukPage /></RoleGuard>} />
           <Route path="/konfigurasi-tax" element={<RoleGuard path="/konfigurasi-tax"><KonfigurasiTaxPage /></RoleGuard>} />

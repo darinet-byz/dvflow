@@ -180,3 +180,27 @@ export type MatchedFeeRule = {
   fee_type: FeeType
   fee_value: number
 }
+
+export type ProductAliasItem = {
+  id: string
+  alias_name: string
+  alias_name_normalized: string
+  canonical_target: string
+  created_at: string
+  updated_at: string
+  created_by?: string | null
+}
+
+export type UnmappedOrderItem = {
+  id: string
+  order_id: string
+  raw_order_id?: string | null
+  connection_id?: string | null
+  name?: string | null
+  phone?: string | null
+  email?: string | null
+  product_raw?: string | null
+  app_status: AppStatus
+  gross_amount: number
+  created_at: string
+}

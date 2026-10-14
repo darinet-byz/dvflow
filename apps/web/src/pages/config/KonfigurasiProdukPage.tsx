@@ -1,5 +1,6 @@
 import { PageHeader } from '../../layout/PageHeader'
 import { ConfigSection } from './ConfigSection'
+import { ProductAliasSection } from './ProductAliasSection'
 import { ADVERTISER_SPEC, EVENT_TYPE_SPEC, PRODUCT_SPEC, SESSION_SPEC } from './specs'
 
 /**
@@ -19,7 +20,7 @@ export function KonfigurasiProdukPage() {
     <>
       <PageHeader
         title="Konfigurasi Produk"
-        description="Pusat mapping kode: produk, pengiklan, type, dan sesi yang dikenali sistem."
+        description="Pusat mapping kode: produk, pengiklan, type, sesi, serta alias produk OrderOnline."
       />
 
       <div className="flex flex-col gap-4">
@@ -27,6 +28,7 @@ export function KonfigurasiProdukPage() {
         <ConfigSection spec={ADVERTISER_SPEC} />
         <ConfigSection spec={EVENT_TYPE_SPEC} />
         <ConfigSection spec={SESSION_SPEC} />
+        <ProductAliasSection />
       </div>
     </>
   )

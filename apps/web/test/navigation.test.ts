@@ -16,6 +16,7 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
       'Scan QR',
       'Dashboard Resume',
       'Order',
+      'Order Unmapped',
       'Presensi Acara',
       'Product Name Generator',
       'Konfigurasi Produk',

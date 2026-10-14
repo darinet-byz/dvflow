@@ -90,7 +90,9 @@ export async function orderOnlineWebhook(context: RouteContext): Promise<Respons
   }
 
   const config = await loadProductConfig(context.db)
-  const parse = parseProductRaw(canonical.productRaw, config)
+  const aliasTarget = await resolveProductAlias(context.db, canonical.productRaw)
+  const effectiveProductRaw = aliasTarget ?? canonical.productRaw
+  const parse = parseProductRaw(effectiveProductRaw, config)
 
   let result: { order_id: string; action: string }
   try {
@@ -189,6 +191,22 @@ async function readJsonWithinLimit(request: Request, maxBytes: number): Promise<
     return { ok: true, value: JSON.parse(text) }
   } catch {
     return { ok: false, reason: 'INVALID_JSON' }
+  }
+}
+
+export async function resolveProductAlias(db: Db, raw: string | null | undefined): Promise<string | null> {
+  if (!raw) return null
+  const normalized = raw.trim().toLowerCase()
+  if (!normalized) return null
+  try {
+    const rows = await db.selectRows<{ canonical_target: string }>(
+      'product_aliases',
+      { alias_name_normalized: `eq.${normalized}` },
+      'canonical_target',
+    )
+    return rows[0]?.canonical_target ?? null
+  } catch {
+    return null
   }
 }
 

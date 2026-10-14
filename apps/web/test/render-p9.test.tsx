@@ -335,7 +335,7 @@ describe('Konfigurasi Produk (PRD §57–§63, §162)', () => {
     renderPage(<KonfigurasiProdukPage />)
 
     const tables = await screen.findAllByRole('table')
-    expect(tables.length).toBe(4)
+    expect(tables.length).toBe(5)
 
     const headers = within(tables[0] as HTMLElement)
       .getAllByRole('columnheader')

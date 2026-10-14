@@ -55,13 +55,37 @@ export async function loadOrder(db: Db, orderId: string): Promise<OrderRow | nul
  * pernah membuat gambar QR).
  */
 export async function accessOrder(context: RouteContext): Promise<Response> {
+  const kodeToko = context.params['kodeToko']?.trim().toUpperCase()
   const orderId = context.params['orderId'] ?? ''
 
   // Order ID dari URL adalah input tak terpercaya: bentuknya diperiksa sebelum
   // menyentuh database supaya tidak ada nilai aneh yang sampai ke query.
   if (!isOrderIdShaped(orderId)) return renderErrorPage('ORDER_NOT_FOUND', null)
+  if (kodeToko && !/^[A-Z0-9]{1,4}$/.test(kodeToko)) return renderErrorPage('ORDER_NOT_FOUND', null)
 
-  const order = await loadOrder(context.db, orderId)
+  let order: OrderRow | null = null
+  if (kodeToko) {
+    const effectiveId = orderId.startsWith(`${kodeToko}-`) ? orderId : `${kodeToko}-${orderId}`
+    order = await loadOrder(context.db, effectiveId)
+    if (!order) {
+      const rows = await context.db.selectRows<OrderRow>('orders', {
+        raw_order_id: `eq.${orderId}`,
+        order_id: `like.${kodeToko}-*`,
+      }, ORDER_COLUMNS)
+      order = rows[0] ?? null
+    }
+  } else {
+    order = await loadOrder(context.db, orderId)
+    if (!order) {
+      const rows = await context.db.selectRows<OrderRow>('orders', {
+        raw_order_id: `eq.${orderId}`,
+      }, ORDER_COLUMNS)
+      if (rows.length === 1) {
+        order = rows[0]!
+      }
+    }
+  }
+
   if (order === null) return renderErrorPage('ORDER_NOT_FOUND', orderId)
 
   if (order.app_status !== 'Paid') return renderErrorPage('ORDER_NOT_PAID', orderId)

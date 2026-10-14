@@ -314,6 +314,7 @@ describe('A. Authentication', () => {
       '/api/auth/login',
       '/api/auth/refresh',
       '/api/auth/logout',
+      '/access/:kodeToko/:orderId',
       '/access/:orderId',
       '/checkin/:orderId',
     ])

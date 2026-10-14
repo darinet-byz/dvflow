@@ -4,8 +4,8 @@ import type { RouteContext } from '../router'
 import { requireActiveUser } from '../users'
 import { decrypt, encrypt, hash } from './crypto'
 
-type Connection = { id: string; name: string; active: boolean; api_token_encrypted: string | null; webhook_secret_encrypted: string; webhook_secret_hash: string; last_received_at: string | null; created_at: string }
-const fields = 'id,name,active,api_token_encrypted,webhook_secret_encrypted,webhook_secret_hash,last_received_at,created_at'
+type Connection = { id: string; name: string; slug: string; active: boolean; api_token_encrypted: string | null; webhook_secret_encrypted: string; webhook_secret_hash: string; last_received_at: string | null; created_at: string }
+const fields = 'id,name,slug,active,api_token_encrypted,webhook_secret_encrypted,webhook_secret_hash,last_received_at,created_at'
 async function requireAdmin(context: RouteContext) {
   if ((await requireActiveUser(context)).role === 'staff') throw new ApiFailure('FORBIDDEN')
 }
@@ -24,15 +24,27 @@ export async function listConnections(context: RouteContext): Promise<Response> 
     rows.push(...page)
     if (page.length < 500) break
   }
-  return ok({ rows: rows.map(row => ({ id: row.id, name: row.name, active: row.active, has_api_token: !!row.api_token_encrypted, last_received_at: row.last_received_at })) })
+  return ok({ rows: rows.map(row => ({ id: row.id, name: row.name, slug: row.slug, active: row.active, has_api_token: !!row.api_token_encrypted, last_received_at: row.last_received_at })) })
 }
 export async function saveConnection(context: RouteContext): Promise<Response> {
   await requireAdmin(context)
   const body = await readJsonObject(context.request)
   const name = readString(body, 'name')?.trim()
+  let slug = readString(body, 'slug')?.trim().toUpperCase()
   const token = readString(body, 'api_token')?.trim()
+  const isEditing = !!context.params['id']
   if (!name || name.length > 100 || (token && token.length > 8192) || typeof body['active'] !== 'boolean') throw new ApiFailure('INVALID_ARGUMENT')
+  if (!isEditing && !slug) {
+    const cleaned = name.replace(/[^A-Za-z0-9]/g, '').toUpperCase()
+    const prefix = (cleaned.slice(0, 2) || 'TK')
+    const suffix = Math.floor(10 + Math.random() * 89).toString()
+    slug = (prefix + suffix).slice(0, 4)
+  }
+  if (slug && !/^[A-Z0-9]{1,4}$/.test(slug)) {
+    throw new ApiFailure('INVALID_ARGUMENT', 'Kode toko wajib 1-4 karakter alfanumerik kapital')
+  }
   const patch: Record<string, unknown> = { name, active: body['active'] }
+  if (slug) patch['slug'] = slug
   if (token) patch['api_token_encrypted'] = await encrypt(token, context.env.INTEGRATION_ENCRYPTION_KEY)
   if (context.params['id']) {
     const row = await getConnection(context)
@@ -49,7 +61,10 @@ export async function connectionWebhookUrl(context: RouteContext): Promise<Respo
   await requireAdmin(context)
   const row = await getConnection(context)
   const secret = await decrypt(row.webhook_secret_encrypted, context.env.INTEGRATION_ENCRYPTION_KEY)
-  return ok({ url: `${context.url.origin}/api/webhooks/orderonline/${row.id}/${secret}` }, { headers: { 'Cache-Control': 'no-store' } })
+  return ok({
+    url: `${context.url.origin}/api/webhooks/orderonline/${row.id}/${secret}`,
+    redirectUrl: `${context.url.origin}/access/${row.slug}/{order_id}`,
+  }, { headers: { 'Cache-Control': 'no-store' } })
 }
 export async function testConnection(context: RouteContext): Promise<Response> {
   await requireAdmin(context)
