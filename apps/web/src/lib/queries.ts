@@ -1,3 +1,4 @@
+import { EVENT_TYPE_NAME_BY_KIND, type EventKind } from '@dvflow/shared'
 import { supabaseRpc, supabaseSelect } from './supabase-rest'
 import type { CommonFilters, OrderFilters, PageSize, PresensiFilters } from './filters'
 import { toFilterArgs, toOrderArgs, toPresensiArgs } from './filters'
@@ -26,7 +27,7 @@ export type DashboardSummary = {
 }
 
 export type AppStatus = 'Pending' | 'Paid' | 'Cancelled'
-export type EventTypeName = 'Seminar Offline' | 'Webinar Online'
+export type EventTypeName = 'Seminar Offline' | 'Webinar Online' | 'Hybrid'
 export type AttendanceStatus = 'Hadir' | 'Belum Hadir' | 'Pending' | 'Cancelled'
 
 /** Satu baris Master Order (PRD §45 + data snapshot untuk drawer). */
@@ -194,13 +195,13 @@ export type ConfigLists = {
 }
 
 type CodeRow = { code: string; name: string }
-type EventTypeRow = { code: string; name: string }
+type EventTypeRow = { code: string; name: string; kind: EventKind }
 
 export async function fetchConfigLists(): Promise<ConfigLists> {
   const [products, advertisers, eventTypes, sessions, feeRules] = await Promise.all([
     supabaseSelect<CodeRow>('products', { active: 'is.true' }, 'code,name'),
     supabaseSelect<CodeRow>('advertisers', { active: 'is.true' }, 'code,name'),
-    supabaseSelect<EventTypeRow>('event_types', { active: 'is.true' }, 'code,name'),
+    supabaseSelect<EventTypeRow>('event_types', { active: 'is.true' }, 'code,name,kind'),
     supabaseSelect<CodeRow>('sessions_config', { active: 'is.true' }, 'code,name'),
     supabaseSelect<{ identifier: string }>('payment_fee_rules', { active: 'is.true' }, 'identifier'),
   ])
@@ -209,8 +210,10 @@ export async function fetchConfigLists(): Promise<ConfigLists> {
     products: toOptions(products),
     advertisers: toOptions(advertisers),
     eventTypes: toOptions(eventTypes),
-    eventTypeNames: eventTypes
-      .map((row) => ({ value: row.name, label: row.name }))
+    // orders.event_type diturunkan dari kind (Seminar Offline/Webinar Online/Hybrid), bukan
+    // dari nama baris konfigurasi — filter harus memakai nilai turunan itu agar cocok.
+    eventTypeNames: [...new Set(eventTypes.map((row) => EVENT_TYPE_NAME_BY_KIND[row.kind]).filter(Boolean))]
+      .map((name) => ({ value: name, label: name }))
       .sort((left, right) => left.label.localeCompare(right.label, 'id')),
     sessions: toOptions(sessions),
     paymentMethods: [...new Set(feeRules.map((row) => row.identifier))].sort(),

@@ -85,7 +85,8 @@ export type ProductParseStatus = 'valid' | 'invalid'
 export type TaxMappingStatus = 'mapped' | 'unmapped'
 export type FeeType = 'flat' | 'percentage'
 
-export type EventKind = 'seminar' | 'webinar'
+/** `hybrid`: satu order berlaku untuk tiket QR (check-in di lokasi) DAN link Zoom (A14). */
+export type EventKind = 'seminar' | 'webinar' | 'hybrid'
 
 /**
  * Nilai orders.event_type dipatok oleh CHECK constraint ke dua literal ini
@@ -93,19 +94,31 @@ export type EventKind = 'seminar' | 'webinar'
  * konfigurasi. Dengan begitu mengganti nama event type di konfigurasi tidak
  * merusak ingestion webhook.
  */
-export type EventTypeName = 'Seminar Offline' | 'Webinar Online'
+export type EventTypeName = 'Seminar Offline' | 'Webinar Online' | 'Hybrid'
 
 export const EVENT_TYPE_NAME_BY_KIND: Record<EventKind, EventTypeName> = {
   seminar: 'Seminar Offline',
   webinar: 'Webinar Online',
+  hybrid: 'Hybrid',
 }
 
 export const EVENT_KIND_BY_EVENT_TYPE_NAME: Record<EventTypeName, EventKind> = {
   'Seminar Offline': 'seminar',
   'Webinar Online': 'webinar',
+  Hybrid: 'hybrid',
 }
 
 export type AttendanceType = 'webinar' | 'seminar'
+
+/** Order dengan jalur tiket QR + check-in di lokasi (Seminar Offline, Hybrid). */
+export function allowsOnsiteCheckin(eventType: string | null | undefined): boolean {
+  return eventType === 'Seminar Offline' || eventType === 'Hybrid'
+}
+
+/** Order dengan jalur link Zoom (Webinar Online, Hybrid). */
+export function allowsOnlineAccess(eventType: string | null | undefined): boolean {
+  return eventType === 'Webinar Online' || eventType === 'Hybrid'
+}
 export type AttendanceSource = 'webinar_redirect' | 'seminar_qr' | 'seminar_manual'
 
 export const ATTENDANCE_SOURCE_BY_TYPE: Record<AttendanceType, AttendanceSource> = {

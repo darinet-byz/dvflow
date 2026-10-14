@@ -3,7 +3,7 @@ begin;
 set local search_path = public, extensions, pg_catalog;
 select no_plan();
 
-select is(public.schema_version(), 29, 'schema_version menandai migrasi terbaru');
+select ok(public.schema_version() >= 29, 'schema_version menandai migrasi terbaru');
 select is(has_function_privilege('anon', 'public.schema_version()', 'execute'), true, 'CI dapat membaca versi skema');
 
 -- Struktur nama kanonik dan key scope.

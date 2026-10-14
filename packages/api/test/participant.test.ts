@@ -290,3 +290,46 @@ describe('GET /checkin/:orderId tidak pernah mengubah apa pun (03 §9)', () => {
     expect(state.rpcCalls).toHaveLength(0)
   })
 })
+
+describe('akses peserta: Hybrid (A14) — satu Order ID untuk tiket QR dan Zoom', () => {
+  const hybridOrder = fakeOrder({
+    order_id: '777',
+    event_type: 'Hybrid',
+    product_raw: 'KULI01HY392 - S1 - Solo',
+  })
+  const zoomSetting = { key: 'webinar_destination::KULI01HY392 - S1 - Solo', value_text: WEBINAR_DESTINATION }
+
+  it('link membuka tiket QR + tombol Zoom, tanpa mencatat presensi', async () => {
+    const { state, api } = await setup({ orders: [hybridOrder], appSettings: [zoomSetting] })
+    const response = await access(api, '777')
+    expect(response.status).toBe(200)
+    const html = await response.text()
+    expect(html).toContain('data-checkin-payload="/checkin/777"')
+    expect(html).toContain('href="/access/777?via=zoom"')
+    expect(state.attendanceEvents).toHaveLength(0)
+  })
+
+  it('tombol Zoom tidak tampil bila link Zoom belum dikonfigurasi', async () => {
+    const { api } = await setup({ orders: [hybridOrder] })
+    const html = await (await access(api, '777')).text()
+    expect(html).toContain('data-checkin-payload')
+    expect(html).not.toContain('via=zoom')
+  })
+
+  it('?via=zoom -> presensi online + 302, setiap klik tercatat', async () => {
+    const { state, api } = await setup({ orders: [hybridOrder], appSettings: [zoomSetting] })
+    const zoom = () => api(makeRequest({ method: 'GET', path: '/access/777?via=zoom', origin: null }))
+    const response = await zoom()
+    expect(response.status).toBe(302)
+    expect(response.headers.get('location')).toBe(WEBINAR_DESTINATION)
+    await zoom()
+    expect(state.attendanceEvents.filter((e) => e['attendance_type'] === 'webinar')).toHaveLength(2)
+  })
+
+  it('order Seminar Offline mengabaikan ?via=zoom (tetap tiket)', async () => {
+    const { state, api } = await setup({ orders: [fakeOrder({ order_id: '888' })], appSettings: [zoomSetting] })
+    const response = await api(makeRequest({ method: 'GET', path: '/access/888?via=zoom', origin: null }))
+    expect(response.status).toBe(200)
+    expect(state.attendanceEvents).toHaveLength(0)
+  })
+})

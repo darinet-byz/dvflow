@@ -215,8 +215,8 @@ export async function saveWebinar(context: RouteContext): Promise<Response> {
       throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Produk dan link Zoom wajib diisi')
     }
     const parsed = parseProductRaw(productRaw, await loadProductConfig(context.db))
-    if (parsed.product_parse_status !== 'valid' || parsed.event_kind !== 'webinar') {
-      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nama produk harus webinar dengan kode yang terdaftar')
+    if (parsed.product_parse_status !== 'valid' || (parsed.event_kind !== 'webinar' && parsed.event_kind !== 'hybrid')) {
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nama produk harus bertipe Online atau Hybrid dengan kode yang terdaftar')
     }
     assertProductAccess(access, parsed.product_code)
     await context.db.rpc('save_webinar_destination', {

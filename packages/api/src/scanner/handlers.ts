@@ -43,7 +43,7 @@ type OrderSearchRow = {
  * GET /api/scanner/search?q= (03 §10).
  *
  * Batasan yang dijaga:
- *   * hanya order **Seminar Offline** — order webinar tidak pernah muncul di
+ *   * hanya order dengan check-in di lokasi (**Seminar Offline**, **Hybrid**) — order webinar tidak pernah muncul di
  *     scanner seminar (03 §10);
  *   * hasil maksimum 20, dikerjakan server-side (H08);
  *   * teks pencarian dibersihkan lebih dulu supaya tidak dapat mengubah arti
@@ -67,7 +67,8 @@ export async function scannerSearch(context: RouteContext): Promise<Response> {
     'orders',
     {
       ...productFilter(access),
-      event_type: 'eq.Seminar Offline',
+      // Hybrid juga punya jalur check-in di lokasi (A14).
+      event_type: 'in.("Seminar Offline","Hybrid")',
       or: buildIlikeOrFilter(['order_id', 'name', 'phone'], term),
     },
     'order_id,name,phone,app_status,product_name,batch,session,city',

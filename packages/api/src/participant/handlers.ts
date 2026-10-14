@@ -107,7 +107,11 @@ async function accessOrderPage(context: RouteContext): Promise<Response> {
     return renderErrorPage('INVALID_EVENT_PRODUCT', orderId)
   }
 
-  if (order.event_type === 'Webinar Online') {
+  // Webinar: selalu ke Zoom. Hybrid (A14): link yang sama membuka tiket QR, dan
+  // tombol "Gabung via Zoom" kembali ke link ini dengan ?via=zoom.
+  const wantsZoom = order.event_type === 'Webinar Online' ||
+    (order.event_type === 'Hybrid' && context.url.searchParams.get('via') === 'zoom')
+  if (wantsZoom) {
     return redirectToWebinar(context, order)
   }
 
@@ -156,6 +160,9 @@ async function accessOrderPage(context: RouteContext): Promise<Response> {
     checkinPath: buildCheckinPath(order.order_id),
     alreadyCheckedIn: checkedInEvent !== null,
     checkedInAt: checkedInEvent?.clicked_at ?? null,
+    zoomPath: order.event_type === 'Hybrid' && (await findWebinarDestination(context, order)) !== null
+      ? `${context.url.pathname}?via=zoom`
+      : null,
   }
   return renderTicketPage(data)
 }
@@ -170,7 +177,8 @@ async function accessOrderPage(context: RouteContext): Promise<Response> {
  * sembarang, dan tampilkan error konfigurasi. Presensi yang tercatat untuk
  * peserta yang tidak pernah sampai ke Zoom akan merusak laporan kehadiran.
  */
-async function redirectToWebinar(context: RouteContext, order: OrderRow): Promise<Response> {
+/** Link Zoom yang berlaku untuk order ini, atau null bila belum ada / tidak aman. */
+async function findWebinarDestination(context: RouteContext, order: OrderRow): Promise<string | null> {
   const rows = await context.db.selectRows<{ key: string; value_text: string | null }>(
     'app_settings',
     { key: `like.${WEBINAR_PREFIX}*` },
@@ -187,13 +195,15 @@ async function redirectToWebinar(context: RouteContext, order: OrderRow): Promis
     }
   }
 
-  if (destination === null || destination.trim() === '') {
-    return renderErrorPage('WEBINAR_DESTINATION_NOT_CONFIGURED', order.order_id)
-  }
+  // Destination yang tidak aman diperlakukan sama seperti destination yang
+  // tidak ada: tidak ada presensi, tidak ada redirect.
+  if (destination === null || destination.trim() === '' || !isAcceptableDestination(destination, context)) return null
+  return destination.trim()
+}
 
-  if (!isAcceptableDestination(destination, context)) {
-    // Destination yang tidak aman diperlakukan sama seperti destination yang
-    // tidak ada: tidak ada presensi, tidak ada redirect.
+async function redirectToWebinar(context: RouteContext, order: OrderRow): Promise<Response> {
+  const destination = await findWebinarDestination(context, order)
+  if (destination === null) {
     return renderErrorPage('WEBINAR_DESTINATION_NOT_CONFIGURED', order.order_id)
   }
 
@@ -207,7 +217,7 @@ async function redirectToWebinar(context: RouteContext, order: OrderRow): Promis
 
   return new Response(null, {
     status: 302,
-    headers: { location: destination.trim(), 'cache-control': 'no-store' },
+    headers: { location: destination, 'cache-control': 'no-store' },
   })
 }
 

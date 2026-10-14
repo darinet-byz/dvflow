@@ -447,3 +447,27 @@ Lengkapnya ada di `docs/Fitur-2.0/09-RUNBOOK-MIGRASI-PRODUKSI.md` dan dok 08 bag
 6. **Data trial dihapus total atas keputusan pengguna** (`scripts/wipe-trial-data.mjs`). Kode legacy (`KM`/`BM`) tidak lagi dipertahankan, dan constraint kode ketat 0028 divalidasi penuh.
 7. **Kode error kontrak Fitur 2.0 dipakai:** `ROLE_IN_USE`, `SYSTEM_ROLE_CANNOT_BE_DELETED`, `FORBIDDEN_PRODUCT_ACCESS`. `USERNAME_TAKEN`/`IDENTIFIER_TAKEN` dibedakan dari `CODE_TAKEN`.
 8. **Masih terbuka (keputusan produk):** sidebar 15 item menyimpang dari CLAUDE.md §5 (10 item).
+
+## A14 — Jenis acara HYBRID, 14 Oktober 2026
+
+Atas permintaan eksplisit pengguna (migrasi `0030_hybrid_event_kind.sql`).
+
+**Konfigurasi.** Ada pilihan **Cara Hadir** ketiga untuk Type: `hybrid`. Satu Order ID Hybrid yang Paid berlaku untuk dua jalur.
+
+**Link peserta `/access/[KODE/]{order_id}`:**
+- Halaman tiket QR tampil seperti seminar, ditambah tombol **"Gabung via Zoom"** yang mengarah ke link yang sama dengan `?via=zoom`.
+- Tombol hanya muncul bila link Zoom untuk order itu sudah dikonfigurasi. Sumbernya Konfigurasi Zoom, dengan aturan cakupan yang sama seperti webinar.
+- Order Seminar Offline mengabaikan `?via=zoom`. Order Webinar Online tetap langsung diarahkan ke Zoom.
+
+**Presensi:**
+- Check-in di lokasi tetap satu kali per order (`attendance_type='seminar'`, idempoten).
+- Setiap klik Zoom tercatat sebagai baris baru (`attendance_type='webinar'`).
+- Peserta dianggap **hadir bila ada salah satu**. Aturan ini sudah dipakai presensi, dashboard, dan laporan (`has_attendance`), jadi tidak ada perubahan query.
+
+**Validasi:**
+- `checkin_seminar` dan pencarian Scan QR menerima order Seminar Offline maupun Hybrid.
+- Rule Zoom berbasis nama produk menerima produk Online maupun Hybrid.
+
+**Skema.** Tidak ada tabel atau kolom baru. Yang diperluas hanya `event_types.kind` (`hybrid`) dan `orders.event_type` (`Hybrid`).
+
+**Perbaikan ikutan.** Pilihan filter "Event Type" di Order, Presensi, dan Dashboard kini memakai nilai yang benar-benar tersimpan di order (Seminar Offline/Webinar Online/Hybrid), bukan nama baris konfigurasi. Sebelumnya, Type dengan nama lain (mis. "Workshop") tidak pernah cocok saat difilter.

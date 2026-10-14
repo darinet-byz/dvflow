@@ -235,7 +235,7 @@ export function PresensiPage() {
                     <div className="flex items-center gap-1.5">
                       {row.event_type === null ? null : (
                         <Badge tone={eventTypeTone(row.event_type)}>
-                          {row.event_type === 'Seminar Offline' ? 'Seminar' : 'Webinar'}
+                          {row.event_type === 'Seminar Offline' ? 'Seminar' : row.event_type === 'Hybrid' ? 'Hybrid' : 'Webinar'}
                         </Badge>
                       )}
                       <Badge tone={attendanceTone(row.attendance_status)}>{row.attendance_status}</Badge>

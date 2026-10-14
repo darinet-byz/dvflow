@@ -365,7 +365,7 @@ export function createFakeDb(state: FakeState): Db {
 
         if (order === undefined) throw new DbError('DF001', 'fake')
         if (order['app_status'] !== 'Paid') throw new DbError('DF002', 'fake')
-        if (order['event_type'] !== 'Seminar Offline') throw new DbError('DF003', 'fake')
+        if (order['event_type'] !== 'Seminar Offline' && order['event_type'] !== 'Hybrid') throw new DbError('DF003', 'fake')
 
         const existing = state.attendanceEvents.find(
           (event) => event['order_id'] === orderId && event['attendance_type'] === 'seminar',
@@ -723,7 +723,8 @@ function matchesQuery(row: Record<string, unknown>, query: Record<string, string
     if (expression.startsWith('gt.')) return typeof value === 'string' && value > expression.slice(3)
     if (expression.startsWith('eq.')) return String(value ?? '') === expression.slice(3)
     if (expression.startsWith('in.')) {
-      const list = expression.slice(3).replace(/^\(|\)$/g, '').split(',')
+      // PostgREST membuang tanda kutip ganda di sekitar nilai daftar.
+      const list = expression.slice(3).replace(/^\(|\)$/g, '').split(',').map((item) => item.replace(/^"|"$/g, ''))
       return list.includes(String(value ?? ''))
     }
     if (expression.startsWith('ilike.')) return matchesIlike(value, expression.slice(6))

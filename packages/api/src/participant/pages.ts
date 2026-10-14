@@ -58,6 +58,8 @@ export type TicketData = {
   checkinPath: string
   alreadyCheckedIn?: boolean
   checkedInAt?: string | null
+  /** Hybrid: jalur Zoom pada link yang sama (`?via=zoom`); null bila link Zoom belum dikonfigurasi. */
+  zoomPath?: string | null
 }
 
 export function formatCheckinTime(isoDate: string | null | undefined): string | null {
@@ -140,6 +142,12 @@ export function renderTicketPage(data: TicketData): Response {
       </dl>
     </section>
 ${checkinSection}
+${data.zoomPath ? `
+    <section class="card online">
+      <p class="event">Ikut secara online</p>
+      <p class="hint">Tidak hadir di lokasi? Gabung lewat Zoom dengan tiket yang sama.</p>
+      <a class="btn-zoom" href="${escapeHtml(data.zoomPath)}" rel="noopener">Gabung via Zoom</a>
+    </section>` : ''}
 
     <footer>Simpan halaman ini sampai acara selesai.</footer>${scriptTag}
   `
@@ -248,6 +256,9 @@ function htmlResponse(status: number, title: string, body: string, contentSecuri
   .checkin-card { text-align: center; }
   .checkin-time { margin: 8px 0 16px; color: #737786; font-size: 13px; }
   .checkin-time strong { color: #171821; }
+  .online { text-align: center; }
+  .btn-zoom { display: inline-block; padding: 12px 20px; border-radius: 10px; background: #4f46f5; color: #fff; font-weight: 700; text-decoration: none; }
+  .btn-zoom:hover { background: #4338e8; }
   footer { margin-top: 20px; font-size: 12px; color: #737786; text-align: center; }
 </style>
 </head>

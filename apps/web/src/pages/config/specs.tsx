@@ -97,6 +97,7 @@ export const ADVERTISER_SPEC: ConfigSpec = {
 const KIND_LABELS = {
   seminar: 'Offline — tiket QR + check-in di lokasi',
   webinar: 'Online — diarahkan ke link Zoom',
+  hybrid: 'Hybrid — tiket QR di lokasi + link Zoom',
 } as const
 
 export const EVENT_TYPE_SPEC: ConfigSpec = {
@@ -128,8 +129,9 @@ export const EVENT_TYPE_SPEC: ConfigSpec = {
       options: [
         { value: 'seminar', label: KIND_LABELS.seminar },
         { value: 'webinar', label: KIND_LABELS.webinar },
+        { value: 'hybrid', label: KIND_LABELS.hybrid },
       ],
-      help: 'Menentukan alur peserta Paid: tiket QR + check-in di lokasi, atau diarahkan ke link Zoom.',
+      help: 'Menentukan alur peserta Paid: tiket QR + check-in di lokasi, link Zoom, atau keduanya (Hybrid) dengan satu Order ID.',
     },
   ],
   columns: [...CODE_COLUMNS, { key: 'kind', header: 'Cara Hadir', minWidth: 160 }],

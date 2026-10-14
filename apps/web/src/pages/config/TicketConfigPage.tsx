@@ -219,7 +219,7 @@ export function TicketConfigPage() {
     <>
       <PageHeader
         title="Konfigurasi Barcode / Tiket"
-        description="Atur tampilan dan informasi tiket QR check-in untuk peserta Seminar Offline (per produk, per batch, per sesi, atau 1 pengaturan untuk semua)."
+        description="Atur tampilan dan informasi tiket QR check-in untuk peserta Seminar Offline & Hybrid (per produk, per batch, per sesi, atau 1 pengaturan untuk semua)."
       />
       <Card>
         <form
@@ -342,7 +342,7 @@ export function TicketConfigPage() {
           </div>
           <p className="mt-2 text-ink-soft">
             {
-              'Gunakan link {{order_id}} yang sama di template pesan WhatsApp/Email OrderOnline. Untuk produk bertipe Seminar Offline yang sudah Paid, link ini otomatis menampilkan halaman Tiket QR peserta (beserta Lokasi, Jadwal, dan Catatan sesuai cakupan yang paling spesifik) untuk dipindai di menu Scan QR.'
+              'Gunakan link {{order_id}} yang sama di template pesan WhatsApp/Email OrderOnline. Untuk produk bertipe Seminar Offline atau Hybrid yang sudah Paid, link ini otomatis menampilkan halaman Tiket QR peserta (beserta Lokasi, Jadwal, dan Catatan sesuai cakupan yang paling spesifik) untuk dipindai di menu Scan QR.'
             }
           </p>
         </div>
@@ -435,7 +435,7 @@ export function TicketConfigPage() {
           )}
           {!loading && !error && rows.length === 0 ? (
             <p className="py-4 text-ink-soft">
-              Belum ada aturan khusus tiket seminar. Secara bawaan semua order Seminar Offline yang Paid tetap
+              Belum ada aturan khusus tiket seminar. Secara bawaan semua order Seminar Offline & Hybrid yang Paid tetap
               mendapatkan tiket QR standar, atau tambahkan aturan di atas untuk menampilkan lokasi, jadwal, dan catatan.
             </p>
           ) : null}

@@ -87,7 +87,7 @@ const IDENTIFIER_MAX_LENGTH = 200
 const FEE_VALUE_MAX = 1_000_000_000
 
 const FEE_TYPES = ['flat', 'percentage'] as const
-const EVENT_KINDS = ['seminar', 'webinar'] as const
+const EVENT_KINDS = ['seminar', 'webinar', 'hybrid'] as const
 
 /**
  * Validasi isi konfigurasi.
@@ -136,7 +136,7 @@ export function validateConfigBody(
   if (resource.writableColumns.includes('kind') && has('kind')) {
     const kind = readText(body['kind'])
     if (kind === null || !EVENT_KINDS.includes(kind as (typeof EVENT_KINDS)[number])) {
-      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Jenis acara wajib seminar atau webinar.')
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Cara hadir wajib Offline, Online, atau Hybrid.')
     }
     patch['kind'] = kind
   }

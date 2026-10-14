@@ -71,7 +71,7 @@ Purpose: mapping Seminar Offline / Webinar Online.
 - name TEXT NOT NULL
 - code TEXT NOT NULL
 - code_normalized TEXT NOT NULL UNIQUE
-- kind TEXT NOT NULL CHECK kind IN ('seminar','webinar')
+- kind TEXT NOT NULL CHECK kind IN ('seminar','webinar','hybrid')  -- hybrid: A14 (0030)
 - active BOOLEAN NOT NULL DEFAULT TRUE
 - created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 - updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -123,7 +123,7 @@ Product raw + normalized:
 - product_name TEXT NULL
 - advertiser_code TEXT NULL
 - advertiser_name TEXT NULL
-- event_type TEXT NULL CHECK event_type IN ('Seminar Offline','Webinar Online') OR event_type IS NULL
+- event_type TEXT NULL CHECK event_type IN ('Seminar Offline','Webinar Online','Hybrid') OR event_type IS NULL  -- Hybrid: A14 (0030)
 - batch TEXT NULL
 - session TEXT NULL
 - city TEXT NULL

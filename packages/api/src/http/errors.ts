@@ -49,7 +49,7 @@ export const ERROR_CATALOG: Record<ApiErrorCode, { status: number; message: stri
   // 03 §9: error check-in.
   ORDER_NOT_FOUND: { status: 404, message: 'Order tidak ditemukan.' },
   ORDER_NOT_PAID: { status: 403, message: 'Order belum dibayar. Check-in ditolak.' },
-  NOT_SEMINAR_ORDER: { status: 409, message: 'Order ini bukan Seminar Offline.' },
+  NOT_SEMINAR_ORDER: { status: 409, message: 'Order ini bukan acara offline (Seminar Offline/Hybrid).' },
   // 03 §12: konfigurasi.
   CODE_TAKEN: { status: 409, message: 'Kode sudah dipakai.' },
   IDENTIFIER_TAKEN: { status: 409, message: 'Identifier ini sudah punya rule aktif.' },

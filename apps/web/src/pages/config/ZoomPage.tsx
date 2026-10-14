@@ -228,7 +228,7 @@ export function ZoomPage() {
     <>
       <PageHeader
         title="Konfigurasi Zoom"
-        description="Atur 1 link Zoom untuk semua produk/sesi, per produk, per batch, per sesi, atau untuk nama produk tertentu."
+        description="Atur 1 link Zoom untuk semua produk/sesi, per produk, per batch, per sesi, atau untuk nama produk tertentu. Berlaku untuk order Webinar Online dan Hybrid."
       />
       <Card>
         <form

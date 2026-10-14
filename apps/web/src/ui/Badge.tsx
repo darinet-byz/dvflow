@@ -45,7 +45,7 @@ export function Badge({
 
 export type AppStatus = 'Pending' | 'Paid' | 'Cancelled'
 export type AttendanceStatusLabel = 'Hadir' | 'Belum Hadir' | 'Pending' | 'Cancelled'
-export type EventTypeName = 'Seminar Offline' | 'Webinar Online'
+export type EventTypeName = 'Seminar Offline' | 'Webinar Online' | 'Hybrid'
 
 /** Status order (PRD §52, guideline §18). */
 export function appStatusTone(status: string): BadgeTone {
@@ -84,5 +84,6 @@ export function attendanceTone(status: string): BadgeTone {
 export function eventTypeTone(eventType: string): BadgeTone {
   if (eventType === 'Seminar Offline') return 'seminar'
   if (eventType === 'Webinar Online') return 'webinar'
+  if (eventType === 'Hybrid') return 'primary'
   return 'neutral'
 }
