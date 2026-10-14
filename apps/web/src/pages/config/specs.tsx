@@ -48,11 +48,23 @@ const CODE_RENDER = {
 export const PRODUCT_SPEC: ConfigSpec = {
   resource: 'products',
   title: 'Produk',
-  description: 'Kode produk yang dikenali parser (PRD §58).',
+  description: 'Kode produk/event yang dikenali parser. Standar: tepat 4 karakter kapital (mis. BOMM, KULI).',
   tableName: 'products',
   readColumns: 'id,name,code,active',
   identityKey: 'code',
-  fields: CODE_FIELDS,
+  fields: [
+    { key: 'name', label: 'Nama', type: 'text' as const, initial: '', placeholder: 'mis. Kuliner Masteri' },
+    {
+      key: 'code',
+      label: 'Kode',
+      type: 'text' as const,
+      initial: '',
+      placeholder: 'mis. BOMM',
+      maxLength: 4,
+      transform: (v: string) => v.toUpperCase(),
+      help: 'Tepat 4 huruf kapital (mis. BOMM, KULI).',
+    },
+  ],
   columns: CODE_COLUMNS,
   render: CODE_RENDER,
 }
@@ -60,11 +72,23 @@ export const PRODUCT_SPEC: ConfigSpec = {
 export const ADVERTISER_SPEC: ConfigSpec = {
   resource: 'advertisers',
   title: 'Pengiklan',
-  description: 'Kode pengiklan yang dikenali parser (PRD §59).',
+  description: 'Kode pengiklan yang dikenali parser. Standar: tepat 2 digit angka (mis. 01, 02).',
   tableName: 'advertisers',
   readColumns: 'id,name,code,active',
   identityKey: 'code',
-  fields: CODE_FIELDS,
+  fields: [
+    { key: 'name', label: 'Nama', type: 'text' as const, initial: '', placeholder: 'mis. Zul' },
+    {
+      key: 'code',
+      label: 'Kode',
+      type: 'text' as const,
+      initial: '',
+      placeholder: 'mis. 01',
+      maxLength: 2,
+      transform: (v: string) => v.replace(/\D/g, ''),
+      help: 'Tepat 2 digit angka numerik (mis. 01, 02, 99).',
+    },
+  ],
   columns: CODE_COLUMNS,
   render: CODE_RENDER,
 }
@@ -77,7 +101,17 @@ export const EVENT_TYPE_SPEC: ConfigSpec = {
   readColumns: 'id,name,code,kind,active',
   identityKey: 'code',
   fields: [
-    ...CODE_FIELDS,
+    { key: 'name', label: 'Nama', type: 'text' as const, initial: '', placeholder: 'mis. Seminar Offline' },
+    {
+      key: 'code',
+      label: 'Kode',
+      type: 'text' as const,
+      initial: '',
+      placeholder: 'mis. SO',
+      maxLength: 2,
+      transform: (v: string) => v.toUpperCase(),
+      help: 'Tepat 2 huruf kapital (mis. SO, WO).',
+    },
     {
       key: 'kind',
       label: 'Kind',
@@ -97,7 +131,7 @@ export const EVENT_TYPE_SPEC: ConfigSpec = {
 export const SESSION_SPEC: ConfigSpec = {
   resource: 'sessions',
   title: 'Sesi',
-  description: 'Kode sesi yang dikenali parser (PRD §61).',
+  description: '9 Sesi paten (ST, S1 - S8) yang dikenali parser (PRD §61).',
   tableName: 'sessions_config',
   readColumns: 'id,name,code,active',
   identityKey: 'code',

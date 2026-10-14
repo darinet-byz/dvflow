@@ -1,4 +1,4 @@
-import { SESSION_LIFETIME_DAYS } from '@dvflow/shared'
+import { SESSION_LIFETIME_SECONDS } from '@dvflow/shared'
 
 /**
  * Cookie refresh session (04 §7).
@@ -7,7 +7,7 @@ import { SESSION_LIFETIME_DAYS } from '@dvflow/shared'
  */
 export const REFRESH_COOKIE_NAME = 'dvflow_refresh'
 
-export const REFRESH_COOKIE_MAX_AGE_SECONDS = SESSION_LIFETIME_DAYS * 24 * 60 * 60
+export const REFRESH_COOKIE_MAX_AGE_SECONDS = SESSION_LIFETIME_SECONDS
 
 /**
  * Atribut cookie refresh.

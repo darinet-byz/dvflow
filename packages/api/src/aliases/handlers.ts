@@ -104,8 +104,10 @@ export async function listUnmappedOrders(context: RouteContext): Promise<Respons
   const pageSize = Math.min(100, Math.max(10, parseInt(context.url.searchParams.get('pageSize') ?? '50', 10) || 50))
   const offset = (page - 1) * pageSize
 
+  const cutoffDate = new Date(context.now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString()
   const query: Record<string, string> = {
     product_parse_status: 'eq.invalid',
+    created_at: `gte.${cutoffDate}`,
     order: 'created_at.desc',
     limit: String(pageSize),
     offset: String(offset),

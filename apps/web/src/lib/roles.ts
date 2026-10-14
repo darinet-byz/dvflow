@@ -36,6 +36,11 @@ export function canAccessPath(user: ProfileOrRole, path: string): boolean {
   const role = typeof user === 'string' ? user : user.role
   const permissions = typeof user === 'object' && user.permissions ? user.permissions : null
 
+  // Fitur Reset Data terkunci mutlak HANYA untuk role developer
+  if (path === '/reset-data') {
+    return role === 'developer'
+  }
+
   // Master Admin tier always has full access
   if (isMasterAdminRole(role)) return true
 

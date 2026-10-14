@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { OrderUnmappedPage } from '../src/pages/order/OrderUnmappedPage'
 import { authorizedRequest } from '../src/lib/session'
 

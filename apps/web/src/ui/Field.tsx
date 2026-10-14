@@ -29,6 +29,7 @@ export type TextInputProps = {
   disabled?: boolean
   error?: string | null
   inputMode?: 'text' | 'numeric' | 'tel' | 'search'
+  maxLength?: number
   className?: string
 }
 
@@ -44,6 +45,7 @@ export function TextInput({
   disabled = false,
   error = null,
   inputMode,
+  maxLength,
   className,
 }: TextInputProps) {
   return (
@@ -57,6 +59,7 @@ export function TextInput({
         autoComplete={autoComplete}
         disabled={disabled}
         inputMode={inputMode}
+        maxLength={maxLength}
         aria-label={ariaLabel}
         aria-invalid={error !== null}
         aria-describedby={error === null ? undefined : `${id}-error`}

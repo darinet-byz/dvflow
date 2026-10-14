@@ -204,3 +204,28 @@ export type UnmappedOrderItem = {
   gross_amount: number
   created_at: string
 }
+
+export type ResetDataScope =
+  | 'orders_all'
+  | 'orders_unmapped'
+  | 'webhook_logs'
+  | 'product_aliases'
+  | 'connections'
+  | 'products_master'
+  | 'all_test_data'
+
+export type DataSummaryResult = {
+  orders_count: number
+  unmapped_orders_count: number
+  attendance_events_count: number
+  order_sources_count: number
+  webhook_logs_count: number
+  product_aliases_count: number
+  connections_count: number
+  products_count: number
+}
+
+export type ResetDataResult = {
+  success: boolean
+  deleted: Record<string, number>
+}

@@ -23,6 +23,7 @@ import { OrderPage } from './pages/order/OrderPage'
 import { OrderUnmappedPage } from './pages/order/OrderUnmappedPage'
 import { PresensiPage } from './pages/presensi/PresensiPage'
 import { RoleConfigPage } from './pages/config/RoleConfigPage'
+import { ResetDataPage } from './pages/developer/ResetDataPage'
 import { Card } from './ui/Card'
 
 /**
@@ -73,6 +74,7 @@ export function App() {
           <Route path="/konfigurasi-tiket" element={<TicketConfigPage />} />
           <Route path="/integrasi" element={<RoleGuard path="/integrasi"><IntegrationsPage /></RoleGuard>} />
           <Route path="/konfigurasi-role" element={<RoleGuard path="/konfigurasi-role"><RoleConfigPage /></RoleGuard>} />
+          <Route path="/reset-data" element={<RoleGuard path="/reset-data"><ResetDataPage /></RoleGuard>} />
           <Route path="/profil" element={<ProfilePage />} />
           <Route path="*" element={<NotFound />} />
         </Route>

@@ -63,6 +63,21 @@ describe('parser product_raw (PRD §67, 01 §10)', () => {
     expect(parsed.city).toBe('Solo')
   })
 
+  it('toleran terhadap penulisan tanpa spasi dan spasi tidak rata di sekitar strip', () => {
+    // 1. Tanpa spasi sama sekali: MT01SO58-S1-Solo
+    const noSpace = expectValid(parseProductRaw('MT01SO58-S1-Solo', TEST_CONFIG))
+    expect(noSpace.product_code).toBe('MT')
+    expect(noSpace.batch).toBe('58')
+    expect(noSpace.session).toBe('S1')
+    expect(noSpace.city).toBe('Solo')
+
+    // 2. Spasi tidak rata: MT01SO58 - S1-Solo
+    const unevenSpace = expectValid(parseProductRaw('MT01SO58 - S1-Solo', TEST_CONFIG))
+    expect(unevenSpace.batch).toBe('58')
+    expect(unevenSpace.session).toBe('S1')
+    expect(unevenSpace.city).toBe('Solo')
+  })
+
   it('city disimpan sebagai display string apa adanya setelah trim', () => {
     const parsed = expectValid(parseProductRaw('KM01SO392 - S1 - Kota Bandung', TEST_CONFIG))
 

@@ -27,6 +27,7 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
       'API & Webhook',
       'Konfigurasi Role',
       'Add Team',
+      'Reset Data',
       'Profil',
       'Logout',
     ])

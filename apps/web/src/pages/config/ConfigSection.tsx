@@ -36,6 +36,8 @@ export type ConfigField = {
   placeholder?: string
   options?: readonly SelectOption[]
   help?: string
+  maxLength?: number
+  transform?: (value: string) => string
   /** Nilai awal untuk form tambah. */
   initial: string
 }
@@ -373,7 +375,8 @@ function ConfigForm({
                 label={field.label}
                 value={value}
                 placeholder={field.placeholder}
-                onChange={update}
+                maxLength={field.maxLength}
+                onChange={(next) => update(field.transform ? field.transform(next) : next)}
               />
               {field.help === undefined ? null : (
                 <p className="mt-1 text-[11px] text-ink-muted">{field.help}</p>

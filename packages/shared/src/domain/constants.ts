@@ -29,8 +29,16 @@ export const ATTENDANCE_RETENTION_DAYS = 60
 /** Retensi webhook log (01-IMPLEMENTATION-DECISIONS §19). */
 export const WEBHOOK_LOG_RETENTION_DAYS = 7
 
-/** Masa hidup refresh session (01 §3). */
-export const SESSION_LIFETIME_DAYS = 7
+/** Retensi unmapped orders: 90 hari (kebijakan evergreen). */
+export const UNMAPPED_ORDER_RETENTION_DAYS = 90
+
+/** Masa hidup refresh session: 48 jam (auto-logout tanpa login ulang). */
+export const SESSION_LIFETIME_HOURS = 48
+export const SESSION_LIFETIME_DAYS = 2
+export const SESSION_LIFETIME_SECONDS = SESSION_LIFETIME_HOURS * 60 * 60
+
+/** Sesi paten yang valid di sistem. */
+export const PATENT_SESSIONS = ['ST', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'] as const
 
 /** Masa hidup access JWT: 30 menit (01 §3). */
 export const ACCESS_TOKEN_LIFETIME_SECONDS = 30 * 60

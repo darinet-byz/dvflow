@@ -195,11 +195,31 @@ export function parseProductRaw(
   // sehingga `KM01SO392 - S1 - ` terbaca sebagai 2 segmen, bukan 3 segmen dengan
   // segmen kota kosong. Akibatnya alasan kegagalan yang tercatat jadi kurang tepat.
   const segments = raw.split(PRODUCT_SEGMENT_SEPARATOR)
-  if (segments.length !== 3) return invalidProduct('WRONG_SEGMENT_COUNT')
+  let codeBlockRaw: string | undefined
+  let sessionRaw: string | undefined
+  let cityRaw: string | undefined
 
-  const codeBlockRaw = segments[0]
-  const sessionRaw = segments[1]
-  const cityRaw = segments[2]
+  if (segments.length === 3) {
+    codeBlockRaw = segments[0]
+    sessionRaw = segments[1]
+    cityRaw = segments[2]
+  } else if (segments.length > 3) {
+    return invalidProduct('WRONG_SEGMENT_COUNT')
+  } else {
+    // segments.length < 3: toleransi untuk penulisan tanpa spasi seperti MTI01SO58-S1-Solo
+    const match = raw.match(/^\s*([A-Za-z0-9]+)\s*-\s*([A-Za-z0-9]+)\s*-\s*(.+?)\s*$/)
+    if (match && match[1] && match[2] && match[3]) {
+      if (match[3].includes(PRODUCT_SEGMENT_SEPARATOR)) {
+        return invalidProduct('WRONG_SEGMENT_COUNT')
+      }
+      codeBlockRaw = match[1]
+      sessionRaw = match[2]
+      cityRaw = match[3]
+    } else {
+      return invalidProduct('WRONG_SEGMENT_COUNT')
+    }
+  }
+
   if (codeBlockRaw === undefined || sessionRaw === undefined || cityRaw === undefined) {
     return invalidProduct('WRONG_SEGMENT_COUNT')
   }

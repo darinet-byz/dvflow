@@ -17,6 +17,7 @@ import { getProfile, updateProfile } from './profile/handlers'
 import { scannerManualCheckin, scannerSearch } from './scanner/handlers'
 import { orderOnlineWebhook } from './webhooks/handlers'
 import { batchRemapOrders, deleteAlias, listAliases, listUnmappedOrders, saveAlias } from './aliases/handlers'
+import { getDataSummary, purgeExpiredUnmapped, resetData } from './developer/handlers'
 
 /**
  * Tabel rute backend (03 §4–§7, §13, §14).
@@ -106,4 +107,9 @@ export const ROUTES: Route[] = [
   { method: 'POST', path: '/api/config/:resource', handler: createConfig, auth: 'access' },
   { method: 'PATCH', path: '/api/config/:resource/:id', handler: updateConfig, auth: 'access' },
   { method: 'DELETE', path: '/api/config/:resource/:id', handler: deactivateConfig, auth: 'access' },
+
+  // Developer Tools (Khusus Developer).
+  { method: 'GET', path: '/api/developer/data-summary', handler: getDataSummary, auth: 'access' },
+  { method: 'POST', path: '/api/developer/reset-data', handler: resetData, auth: 'access' },
+  { method: 'POST', path: '/api/developer/purge-unmapped', handler: purgeExpiredUnmapped, auth: 'access' },
 ]

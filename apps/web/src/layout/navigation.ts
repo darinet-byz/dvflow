@@ -43,6 +43,7 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'ACCOUNT',
     items: [
       { label: 'Add Team', path: '/add-team', icon: 'users' },
+      { label: 'Reset Data', path: '/reset-data', icon: 'trash-2' },
       { label: 'Profil', path: '/profil', icon: 'user' },
       { label: 'Logout', path: '/logout', icon: 'log-out' },
     ],

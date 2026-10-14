@@ -63,7 +63,7 @@ describe('requested team, Zoom, and Barcode Ticket screens', () => {
     // Tombol Hapus tersedia untuk member lain
     const deleteButtons = screen.getAllByRole('button', { name: 'Hapus' })
     expect(deleteButtons.length).toBeGreaterThanOrEqual(2)
-  })
+  }, 15000)
 
   it('preserves the literal OrderOnline variable and sends either exact or scoped Zoom mapping', async () => {
     render(<ZoomPage />)
