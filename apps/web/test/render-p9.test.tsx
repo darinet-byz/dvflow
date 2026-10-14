@@ -19,6 +19,8 @@ const AUTHENTICATED = {
     username: 'admin1',
     display_name: 'Admin Satu',
     role: 'admin' as const,
+    has_all_product_access: true,
+    permissions: ['config.produk','config.tax','action.manual_checkin','action.delete_master'],
     avatar_emoji: '🚀',
   },
 }
@@ -35,7 +37,7 @@ vi.mock('../src/lib/queries', async (importOriginal) => {
   return {
     ...actual,
     fetchConfigLists: vi.fn(async () => ({
-      products: [{ value: 'KM', label: 'KM — Kuliner Masteri' }],
+      products: [{ value: 'KULI', label: 'KULI — Kuliner Masteri' }],
       advertisers: [{ value: '01', label: '01 — Zul' }],
       eventTypes: [{ value: 'SO', label: 'SO — Seminar Offline' }],
       eventTypeNames: [{ value: 'Seminar Offline', label: 'Seminar Offline' }],
@@ -90,7 +92,7 @@ function renderPage(element: ReactElement): void {
  * diisi).
  */
 async function waitForConfigOptions(): Promise<void> {
-  await screen.findByRole('option', { name: 'KM — Kuliner Masteri' })
+  await screen.findByRole('option', { name: 'KULI — Kuliner Masteri' })
 }
 
 function choose(id: string, value: string): void {
@@ -106,7 +108,7 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
     renderPage(<GeneratorPage />)
     await waitForConfigOptions()
 
-    choose('Produk', 'KM')
+    choose('Produk', 'KULI')
     choose('Pengiklan', '01')
     choose('Seminar / Webinar', 'SO')
     choose('Sesi', 'S1')
@@ -114,14 +116,14 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
     type('Kota', 'Solo')
     fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
-    expect(await screen.findByText('KM01SO392 - S1 - Solo')).toBeDefined()
+    expect(await screen.findByText('KULI01SO392 - S1 - Solo')).toBeDefined()
   })
 
   it('D05: batch "001" tidak kehilangan angka nol di depan', async () => {
     renderPage(<GeneratorPage />)
     await waitForConfigOptions()
 
-    choose('Produk', 'KM')
+    choose('Produk', 'KULI')
     choose('Pengiklan', '01')
     choose('Seminar / Webinar', 'SO')
     choose('Sesi', 'S1')
@@ -129,14 +131,14 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
     type('Kota', 'Solo')
     fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
-    expect(await screen.findByText('KM01SO001 - S1 - Solo')).toBeDefined()
+    expect(await screen.findByText('KULI01SO001 - S1 - Solo')).toBeDefined()
   })
 
   it('D04: spasi di sekitar kota dipangkas', async () => {
     renderPage(<GeneratorPage />)
     await waitForConfigOptions()
 
-    choose('Produk', 'KM')
+    choose('Produk', 'KULI')
     choose('Pengiklan', '01')
     choose('Seminar / Webinar', 'SO')
     choose('Sesi', 'S1')
@@ -144,7 +146,7 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
     type('Kota', '   Solo   ')
     fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
-    expect(await screen.findByText('KM01SO392 - S1 - Solo')).toBeDefined()
+    expect(await screen.findByText('KULI01SO392 - S1 - Solo')).toBeDefined()
   })
 
   it('D03: input kurang -> tidak ada kode yang dihasilkan, hanya error', async () => {
@@ -155,7 +157,7 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
     type('Batch', '392')
     fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
-    expect(screen.queryByText(/KM01/)).toBeNull()
+    expect(screen.queryByText(/KULI01/)).toBeNull()
     expect(await screen.findByText('Produk wajib dipilih.')).toBeDefined()
     expect(screen.getByText('Sesi wajib dipilih.')).toBeDefined()
   })
@@ -164,14 +166,14 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
     renderPage(<GeneratorPage />)
     await waitForConfigOptions()
 
-    choose('Produk', 'KM')
+    choose('Produk', 'KULI')
     choose('Pengiklan', '01')
     choose('Seminar / Webinar', 'SO')
     choose('Sesi', 'S1')
     type('Batch', '392')
     type('Kota', 'Solo')
 
-    expect(screen.queryByText('KM01SO392 - S1 - Solo')).toBeNull()
+    expect(screen.queryByText('KULI01SO392 - S1 - Solo')).toBeNull()
   })
 
   it('tombol Copy tidak aktif sebelum ada hasil', async () => {
@@ -335,7 +337,7 @@ describe('Konfigurasi Produk (PRD §57–§63, §162)', () => {
     renderPage(<KonfigurasiProdukPage />)
 
     const tables = await screen.findAllByRole('table')
-    expect(tables.length).toBe(5)
+    expect(tables.length).toBe(4)
 
     const headers = within(tables[0] as HTMLElement)
       .getAllByRole('columnheader')

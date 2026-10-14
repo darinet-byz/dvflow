@@ -1,3 +1,4 @@
+import { normalizeMasterCode, MASTER_CODE_RULES, type MasterCodeResource } from './config-code'
 /**
  * Pembentuk canonical product name (PRD §54, 01-IMPLEMENTATION-DECISIONS §10).
  *
@@ -77,8 +78,17 @@ function validateTextSegment(
  * Validasi input generator. Tidak pernah menghasilkan kode yang salah:
  * kalau ada field bermasalah, hasilnya daftar error per field dan tanpa nilai.
  */
-export function validateProductNameInput(input: Partial<Record<ProductNameField, unknown>>): ProductNameValidation {
+export function validateProductNameInput(input: Partial<Record<ProductNameField, unknown>>, options: { strictCodes?: boolean } = {}): ProductNameValidation {
   const errors: Partial<Record<ProductNameField, string>> = {}
+  if (options.strictCodes) {
+    const fields: Array<[ProductNameField, MasterCodeResource]> = [['productCode','products'],['advertiserCode','advertisers'],['typeCode','event-types'],['sessionCode','sessions']]
+    input = { ...input }
+    for (const [field,resource] of fields) {
+      const normalized = typeof input[field] === 'string' ? normalizeMasterCode(resource,input[field] as string) : null
+      if (normalized === null) errors[field] = MASTER_CODE_RULES[resource].message
+      else input[field] = normalized
+    }
+  }
 
   const productCode = validateCodeField('productCode', input.productCode, 'Produk', errors)
   const advertiserCode = validateCodeField('advertiserCode', input.advertiserCode, 'Pengiklan', errors)
@@ -88,6 +98,7 @@ export function validateProductNameInput(input: Partial<Record<ProductNameField,
   const city = validateTextSegment('city', input.city, 'Kota', errors)
 
   if (
+    Object.keys(errors).length > 0 ||
     productCode === null ||
     advertiserCode === null ||
     typeCode === null ||

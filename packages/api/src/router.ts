@@ -148,7 +148,7 @@ async function readAccessClaims(request: Request, signer: JwtSigner, now: Date):
  * tidak ada jalur yang meneruskan pesan internal ke klien.
  */
 function toFailureResponse(error: unknown): Response {
-  if (error instanceof ApiFailure) return fail(error.code)
+  if (error instanceof ApiFailure) return fail(error.code, {}, error.publicMessage)
 
   if (error instanceof DbError) {
     const mapped = DB_SQLSTATE_TO_API_CODE[error.sqlState]

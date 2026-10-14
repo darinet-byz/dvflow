@@ -55,7 +55,7 @@ export function profileFromRow(row: UserRow): Profile {
     display_name: row.display_name,
     role: row.role,
     avatar_emoji: row.avatar_emoji,
-    has_all_product_access: row.has_all_product_access ?? true,
+    has_all_product_access: isMasterAdminRole(row.role) || row.has_all_product_access === true,
     allowed_product_codes: [],
     permissions: [],
   }
@@ -68,7 +68,7 @@ export function profileFromVerified(user: VerifiedUser): Profile {
     display_name: user.display_name,
     role: user.role,
     avatar_emoji: user.avatar_emoji,
-    has_all_product_access: user.has_all_product_access ?? true,
+    has_all_product_access: isMasterAdminRole(user.role) || user.has_all_product_access === true,
     allowed_product_codes: [],
     permissions: [],
   }
@@ -104,41 +104,18 @@ export async function buildUserProfile(
     }
   }
 
-  const hasAllProductAccess = hasAll ?? true
+  const hasAllProductAccess = isMasterAdminRole(user.role) || hasAll === true
   let allowed_product_codes: string[] = []
   let permissions: string[] = []
 
-  try {
-    const permRows = await context.db.selectRows<{ permission_key: string }>(
-      'app_role_permissions',
-      { role_id: `eq.${user.role}` },
-      'permission_key',
+  if (isMasterAdminRole(user.role)) {
+    const rows = await context.db.selectRows<{ key: string }>('app_permissions', {}, 'key')
+    permissions = rows.map((r) => r.key)
+  } else {
+    const rows = await context.db.selectRows<{ permission_key: string }>(
+      'app_role_permissions', { role_id: `eq.${user.role}` }, 'permission_key',
     )
-    permissions = permRows.map((r) => r.permission_key)
-  } catch {
-    // ignore
-  }
-
-  if (permissions.length === 0 && isMasterAdminRole(user.role)) {
-    permissions = [
-      'operasional.scan_qr',
-      'operasional.dashboard',
-      'operasional.order',
-      'operasional.presensi',
-      'operasional.generator',
-      'config.produk',
-      'config.tax',
-      'config.report_tax',
-      'config.zoom',
-      'config.tiket',
-      'config.integrasi',
-      'config.roles',
-      'team.manage',
-      'account.profile',
-      'action.export_data',
-      'action.manual_checkin',
-      'action.delete_master',
-    ]
+    permissions = rows.map((r) => r.permission_key)
   }
 
   if (!hasAllProductAccess && userId) {

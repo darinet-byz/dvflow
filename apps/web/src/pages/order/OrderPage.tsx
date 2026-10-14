@@ -204,7 +204,7 @@ export function OrderPage() {
           <Card padding="none">
             <DataTable
               exportConfig={{ filename: 'order', loadRows: async () => {
-                const rows = await collectPages(page => fetchOrdersPage(state.applied, { sort: sort.key, direction: sort.direction, page, pageSize: 100 }))
+                const rows = await collectPages(page => fetchOrdersPage(state.applied, { sort: sort.key, direction: sort.direction, page, pageSize: 100, exporting: true }))
                 return rows.map(row => ({ ...row }))
               } }}
               columns={COLUMNS}

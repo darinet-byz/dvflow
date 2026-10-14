@@ -2,7 +2,7 @@ import { normalizeCode, parseProductRaw } from '@dvflow/shared'
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
 import type { RouteContext } from '../router'
-import { requireActiveUser } from '../users'
+import { requirePermission, requirePermissions, productAccess, assertProductAccess, allowsProduct } from '../permissions'
 import { loadProductConfig } from '../webhooks/handlers'
 
 export const WEBINAR_PREFIX = 'webinar_destination::'
@@ -112,7 +112,8 @@ async function validateScopeParts(
 }
 
 export async function listWebinars(context: RouteContext): Promise<Response> {
-  await requireActiveUser(context)
+  const actor = await requirePermission(context, 'config.zoom')
+  const access = await productAccess(context, actor)
   const [config, rows] = await Promise.all([
     loadProductConfig(context.db),
     (async () => {
@@ -130,7 +131,10 @@ export async function listWebinars(context: RouteContext): Promise<Response> {
     })(),
   ])
   return ok({
-    rows: rows.map((row) => {
+    rows: rows.filter((row) => {
+      const key = row.key.slice(WEBINAR_PREFIX.length)
+      return allowsProduct(access, key.startsWith(SCOPE_PREFIX) ? parseScopeKey(key).product_code : parseProductRaw(key, config).product_code)
+    }).map((row) => {
       const rawKey = row.key.slice(WEBINAR_PREFIX.length)
       const parsed = parseScopeKey(rawKey)
       return {
@@ -144,13 +148,14 @@ export async function listWebinars(context: RouteContext): Promise<Response> {
         updated_at: row.updated_at,
       }
     }),
-    products: config.products.map((item) => ({ code: item.code, name: item.name, active: item.active })),
+    products: config.products.filter((item) => allowsProduct(access, item.code)).map((item) => ({ code: item.code, name: item.name, active: item.active })),
     sessions: config.sessions.map((item) => ({ code: item.code, name: item.name, active: item.active })),
   })
 }
 
 export async function saveWebinar(context: RouteContext): Promise<Response> {
-  const actor = await requireActiveUser(context)
+  const actor = await requirePermission(context, 'config.zoom')
+  const access = await productAccess(context, actor)
   const body = await readJsonObject(context.request)
   const destination = readString(body, 'destination')?.trim()
   if (!destination || destination.length > 4096) {
@@ -189,6 +194,7 @@ export async function saveWebinar(context: RouteContext): Promise<Response> {
     if (parsed.product_parse_status !== 'valid' || parsed.event_kind !== 'webinar') {
       throw new ApiFailure('INVALID_ARGUMENT', 'Nama produk harus webinar dengan kode yang terdaftar')
     }
+    assertProductAccess(access, parsed.product_code)
     await context.db.rpc('save_webinar_destination', {
       p_actor: actor.id,
       p_product_raw: productRaw,
@@ -217,6 +223,7 @@ export async function saveWebinar(context: RouteContext): Promise<Response> {
     fromScopeKey ? fromScopeKey.session_code : readString(body, 'session_code'),
   )
 
+  assertProductAccess(access, productCode)
   await context.db.rpc('save_webinar_destination', {
     p_actor: actor.id,
     p_product_raw: scopeKey,
@@ -235,7 +242,8 @@ export async function saveWebinar(context: RouteContext): Promise<Response> {
 }
 
 export async function deleteWebinar(context: RouteContext): Promise<Response> {
-  await requireActiveUser(context)
+  const actor = await requirePermissions(context, ['action.delete_master', 'config.zoom'])
+  const access = await productAccess(context, actor)
   let targetKey = context.url.searchParams.get('key')?.trim() ?? ''
   if (targetKey === '') {
     const body = await readJsonObject(context.request)
@@ -244,6 +252,8 @@ export async function deleteWebinar(context: RouteContext): Promise<Response> {
   if (targetKey === '' || targetKey.length > 1000) {
     throw new ApiFailure('INVALID_ARGUMENT', 'Key konfigurasi Zoom wajib diisi')
   }
+  const code = targetKey.startsWith(SCOPE_PREFIX) ? parseScopeKey(targetKey).product_code : parseProductRaw(targetKey, await loadProductConfig(context.db)).product_code
+  assertProductAccess(access, code)
   await context.db.deleteRows('app_settings', { key: `eq.${WEBINAR_PREFIX}${targetKey}` })
   return ok({ deleted: targetKey })
 }
@@ -272,7 +282,8 @@ export function parseSeminarTicketValue(raw: string | null): SeminarTicketRuleVa
 }
 
 export async function listSeminarTickets(context: RouteContext): Promise<Response> {
-  await requireActiveUser(context)
+  const actor = await requirePermission(context, 'config.tiket')
+  const access = await productAccess(context, actor)
   const [config, rows] = await Promise.all([
     loadProductConfig(context.db),
     (async () => {
@@ -291,7 +302,10 @@ export async function listSeminarTickets(context: RouteContext): Promise<Respons
   ])
 
   return ok({
-    rows: rows.map((row) => {
+    rows: rows.filter((row) => {
+      const key = row.key.slice(TICKET_PREFIX.length)
+      return allowsProduct(access, key.startsWith(SCOPE_PREFIX) ? parseScopeKey(key).product_code : parseProductRaw(key, config).product_code)
+    }).map((row) => {
       const rawKey = row.key.slice(TICKET_PREFIX.length)
       const scope = parseScopeKey(rawKey)
       const val = parseSeminarTicketValue(row.value_text)
@@ -308,13 +322,14 @@ export async function listSeminarTickets(context: RouteContext): Promise<Respons
         updated_at: row.updated_at,
       }
     }),
-    products: config.products.map((item) => ({ code: item.code, name: item.name, active: item.active })),
+    products: config.products.filter((item) => allowsProduct(access, item.code)).map((item) => ({ code: item.code, name: item.name, active: item.active })),
     sessions: config.sessions.map((item) => ({ code: item.code, name: item.name, active: item.active })),
   })
 }
 
 export async function saveSeminarTicket(context: RouteContext): Promise<Response> {
-  const actor = await requireActiveUser(context)
+  const actor = await requirePermission(context, 'config.tiket')
+  const access = await productAccess(context, actor)
   const body = await readJsonObject(context.request)
 
   const { productCode, batch, sessionCode, scopeKey } = await validateScopeParts(
@@ -340,6 +355,7 @@ export async function saveSeminarTicket(context: RouteContext): Promise<Response
     active,
   })
 
+  assertProductAccess(access, productCode)
   await context.db.rpc('save_seminar_ticket', {
     p_actor: actor.id,
     p_scope_key: scopeKey,
@@ -359,7 +375,8 @@ export async function saveSeminarTicket(context: RouteContext): Promise<Response
 }
 
 export async function deleteSeminarTicket(context: RouteContext): Promise<Response> {
-  await requireActiveUser(context)
+  const actor = await requirePermissions(context, ['action.delete_master', 'config.tiket'])
+  const access = await productAccess(context, actor)
   let targetKey = context.url.searchParams.get('key')?.trim() ?? ''
   if (targetKey === '') {
     const body = await readJsonObject(context.request)
@@ -368,6 +385,8 @@ export async function deleteSeminarTicket(context: RouteContext): Promise<Respon
   if (targetKey === '' || targetKey.length > 1000) {
     throw new ApiFailure('INVALID_ARGUMENT', 'Key konfigurasi tiket wajib diisi')
   }
+  const code = targetKey.startsWith(SCOPE_PREFIX) ? parseScopeKey(targetKey).product_code : parseProductRaw(targetKey, await loadProductConfig(context.db)).product_code
+  assertProductAccess(access, code)
   await context.db.deleteRows('app_settings', { key: `eq.${TICKET_PREFIX}${targetKey}` })
   return ok({ deleted: targetKey })
 }

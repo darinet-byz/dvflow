@@ -13,6 +13,13 @@ begin;
 set local search_path = public, extensions, pg_catalog;
 
 select no_plan();
+-- RPCs now resolve a real active actor, not a role-only claim.
+insert into public.users(id,username,display_name,password_hash,role) values
+ ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','rpcadmin','RPC admin','test','admin'),
+ ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','rpcstaff','RPC staff','test','staff'),
+ ('cccccccc-cccc-cccc-cccc-cccccccccccc','rpcmaster','RPC master','test','master_admin');
+insert into public.app_role_permissions(role_id,permission_key) values ('admin','config.report_tax') on conflict do nothing;
+set local request.jwt.claims = '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","app_role":"admin"}';
 
 -- ---------------------------------------------------------------------------
 -- Fixture: 4 order berbeda status + presensi
@@ -186,17 +193,17 @@ select is((select public.dashboard_summary(p_city => 'Tidak Ada') ->> 'attendanc
 -- ---------------------------------------------------------------------------
 -- B04: staff ditolak Report Tax; admin boleh (01 §5, 04 §1)
 -- ---------------------------------------------------------------------------
-set local request.jwt.claims = '{"app_role":"staff"}';
+set local request.jwt.claims = '{"sub":"bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb","app_role":"staff"}';
 
 select throws_ok('select public.tax_report(''payment_method'')',
-  'DF012', 'FORBIDDEN_REPORT_TAX', 'B04 staff ditolak Report Tax (server-side)');
+  'DF006', 'FORBIDDEN', 'B04 staff ditolak Report Tax (server-side)');
 
-set local request.jwt.claims = '{"app_role":"admin"}';
+set local request.jwt.claims = '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","app_role":"admin"}';
 
 select lives_ok('select public.tax_report(''payment_method'')',
   'B05 admin dapat membuka Report Tax');
 
-set local request.jwt.claims = '{"app_role":"master_admin"}';
+set local request.jwt.claims = '{"sub":"cccccccc-cccc-cccc-cccc-cccccccccccc","app_role":"master_admin"}';
 
 select lives_ok('select public.tax_report(''city'')',
   'master_admin dapat membuka Report Tax');

@@ -39,7 +39,7 @@ describe('Multi-Webhook & Alias Produk (Masa Transisi)', () => {
 
   it('validasi kode toko maks. 4 karakter alfanumerik kapital pada integrasi', async () => {
     const rows: Record<string, unknown>[] = []
-    const user = { id: 'admin-1', role: 'admin', active: true }
+    const user = { id: 'admin-1', role: 'developer', active: true }
     const db = {
       selectRows: vi.fn(async (table: string, _query: Record<string, string>) => table === 'users' ? [user] : rows),
       insertRow: vi.fn(async (_: string, row: Record<string, unknown>) => { const val = { id: crypto.randomUUID(), ...row }; rows.push(val); return val }),
@@ -102,7 +102,7 @@ describe('Multi-Webhook & Alias Produk (Masa Transisi)', () => {
 
   it('CRUD Product Aliases berjalan aman dengan otorisasi', async () => {
     const aliasRows: Record<string, unknown>[] = []
-    const user = { id: 'admin-1', role: 'admin', active: true }
+    const user = { id: 'admin-1', role: 'developer', active: true }
     const configSets = {
       products: [{ code: 'KM', name: 'Kuliner Masteri', active: true }],
       advertisers: [{ code: '01', name: 'Zul', active: true }],
@@ -169,7 +169,7 @@ describe('Multi-Webhook & Alias Produk (Masa Transisi)', () => {
   })
 
   it('batchRemapOrders memvalidasi format target dan memanggil RPC batch_remap_orders', async () => {
-    const user = { id: 'admin-1', role: 'admin', active: true }
+    const user = { id: 'admin-1', role: 'developer', active: true }
     const configSets = {
       products: [{ code: 'KM', name: 'Kuliner Masteri', active: true }],
       advertisers: [{ code: '01', name: 'Zul', active: true }],

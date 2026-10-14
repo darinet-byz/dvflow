@@ -5,6 +5,14 @@ import type { RouteContext } from '../router'
 import { requireActiveUser, USER_COLUMNS, type UserRow } from '../users'
 import { AVATAR_EMOJI_MAX_LENGTH, DISPLAY_NAME_MAX_LENGTH, USERNAME_MAX_LENGTH } from '../users'
 
+/** The RPC silently skips unknown codes; reject them so a typo cannot create a zero-product user. */
+async function assertKnownProducts(context: RouteContext, codes: string[]): Promise<void> {
+  if (codes.length === 0) return
+  const rows = await context.db.selectRows<{ code: string }>('products', {}, 'code')
+  const known = new Set(rows.map((row) => row.code.toUpperCase()))
+  if (codes.some((code) => !known.has(code))) throw new ApiFailure('INVALID_ARGUMENT', 'Kode produk tidak dikenal')
+}
+
 type CreatedUser = {
   user_id: string
   username: string
@@ -33,9 +41,6 @@ export type ListedUser = {
  * Provisioning melalui Add Team oleh Master Admin tier (developer, owner, master_admin).
  */
 export async function createUser(context: RouteContext): Promise<Response> {
-  if (!isMasterAdminRole(context.claims?.app_role)) {
-    throw new ApiFailure('FORBIDDEN', `app_role=${context.claims?.app_role ?? 'tidak ada'}`)
-  }
 
   const actor = await requireActiveUser(context)
   if (!isMasterAdminRole(actor.role)) throw new ApiFailure('FORBIDDEN', 'Master Admin diperlukan')
@@ -89,6 +94,7 @@ export async function createUser(context: RouteContext): Promise<Response> {
   if (!hasAllProductAccess && productCodes.length === 0) {
     throw new ApiFailure('INVALID_ARGUMENT', 'Pilih minimal satu produk jika akses dibatasi')
   }
+  if (!hasAllProductAccess) await assertKnownProducts(context, productCodes)
 
   const isMasterRole = isMasterAdminRole(trimmedRole)
   const allowMaster = context.env.ALLOW_MASTER_ADMIN_CREATE_MASTER === 'true'
@@ -160,9 +166,6 @@ export async function listUsers(context: RouteContext): Promise<Response> {
 }
 
 export async function updateUser(context: RouteContext): Promise<Response> {
-  if (!isMasterAdminRole(context.claims?.app_role)) {
-    throw new ApiFailure('FORBIDDEN', `app_role=${context.claims?.app_role ?? 'tidak ada'}`)
-  }
   const actor = await requireActiveUser(context)
   if (!isMasterAdminRole(actor.role)) throw new ApiFailure('FORBIDDEN', 'Master Admin diperlukan')
 
@@ -214,6 +217,7 @@ export async function updateUser(context: RouteContext): Promise<Response> {
   if (!hasAllProductAccess && productCodes.length === 0) {
     throw new ApiFailure('INVALID_ARGUMENT', 'Pilih minimal satu produk jika akses dibatasi')
   }
+  if (!hasAllProductAccess) await assertKnownProducts(context, productCodes)
 
   const isMasterTarget = isMasterAdminRole(role)
   const allowMaster =
@@ -241,9 +245,6 @@ export async function updateUser(context: RouteContext): Promise<Response> {
 }
 
 export async function deleteUser(context: RouteContext): Promise<Response> {
-  if (!isMasterAdminRole(context.claims?.app_role)) {
-    throw new ApiFailure('FORBIDDEN', `app_role=${context.claims?.app_role ?? 'tidak ada'}`)
-  }
   const actor = await requireActiveUser(context)
   if (!isMasterAdminRole(actor.role)) throw new ApiFailure('FORBIDDEN', 'Master Admin diperlukan')
 

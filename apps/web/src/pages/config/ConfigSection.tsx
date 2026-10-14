@@ -1,3 +1,6 @@
+import { normalizeMasterCode, MASTER_CODE_RULES } from '@dvflow/shared'
+import { hasPermission, hasAllProductAccess } from '../../lib/roles'
+import { useSession } from '../../lib/useSession'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ApiError } from '../../lib/api'
 import { authorizedRequest } from '../../lib/session'
@@ -57,6 +60,9 @@ export type ConfigSpec = {
 
 export function ConfigSection({ spec }: { spec: ConfigSpec }) {
   const toast = useToast()
+  const { profile } = useSession()
+  const canCreate = hasAllProductAccess(profile)
+  const canWrite = canCreate || spec.resource === 'products'
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<ConfigRow | null>(null)
   const [adding, setAdding] = useState(false)
@@ -88,6 +94,13 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
   }, [data, search, spec.identityKey])
 
   async function submit(formValues: Record<string, string>, target: ConfigRow | null): Promise<void> {
+    // Strict only for new/changed codes, so a legacy row can still be renamed or deactivated.
+    const strictCode = spec.resource === 'payment-fee-rules' ? undefined : normalizeMasterCode(spec.resource, formValues['code'] ?? '')
+    const codeChanged = target === null || String(target['code'] ?? '') !== (formValues['code'] ?? '').trim()
+    if (spec.resource !== 'payment-fee-rules' && codeChanged && strictCode === null) {
+      toast.show(MASTER_CODE_RULES[spec.resource].message, 'danger')
+      return
+    }
     setBusy(true)
 
     // Field angka dikirim sebagai angka; string kosong dibiarkan kosong supaya
@@ -97,6 +110,7 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
       const raw = formValues[field.key] ?? ''
       body[field.key] = field.type === 'number' ? (raw === '' ? '' : Number(raw)) : raw
     }
+    if (strictCode) body['code'] = strictCode
 
     try {
       if (target === null) {
@@ -177,9 +191,9 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
             onChange={setSearch}
             placeholder="Cari nama atau kode"
           />
-          <Button variant="primary" onClick={() => setAdding(true)}>
+          {canCreate ? <Button variant="primary" onClick={() => setAdding(true)}>
             + Tambah
-          </Button>
+          </Button> : null}
         </div>
       </div>
 
@@ -204,7 +218,7 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
                   </TableCell>
                 ))}
                 <TableCell align="right">
-                  <div className="flex justify-end gap-1.5">
+                  {canWrite ? <div className="flex justify-end gap-1.5">
                     <Button size="sm" variant="ghost" onClick={() => setEditing(row)}>
                       Edit
                     </Button>
@@ -217,10 +231,10 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
                         Aktifkan
                       </Button>
                     )}
-                    <Button size="sm" variant="danger" disabled={busy} onClick={() => setDeleting(row)}>
+                    {hasPermission(profile, 'action.delete_master') ? <Button size="sm" variant="danger" disabled={busy} onClick={() => setDeleting(row)}>
                       Hapus
-                    </Button>
-                  </div>
+                    </Button> : null}
+                  </div> : null}
                 </TableCell>
               </TableRow>
             ))}

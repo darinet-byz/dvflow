@@ -24,7 +24,7 @@ insert into public.users (id, username, display_name, password_hash, role) value
 insert into public.orders (order_id, name, app_status, gross_amount, event_type)
 values ('900001', 'Peserta Satu', 'Paid', 300000, 'Seminar Offline');
 
-insert into public.products (name, code) values ('Produk Uji', 'PU');
+insert into public.products (name, code) values ('Produk Uji', 'PROD');
 
 -- ---------------------------------------------------------------------------
 -- anon: tidak boleh menyentuh apa pun (L03)
@@ -64,7 +64,7 @@ set local request.jwt.claims =
 
 select is((select count(*) from public.orders where order_id = '900001'), 1::bigint,
   'staff dapat membaca orders');
-select is((select count(*) from public.products where code = 'PU'), 1::bigint,
+select is((select count(*) from public.products where code = 'PROD'), 1::bigint,
   'staff dapat membaca konfigurasi produk (dibutuhkan generator/filter)');
 
 -- L04 / 04 §6: kolom kredensial tidak dapat di-SELECT sama sekali.
@@ -80,11 +80,11 @@ select is((select count(*) from public.users), 1::bigint,
   'users hanya mengembalikan baris milik pemanggil');
 
 -- L08 / B02 / B03: staff ditolak SERVER-SIDE, bukan hanya tombol disembunyikan.
-select throws_ok('update public.products set name = ''disunting'' where code = ''PU''',
+select throws_ok('update public.products set name = ''disunting'' where code = ''PROD''',
   '42501', null, 'staff tidak dapat mengubah konfigurasi produk');
 select throws_ok('update public.payment_fee_rules set fee_value = 0 where true',
   '42501', null, 'staff tidak dapat mengubah konfigurasi tax');
-select throws_ok('delete from public.products where code = ''PU''',
+select throws_ok('delete from public.products where code = ''PROD''',
   '42501', null, 'staff tidak dapat menghapus konfigurasi produk');
 select throws_ok('insert into public.attendance_events (order_id, attendance_type, source) values (''900001'', ''seminar'', ''seminar_qr'')',
   '42501', null, 'browser tidak dapat menyisipkan presensi — check-in lewat backend');

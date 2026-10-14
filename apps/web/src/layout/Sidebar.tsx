@@ -24,7 +24,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto">
         {NAV_SECTIONS.map((section) => {
           const visibleItems = section.items.filter((item) => {
-            if (!session.profile) return true
+            if (!session.profile) return false
             return canAccessPath(session.profile, item.path)
           })
 

@@ -2,12 +2,12 @@ import { TeamPage } from './pages/team/TeamPage'
 import { IntegrationsPage } from './pages/config/IntegrationsPage'
 import { ZoomPage } from './pages/config/ZoomPage'
 import { TicketConfigPage } from './pages/config/TicketConfigPage'
-import { canAccessPath } from './lib/roles'
+import { canAccessPath, PATH_PERMISSION_MAP } from './lib/roles'
 import { useEffect } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AppShell } from './layout/AppShell'
 import { DASHBOARD_PATH, LOGIN_PATH } from './layout/navigation'
-import { bootstrapSession } from './lib/session'
+import { bootstrapSession, refreshProfile } from './lib/session'
 import { useSession } from './lib/useSession'
 import { ErrorState, SkeletonRows } from './ui/Feedback'
 import { LoginPage } from './pages/LoginPage'
@@ -38,6 +38,13 @@ import { Card } from './ui/Card'
  */
 export function App() {
   const session = useSession()
+  const location = useLocation()
+  useEffect(() => { if (session.status === 'authenticated') void refreshProfile() }, [location.pathname, session.status])
+  useEffect(() => {
+    const onFocus = () => { void refreshProfile() }
+    window.addEventListener('focus', onFocus)
+    return () => window.removeEventListener('focus', onFocus)
+  }, [])
 
   useEffect(() => {
     if (session.status === 'unknown') void bootstrapSession()
@@ -58,7 +65,7 @@ export function App() {
       <Route path={LOGIN_PATH} element={<LoginPage />} />
 
       <Route element={<RequireAuth />}>
-        <Route element={<AppShell />}>
+        <Route element={<AppShell key={JSON.stringify([session.profile?.user_id, session.profile?.role, session.profile?.has_all_product_access, [...(session.profile?.permissions ?? [])].sort(), [...(session.profile?.allowed_product_codes ?? [])].sort()])} />}>
           <Route path="/logout" element={<LogoutPage />} />
           <Route path={DASHBOARD_PATH} element={<DashboardPage />} />
           <Route path="/scan-qr" element={<ScanQrPage />} />
@@ -95,7 +102,13 @@ function RequireAuth() {
 
   if (session.status === 'anonymous') return <Navigate to={LOGIN_PATH} replace state={{ from: location.pathname }} />
   if (session.status !== 'authenticated') return <Navigate to={LOGIN_PATH} replace />
+  if (!session.profile) return <ErrorState title="Akses belum dapat diverifikasi" message="Muat ulang halaman untuk mencoba kembali." action={<a href={location.pathname}>Muat ulang</a>} />
 
+  if (!canAccessPath(session.profile, location.pathname)) {
+    const fallback = Object.keys(PATH_PERMISSION_MAP).find((path) => canAccessPath(session.profile, path))
+    if (fallback) return <Navigate to={fallback} replace state={{ accessDenied: true }} />
+    return <ErrorState title="Tidak punya akses" message="Belum ada fitur yang diizinkan untuk akun Anda." action={<a href="/logout">Keluar</a>} />
+  }
   return <Outlet />
 }
 

@@ -38,8 +38,10 @@ describe('requested role matrix', () => {
       expect(canAccessPath('staff', path)).toBe(false)
     }
     expect(canAccessPath('admin', '/add-team')).toBe(false)
-    expect(canAccessPath('admin', '/report-tax')).toBe(true)
-    expect(canAccessPath('staff', '/konfigurasi-zoom')).toBe(true)
-    expect(canAccessPath('staff', '/generator')).toBe(true)
+    expect(canAccessPath({ role: 'admin', permissions: ['config.report_tax'] }, '/report-tax')).toBe(true)
+    expect(canAccessPath('staff', '/konfigurasi-zoom')).toBe(false)
+    expect(canAccessPath('staff', '/generator')).toBe(false)
+    expect(canAccessPath({ role: 'custom', permissions: [] }, '/order')).toBe(false)
+    expect(canAccessPath({ role: 'custom', permissions: ['operasional.order'] }, '/order')).toBe(true)
   })
 })

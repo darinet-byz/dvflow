@@ -20,7 +20,7 @@ vi.mock('../src/lib/env', () => ({
 }))
 
 const { ApiError } = await import('../src/lib/api')
-const { bootstrapSession, getAccessToken, getSessionSnapshot, login, logout, authorizedRequest, resetSessionForTests } =
+const { bootstrapSession, getAccessToken, getSessionSnapshot, login, logout, authorizedRequest, resetSessionForTests, refreshProfile } =
   await import('../src/lib/session')
 
 const PROFILE = {
@@ -30,6 +30,35 @@ const PROFILE = {
   role: 'admin' as const,
   avatar_emoji: null,
 }
+
+describe('current permission refresh', () => {
+  it('fails closed even for Developer and recovers on the next successful refresh', async () => {
+    const developer = { ...PROFILE, role: 'developer', permissions: ['config.produk'] }
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(200, { ok: true, data: { profile: developer, access_token: 't' } })))
+    await login('developer', 'test')
+    vi.stubGlobal('fetch', vi.fn(async () => failureResponse('INTERNAL_ERROR', 500)))
+    await refreshProfile()
+    expect(getSessionSnapshot().profile).toBeNull()
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(200, { ok: true, data: { profile: developer } })))
+    await refreshProfile()
+    expect(getSessionSnapshot().profile?.role).toBe('developer')
+  })
+
+  it('a forbidden response reloads revoked permissions without repeating the write', async () => {
+    const requests: string[] = []
+    vi.stubGlobal('fetch', vi.fn(async (path: string) => {
+      requests.push(path)
+      if (path === '/api/auth/login') return sessionEnvelope('t')
+      if (path === '/api/profile') return jsonResponse(200, { ok: true, data: { profile: { ...PROFILE, permissions: [] } } })
+      return failureResponse('FORBIDDEN', 403)
+    }))
+    await login('admin1', 'test')
+    await expect(authorizedRequest('/api/config/products', { method: 'POST', body: {} })).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(getSessionSnapshot().profile?.permissions).toEqual([])
+    expect(requests.filter(p => p === '/api/config/products')).toHaveLength(1)
+    expect(requests.at(-1)).toBe('/api/profile')
+  })
+})
 
 function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } })

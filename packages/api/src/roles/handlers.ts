@@ -44,10 +44,11 @@ export async function listRoles(context: RouteContext): Promise<Response> {
     permCounts[rp.role_id] = (permCounts[rp.role_id] ?? 0) + 1
   }
 
+  const catalog = await context.db.selectRows<{ key: string }>('app_permissions', {}, 'key')
   const items = roles.map((r) => ({
     ...r,
     user_count: userCounts[r.id] ?? 0,
-    permission_count: permCounts[r.id] ?? 0,
+    permission_count: isMasterAdminRole(r.id) ? catalog.length : (permCounts[r.id] ?? 0),
   }))
 
   return ok({ roles: items })
@@ -85,26 +86,12 @@ export async function createRole(context: RouteContext): Promise<Response> {
     throw new ApiFailure('CODE_TAKEN', 'Role ID sudah terdaftar')
   }
 
-  const createdRole = await context.db.insertRow<AppRoleItem>('app_roles', {
-    id,
-    name,
-    description,
-    is_system: false,
+  const permissions = await validatedPermissions(context, body['permissions'] ?? [])
+  const createdRole = await context.db.rpc<AppRoleItem>('save_role_permissions', {
+    p_actor: actor.id, p_role: id, p_permissions: permissions, p_create: true,
+    p_name: name, p_description: description,
   })
-
-  let permissionsCount = 0
-  if (Array.isArray(body['permissions'])) {
-    const rawPerms = body['permissions'] as unknown[]
-    for (const p of rawPerms) {
-      if (typeof p === 'string' && p.trim() !== '') {
-        await context.db.insertRow('app_role_permissions', {
-          role_id: id,
-          permission_key: p.trim(),
-        })
-        permissionsCount++
-      }
-    }
-  }
+  const permissionsCount = permissions.length
 
   return ok(
     {
@@ -146,7 +133,7 @@ export async function getRole(context: RouteContext): Promise<Response> {
     name: role.name,
     description: role.description,
     is_system: role.is_system,
-    permissions: rolePerms.map((rp) => rp.permission_key),
+    permissions: isMasterAdminRole(roleId) ? (await context.db.selectRows<{ key: string }>('app_permissions', {}, 'key')).map(p => p.key) : rolePerms.map((rp) => rp.permission_key),
   })
 }
 
@@ -172,19 +159,11 @@ export async function updateRolePermissions(context: RouteContext): Promise<Resp
     throw new ApiFailure('INVALID_PAYLOAD', 'permissions harus berupa array')
   }
 
-  const rawPerms = body['permissions'] as unknown[]
-  await context.db.deleteRows('app_role_permissions', { role_id: `eq.${roleId}` })
-
-  let count = 0
-  for (const p of rawPerms) {
-    if (typeof p === 'string' && p.trim() !== '') {
-      await context.db.insertRow('app_role_permissions', {
-        role_id: roleId,
-        permission_key: p.trim(),
-      })
-      count++
-    }
-  }
+  const permissions = await validatedPermissions(context, body['permissions'])
+  await context.db.rpc('save_role_permissions', {
+    p_actor: actor.id, p_role: roleId, p_permissions: permissions, p_create: false,
+  })
+  const count = isMasterAdminRole(roleId) ? (await context.db.selectRows<{ key: string }>('app_permissions', {}, 'key')).length : permissions.length
 
   return ok({
     success: true,
@@ -257,4 +236,12 @@ export async function listPermissions(context: RouteContext): Promise<Response> 
   }
 
   return ok({ modules })
+}
+
+async function validatedPermissions(context: RouteContext, value: unknown): Promise<string[]> {
+  if (!Array.isArray(value) || value.some((p) => typeof p !== 'string')) throw new ApiFailure('INVALID_PAYLOAD')
+  const keys = [...new Set((value as string[]).map((p) => p.trim()))]
+  const catalog = await context.db.selectRows<{ key: string }>('app_permissions', {}, 'key')
+  if (keys.some((key) => !catalog.some((p) => p.key === key))) throw new ApiFailure('INVALID_ARGUMENT')
+  return keys
 }

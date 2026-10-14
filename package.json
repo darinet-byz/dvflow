@@ -16,6 +16,9 @@
     "test": "npm run test --workspaces --if-present",
     "test:db": "supabase test db",
     "test:integration": "npm -w @dvflow/api run test:integration",
+    "test:rbac:db": "node scripts/test-rbac-db.mjs",
+    "test:rbac:integration": "node scripts/test-rbac-db.mjs --integration",
+    "test:rbac:browser": "node scripts/test-rbac-db.mjs --browser",
     "lint": "npm run lint --workspaces --if-present",
     "build": "npm run build --workspaces --if-present",
     "verify:ticket-qr": "node scripts/verify-ticket-qr.mjs",
@@ -32,6 +35,7 @@
   },
   "devDependencies": {
     "pg": "^8.16.3",
+    "playwright": "^1.64.0",
     "typescript": "5.9.3",
     "wrangler": "4.149.0"
   }

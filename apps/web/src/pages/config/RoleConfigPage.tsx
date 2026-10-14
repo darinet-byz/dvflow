@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import type { AppPermissionModuleGroup, AppRoleItem } from '@dvflow/shared'
+import { isMasterAdminRole, type AppPermissionModuleGroup, type AppRoleItem } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
 import { useAsyncData } from '../../lib/useAsyncData'
 import { PageHeader } from '../../layout/PageHeader'
@@ -253,6 +253,8 @@ export function RoleConfigPage() {
                     <Button
                       variant="secondary"
                       size="sm"
+                      disabled={isMasterAdminRole(role.id)}
+                      title={isMasterAdminRole(role.id) ? 'Role ini selalu memiliki akses penuh.' : undefined}
                       onClick={() => openEditPermissions(role)}
                     >
                       Atur Hak Akses

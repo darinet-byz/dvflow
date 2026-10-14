@@ -1,3 +1,5 @@
+import { useSession } from '../../lib/useSession'
+import { hasPermission, hasAllProductAccess } from '../../lib/roles'
 import { useMemo, useState } from 'react'
 import { authorizedRequest } from '../../lib/session'
 import { useAsyncData } from '../../lib/useAsyncData'
@@ -72,7 +74,9 @@ function describeTicketScope(
 }
 
 export function TicketConfigPage() {
-  const [productCode, setProductCode] = useState('*')
+  const { profile } = useSession()
+  const allProducts = hasAllProductAccess(profile)
+  const [productCode, setProductCode] = useState(allProducts ? '*' : '')
   const [batch, setBatch] = useState('')
   const [sessionCode, setSessionCode] = useState('*')
   const [venue, setVenue] = useState('')
@@ -112,7 +116,7 @@ export function TicketConfigPage() {
   })
 
   function resetForm() {
-    setProductCode('*')
+    setProductCode(allProducts ? '*' : '')
     setBatch('')
     setSessionCode('*')
     setVenue('')
@@ -125,6 +129,7 @@ export function TicketConfigPage() {
 
   async function save() {
     if (busy) return
+    if (!allProducts && !productCode) { setFailure('Pilih produk yang ditugaskan.'); return }
     setBusy(true)
     setFailure(null)
     try {
@@ -190,7 +195,7 @@ export function TicketConfigPage() {
   }
 
   const productOptions = [
-    { value: '*', label: 'Semua Produk (Global)' },
+    ...(allProducts ? [{ value: '*', label: 'Semua Produk (Global)' }] : [{ value: '', label: 'Pilih produk yang ditugaskan' }]),
     ...products.map((item) => ({
       value: item.code,
       label: `${item.code} — ${item.name}${item.active ? '' : ' (nonaktif)'}`,
@@ -413,9 +418,9 @@ export function TicketConfigPage() {
                         <Button size="sm" disabled={busy} onClick={() => startEdit(row)}>
                           Edit
                         </Button>
-                        <Button size="sm" variant="danger" disabled={busy} onClick={() => setDeleting(row)}>
+                        {hasPermission(profile, 'action.delete_master') ? <Button size="sm" variant="danger" disabled={busy} onClick={() => setDeleting(row)}>
                           Hapus
-                        </Button>
+                        </Button> : null}
                       </div>
                     </TableCell>
                   </TableRow>

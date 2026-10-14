@@ -1,3 +1,5 @@
+import { useSession } from '../../lib/useSession'
+import { hasPermission, hasAllProductAccess } from '../../lib/roles'
 import { useState } from 'react'
 import { authorizedRequest } from '../../lib/session'
 import { useAsyncData } from '../../lib/useAsyncData'
@@ -80,7 +82,9 @@ function describeWebinarScope(
 }
 
 export function ZoomPage() {
-  const [productCode, setProductCode] = useState('*')
+  const { profile } = useSession()
+  const allProducts = hasAllProductAccess(profile)
+  const [productCode, setProductCode] = useState(allProducts ? '*' : '')
   const [batch, setBatch] = useState('')
   const [sessionCode, setSessionCode] = useState('*')
   const [productRaw, setProductRaw] = useState('')
@@ -109,7 +113,7 @@ export function ZoomPage() {
   })
 
   function resetForm() {
-    setProductCode('*')
+    setProductCode(allProducts ? '*' : '')
     setBatch('')
     setSessionCode('*')
     setProductRaw('')
@@ -120,6 +124,7 @@ export function ZoomPage() {
 
   async function save() {
     if (busy) return
+    if (!allProducts && !productCode && !productRaw.trim()) { setFailure('Pilih produk yang ditugaskan.'); return }
     setBusy(true)
     setFailure(null)
     try {
@@ -185,7 +190,7 @@ export function ZoomPage() {
       setSessionCode(s)
       setProductRaw('')
     } else {
-      setProductCode('*')
+      setProductCode(allProducts ? '*' : '')
       setBatch('')
       setSessionCode('*')
       setProductRaw(row.product_raw)
@@ -197,7 +202,7 @@ export function ZoomPage() {
   }
 
   const productOptions = [
-    { value: '*', label: 'Semua Produk (Global)' },
+    ...(allProducts ? [{ value: '*', label: 'Semua Produk (Global)' }] : [{ value: '', label: 'Pilih produk yang ditugaskan' }]),
     ...products.map((item) => ({
       value: item.code,
       label: `${item.code} — ${item.name}${item.active ? '' : ' (nonaktif)'}`,
@@ -362,9 +367,9 @@ export function ZoomPage() {
                         <Button size="sm" disabled={busy} onClick={() => startEdit(row)}>
                           Edit
                         </Button>
-                        <Button size="sm" variant="danger" disabled={busy} onClick={() => setDeleting(row)}>
+                        {hasPermission(profile, 'action.delete_master') ? <Button size="sm" variant="danger" disabled={busy} onClick={() => setDeleting(row)}>
                           Hapus
-                        </Button>
+                        </Button> : null}
                       </div>
                     </TableCell>
                   </TableRow>

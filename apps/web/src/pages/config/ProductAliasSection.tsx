@@ -1,3 +1,5 @@
+import { hasPermission } from '../../lib/roles'
+import { useSession } from '../../lib/useSession'
 import { useState } from 'react'
 import { type ProductAliasItem, validateProductNameInput } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
@@ -19,6 +21,7 @@ const columns = [
 ]
 
 export function ProductAliasSection() {
+  const { profile } = useSession()
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -165,9 +168,9 @@ export function ProductAliasSection() {
                   {new Date(row.created_at).toLocaleDateString('id-ID')}
                 </TableCell>
                 <TableCell>
-                  <Button size="sm" variant="danger" onClick={() => setDeleting(row)}>
+                  {hasPermission(profile, 'action.delete_master') ? <Button size="sm" variant="danger" onClick={() => setDeleting(row)}>
                     Hapus
-                  </Button>
+                  </Button> : null}
                 </TableCell>
               </TableRow>
             ))}

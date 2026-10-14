@@ -130,11 +130,11 @@ describe('access JWT (01 §2, 04 §4, A3)', () => {
     await expectRejected(signer, token)
   })
 
-  it('app_role di luar daftar tertutup ditolak walau tanda tangannya sah', async () => {
+  it('slug role tidak valid ditolak walau tanda tangannya sah', async () => {
     const env = await createTestEnv()
     const signer = await createJwtSigner(env)
 
-    const token = await signer.mint({ userId: 'user-1', appRole: 'superuser' as AppRole, now: NOW })
+    const token = await signer.mint({ userId: 'user-1', appRole: 'invalid role!' as AppRole, now: NOW })
     await expectRejected(signer, token)
   })
 

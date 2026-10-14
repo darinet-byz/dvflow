@@ -204,7 +204,7 @@ export function PresensiPage() {
           <Card padding="none">
             <DataTable
               exportConfig={{ filename: 'presensi', columns: [...COLUMNS, { key: 'attendance_status', header: 'Status presensi' }, { key: 'app_status', header: 'Status order' }], loadRows: async () => {
-                const rows = await collectPages(page => fetchPresensiPage(state.applied, { sort: sort.key, direction: sort.direction, page, pageSize: 100 }))
+                const rows = await collectPages(page => fetchPresensiPage(state.applied, { sort: sort.key, direction: sort.direction, page, pageSize: 100, exporting: true }))
                 return rows.map(row => ({ ...row, ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`t${i + 1}`, row.timestamps?.[i] ?? ''])) }))
               } }} columns={COLUMNS} sort={{ key: sort.key, direction: sort.direction }} onSortChange={toggleSort}>
               {(table.data?.rows ?? []).map((row) => (

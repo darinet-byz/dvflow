@@ -121,6 +121,8 @@ export type FakeState = {
   permissions: Array<Record<string, unknown>>
   rolePermissions: Array<Record<string, unknown>>
   userProductAccess: Array<Record<string, unknown>>
+  orderonlineConnections: Array<Record<string, unknown>>
+  productAliases: Array<Record<string, unknown>>
   /** Semua panggilan RPC, untuk memastikan handler tidak melewati database. */
   rpcCalls: Array<{ name: string; args: Record<string, unknown> }>
 }
@@ -157,6 +159,8 @@ export function createFakeState(
     permissions: seed.permissions ?? [...DEFAULT_PERMISSIONS],
     rolePermissions: seed.rolePermissions ?? [...DEFAULT_ROLE_PERMISSIONS],
     userProductAccess: seed.userProductAccess ?? [],
+    orderonlineConnections: [],
+    productAliases: [],
     rpcCalls: [],
   }
 }
@@ -241,6 +245,26 @@ export function createFakeDb(state: FakeState): Db {
     async rpc<T>(name: string, args: Record<string, unknown>): Promise<T> {
       state.rpcCalls.push({ name, args })
 
+      if (name === 'save_role_permissions') {
+        const keys = args['p_permissions'] as string[]
+        if (keys.some(key => !state.permissions.some(p => p['key'] === key))) throw new DbError('DF011', 'invalid permission')
+        let role = state.roles.find(r => r['id'] === args['p_role'])
+        if (args['p_create']) {
+          role = { id: args['p_role'], name: args['p_name'], description: args['p_description'], is_system: false }
+          state.roles.push(role)
+        }
+        if (!role) throw new DbError('DF011', 'role not found')
+        state.rolePermissions = state.rolePermissions.filter(p => p['role_id'] !== args['p_role'])
+        state.rolePermissions.push(...keys.map(key => ({ role_id: args['p_role'], permission_key: key })))
+        return role as T
+      }
+      if (name === 'delete_config_master') {
+        const table = String(args['p_resource']).replace('event-types','event_types').replace('sessions','sessions_config').replace('payment-fee-rules','payment_fee_rules')
+        const rows = rowsOf(state, table)
+        const index = rows.findIndex(r => r['id'] === args['p_id'])
+        if (index >= 0) rows.splice(index,1)
+        return undefined as T
+      }
       if (name === 'verify_login') {
         const username = normalizeUsername(String(args['p_username'] ?? ''))
         const password = String(args['p_password'] ?? '')
@@ -617,6 +641,10 @@ function rowsOf(state: FakeState, table: string): Array<Record<string, unknown>>
       return state.permissions
     case 'app_role_permissions':
       return state.rolePermissions
+    case 'orderonline_connections':
+      return state.orderonlineConnections
+    case 'product_aliases':
+      return state.productAliases
     case 'user_product_access':
       return state.userProductAccess
     default:
@@ -820,6 +848,7 @@ export function fakeUser(overrides: Partial<FakeUser> = {}): FakeUser {
     role: 'admin',
     avatar_emoji: null,
     active: true,
+    has_all_product_access: true,
     password: 'rahasia123',
     ...overrides,
   }

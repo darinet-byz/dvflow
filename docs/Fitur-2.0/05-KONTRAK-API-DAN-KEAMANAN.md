@@ -1,4 +1,7 @@
 # KONTRAK API & SPESIFIKASI KEAMANAN (FITUR 2.0)
+
+> Pembaruan 14 Oktober 2026: aturan hasil implementasi dan matriks akses ada di [audit RBAC dan konfigurasi produk](./08-AUDIT-ROLE-PERMISSION-DAN-KONFIGURASI-PRODUK.md). Jika contoh rancangan lama berbeda, acuan terbaru adalah laporan tersebut dan AMENDMENTS A13.
+
 ## dvflow: REST API Endpoints, RBAC Middleware, Session Payload, dan Security Hardening
 
 Dokumen Versi: 2.0  
@@ -8,12 +11,12 @@ Target: Cloudflare Workers (`packages/api`) & PostgreSQL RPC
 
 ## 1. Arsitektur Otorisasi & Session Payload
 
-### A. Format Session & User Profile (`/api/session`)
+### A. Format Session & User Profile (`/api/auth/login`, `/api/auth/refresh`, `/api/profile`)
 Ketika pengguna login, endpoint sesi mengembalikan objek profil yang diperkaya dengan daftar hak akses (*permissions*) dan batasan produk (*product codes*):
 
 ```json
 {
-  "user": {
+  "profile": {
     "user_id": "9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d",
     "username": "budi_pimpro",
     "display_name": "Budi Santoso",
@@ -21,7 +24,7 @@ Ketika pengguna login, endpoint sesi mengembalikan objek profil yang diperkaya d
     "role_name": "Pimpro",
     "avatar_emoji": "👔",
     "has_all_product_access": false,
-    "allowed_product_codes": ["KM", "MT"],
+    "allowed_product_codes": ["KULI", "BOMM"],
     "permissions": [
       "operasional.dashboard",
       "operasional.order",
@@ -48,7 +51,7 @@ export async function handleRoleConfig(context: RouteContext): Promise<Response>
 
 ## 2. Kontrak Endpoint Baru: Manajemen Role & Hak Akses
 
-Semua endpoint role di bawah ini diproteksi oleh izin `config.roles` (khusus Developer & Owner).
+Semua endpoint role di bawah ini diproteksi oleh izin `config.roles` (khusus Developer, Owner & master_admin legacy).
 
 ### 1. `GET /api/roles`
 Mengambil daftar seluruh role beserta ringkasan statusnya.
@@ -64,7 +67,7 @@ Mengambil daftar seluruh role beserta ringkasan statusnya.
       "description": "Akses teknis sistem dan konfigurasi penuh",
       "is_system": true,
       "user_count": 1,
-      "permission_count": 17,
+      "permission_count": 19,
       "created_at": "2026-10-13T08:00:00Z"
     },
     {

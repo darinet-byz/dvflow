@@ -1,10 +1,10 @@
+import { requirePermission, productAccess, assertProductAccess } from '../permissions'
 import { buildCheckinPath, isOrderIdShaped } from '@dvflow/shared'
 import type { Db } from '../db/types'
 import { ApiFailure } from '../http/errors'
 import { ok } from '../http/response'
 import type { RouteContext } from '../router'
 import type { UserRow } from '../users'
-import { requireActiveUser } from '../users'
 import {
   candidateSettingKeys,
   parseSeminarTicketValue,
@@ -286,30 +286,17 @@ export async function checkinSeminar(
   context: RouteContext,
   input: { orderId: string; source: 'seminar_qr' | 'seminar_manual' },
 ): Promise<Response> {
-  const operator = await requireActiveUser(context)
+  const operator = await requirePermission(context, 'operasional.scan_qr')
+  if (input.source === 'seminar_manual') await requirePermission(context, 'action.manual_checkin')
 
   if (!isOrderIdShaped(input.orderId)) {
     throw new ApiFailure('ORDER_NOT_FOUND', `order id tidak berbentuk wajar: ${input.orderId}`)
   }
 
-  if (operator.has_all_product_access === false) {
-    const orderBefore = await loadOrder(context.db, input.orderId)
-    if (!orderBefore) {
-      throw new ApiFailure('ORDER_NOT_FOUND', `order tidak ditemukan: ${input.orderId}`)
-    }
-    const accessRows = await context.db.selectRows<{ product_code: string }>(
-      'user_product_access',
-      { user_id: `eq.${operator.id}` },
-      'product_code',
-    ).catch(() => [])
-    const allowedCodes = accessRows.map((r) => r.product_code)
-    if (!orderBefore.product_code || !allowedCodes.includes(orderBefore.product_code)) {
-      throw new ApiFailure(
-        'FORBIDDEN',
-        `Akses ditolak: Anda tidak memiliki wewenang untuk memeriksa tiket produk ini (Produk: ${orderBefore.product_name || orderBefore.product_code || '-'})`,
-      )
-    }
-  }
+  const access = await productAccess(context, operator)
+  const orderBefore = await loadOrder(context.db, input.orderId)
+  if (!orderBefore) throw new ApiFailure('ORDER_NOT_FOUND')
+  assertProductAccess(access, orderBefore.product_code)
 
   const result = await context.db.rpc<CheckinResult>('checkin_seminar', {
     p_order_id: input.orderId,

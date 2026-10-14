@@ -4,6 +4,7 @@ import { createFakeState, createTestApi, fakeUser, makeRequest, readBody, fakeOr
 
 async function setup(role: AppRole) {
   const state = createFakeState({ users: [fakeUser({ role })], config: sampleConfig() })
+  state.rolePermissions.push(...['config.zoom','config.tiket','action.delete_master'].map(permission_key => ({ role_id: role, permission_key })))
   const { api } = await createTestApi(state)
   const login = await api(makeRequest({ method: 'POST', path: '/api/auth/login', body: { username: 'admin1', password: 'rahasia123' } }))
   const body = await readBody<{ data: { access_token: string } }>(login)

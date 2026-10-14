@@ -1,3 +1,4 @@
+import { requirePermission } from '../permissions'
 import { ACCESS_TOKEN_LIFETIME_SECONDS } from '@dvflow/shared'
 import {
   REFRESH_COOKIE_MAX_AGE_SECONDS,
@@ -13,7 +14,6 @@ import { generateSessionToken, hashSessionToken } from './session-token'
 import {
   USER_COLUMNS,
   buildUserProfile,
-  requireActiveUser,
   type UserRow,
   type VerifiedUser,
 } from '../users'
@@ -139,7 +139,7 @@ export async function logout(context: RouteContext): Promise<Response> {
  * mencabut seluruh sesi user — juga dilakukan di sana, dalam satu transaksi.
  */
 export async function changePassword(context: RouteContext): Promise<Response> {
-  const user = await requireActiveUser(context)
+  const user = await requirePermission(context, 'account.profile')
   const body = await readJsonObject(context.request)
 
   const currentPassword = readString(body, 'current_password')

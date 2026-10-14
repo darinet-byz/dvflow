@@ -134,7 +134,7 @@ describe('Developer Reset Data & 90-Day Unmapped Retention', () => {
   })
 
   it('memfilter order unmapped dengan batas retensi 90 hari evergreen', async () => {
-    const adminUser = { id: 'admin-1', role: 'admin', active: true }
+    const adminUser = { id: 'admin-1', role: 'developer', active: true }
     const now = new Date('2026-10-14T10:00:00Z')
     let capturedQuery: Record<string, string> = {}
 

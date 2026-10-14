@@ -1,3 +1,4 @@
+import { requirePermission } from '../permissions'
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
 import type { RouteContext } from '../router'
@@ -24,7 +25,7 @@ export async function getProfile(context: RouteContext): Promise<Response> {
  * dengan sengaja dan bukan diterapkan diam-diam.
  */
 export async function updateProfile(context: RouteContext): Promise<Response> {
-  const user = await requireActiveUser(context)
+  const user = await requirePermission(context, 'account.profile')
   const body = await readJsonObject(context.request)
 
   const hasDisplayName = Object.hasOwn(body, 'display_name')

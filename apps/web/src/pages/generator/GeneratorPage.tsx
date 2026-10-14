@@ -49,7 +49,7 @@ export function GeneratorPage() {
       batch,
       sessionCode,
       city,
-    })
+    }, { strictCodes: true })
 
     if (!result.ok) {
       // D03: input kurang -> TIDAK ada kode yang dihasilkan, hanya error.

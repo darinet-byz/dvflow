@@ -1,4 +1,7 @@
 # ALUR KERJA (FLOW) & PANDUAN UI/UX DETAIL (FITUR 2.0)
+
+> Pembaruan 14 Oktober 2026: aturan hasil implementasi dan matriks akses ada di [audit RBAC dan konfigurasi produk](./08-AUDIT-ROLE-PERMISSION-DAN-KONFIGURASI-PRODUK.md). Jika contoh rancangan lama berbeda, acuan terbaru adalah laporan tersebut dan AMENDMENTS A13.
+
 ## dvflow: Tata Letak Antarmuka, Interaksi CRUD, Menu Hiding, dan Scoping Produk
 
 Dokumen Versi: 2.0  
@@ -73,7 +76,7 @@ ACCOUNT
 ## 2. Menu Baru: Konfigurasi Role & Permission (`/konfigurasi-role`)
 
 ### A. Hak Akses Masuk
-- Hanya dapat dibuka oleh akun dengan role **Developer** atau **Owner** (`permission: config.roles`).
+- Hanya dapat dibuka oleh akun dengan role **Developer**, **Owner**, atau **master_admin** legacy (`config.roles` tetap khusus tingkat Master Admin).
 - Role lain yang mencoba membuka URL langsung akan otomatis diarahkan kembali ke `/` dengan toast merah: *"Akses ditolak: Menu ini khusus Master Admin"*.
 
 ### B. Tampilan Halaman Utama (`RoleConfigPage`)

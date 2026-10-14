@@ -4,7 +4,7 @@ import { buildIlikeOrFilter, sanitizeSearchTerm } from '../http/postgrest-filter
 import { ok, readJsonObject, readString } from '../http/response'
 import type { Db } from '../db/types'
 import type { RouteContext } from '../router'
-import { requireActiveUser } from '../users'
+import { requirePermission, productAccess, productFilter } from '../permissions'
 import { checkinSeminar } from '../participant/handlers'
 
 /**
@@ -54,7 +54,8 @@ type OrderSearchRow = {
  * check-in-nya tetap ditolak server dengan `ORDER_NOT_PAID` (H04).
  */
 export async function scannerSearch(context: RouteContext): Promise<Response> {
-  await requireActiveUser(context)
+  const actor = await requirePermission(context, 'operasional.scan_qr')
+  const access = await productAccess(context, actor)
 
   const raw = context.url.searchParams.get('q')
   const term = sanitizeSearchTerm(raw)
@@ -65,6 +66,7 @@ export async function scannerSearch(context: RouteContext): Promise<Response> {
   const rows = await context.db.selectRows<OrderSearchRow>(
     'orders',
     {
+      ...productFilter(access),
       event_type: 'eq.Seminar Offline',
       or: buildIlikeOrFilter(['order_id', 'name', 'phone'], term),
     },
@@ -97,7 +99,7 @@ export async function scannerSearch(context: RouteContext): Promise<Response> {
  * `source = seminar_manual` supaya jejaknya berbeda di presensi.
  */
 export async function scannerManualCheckin(context: RouteContext): Promise<Response> {
-  await requireActiveUser(context)
+  await requirePermission(context, 'action.manual_checkin')
 
   const body = await readJsonObject(context.request)
   const orderId = readString(body, 'order_id')

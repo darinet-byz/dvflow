@@ -9,9 +9,6 @@ import type { DataSummaryResult, ResetDataResult } from '@dvflow/shared'
  * Mengambil ringkasan jumlah baris data aktif di database untuk dashboard Developer Reset.
  */
 export async function getDataSummary(context: RouteContext): Promise<Response> {
-  if (context.claims?.app_role !== 'developer') {
-    throw new ApiFailure('FORBIDDEN', 'Hanya role developer yang diizinkan mengakses fitur ini')
-  }
 
   const actor = await requireActiveUser(context)
   if (actor.role !== 'developer') {
@@ -48,9 +45,6 @@ export async function getDataSummary(context: RouteContext): Promise<Response> {
  * Menghapus data uji coba dengan 2x verifikasi: (1) teks "Ya, Aku yakin", (2) password developer.
  */
 export async function resetData(context: RouteContext): Promise<Response> {
-  if (context.claims?.app_role !== 'developer') {
-    throw new ApiFailure('FORBIDDEN', 'Hanya role developer yang diizinkan mengakses fitur reset data')
-  }
 
   const actor = await requireActiveUser(context)
   if (actor.role !== 'developer') {
@@ -99,9 +93,6 @@ export async function resetData(context: RouteContext): Promise<Response> {
  * Menjalankan pembersihan manual order unmapped yang melewati batas 90 hari.
  */
 export async function purgeExpiredUnmapped(context: RouteContext): Promise<Response> {
-  if (context.claims?.app_role !== 'developer') {
-    throw new ApiFailure('FORBIDDEN', 'Hanya role developer yang diizinkan mengakses fitur ini')
-  }
 
   const actor = await requireActiveUser(context)
   if (actor.role !== 'developer') {

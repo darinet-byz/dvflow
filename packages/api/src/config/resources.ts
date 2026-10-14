@@ -1,4 +1,4 @@
-import { CODE_PATTERN, type AppRole } from '@dvflow/shared'
+import { normalizeMasterCode, MASTER_CODE_RULES } from '@dvflow/shared'
 import { ApiFailure } from '../http/errors'
 
 /**
@@ -15,8 +15,6 @@ import { ApiFailure } from '../http/errors'
  */
 
 export type ConfigResourceName = 'products' | 'advertisers' | 'event-types' | 'sessions' | 'payment-fee-rules'
-
-export type ConfigWriteRole = Extract<AppRole, 'admin' | 'master_admin'>
 
 export type ConfigResource = {
   /** Nama pada URL (03 §12 memakai bentuk bertanda hubung). */
@@ -90,7 +88,6 @@ export function findConfigResource(value: string | undefined): ConfigResource | 
 }
 
 const NAME_MAX_LENGTH = 200
-const CODE_MAX_LENGTH = 32
 const IDENTIFIER_MAX_LENGTH = 200
 /** Batas kewajaran nilai fee; jauh di atas fee nyata, di bawah batas NUMERIC(18,4). */
 const FEE_VALUE_MAX = 1_000_000_000
@@ -125,36 +122,32 @@ export function validateConfigBody(
   if (has('name')) {
     const name = readText(body['name'])
     if (name === null || name.length > NAME_MAX_LENGTH) {
-      throw new ApiFailure('INVALID_ARGUMENT', 'name kosong atau terlalu panjang')
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nama wajib diisi, maksimal 200 karakter.')
     }
     patch['name'] = name
   }
 
   if (has(resource.identityColumn)) {
     const raw = readText(body[resource.identityColumn])
-    if (raw === null) throw new ApiFailure('INVALID_ARGUMENT', `${resource.identityColumn} wajib diisi`)
-
-    const limit = resource.identityColumn === 'code' ? CODE_MAX_LENGTH : IDENTIFIER_MAX_LENGTH
-    if (raw.length > limit) throw new ApiFailure('INVALID_ARGUMENT', `${resource.identityColumn} terlalu panjang`)
-
-    // Kode konfigurasi tidak boleh mengandung spasi/tanda hubung: pemisah " - "
-    // pada product_raw harus tetap tidak ambigu (01 §10).
-    if (resource.identityColumn === 'code' && !CODE_PATTERN.test(raw)) {
-      throw new ApiFailure('INVALID_ARGUMENT', 'kode hanya boleh berisi huruf dan angka tanpa spasi')
+    if (resource.identityColumn === 'code' && resource.urlName !== 'payment-fee-rules') {
+      const normalized = normalizeMasterCode(resource.urlName, raw ?? '')
+      if (normalized === null) throw new ApiFailure('INVALID_ARGUMENT', undefined, MASTER_CODE_RULES[resource.urlName].message)
+      patch[resource.identityColumn] = normalized
+    } else {
+      if (raw === null || raw.length > IDENTIFIER_MAX_LENGTH) throw new ApiFailure('INVALID_ARGUMENT', 'identifier kosong atau terlalu panjang')
+      patch[resource.identityColumn] = raw
     }
-
-    patch[resource.identityColumn] = raw
   }
 
-  if (has('kind')) {
+  if (resource.writableColumns.includes('kind') && has('kind')) {
     const kind = readText(body['kind'])
     if (kind === null || !EVENT_KINDS.includes(kind as (typeof EVENT_KINDS)[number])) {
-      throw new ApiFailure('INVALID_ARGUMENT', 'kind harus seminar atau webinar')
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Jenis acara wajib seminar atau webinar.')
     }
     patch['kind'] = kind
   }
 
-  if (has('fee_type')) {
+  if (resource.writableColumns.includes('fee_type') && has('fee_type')) {
     const feeType = readText(body['fee_type'])
     if (feeType === null || !FEE_TYPES.includes(feeType as (typeof FEE_TYPES)[number])) {
       throw new ApiFailure('INVALID_ARGUMENT', 'fee_type harus flat atau percentage')
@@ -162,7 +155,7 @@ export function validateConfigBody(
     patch['fee_type'] = feeType
   }
 
-  if (has('fee_value')) {
+  if (resource.writableColumns.includes('fee_value') && has('fee_value')) {
     const feeValue = body['fee_value']
     if (typeof feeValue !== 'number' || !Number.isFinite(feeValue)) {
       throw new ApiFailure('INVALID_ARGUMENT', 'fee_value harus berupa angka')

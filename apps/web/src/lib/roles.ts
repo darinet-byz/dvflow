@@ -29,7 +29,11 @@ export const PATH_PERMISSION_MAP: Record<string, string> = {
   '/profil': 'account.profile',
 }
 
-export type ProfileOrRole = AppRole | { role: AppRole; permissions?: string[] } | null | undefined
+export type ProfileOrRole = AppRole | { role: AppRole; permissions?: string[]; has_all_product_access?: boolean } | null | undefined
+
+export function hasAllProductAccess(profile: { role: AppRole; has_all_product_access?: boolean } | null | undefined): boolean {
+  return !!profile && (isMasterAdminRole(profile.role) || profile.has_all_product_access === true)
+}
 
 export function canAccessPath(user: ProfileOrRole, path: string): boolean {
   if (!user) return false
@@ -44,24 +48,18 @@ export function canAccessPath(user: ProfileOrRole, path: string): boolean {
   // Master Admin tier always has full access
   if (isMasterAdminRole(role)) return true
 
-  // If dynamic permissions are present, check them directly
-  if (permissions && permissions.length > 0) {
-    if (path === '/logout') return true
-    const required = PATH_PERMISSION_MAP[path]
-    if (required) return permissions.includes(required)
-  }
+  if (path === '/logout') return true
+  if (path === '/add-team' || path === '/konfigurasi-role') return false
+  if (path === '/order-unmapped' && (typeof user === 'string' || !hasAllProductAccess(user))) return false
+  if (path === '/konfigurasi-produk') return !!permissions?.some((p) => p === 'config.produk' || p === 'config.alias_produk')
+  const required = PATH_PERMISSION_MAP[path]
+  return !!required && !!permissions?.includes(required)
+}
 
-  // Fallback checks by role
-  if (path === '/add-team' || path === '/konfigurasi-role') {
-    return isMasterAdminRole(role)
-  }
-  if (
-    path === '/konfigurasi-produk' ||
-    path === '/konfigurasi-tax' ||
-    path === '/report-tax' ||
-    path === '/integrasi'
-  ) {
-    return role !== 'staff' && role !== 'member' && role !== 'pimpro'
-  }
-  return true
+export function hasPermission(user: ProfileOrRole, permission: string): boolean {
+  if (!user) return false
+  const role = typeof user === 'string' ? user : user.role
+  if (isMasterAdminRole(role)) return true
+  if (permission === 'config.roles' || permission === 'team.manage') return false
+  return typeof user === 'object' && !!user.permissions?.includes(permission)
 }

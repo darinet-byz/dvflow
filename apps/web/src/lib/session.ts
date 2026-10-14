@@ -143,6 +143,7 @@ export async function authorizedRequest<T>(
   try {
     return await apiRequest<T>(path, { ...options, accessToken })
   } catch (error) {
+    if (error instanceof ApiError && error.code === 'FORBIDDEN') await refreshProfile()
     if (!(error instanceof ApiError) || error.code !== 'SESSION_INVALID') throw error
   }
 
@@ -182,4 +183,28 @@ export function resetSessionForTests(): void {
   snapshot = { status: 'unknown', profile: null }
   accessToken = null
   listeners.clear()
+  profileFlight = null
+}
+
+let profileFlight: Promise<void> | null = null
+/** Share one request across navigation, focus, and concurrent forbidden responses. */
+export function refreshProfile(): Promise<void> {
+  if (!accessToken) return Promise.resolve()
+  if (profileFlight) return profileFlight
+  const token = accessToken
+  profileFlight = apiRequest<{ profile: Profile }>('/api/profile', { accessToken: token })
+    .then(({ profile }) => {
+      if (accessToken === token) setSession({ status: 'authenticated', profile }, token)
+    }).catch((error: unknown) => {
+      if (accessToken !== token) return
+      if (error instanceof ApiError && error.code === 'SESSION_INVALID') return bootstrapSession()
+      if (error instanceof ApiError && error.code === 'USER_DISABLED') {
+        setSession({ status: 'anonymous', profile: null }, null)
+      } else {
+        // No stale master-role bypass when the current authority could not be read.
+        // Keep the token only to allow a later focus/navigation refresh to recover.
+        setSession({ status: 'authenticated', profile: null }, token)
+      }
+    }).finally(() => { profileFlight = null })
+  return profileFlight
 }

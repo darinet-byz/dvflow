@@ -1,4 +1,7 @@
 # SKEMA DATABASE & STRATEGI MIGRASI (FITUR 2.0)
+
+> Pembaruan 14 Oktober 2026: aturan hasil implementasi dan matriks akses ada di [audit RBAC dan konfigurasi produk](./08-AUDIT-ROLE-PERMISSION-DAN-KONFIGURASI-PRODUK.md). Jika contoh rancangan lama berbeda, acuan terbaru adalah laporan tersebut dan AMENDMENTS A13.
+
 ## dvflow: Relasi Dynamic RBAC, Checklist Permission, dan Scoped Product Access
 
 Dokumen Versi: 2.0  

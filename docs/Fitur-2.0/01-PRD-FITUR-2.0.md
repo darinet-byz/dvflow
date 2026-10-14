@@ -1,4 +1,7 @@
 # PRODUCT REQUIREMENT DOCUMENT (PRD) — FITUR 2.0
+
+> Pembaruan 14 Oktober 2026: aturan hasil implementasi dan matriks akses ada di [audit RBAC dan konfigurasi produk](./08-AUDIT-ROLE-PERMISSION-DAN-KONFIGURASI-PRODUK.md). Jika contoh rancangan lama berbeda, acuan terbaru adalah laporan tersebut dan AMENDMENTS A13.
+
 ## dvflow: Enterprise RBAC, Scoped Product Access & Flexible Scanner Architecture
 
 Dokumen Versi: 2.0  
@@ -92,8 +95,7 @@ Sistem mendefinisikan 6 role acuan dengan karakteristik otoritas sebagai berikut
      - `team.delete` (Menghapus akun anggota tim)
      - `account.profile` (Melihat & mengubah profil/password pribadi)
   4. **Modul Aksi Spesifik**:
-     - `action.export_order` (Download export CSV/Excel pada data Order)
-     - `action.export_presensi` (Download export CSV/Excel pada data Presensi)
+     - `action.export_data` (Download CSV pada tabel yang diizinkan; Order dan Presensi memakai key yang sama)
      - `action.manual_checkin` (Melakukan check-in manual via Order ID/No HP)
 
 ### Fitur 5: Penugasan Akses Berbasis Produk (*Product-Level Scoping*)

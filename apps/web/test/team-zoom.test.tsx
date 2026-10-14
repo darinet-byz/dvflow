@@ -13,7 +13,7 @@ vi.mock('../src/lib/session', () => ({ authorizedRequest: vi.fn() }))
 vi.mock('../src/lib/useSession', () => ({
   useSession: () => ({
     status: 'authenticated',
-    profile: { user_id: '1', username: 'hizul', role: state.role, display_name: 'Tester', avatar_emoji: null },
+    profile: { user_id: '1', username: 'hizul', role: state.role, permissions: ['config.zoom','config.tiket','operasional.generator','operasional.order'], display_name: 'Tester', avatar_emoji: null },
   }),
 }))
 vi.mock('../src/ui/Toast', () => ({ useToast: () => ({ show: state.show }) }))

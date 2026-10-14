@@ -20,8 +20,8 @@
 -- Produk & pengiklan contoh (pola kode dari PRD §67: KM / Kuliner Masteri).
 insert into public.products (name, code)
 values
-  ('Kuliner Masteri', 'KM'),
-  ('Bisnis Masteri', 'BM')
+  ('Kuliner Masteri', 'KULI'),
+  ('Bisnis Masteri', 'BOMM')
 on conflict (code_normalized) do nothing;
 
 insert into public.advertisers (name, code)

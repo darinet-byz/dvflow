@@ -135,9 +135,9 @@ export async function fetchDashboardSummary(filters: CommonFilters): Promise<Das
 
 export async function fetchOrdersPage(
   filters: OrderFilters,
-  options: { sort: OrderSortKey; direction: SortDirection; page: number; pageSize: PageSize },
+  options: { sort: OrderSortKey; direction: SortDirection; page: number; pageSize: PageSize; exporting?: boolean },
 ): Promise<OrdersPage> {
-  return supabaseRpc<OrdersPage>('orders_page', {
+  return supabaseRpc<OrdersPage>(options.exporting ? 'export_orders_page' : 'orders_page', {
     ...toOrderArgs(filters),
     p_sort: options.sort,
     p_sort_dir: options.direction,
@@ -148,9 +148,9 @@ export async function fetchOrdersPage(
 
 export async function fetchPresensiPage(
   filters: PresensiFilters,
-  options: { sort: PresensiSortKey; direction: SortDirection; page: number; pageSize: PageSize },
+  options: { sort: PresensiSortKey; direction: SortDirection; page: number; pageSize: PageSize; exporting?: boolean },
 ): Promise<PresensiPage> {
-  return supabaseRpc<PresensiPage>('presensi_page', {
+  return supabaseRpc<PresensiPage>(options.exporting ? 'export_presensi_page' : 'presensi_page', {
     ...toPresensiArgs(filters),
     p_sort: options.sort,
     p_sort_dir: options.direction,

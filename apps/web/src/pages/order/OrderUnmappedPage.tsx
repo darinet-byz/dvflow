@@ -6,6 +6,8 @@ import {
 } from '@dvflow/shared'
 import { PageHeader } from '../../layout/PageHeader'
 import { authorizedRequest } from '../../lib/session'
+import { useSession } from '../../lib/useSession'
+import { hasPermission } from '../../lib/roles'
 import { useAsyncData } from '../../lib/useAsyncData'
 import { useConfigLists } from '../../lib/useConfigLists'
 import { Button } from '../../ui/Button'
@@ -27,6 +29,8 @@ const columns = [
 ]
 
 export function OrderUnmappedPage() {
+  const { profile } = useSession()
+  const canManageAliases = hasPermission(profile, 'config.alias_produk')
   const [search, setSearch] = useState('')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [modalOpen, setModalOpen] = useState(false)
@@ -42,7 +46,7 @@ export function OrderUnmappedPage() {
   const [city, setCity] = useState('')
   const [selectedAliasId, setSelectedAliasId] = useState('')
   const [aliasName, setAliasName] = useState('')
-  const [saveAlias, setSaveAlias] = useState(true)
+  const [saveAlias, setSaveAlias] = useState(canManageAliases)
 
   const toast = useToast()
   const { lists } = useConfigLists()
@@ -53,8 +57,8 @@ export function OrderUnmappedPage() {
   )
 
   const { data: aliasData, reload: reloadAliases } = useAsyncData(
-    () => authorizedRequest<{ rows: ProductAliasItem[] }>('/api/product-aliases'),
-    [],
+    () => canManageAliases ? authorizedRequest<{ rows: ProductAliasItem[] }>('/api/product-aliases') : Promise.resolve({ rows: [] as ProductAliasItem[] }),
+    [canManageAliases],
   )
 
   const rows = data?.rows ?? []
@@ -121,7 +125,7 @@ export function OrderUnmappedPage() {
           body: {
             orderIds: Array.from(selectedIds),
             canonicalTarget: canonicalPreview,
-            saveAlias,
+            saveAlias: canManageAliases && saveAlias,
             aliasName: saveAlias ? aliasName.trim() : null,
           },
         },
@@ -305,7 +309,7 @@ export function OrderUnmappedPage() {
             >
               Susun Konfigurasi DVFLOW
             </button>
-            <button
+            {canManageAliases ? <button
               type="button"
               onClick={() => setTargetMode('alias')}
               className={`rounded px-3 py-1.5 text-[13px] font-medium transition-colors ${
@@ -313,7 +317,7 @@ export function OrderUnmappedPage() {
               }`}
             >
               Pilih dari Template Alias
-            </button>
+            </button> : null}
           </div>
 
           {targetMode === 'builder' ? (
@@ -400,7 +404,7 @@ export function OrderUnmappedPage() {
             </p>
           </div>
 
-          <div className="border-t border-line pt-3 flex flex-col gap-2">
+          {canManageAliases ? <div className="border-t border-line pt-3 flex flex-col gap-2">
             <label className="flex items-center gap-2 text-[13px] font-medium text-ink cursor-pointer">
               <input
                 type="checkbox"
@@ -423,7 +427,7 @@ export function OrderUnmappedPage() {
                 </p>
               </div>
             ) : null}
-          </div>
+          </div> : null}
         </div>
       </Modal>
     </>

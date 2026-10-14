@@ -1,3 +1,4 @@
+vi.mock('../src/lib/useSession', () => ({ useSession: () => ({ status: 'authenticated', profile: { role: 'developer' } }) }))
 // @vitest-environment jsdom
 import { afterEach, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'

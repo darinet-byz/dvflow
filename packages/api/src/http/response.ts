@@ -6,10 +6,10 @@ export function ok<T>(data: T, init: ResponseInit = {}): Response {
 }
 
 /** Bentuk gagal yang dikontrak (03 §1). */
-export function fail(code: ApiErrorCode, init: ResponseInit = {}): Response {
+export function fail(code: ApiErrorCode, init: ResponseInit = {}, message?: string): Response {
   const entry = ERROR_CATALOG[code]
   return jsonResponse(
-    { ok: false, error: { code, message: entry.message } },
+    { ok: false, error: { code, message: message ?? entry.message } },
     { ...init, status: init.status ?? entry.status },
   )
 }

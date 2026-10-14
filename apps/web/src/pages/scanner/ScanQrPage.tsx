@@ -1,3 +1,5 @@
+import { hasPermission } from '../../lib/roles'
+import { useSession } from '../../lib/useSession'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { extractOrderIdFromQrPayload } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
@@ -51,6 +53,7 @@ type Candidate = {
 }
 
 export function ScanQrPage() {
+  const { profile } = useSession()
   const toast = useToast()
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null)
   const [busy, setBusy] = useState(false)
@@ -304,7 +307,7 @@ export function ScanQrPage() {
             )}
           </Card>
 
-          <ManualSearch onCheckin={(orderId) => void runCheckin(orderId, 'manual')} busy={busy} />
+          {hasPermission(profile, 'action.manual_checkin') ? <ManualSearch onCheckin={(orderId) => void runCheckin(orderId, 'manual')} busy={busy} /> : null}
         </div>
       </div>
     </>

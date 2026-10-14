@@ -12,14 +12,14 @@ import { ApiFailure } from '../http/errors'
 import { isUuid } from '../http/postgrest-filter'
 import { ok, readJsonObject } from '../http/response'
 import type { RouteContext } from '../router'
-import { requireActiveUser, type UserRow } from '../users'
+import { requirePermission, productAccess, assertProductAccess } from '../permissions'
 import { findConfigResource, validateConfigBody, type ConfigResource } from './resources'
 
 /**
  * Penulisan konfigurasi (03 §12, 01 §8).
  *
  * Empat aturan yang dijaga di sini:
- *   1. hanya admin dan master_admin — dan perannya dibaca dari BARIS DATABASE,
+ *   1. permission modul dan cakupan produk dari database — dan perannya dibaca dari BARIS DATABASE,
  *      bukan dari claim token, sehingga klaim yang berbohong tidak menolong
  *      (04 §5);
  *   2. `Delete` berarti `active = false`; tidak ada hard delete (01 §8);
@@ -34,8 +34,10 @@ import { findConfigResource, validateConfigBody, type ConfigResource } from './r
 
 export async function createConfig(context: RouteContext): Promise<Response> {
   const resource = requireResource(context)
-  await requireConfigWriter(context)
+  const actor = await requirePermission(context, resource.urlName === 'payment-fee-rules' ? 'config.tax' : 'config.produk')
+  const access = await productAccess(context, actor)
 
+  assertProductAccess(access, '*')
   const body = await readJsonObject(context.request)
   const values = validateConfigBody(resource, body, { partial: false })
 
@@ -56,11 +58,13 @@ export async function createConfig(context: RouteContext): Promise<Response> {
 
 export async function updateConfig(context: RouteContext): Promise<Response> {
   const resource = requireResource(context)
-  await requireConfigWriter(context)
+  const actor = await requirePermission(context, resource.urlName === 'payment-fee-rules' ? 'config.tax' : 'config.produk')
+  const access = await productAccess(context, actor)
 
   const id = requireUuid(context)
   const existing = await loadRow(context.db, resource, id)
   if (existing === null) throw new ApiFailure('RESOURCE_NOT_FOUND', `id=${id}`)
+  assertProductAccess(access, resource.urlName === 'products' ? String(existing['code']) : '*')
 
   const body = await readJsonObject(context.request)
   const values = validateConfigBody(resource, body, { partial: true })
@@ -95,14 +99,17 @@ export async function updateConfig(context: RouteContext): Promise<Response> {
  */
 export async function deactivateConfig(context: RouteContext): Promise<Response> {
   const resource = requireResource(context)
-  await requireConfigWriter(context)
+  const actor = await requirePermission(context, resource.urlName === 'payment-fee-rules' ? 'config.tax' : 'config.produk')
+  const access = await productAccess(context, actor)
 
   const id = requireUuid(context)
   const existing = await loadRow(context.db, resource, id)
   if (existing === null) throw new ApiFailure('RESOURCE_NOT_FOUND', `id=${id}`)
+  assertProductAccess(access, resource.urlName === 'products' ? String(existing['code']) : '*')
 
   if (context.url.searchParams.get('permanent') === 'true') {
-    await context.db.deleteRows(resource.table, { id: `eq.${id}` })
+    await requirePermission(context, 'action.delete_master')
+    await context.db.rpc('delete_config_master', { p_actor: actor.id, p_resource: resource.urlName, p_id: id })
     return ok({ resource: resource.urlName, deleted: id })
   }
 
@@ -131,15 +138,6 @@ async function loadRow(db: Db, resource: ConfigResource, id: string): Promise<Re
     resource.columns.join(','),
   )
   return rows[0] ?? null
-}
-
-/** Peran diambil dari baris database, bukan dari claim access token. */
-async function requireConfigWriter(context: RouteContext): Promise<UserRow> {
-  const user = await requireActiveUser(context)
-  if (user.role !== 'admin' && user.role !== 'master_admin') {
-    throw new ApiFailure('FORBIDDEN', `role=${user.role}`)
-  }
-  return user
 }
 
 type CodeChange = { replacingCode: string | null; incoming: Record<string, unknown> }

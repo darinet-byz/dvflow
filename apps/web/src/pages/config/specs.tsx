@@ -1,3 +1,4 @@
+import { SESSION_CODES } from '@dvflow/shared'
 import { Badge } from '../../ui/Badge'
 import type { ConfigRow, ConfigSpec } from './ConfigSection'
 
@@ -22,7 +23,7 @@ function CodeCell(row: ConfigRow, key: string) {
 }
 
 const CODE_FIELDS = [
-  { key: 'name', label: 'Nama', type: 'text' as const, initial: '', placeholder: 'mis. Kuliner Masteri' },
+  { key: 'name', label: 'Nama', maxLength: 200, type: 'text' as const, initial: '', placeholder: 'mis. Kuliner Masteri' },
   {
     key: 'code',
     label: 'Kode',
@@ -48,12 +49,12 @@ const CODE_RENDER = {
 export const PRODUCT_SPEC: ConfigSpec = {
   resource: 'products',
   title: 'Produk',
-  description: 'Kode produk/event yang dikenali parser. Standar: tepat 4 karakter kapital (mis. BOMM, KULI).',
+  description: 'Kode produk/event yang dikenali parser. Standar: tepat 4 huruf kapital (mis. BOMM, KULI).',
   tableName: 'products',
   readColumns: 'id,name,code,active',
   identityKey: 'code',
   fields: [
-    { key: 'name', label: 'Nama', type: 'text' as const, initial: '', placeholder: 'mis. Kuliner Masteri' },
+    { key: 'name', label: 'Nama', maxLength: 200, type: 'text' as const, initial: '', placeholder: 'mis. Kuliner Masteri' },
     {
       key: 'code',
       label: 'Kode',
@@ -77,7 +78,7 @@ export const ADVERTISER_SPEC: ConfigSpec = {
   readColumns: 'id,name,code,active',
   identityKey: 'code',
   fields: [
-    { key: 'name', label: 'Nama', type: 'text' as const, initial: '', placeholder: 'mis. Zul' },
+    { key: 'name', label: 'Nama', maxLength: 200, type: 'text' as const, initial: '', placeholder: 'mis. Zul' },
     {
       key: 'code',
       label: 'Kode',
@@ -101,7 +102,7 @@ export const EVENT_TYPE_SPEC: ConfigSpec = {
   readColumns: 'id,name,code,kind,active',
   identityKey: 'code',
   fields: [
-    { key: 'name', label: 'Nama', type: 'text' as const, initial: '', placeholder: 'mis. Seminar Offline' },
+    { key: 'name', label: 'Nama', maxLength: 200, type: 'text' as const, initial: '', placeholder: 'mis. Seminar Offline' },
     {
       key: 'code',
       label: 'Kode',
@@ -135,7 +136,7 @@ export const SESSION_SPEC: ConfigSpec = {
   tableName: 'sessions_config',
   readColumns: 'id,name,code,active',
   identityKey: 'code',
-  fields: CODE_FIELDS,
+  fields: [CODE_FIELDS[0]!, { key: 'code', label: 'Kode sesi', type: 'select', initial: 'ST', options: SESSION_CODES.map((code) => ({ value: code, label: code })) }],
   columns: CODE_COLUMNS,
   render: CODE_RENDER,
 }
@@ -149,7 +150,7 @@ export const FEE_RULE_SPEC: ConfigSpec = {
   readColumns: 'id,name,identifier,fee_type,fee_value,active',
   identityKey: 'identifier',
   fields: [
-    { key: 'name', label: 'Nama', type: 'text', initial: '', placeholder: 'mis. Admin Bank Transfer' },
+    { key: 'name', label: 'Nama', maxLength: 200, type: 'text', initial: '', placeholder: 'mis. Admin Bank Transfer' },
     {
       key: 'identifier',
       label: 'Identifier / Mapping Payment',

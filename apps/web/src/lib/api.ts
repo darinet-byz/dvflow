@@ -26,6 +26,7 @@ export type ApiErrorCode =
   | 'CODE_TAKEN'
   | 'IDENTIFIER_TAKEN'
   | 'CODE_AMBIGUOUS'
+  | 'MASTER_IN_USE'
   | 'RESOURCE_NOT_FOUND'
   | 'FORBIDDEN_REPORT_TAX'
   | 'NOT_FOUND'

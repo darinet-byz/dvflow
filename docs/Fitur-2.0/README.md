@@ -24,3 +24,7 @@ Folder ini berisi dokumen spesifikasi teknis, arsitektur, dan panduan implementa
 6. **[06-RENCANA-PENYESUAIAN-BASE-CODE.md](./06-RENCANA-PENYESUAIAN-BASE-CODE.md)**  
    *Gap Analysis & Phased Migration Plan*: Pemetaan file eksisting yang terdampak, analisis risiko, dan rencana 5 fase eksekusi aman tanpa mengganggu 375 automated tests yang sudah ada.
 
+
+7. **[07-PLAN-MULTI-WEBHOOK-DAN-ALIAS-PRODUK.md](./07-PLAN-MULTI-WEBHOOK-DAN-ALIAS-PRODUK.md)** — Multi-webhook dan pemetaan alias.
+
+8. **[08-AUDIT-ROLE-PERMISSION-DAN-KONFIGURASI-PRODUK.md](./08-AUDIT-ROLE-PERMISSION-DAN-KONFIGURASI-PRODUK.md)** — Hasil implementasi audit, matriks akses, standar kode, bukti pengujian, serta status migrasi dan pembersihan.

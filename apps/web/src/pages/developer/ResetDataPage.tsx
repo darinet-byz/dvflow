@@ -39,7 +39,7 @@ const SCOPE_OPTIONS: Array<{ key: ResetDataScope; label: string; description: st
   {
     key: 'products_master',
     label: 'Master Produk & Event Type Testing',
-    description: 'Menghapus master produk, pengiklan, event type, dan tiket webinar/seminar uji coba.',
+    description: 'Menghapus konfigurasi produk, pengiklan, tipe, alias, dan mapping acara; mengisi kembali tipe SO/WO dan sesi ST/S1–S8. Ditolak jika masih ada transaksi. Tax tetap tersimpan.',
   },
 ]
 
@@ -62,6 +62,8 @@ export function ResetDataPage() {
   function toggleScope(scope: ResetDataScope) {
     setSelectedScopes((prev) => {
       const next = new Set(prev)
+      if (scope === 'products_master') return new Set(prev.has(scope) ? [] : [scope])
+      next.delete('products_master')
       if (next.has(scope)) {
         next.delete(scope)
       } else {

@@ -1,6 +1,6 @@
 import { ApiError, type ApiErrorCode } from './api'
 import { readPublicEnv } from './env'
-import { getAccessToken } from './session'
+import { getAccessToken, refreshProfile } from './session'
 
 /**
  * Baca langsung Browser → Supabase (02 §14, STATE.md K2/K11).
@@ -44,7 +44,11 @@ async function restRequest<T>(path: string, method: 'GET' | 'POST', body?: unkno
   if (body !== undefined) init.body = JSON.stringify(body)
 
   const response = await fetch(`${env.supabaseUrl.replace(/\/+$/, '')}/rest/v1${path}`, init)
-  if (!response.ok) throw await toApiError(response)
+  if (!response.ok) {
+    const error = await toApiError(response)
+    if (error.code === 'FORBIDDEN' || error.code === 'FORBIDDEN_REPORT_TAX') await refreshProfile()
+    throw error
+  }
 
   return (await response.json()) as T
 }
@@ -63,6 +67,7 @@ async function restRequest<T>(path: string, method: 'GET' | 'POST', body?: unkno
  * nama kode, bukan kalimat.
  */
 const SQLSTATE_TO_CODE: Record<string, ApiErrorCode> = {
+  DF006: 'FORBIDDEN',
   DF011: 'INVALID_ARGUMENT',
   DF012: 'FORBIDDEN_REPORT_TAX',
   // `insufficient_privilege` standar Postgres — dipetakan PostgREST ke 403.
@@ -72,7 +77,7 @@ const SQLSTATE_TO_CODE: Record<string, ApiErrorCode> = {
 const LOCAL_MESSAGES: Partial<Record<ApiErrorCode, string>> = {
   SESSION_INVALID: 'Sesi berakhir. Silakan login kembali.',
   FORBIDDEN: 'Anda tidak memiliki akses ke data ini.',
-  FORBIDDEN_REPORT_TAX: 'Report Tax hanya untuk Admin dan Admin Master.',
+  FORBIDDEN_REPORT_TAX: 'Anda tidak memiliki izin membuka Report Tax.',
   INVALID_ARGUMENT: 'Permintaan data tidak valid.',
   NOT_FOUND: 'Data tidak ditemukan.',
   INTERNAL_ERROR: 'Data tidak dapat dimuat.',

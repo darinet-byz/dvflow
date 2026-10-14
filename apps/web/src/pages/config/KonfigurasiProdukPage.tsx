@@ -1,3 +1,5 @@
+import { hasPermission } from '../../lib/roles'
+import { useSession } from '../../lib/useSession'
 import { PageHeader } from '../../layout/PageHeader'
 import { ConfigSection } from './ConfigSection'
 import { ProductAliasSection } from './ProductAliasSection'
@@ -16,6 +18,7 @@ import { ADVERTISER_SPEC, EVENT_TYPE_SPEC, PRODUCT_SPEC, SESSION_SPEC } from './
  * produk di sini berarti parser langsung mengenali kodenya (CLAUDE.md §4).
  */
 export function KonfigurasiProdukPage() {
+  const { profile } = useSession()
   return (
     <>
       <PageHeader
@@ -24,11 +27,11 @@ export function KonfigurasiProdukPage() {
       />
 
       <div className="flex flex-col gap-4">
-        <ConfigSection spec={PRODUCT_SPEC} />
-        <ConfigSection spec={ADVERTISER_SPEC} />
-        <ConfigSection spec={EVENT_TYPE_SPEC} />
-        <ConfigSection spec={SESSION_SPEC} />
-        <ProductAliasSection />
+        {hasPermission(profile, 'config.produk') ? <ConfigSection spec={PRODUCT_SPEC} /> : null}
+        {hasPermission(profile, 'config.produk') ? <ConfigSection spec={ADVERTISER_SPEC} /> : null}
+        {hasPermission(profile, 'config.produk') ? <ConfigSection spec={EVENT_TYPE_SPEC} /> : null}
+        {hasPermission(profile, 'config.produk') ? <ConfigSection spec={SESSION_SPEC} /> : null}
+        {hasPermission(profile, 'config.alias_produk') ? <ProductAliasSection /> : null}
       </div>
     </>
   )

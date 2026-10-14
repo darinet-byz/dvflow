@@ -1,4 +1,4 @@
-import { ACCESS_TOKEN_LIFETIME_SECONDS, APP_ROLES, type AppRole } from '@dvflow/shared'
+import { ACCESS_TOKEN_LIFETIME_SECONDS, type AppRole } from '@dvflow/shared'
 import type { Env } from '../env'
 import { ApiFailure } from '../http/errors'
 import { base64UrlDecode, base64UrlDecodeUtf8, base64UrlEncode, base64UrlEncodeUtf8, utf8Bytes } from './base64url'
@@ -125,7 +125,7 @@ export async function createJwtSigner(env: Env): Promise<JwtSigner> {
       if (appUserId !== subject) throw invalidToken('app_user_id tidak sama dengan sub')
 
       const appRole = claims['app_role']
-      if (typeof appRole !== 'string' || !APP_ROLES.includes(appRole as AppRole)) {
+      if (typeof appRole !== 'string' || !/^[a-z0-9_]{3,32}$/.test(appRole)) {
         throw invalidToken('app_role tidak dikenal')
       }
 

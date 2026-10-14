@@ -1,13 +1,13 @@
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
 import type { RouteContext } from '../router'
-import { requireActiveUser } from '../users'
+import { requirePermission, requirePermissions } from '../permissions'
 import { decrypt, encrypt, hash } from './crypto'
 
 type Connection = { id: string; name: string; slug: string; active: boolean; api_token_encrypted: string | null; webhook_secret_encrypted: string; webhook_secret_hash: string; last_received_at: string | null; created_at: string }
 const fields = 'id,name,slug,active,api_token_encrypted,webhook_secret_encrypted,webhook_secret_hash,last_received_at,created_at'
 async function requireAdmin(context: RouteContext) {
-  if ((await requireActiveUser(context)).role === 'staff') throw new ApiFailure('FORBIDDEN')
+  await requirePermission(context, 'config.integrasi')
 }
 async function getConnection(context: RouteContext) {
   const id = context.params['id'] ?? context.params['connectionId'] ?? ''
@@ -85,7 +85,7 @@ export async function validateConnectionWebhook(context: RouteContext): Promise<
   return await hash(context.params['webhookSecret'] ?? '') === row.webhook_secret_hash
 }
 export async function deleteConnection(context: RouteContext): Promise<Response> {
-  await requireAdmin(context)
+  await requirePermissions(context, ['action.delete_master', 'config.integrasi'])
   const row = await getConnection(context)
   await context.db.deleteRows('orderonline_connections', { id: `eq.${row.id}` })
   return ok({ deleted: row.id })

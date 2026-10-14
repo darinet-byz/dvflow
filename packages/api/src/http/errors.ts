@@ -23,6 +23,7 @@ export type ApiErrorCode =
   | 'CODE_TAKEN'
   | 'IDENTIFIER_TAKEN'
   | 'CODE_AMBIGUOUS'
+  | 'MASTER_IN_USE'
   | 'RESOURCE_NOT_FOUND'
   | 'NOT_FOUND'
   | 'INTERNAL_ERROR'
@@ -48,6 +49,7 @@ export const ERROR_CATALOG: Record<ApiErrorCode, { status: number; message: stri
   // 03 §12: konfigurasi.
   CODE_TAKEN: { status: 409, message: 'Kode sudah dipakai.' },
   IDENTIFIER_TAKEN: { status: 409, message: 'Identifier ini sudah punya rule aktif.' },
+  MASTER_IN_USE: { status: 409, message: 'Konfigurasi masih digunakan. Lepaskan dependensinya atau gunakan Nonaktifkan.' },
   CODE_AMBIGUOUS: {
     status: 409,
     message: 'Kombinasi kode produk, pengiklan, dan event type ini saling menaungi sehingga produk tidak dapat dipetakan dengan pasti.',
@@ -68,6 +70,8 @@ export class ApiFailure extends Error {
     readonly code: ApiErrorCode,
     /** Konteks untuk log server. TIDAK pernah dikirim ke klien. */
     readonly logContext?: string,
+    /** Only a fixed, explicitly safe validation message; never database/log details. */
+    readonly publicMessage?: string,
   ) {
     super(code)
     this.name = 'ApiFailure'
@@ -92,6 +96,8 @@ export const DB_SQLSTATE_TO_API_CODE: Record<string, ApiErrorCode> = {
   DF010: 'PASSWORD_MISMATCH',
   DF011: 'INVALID_ARGUMENT',
   DF014: 'INVALID_PAYLOAD',
+  DF015: 'MASTER_IN_USE',
+  '23514': 'INVALID_ARGUMENT',
   // Pelanggaran unique: kode konfigurasi dan identifier fee rule punya index unik
   // masing-masing, jadi hasilnya dipetakan berbeda supaya pesannya tepat.
   '23505': 'CODE_TAKEN',

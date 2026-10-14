@@ -2,15 +2,11 @@ import { parseProductRaw, type ProductAliasItem } from '@dvflow/shared'
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
 import type { RouteContext } from '../router'
-import { requireActiveUser } from '../users'
+import { requirePermission, productAccess, assertProductAccess, allowsProduct } from '../permissions'
 import { loadProductConfig } from '../webhooks/handlers'
 
 async function requireConfigPermission(context: RouteContext) {
-  const user = await requireActiveUser(context)
-  if (user.role === 'staff' || user.role === 'member') {
-    throw new ApiFailure('FORBIDDEN', 'Akses ditolak: Izin konfigurasi diperlukan')
-  }
-  return user
+  return requirePermission(context, 'config.alias_produk')
 }
 
 /**
@@ -18,13 +14,15 @@ async function requireConfigPermission(context: RouteContext) {
  * Mengambil daftar seluruh alias produk.
  */
 export async function listAliases(context: RouteContext): Promise<Response> {
-  await requireConfigPermission(context)
+  const actor = await requireConfigPermission(context)
+  const access = await productAccess(context, actor)
   const rows = await context.db.selectRows<ProductAliasItem>(
     'product_aliases',
     { order: 'created_at.desc' },
     'id,alias_name,alias_name_normalized,canonical_target,created_at,updated_at,created_by',
   )
-  return ok({ rows })
+  const config = await loadProductConfig(context.db)
+  return ok({ rows: rows.filter((row) => allowsProduct(access, parseProductRaw(row.canonical_target, config).product_code)) })
 }
 
 /**
@@ -47,14 +45,17 @@ export async function saveAlias(context: RouteContext): Promise<Response> {
     throw new ApiFailure('INVALID_ARGUMENT', 'Target konfigurasi tidak valid menurut aturan parser DVFLOW')
   }
 
+  const access = await productAccess(context, actor)
+  assertProductAccess(access, parse.product_code)
   const normalized = aliasName.toLowerCase()
   const existing = await context.db.selectRows<ProductAliasItem>(
     'product_aliases',
     { alias_name_normalized: `eq.${normalized}` },
-    'id',
+    'id,canonical_target',
   )
 
   if (existing[0]) {
+    assertProductAccess(access, parseProductRaw(existing[0].canonical_target, config).product_code)
     await context.db.updateRows(
       'product_aliases',
       { id: `eq.${existing[0].id}` },
@@ -81,10 +82,15 @@ export async function saveAlias(context: RouteContext): Promise<Response> {
  * Menghapus alias produk.
  */
 export async function deleteAlias(context: RouteContext): Promise<Response> {
-  await requireConfigPermission(context)
+  const actor = await requireConfigPermission(context)
+  const access = await productAccess(context, actor)
   const id = context.params['id'] ?? ''
   if (!/^[0-9a-f-]{36}$/i.test(id)) throw new ApiFailure('NOT_FOUND')
 
+  await requirePermission(context, 'action.delete_master')
+  const rows = await context.db.selectRows<ProductAliasItem>('product_aliases', { id: `eq.${id}` }, 'canonical_target')
+  if (!rows[0]) throw new ApiFailure('RESOURCE_NOT_FOUND')
+  assertProductAccess(access, parseProductRaw(rows[0].canonical_target, await loadProductConfig(context.db)).product_code)
   await context.db.deleteRows('product_aliases', { id: `eq.${id}` })
   return ok({ deleted: id })
 }
@@ -94,10 +100,9 @@ export async function deleteAlias(context: RouteContext): Promise<Response> {
  * Mengambil daftar pesanan yang status produknya 'invalid' (menunggu pemetaan).
  */
 export async function listUnmappedOrders(context: RouteContext): Promise<Response> {
-  const user = await requireActiveUser(context)
-  if (user.role === 'staff' || user.role === 'member') {
-    throw new ApiFailure('FORBIDDEN')
-  }
+  const actor = await requirePermission(context, 'operasional.order_unmapped')
+  const access = await productAccess(context, actor)
+  if (!access.all) throw new ApiFailure('FORBIDDEN')
 
   const search = context.url.searchParams.get('search')?.trim() ?? ''
   const page = Math.max(1, parseInt(context.url.searchParams.get('page') ?? '1', 10) || 1)
@@ -135,16 +140,16 @@ export async function listUnmappedOrders(context: RouteContext): Promise<Respons
  * Mengeksekusi pemetaan massal pesanan invalid ke konfigurasi target DVFLOW.
  */
 export async function batchRemapOrders(context: RouteContext): Promise<Response> {
-  const actor = await requireActiveUser(context)
-  if (actor.role === 'staff' || actor.role === 'member') {
-    throw new ApiFailure('FORBIDDEN')
-  }
+  const actor = await requirePermission(context, 'operasional.order_unmapped')
+  const access = await productAccess(context, actor)
+  if (!access.all) throw new ApiFailure('FORBIDDEN')
 
   const body = await readJsonObject(context.request)
   const orderIds = Array.isArray(body['orderIds']) ? (body['orderIds'] as unknown[]).filter((x): x is string => typeof x === 'string') : []
   const canonicalTarget = readString(body, 'canonicalTarget')?.trim()
   const saveAlias = body['saveAlias'] === true
   const aliasName = readString(body, 'aliasName')?.trim() ?? null
+  if (saveAlias) await requirePermission(context, 'config.alias_produk')
 
   if (orderIds.length === 0 || orderIds.length > 1000) {
     throw new ApiFailure('INVALID_ARGUMENT', 'Daftar orderId minimal 1 dan maksimal 1000')

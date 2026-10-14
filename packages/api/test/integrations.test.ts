@@ -8,7 +8,7 @@ function setup() {
   const rows: Record<string, unknown>[] = []
   const user = { id: 'admin', role: 'admin', active: true }
   const db = {
-    selectRows: vi.fn(async (table: string, query: Record<string, string>) => table === 'users' ? [user] : rows.filter(row => !query.id || `eq.${row.id}` === query.id)),
+    selectRows: vi.fn(async (table: string, query: Record<string, string>) => table === 'users' ? [user] : table === 'app_role_permissions' ? (user.role === 'admin' ? [{ permission_key: 'config.integrasi' }, { permission_key: 'action.delete_master' }] : []) : rows.filter(row => !query.id || `eq.${row.id}` === query.id)),
     insertRow: vi.fn(async (_: string, row: Record<string, unknown>) => { const value = { id: crypto.randomUUID(), ...row }; rows.push(value); return value }),
     updateRows: vi.fn(async (_: string, query: Record<string, string>, patch: Record<string, unknown>) => { Object.assign(rows.find(row => `eq.${row.id}` === query.id)!, patch) }),
     deleteRows: vi.fn(async (_: string, query: Record<string, string>) => {

@@ -1,3 +1,5 @@
+import { useSession } from '../../lib/useSession'
+import { hasPermission } from '../../lib/roles'
 import { useState } from 'react'
 import { authorizedRequest } from '../../lib/session'
 import { useAsyncData } from '../../lib/useAsyncData'
@@ -30,6 +32,7 @@ const columns = [
 ]
 
 export function IntegrationsPage() {
+  const { profile } = useSession()
   const [id, setId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [slug, setSlug] = useState('')
@@ -323,9 +326,9 @@ export function IntegrationsPage() {
                       >
                         Tes API
                       </Button>
-                      <Button size="sm" variant="danger" disabled={busy} onClick={() => setDeleting(row)}>
+                      {hasPermission(profile, 'action.delete_master') ? <Button size="sm" variant="danger" disabled={busy} onClick={() => setDeleting(row)}>
                         Hapus
-                      </Button>
+                      </Button> : null}
                     </div>
                   </TableCell>
                 </TableRow>
