@@ -94,10 +94,15 @@ export const ADVERTISER_SPEC: ConfigSpec = {
   render: CODE_RENDER,
 }
 
+const KIND_LABELS = {
+  seminar: 'Offline — tiket QR + check-in di lokasi',
+  webinar: 'Online — diarahkan ke link Zoom',
+} as const
+
 export const EVENT_TYPE_SPEC: ConfigSpec = {
   resource: 'event-types',
   title: 'Type',
-  description: 'Jenis acara. `kind` inilah yang menentukan Seminar Offline / Webinar Online pada order (PRD §60).',
+  description: 'Jenis acara (mis. Seminar, Workshop, Webinar). "Cara Hadir" menentukan alur peserta: offline atau online (PRD §60).',
   tableName: 'event_types',
   readColumns: 'id,name,code,kind,active',
   identityKey: 'code',
@@ -115,18 +120,23 @@ export const EVENT_TYPE_SPEC: ConfigSpec = {
     },
     {
       key: 'kind',
-      label: 'Kind',
+      label: 'Cara Hadir',
       type: 'select',
       initial: 'seminar',
+      // Nilai tersimpan tetap seminar/webinar (02 §event_types); hanya label yang netral,
+      // karena tipe seperti Workshop juga memakai salah satu dari dua alur ini.
       options: [
-        { value: 'seminar', label: 'seminar → Seminar Offline' },
-        { value: 'webinar', label: 'webinar → Webinar Online' },
+        { value: 'seminar', label: KIND_LABELS.seminar },
+        { value: 'webinar', label: KIND_LABELS.webinar },
       ],
-      help: 'Menentukan status acara pada order. Mengganti nama baris ini tidak mengubah order yang sudah ada.',
+      help: 'Menentukan alur peserta Paid: tiket QR + check-in di lokasi, atau diarahkan ke link Zoom.',
     },
   ],
-  columns: [...CODE_COLUMNS, { key: 'kind', header: 'Kind', minWidth: 100 }],
-  render: { ...CODE_RENDER, kind: (row: ConfigRow) => String(row['kind'] ?? '-') },
+  columns: [...CODE_COLUMNS, { key: 'kind', header: 'Cara Hadir', minWidth: 160 }],
+  render: {
+    ...CODE_RENDER,
+    kind: (row: ConfigRow) => KIND_LABELS[String(row['kind']) as keyof typeof KIND_LABELS] ?? String(row['kind'] ?? '-'),
+  },
 }
 
 export const SESSION_SPEC: ConfigSpec = {
