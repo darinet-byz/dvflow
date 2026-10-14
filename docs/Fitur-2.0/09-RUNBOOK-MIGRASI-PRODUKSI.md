@@ -1,6 +1,6 @@
 # Runbook Migrasi Produksi (0024–0029) + Pembersihan Data Trial
 
-Tanggal: 14 Oktober 2026. Dijalankan oleh pemilik project.
+Tanggal: 14 Oktober 2026. **Sudah dijalankan 14 Oktober 2026** (langkah 1–4, atas izin pemilik project); langkah 5–6 lewat deploy otomatis.
 
 ## Mengapa
 
@@ -78,13 +78,15 @@ select public.schema_version();   -- harus 29
 ### 4. Hapus data trial (dry-run dulu)
 
 ```powershell
-node scripts/wipe-trial-data.mjs --env .env.setup.local
+node scripts/wipe-trial-data.mjs --env .env.setup.local --ca .local-backups/supabase-ca.crt
 ```
+
+`--ca` wajib untuk pooler Supabase (sertifikat *Supabase Root 2021 CA*, unduh dari Dashboard → Database → SSL). Tanpa itu skrip berhenti dengan `SELF_SIGNED_CERT_IN_CHAIN`; verifikasi TLS sengaja tidak dimatikan.
 
 Periksa jumlah baris yang dicetak dan file backup JSON yang dibuat. Bila sudah sesuai:
 
 ```powershell
-node scripts/wipe-trial-data.mjs --env .env.setup.local --apply --project <ref> --actor <uuid-developer> --yes-delete-transactions
+node scripts/wipe-trial-data.mjs --env .env.setup.local --ca .local-backups/supabase-ca.crt --apply --project <ref> --actor <uuid-developer> --yes-delete-transactions
 ```
 
 **Dihapus:**
