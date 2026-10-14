@@ -10,7 +10,7 @@ async function assertKnownProducts(context: RouteContext, codes: string[]): Prom
   if (codes.length === 0) return
   const rows = await context.db.selectRows<{ code: string }>('products', {}, 'code')
   const known = new Set(rows.map((row) => row.code.toUpperCase()))
-  if (codes.some((code) => !known.has(code))) throw new ApiFailure('INVALID_ARGUMENT', 'Kode produk tidak dikenal')
+  if (codes.some((code) => !known.has(code))) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Kode produk tidak dikenal')
 }
 
 type CreatedUser = {
@@ -92,7 +92,7 @@ export async function createUser(context: RouteContext): Promise<Response> {
   }
 
   if (!hasAllProductAccess && productCodes.length === 0) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Pilih minimal satu produk jika akses dibatasi')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih minimal satu produk jika akses dibatasi')
   }
   if (!hasAllProductAccess) await assertKnownProducts(context, productCodes)
 
@@ -170,10 +170,10 @@ export async function updateUser(context: RouteContext): Promise<Response> {
   if (!isMasterAdminRole(actor.role)) throw new ApiFailure('FORBIDDEN', 'Master Admin diperlukan')
 
   const targetId = (context.params['id'] ?? '').trim()
-  if (targetId === '') throw new ApiFailure('RESOURCE_NOT_FOUND', 'User tidak ditemukan')
+  if (targetId === '') throw new ApiFailure('RESOURCE_NOT_FOUND', undefined, 'User tidak ditemukan')
 
   const [existing] = await context.db.selectRows<UserRow>('users', { id: `eq.${targetId}` }, USER_COLUMNS)
-  if (!existing) throw new ApiFailure('RESOURCE_NOT_FOUND', 'User tidak ditemukan')
+  if (!existing) throw new ApiFailure('RESOURCE_NOT_FOUND', undefined, 'User tidak ditemukan')
 
   const body = await readJsonObject(context.request)
   const displayName = (readString(body, 'display_name') ?? existing.display_name).trim()
@@ -182,7 +182,7 @@ export async function updateUser(context: RouteContext): Promise<Response> {
   const newPassword = readString(body, 'new_password') ?? ''
 
   if (displayName === '' || displayName.length > DISPLAY_NAME_MAX_LENGTH) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Nama tampilan wajib diisi (maks 200 karakter)')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nama tampilan wajib diisi (maks 200 karakter)')
   }
 
   const isKnownRole = APP_ROLES.includes(role as AppRole)
@@ -197,7 +197,7 @@ export async function updateUser(context: RouteContext): Promise<Response> {
     throw new ApiFailure('FORBIDDEN', 'Tidak dapat menonaktifkan atau mengubah role akun Anda sendiri')
   }
   if (newPassword !== '' && newPassword.length < 8) {
-    throw new ApiFailure('WEAK_PASSWORD', 'Password baru minimal 8 karakter')
+    throw new ApiFailure('WEAK_PASSWORD', undefined, 'Password baru minimal 8 karakter')
   }
 
   const hasAllProductAccess =
@@ -215,7 +215,7 @@ export async function updateUser(context: RouteContext): Promise<Response> {
   }
 
   if (!hasAllProductAccess && productCodes.length === 0) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Pilih minimal satu produk jika akses dibatasi')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih minimal satu produk jika akses dibatasi')
   }
   if (!hasAllProductAccess) await assertKnownProducts(context, productCodes)
 
@@ -249,15 +249,15 @@ export async function deleteUser(context: RouteContext): Promise<Response> {
   if (!isMasterAdminRole(actor.role)) throw new ApiFailure('FORBIDDEN', 'Master Admin diperlukan')
 
   const targetId = (context.params['id'] ?? '').trim()
-  if (targetId === '') throw new ApiFailure('RESOURCE_NOT_FOUND', 'User tidak ditemukan')
+  if (targetId === '') throw new ApiFailure('RESOURCE_NOT_FOUND', undefined, 'User tidak ditemukan')
   if (targetId === actor.id) {
     throw new ApiFailure('FORBIDDEN', 'Tidak dapat menghapus akun Anda sendiri')
   }
 
   const [existing] = await context.db.selectRows<UserRow>('users', { id: `eq.${targetId}` }, USER_COLUMNS)
-  if (!existing) throw new ApiFailure('RESOURCE_NOT_FOUND', 'User tidak ditemukan')
+  if (!existing) throw new ApiFailure('RESOURCE_NOT_FOUND', undefined, 'User tidak ditemukan')
 
-  await context.db.deleteRows('app_sessions', { user_id: `eq.${existing.id}` })
-  await context.db.deleteRows('users', { id: `eq.${existing.id}` })
+  // Hierarchy (full roles only by Developer) is enforced in the RPC; sessions cascade.
+  await context.db.rpc('admin_delete_user', { p_actor: actor.id, p_target: existing.id })
   return ok({ deleted: existing.id })
 }

@@ -5,7 +5,7 @@ import { Card } from '../../ui/Card'
 import { Button } from '../../ui/Button'
 import { TextInput } from '../../ui/Field'
 import { Modal } from '../../ui/Overlay'
-import { SkeletonRows } from '../../ui/Feedback'
+import { SkeletonRows, ErrorState } from '../../ui/Feedback'
 import { useToast } from '../../ui/Toast'
 import { authorizedRequest } from '../../lib/session'
 import { useAsyncData } from '../../lib/useAsyncData'
@@ -54,7 +54,7 @@ export function ResetDataPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [modalError, setModalError] = useState<string | null>(null)
 
-  const { data: summary, loading, reload } = useAsyncData<DataSummaryResult>(
+  const { data: summary, loading, error: summaryError, reload } = useAsyncData<DataSummaryResult>(
     () => authorizedRequest<DataSummaryResult>('/api/developer/data-summary'),
     [],
   )
@@ -154,6 +154,7 @@ export function ResetDataPage() {
               </Button>
             </div>
 
+            {summaryError ? <ErrorState message={summaryError} action={<Button onClick={reload}>Coba lagi</Button>} /> : null}
             {loading && !summary ? (
               <SkeletonRows rows={2} />
             ) : summary ? (
@@ -221,7 +222,6 @@ export function ResetDataPage() {
                 return (
                   <label
                     key={opt.key}
-                    onClick={() => toggleScope(opt.key)}
                     className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3.5 transition-all ${
                       isChecked
                         ? 'border-red-400 bg-red-50/50 shadow-sm'
@@ -231,7 +231,7 @@ export function ResetDataPage() {
                     <input
                       type="checkbox"
                       checked={isChecked}
-                      onChange={() => {}}
+                      onChange={() => toggleScope(opt.key)}
                       className="mt-0.5 h-4 w-4 rounded border-line text-red-600 focus:ring-red-500"
                     />
                     <div className="min-w-0">

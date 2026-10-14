@@ -2,7 +2,7 @@ import { normalizeCode, parseProductRaw } from '@dvflow/shared'
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
 import type { RouteContext } from '../router'
-import { requirePermission, requirePermissions, productAccess, assertProductAccess, allowsProduct } from '../permissions'
+import { requirePermission, requirePermissions, productAccess, assertProductAccess, allowsProduct, type ProductAccess } from '../permissions'
 import { loadProductConfig } from '../webhooks/handlers'
 
 export const WEBINAR_PREFIX = 'webinar_destination::'
@@ -47,6 +47,8 @@ export function candidateSettingKeys(
     product_code?: string | null
     batch: string | null
     session: string | null
+    /** Nama kanonik dari alias: order beralias/remap tetap cocok dengan rule exact. */
+    alias_target?: string | null
   },
   prefix: string,
 ): string[] {
@@ -54,6 +56,7 @@ export function candidateSettingKeys(
   if (order.product_raw !== null && order.product_raw !== '') {
     keys.push(`${prefix}${order.product_raw}`)
   }
+  if (order.alias_target) keys.push(`${prefix}${order.alias_target}`)
 
   const p = order.product_code ? normalizeCode(order.product_code) : null
   const b = order.batch ? order.batch.trim() : null
@@ -71,6 +74,27 @@ export function candidateSettingKeys(
   return keys
 }
 
+/**
+ * Edit yang mengganti scope/nama: rule baru sudah tersimpan, lalu key lama dibuang
+ * supaya tidak tertinggal rule ganda. Urutan simpan-dulu tidak pernah membuat celah
+ * tanpa rule. Key lama tetap diperiksa terhadap cakupan produk aktor.
+ */
+async function removeReplacedKey(
+  context: RouteContext,
+  access: ProductAccess,
+  prefix: string,
+  body: Record<string, unknown>,
+  newKey: string,
+): Promise<void> {
+  const original = readString(body, 'original_key')?.trim() ?? ''
+  if (original === '' || original === newKey) return
+  const code = original.startsWith(SCOPE_PREFIX)
+    ? parseScopeKey(original).product_code
+    : parseProductRaw(original, await loadProductConfig(context.db)).product_code
+  assertProductAccess(access, code)
+  await context.db.deleteRows('app_settings', { key: `eq.${prefix}${original}` })
+}
+
 async function validateScopeParts(
   context: RouteContext,
   rawProductCode: string | null | undefined,
@@ -82,25 +106,25 @@ async function validateScopeParts(
   const trimmedProduct = (rawProductCode ?? '').trim()
   const productCode = trimmedProduct === '' || trimmedProduct === '*' ? '*' : (normalizeCode(trimmedProduct) ?? '')
   if (productCode === '') {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Kode produk tidak valid')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Kode produk tidak valid')
   }
   if (productCode !== '*' && !config.products.some((item) => normalizeCode(item.code) === productCode)) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Kode produk tidak terdaftar')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Kode produk tidak terdaftar')
   }
 
   const trimmedBatch = (rawBatch ?? '').trim()
   const batch = trimmedBatch === '' || trimmedBatch === '*' ? '*' : trimmedBatch
   if (batch !== '*' && !/^\d{1,10}$/.test(batch)) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Batch harus berupa angka (mis. 392 atau 001) atau * untuk semua batch')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Batch harus berupa angka (mis. 392 atau 001) atau * untuk semua batch')
   }
 
   const trimmedSession = (rawSessionCode ?? '').trim()
   const sessionCode = trimmedSession === '' || trimmedSession === '*' ? '*' : (normalizeCode(trimmedSession) ?? '')
   if (sessionCode === '') {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Kode sesi tidak valid')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Kode sesi tidak valid')
   }
   if (sessionCode !== '*' && !config.sessions.some((item) => normalizeCode(item.code) === sessionCode)) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Kode sesi tidak terdaftar')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Kode sesi tidak terdaftar')
   }
 
   return {
@@ -159,14 +183,14 @@ export async function saveWebinar(context: RouteContext): Promise<Response> {
   const body = await readJsonObject(context.request)
   const destination = readString(body, 'destination')?.trim()
   if (!destination || destination.length > 4096) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Produk dan link Zoom wajib diisi')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Produk dan link Zoom wajib diisi')
   }
 
   let url: URL
   try {
     url = new URL(destination)
   } catch {
-    throw new ApiFailure('INVALID_ARGUMENT', 'URL tidak valid')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'URL tidak valid')
   }
   if (
     url.protocol !== 'https:' ||
@@ -179,7 +203,7 @@ export async function saveWebinar(context: RouteContext): Promise<Response> {
       url.hostname.endsWith('.zoom.com')
     )
   ) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Gunakan link HTTPS Zoom')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Gunakan link HTTPS Zoom')
   }
 
   const productRaw = readString(body, 'product_raw')?.trim() ?? ''
@@ -188,11 +212,11 @@ export async function saveWebinar(context: RouteContext): Promise<Response> {
 
   if (productRaw !== '' && !productRaw.startsWith(SCOPE_PREFIX)) {
     if (productRaw.length > 1000) {
-      throw new ApiFailure('INVALID_ARGUMENT', 'Produk dan link Zoom wajib diisi')
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Produk dan link Zoom wajib diisi')
     }
     const parsed = parseProductRaw(productRaw, await loadProductConfig(context.db))
     if (parsed.product_parse_status !== 'valid' || parsed.event_kind !== 'webinar') {
-      throw new ApiFailure('INVALID_ARGUMENT', 'Nama produk harus webinar dengan kode yang terdaftar')
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nama produk harus webinar dengan kode yang terdaftar')
     }
     assertProductAccess(access, parsed.product_code)
     await context.db.rpc('save_webinar_destination', {
@@ -200,6 +224,7 @@ export async function saveWebinar(context: RouteContext): Promise<Response> {
       p_product_raw: productRaw,
       p_destination: destination,
     })
+    await removeReplacedKey(context, access, WEBINAR_PREFIX, body, productRaw)
     return ok({
       key: productRaw,
       product_raw: productRaw,
@@ -212,7 +237,7 @@ export async function saveWebinar(context: RouteContext): Promise<Response> {
   }
 
   if (!hasScopeFields) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Produk dan link Zoom wajib diisi')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Produk dan link Zoom wajib diisi')
   }
 
   const fromScopeKey = productRaw.startsWith(SCOPE_PREFIX) ? parseScopeKey(productRaw) : null
@@ -229,6 +254,7 @@ export async function saveWebinar(context: RouteContext): Promise<Response> {
     p_product_raw: scopeKey,
     p_destination: destination,
   })
+  await removeReplacedKey(context, access, WEBINAR_PREFIX, body, scopeKey)
 
   return ok({
     key: scopeKey,
@@ -250,7 +276,7 @@ export async function deleteWebinar(context: RouteContext): Promise<Response> {
     targetKey = (readString(body, 'key') ?? readString(body, 'product_raw') ?? '').trim()
   }
   if (targetKey === '' || targetKey.length > 1000) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Key konfigurasi Zoom wajib diisi')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Key konfigurasi Zoom wajib diisi')
   }
   const code = targetKey.startsWith(SCOPE_PREFIX) ? parseScopeKey(targetKey).product_code : parseProductRaw(targetKey, await loadProductConfig(context.db)).product_code
   assertProductAccess(access, code)
@@ -345,7 +371,7 @@ export async function saveSeminarTicket(context: RouteContext): Promise<Response
   const active = body['active'] !== false
 
   if (venue.length > 300 || schedule.length > 200 || notes.length > 500) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Panjang teks info tiket melebihi batas')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Panjang teks info tiket melebihi batas')
   }
 
   const valueJson = JSON.stringify({
@@ -361,6 +387,7 @@ export async function saveSeminarTicket(context: RouteContext): Promise<Response
     p_scope_key: scopeKey,
     p_value_json: valueJson,
   })
+  await removeReplacedKey(context, access, TICKET_PREFIX, body, scopeKey)
 
   return ok({
     key: scopeKey,
@@ -383,7 +410,7 @@ export async function deleteSeminarTicket(context: RouteContext): Promise<Respon
     targetKey = (readString(body, 'key') ?? '').trim()
   }
   if (targetKey === '' || targetKey.length > 1000) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Key konfigurasi tiket wajib diisi')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Key konfigurasi tiket wajib diisi')
   }
   const code = targetKey.startsWith(SCOPE_PREFIX) ? parseScopeKey(targetKey).product_code : parseProductRaw(targetKey, await loadProductConfig(context.db)).product_code
   assertProductAccess(access, code)

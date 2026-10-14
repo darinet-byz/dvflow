@@ -265,6 +265,18 @@ export function createFakeDb(state: FakeState): Db {
         if (index >= 0) rows.splice(index,1)
         return undefined as T
       }
+      if (name === 'admin_delete_user') {
+        // Meniru 0029: role penuh hanya dapat dihapus Developer; sesi ikut terhapus.
+        const full = ['developer', 'owner', 'master_admin']
+        const actor = state.users.find((u) => u.id === args['p_actor'])
+        const target = state.users.find((u) => u.id === args['p_target'])
+        if (!actor || !full.includes(actor.role) || actor.id === args['p_target']) throw new DbError('DF006', 'FORBIDDEN')
+        if (!target) throw new DbError('DF005', 'USER_NOT_FOUND')
+        if (full.includes(target.role) && actor.role !== 'developer') throw new DbError('DF006', 'FORBIDDEN')
+        state.users.splice(state.users.indexOf(target), 1)
+        for (let i = state.sessions.length - 1; i >= 0; i--) if (state.sessions[i]?.user_id === target.id) state.sessions.splice(i, 1)
+        return undefined as T
+      }
       if (name === 'verify_login') {
         const username = normalizeUsername(String(args['p_username'] ?? ''))
         const password = String(args['p_password'] ?? '')
@@ -534,6 +546,10 @@ export function createFakeDb(state: FakeState): Db {
       const offset = Number(query['offset'] ?? 0)
       const end = query['limit'] === undefined ? undefined : offset + Number(query['limit'])
       return matched.slice(offset, end).map((row) => project(row, columns) as T)
+    },
+
+    async countRows(table: string, query: Record<string, string>): Promise<number> {
+      return rowsOf(state, table).filter((row) => matchesQuery(row, query)).length
     },
 
     async insertRow<T>(table: string, row: Record<string, unknown>, columns = '*'): Promise<T> {

@@ -28,3 +28,5 @@ Folder ini berisi dokumen spesifikasi teknis, arsitektur, dan panduan implementa
 7. **[07-PLAN-MULTI-WEBHOOK-DAN-ALIAS-PRODUK.md](./07-PLAN-MULTI-WEBHOOK-DAN-ALIAS-PRODUK.md)** — Multi-webhook dan pemetaan alias.
 
 8. **[08-AUDIT-ROLE-PERMISSION-DAN-KONFIGURASI-PRODUK.md](./08-AUDIT-ROLE-PERMISSION-DAN-KONFIGURASI-PRODUK.md)** — Hasil implementasi audit, matriks akses, standar kode, bukti pengujian, serta status migrasi dan pembersihan.
+
+9. **[09-RUNBOOK-MIGRASI-PRODUKSI.md](./09-RUNBOOK-MIGRASI-PRODUKSI.md)** — Langkah menerapkan migrasi 0024–0029 ke produksi dan membersihkan data trial.

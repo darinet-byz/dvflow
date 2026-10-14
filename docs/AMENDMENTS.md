@@ -428,3 +428,22 @@ Atas permintaan eksplisit pengguna:
 4. **Penempatan Menu Sidebar**:
    - `Product Name Generator` (`/generator`) dipindahkan dari kategori `KONFIGURASI` ke kategori `OPERASIONAL`.
 
+
+## A13 — Perbaikan pasca-audit, 14 Oktober 2026
+
+Lengkapnya ada di `docs/Fitur-2.0/09-RUNBOOK-MIGRASI-PRODUKSI.md` dan dok 08 bagian "Audit lanjutan".
+
+1. **Kode tidak boleh mendahului database.**
+   - Migrasi 0029 menambah `schema_version()`.
+   - CI menahan deploy bila versi database lebih kecil dari migrasi tertinggi.
+   - Objek skema yang hilang (`PGRST202`/`PGRST205`/`42883`/`42703`/`42P01`) kini menjadi `503 SCHEMA_OUT_OF_DATE`, bukan 500 bisu.
+2. **Remap order unmapped bersifat permanen.**
+   - `batch_remap_orders` hanya menyentuh order `invalid`.
+   - Nama produk asli order disimpan sebagai alias ke target remap. Tanpa itu, webhook berikutnya (mis. Pending → Paid) mem-parse ulang nama asli dan membatalkan remap, sehingga peserta Paid ditolak.
+   - Ini satu-satunya perubahan perilaku produk di A13. Mekanismenya memakai tabel alias yang sudah ada, tanpa kolom baru.
+3. **Kode toko koneksi tidak dapat diubah setelah dibuat.** Kode itu menjadi awalan Order ID; mengubahnya akan memecah satu order menjadi dua baris.
+4. **Hapus anggota tim memakai RPC `admin_delete_user`.** Role penuh (developer/owner/master_admin) hanya dapat dihapus Developer.
+5. **Edit rule Zoom/tiket yang mengganti scope membuang key lama** (`original_key`), sehingga tidak ada rule ganda.
+6. **Data trial dihapus total atas keputusan pengguna** (`scripts/wipe-trial-data.mjs`). Kode legacy (`KM`/`BM`) tidak lagi dipertahankan, dan constraint kode ketat 0028 divalidasi penuh.
+7. **Kode error kontrak Fitur 2.0 dipakai:** `ROLE_IN_USE`, `SYSTEM_ROLE_CANNOT_BE_DELETED`, `FORBIDDEN_PRODUCT_ACCESS`. `USERNAME_TAKEN`/`IDENTIFIER_TAKEN` dibedakan dari `CODE_TAKEN`.
+8. **Masih terbuka (keputusan produk):** sidebar 15 item menyimpang dari CLAUDE.md §5 (10 item).

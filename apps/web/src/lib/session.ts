@@ -143,7 +143,7 @@ export async function authorizedRequest<T>(
   try {
     return await apiRequest<T>(path, { ...options, accessToken })
   } catch (error) {
-    if (error instanceof ApiError && error.code === 'FORBIDDEN') await refreshProfile()
+    if (error instanceof ApiError && (error.code === 'FORBIDDEN' || error.code === 'FORBIDDEN_PRODUCT_ACCESS')) await refreshProfile()
     if (!(error instanceof ApiError) || error.code !== 'SESSION_INVALID') throw error
   }
 

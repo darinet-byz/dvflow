@@ -70,20 +70,20 @@ export async function createRole(context: RouteContext): Promise<Response> {
   const description = readString(body, 'description')?.trim() ?? null
 
   if (!id || !name) {
-    throw new ApiFailure('INVALID_PAYLOAD', 'ID dan Nama role wajib diisi')
+    throw new ApiFailure('INVALID_PAYLOAD', undefined, 'ID dan Nama role wajib diisi')
   }
 
   if (!/^[a-z0-9_]{3,32}$/.test(id)) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'ID role harus berupa huruf kecil, angka, garis bawah (3-32 karakter)')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'ID role harus berupa huruf kecil, angka, garis bawah (3-32 karakter)')
   }
 
   if (name.length < 2 || name.length > 64) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Nama role harus antara 2-64 karakter')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nama role harus antara 2-64 karakter')
   }
 
   const existing = await context.db.selectRows<AppRoleItem>('app_roles', { id: `eq.${id}` }, 'id')
   if (existing.length > 0) {
-    throw new ApiFailure('CODE_TAKEN', 'Role ID sudah terdaftar')
+    throw new ApiFailure('CODE_TAKEN', undefined, 'Role ID sudah terdaftar')
   }
 
   const permissions = await validatedPermissions(context, body['permissions'] ?? [])
@@ -116,11 +116,11 @@ export async function getRole(context: RouteContext): Promise<Response> {
   }
 
   const roleId = (context.params['id'] ?? '').trim()
-  if (!roleId) throw new ApiFailure('INVALID_ARGUMENT', 'Role ID tidak valid')
+  if (!roleId) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Role ID tidak valid')
 
   const roles = await context.db.selectRows<AppRoleItem>('app_roles', { id: `eq.${roleId}` }, 'id,name,description,is_system')
   const role = roles[0]
-  if (!role) throw new ApiFailure('RESOURCE_NOT_FOUND', 'Role tidak ditemukan')
+  if (!role) throw new ApiFailure('RESOURCE_NOT_FOUND', undefined, 'Role tidak ditemukan')
 
   const rolePerms = await context.db.selectRows<{ permission_key: string }>(
     'app_role_permissions',
@@ -148,11 +148,11 @@ export async function updateRolePermissions(context: RouteContext): Promise<Resp
   }
 
   const roleId = (context.params['id'] ?? '').trim()
-  if (!roleId) throw new ApiFailure('INVALID_ARGUMENT', 'Role ID tidak valid')
+  if (!roleId) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Role ID tidak valid')
 
   const roles = await context.db.selectRows<AppRoleItem>('app_roles', { id: `eq.${roleId}` }, 'id')
   const role = roles[0]
-  if (!role) throw new ApiFailure('RESOURCE_NOT_FOUND', 'Role tidak ditemukan')
+  if (!role) throw new ApiFailure('RESOURCE_NOT_FOUND', undefined, 'Role tidak ditemukan')
 
   const body = await readJsonObject(context.request)
   if (!Array.isArray(body['permissions'])) {
@@ -183,20 +183,21 @@ export async function deleteRole(context: RouteContext): Promise<Response> {
   }
 
   const roleId = (context.params['id'] ?? '').trim()
-  if (!roleId) throw new ApiFailure('INVALID_ARGUMENT', 'Role ID tidak valid')
+  if (!roleId) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Role ID tidak valid')
 
   const roles = await context.db.selectRows<AppRoleItem>('app_roles', { id: `eq.${roleId}` }, 'id,is_system')
   const role = roles[0]
-  if (!role) throw new ApiFailure('RESOURCE_NOT_FOUND', 'Role tidak ditemukan')
+  if (!role) throw new ApiFailure('RESOURCE_NOT_FOUND', undefined, 'Role tidak ditemukan')
 
   if (role.is_system) {
-    throw new ApiFailure('FORBIDDEN', 'Role sistem bawaan tidak dapat dihapus')
+    throw new ApiFailure('SYSTEM_ROLE_CANNOT_BE_DELETED')
   }
 
   const users = await context.db.selectRows<UserRow>('users', { role: `eq.${roleId}` }, 'id')
   if (users.length > 0) {
     throw new ApiFailure(
-      'INVALID_ARGUMENT',
+      'ROLE_IN_USE',
+      undefined,
       `Role masih digunakan oleh ${users.length} pengguna. Pindahkan pengguna ke role lain sebelum menghapus.`,
     )
   }

@@ -20,6 +20,28 @@ import { REFRESH_COOKIE_NAME } from '../src/http/cookies'
 type FailureBody = { ok: false; error: { code: string; message: string } }
 
 describe('L. Batas keamanan', () => {
+  it('database tertinggal dari kode -> 503 SCHEMA_OUT_OF_DATE tanpa detail', async () => {
+    const env = await createTestEnv()
+    const missing = () => { throw new DbError('PGRST202', 'Could not find the function public.delete_config_master') }
+    const staleDb: Db = { rpc: missing, selectRows: missing, countRows: missing, insertRow: missing, updateRows: missing, deleteRows: missing }
+    const api = createApi({ env, db: staleDb, routes: ROUTES, now: FIXED_NOW })
+    const response = await api(
+      makeRequest({ method: 'POST', path: '/api/auth/login', body: { username: 'admin1', password: 'rahasia123' } }),
+    )
+    expect(response.status).toBe(503)
+    const raw = await response.text()
+    expect((JSON.parse(raw) as FailureBody).error.code).toBe('SCHEMA_OUT_OF_DATE')
+    expect(raw).not.toContain('delete_config_master')
+  })
+
+  it('percent-encoding rusak -> 404, bukan crash', async () => {
+    const env = await createTestEnv()
+    const never = () => { throw new Error('tidak boleh dipanggil') }
+    const api = createApi({ env, db: { rpc: never, selectRows: never, countRows: never, insertRow: never, updateRows: never, deleteRows: never }, routes: ROUTES, now: FIXED_NOW })
+    const response = await api(makeRequest({ method: 'GET', path: '/access/%E0%A4' }))
+    expect(response.status).toBe(404)
+  })
+
   it('L01/L02 tidak ada secret yang pernah masuk ke response', async () => {
     const env = await createTestEnv()
 
@@ -27,19 +49,22 @@ describe('L. Batas keamanan', () => {
     // generik, tanpa pesan database, tanpa stack, tanpa secret (03 §1, 04 §14).
     const explodingDb: Db = {
       async rpc() {
-        throw new DbError('42P01', 'relation "secret_table" does not exist')
+        throw new DbError('XX000', 'relation "secret_table" internal failure')
       },
       async selectRows() {
-        throw new DbError('42P01', 'relation "secret_table" does not exist')
+        throw new DbError('XX000', 'relation "secret_table" internal failure')
+      },
+      async countRows() {
+        throw new DbError('XX000', 'relation "secret_table" internal failure')
       },
       async insertRow() {
-        throw new DbError('42P01', 'relation "secret_table" does not exist')
+        throw new DbError('XX000', 'relation "secret_table" internal failure')
       },
       async updateRows() {
-        throw new DbError('42P01', 'relation "secret_table" does not exist')
+        throw new DbError('XX000', 'relation "secret_table" internal failure')
       },
       async deleteRows() {
-        throw new DbError('42P01', 'relation "secret_table" does not exist')
+        throw new DbError('XX000', 'relation "secret_table" internal failure')
       },
     }
 

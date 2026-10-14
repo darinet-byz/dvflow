@@ -144,11 +144,13 @@ export function IntegrationsPage() {
                 label="Kode Toko (Maksimal 4 Karakter)"
                 value={slug}
                 onChange={(val) => setSlug(val.toUpperCase().slice(0, 4))}
-                disabled={busy}
+                disabled={busy || !!id}
                 placeholder="Contoh: SOLO, BDG, TK1"
               />
               <p className="mt-1 text-[11px] text-ink-muted">
-                Digunakan pada URL redirect & pencegah tabrakan Order ID antar toko.
+                {id
+                  ? 'Kode toko tidak dapat diubah setelah koneksi dibuat (menjadi bagian Order ID).'
+                  : 'Digunakan pada URL redirect & pencegah tabrakan Order ID antar toko.'}
               </p>
             </div>
           </div>

@@ -48,32 +48,6 @@ export const DISPLAY_NAME_MAX_LENGTH = 200
 export const AVATAR_EMOJI_MAX_LENGTH = 16
 export const USERNAME_MAX_LENGTH = 64
 
-export function profileFromRow(row: UserRow): Profile {
-  return {
-    user_id: row.id,
-    username: row.username,
-    display_name: row.display_name,
-    role: row.role,
-    avatar_emoji: row.avatar_emoji,
-    has_all_product_access: isMasterAdminRole(row.role) || row.has_all_product_access === true,
-    allowed_product_codes: [],
-    permissions: [],
-  }
-}
-
-export function profileFromVerified(user: VerifiedUser): Profile {
-  return {
-    user_id: user.user_id,
-    username: user.username,
-    display_name: user.display_name,
-    role: user.role,
-    avatar_emoji: user.avatar_emoji,
-    has_all_product_access: isMasterAdminRole(user.role) || user.has_all_product_access === true,
-    allowed_product_codes: [],
-    permissions: [],
-  }
-}
-
 export async function buildUserProfile(
   context: RouteContext,
   user: {

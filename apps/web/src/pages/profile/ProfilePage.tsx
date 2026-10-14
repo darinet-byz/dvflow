@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { PASSWORD_MIN_LENGTH } from '@dvflow/shared'
 import { ApiError } from '../../lib/api'
 import { changePassword, updateProfile } from '../../lib/session'
@@ -36,6 +36,15 @@ export function ProfilePage() {
   const [confirmation, setConfirmation] = useState('')
   const [savingPassword, setSavingPassword] = useState(false)
   const [passwordError, setPasswordError] = useState<string | null>(null)
+
+  // Profil bisa tiba setelah halaman terpasang (refresh profil saat navigasi); isi form sekali saat itu.
+  const profileUserId = profile?.user_id ?? null
+  useEffect(() => {
+    if (profile === null) return
+    setDisplayName(profile.display_name)
+    setEmoji(profile.avatar_emoji ?? '')
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- hanya saat user berganti, bukan tiap refresh
+  }, [profileUserId])
 
   if (profile === null) return null
 

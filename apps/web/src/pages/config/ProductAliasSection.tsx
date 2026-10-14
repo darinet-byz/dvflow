@@ -20,7 +20,7 @@ const columns = [
   { key: 'actions', header: 'Aksi' },
 ]
 
-export function ProductAliasSection() {
+export function ProductAliasSection({ configVersion = 0 }: { configVersion?: number }) {
   const { profile } = useSession()
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -37,7 +37,7 @@ export function ProductAliasSection() {
   const [city, setCity] = useState('')
 
   const toast = useToast()
-  const { lists } = useConfigLists()
+  const { lists, error: listsError } = useConfigLists(configVersion)
 
   const { data, loading, error, reload } = useAsyncData(
     () => authorizedRequest<{ rows: ProductAliasItem[] }>('/api/product-aliases'),
@@ -136,6 +136,7 @@ export function ProductAliasSection() {
         />
 
         {error ? <ErrorState message={error} action={<Button onClick={reload}>Coba lagi</Button>} /> : null}
+        {listsError ? <ErrorState title="Pilihan kode gagal dimuat" message={listsError} /> : null}
 
         {loading && !data ? (
           <SkeletonRows rows={3} />

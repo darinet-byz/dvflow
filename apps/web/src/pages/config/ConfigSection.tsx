@@ -58,7 +58,7 @@ export type ConfigSpec = {
   identityKey: string
 }
 
-export function ConfigSection({ spec }: { spec: ConfigSpec }) {
+export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged?: () => void }) {
   const toast = useToast()
   const { profile } = useSession()
   const canCreate = hasAllProductAccess(profile)
@@ -127,6 +127,7 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
       setAdding(false)
       setEditing(null)
       reload()
+      onChanged?.()
     } catch (failure) {
       toast.show(failure instanceof ApiError ? failure.message : 'Perubahan tidak dapat disimpan.', 'danger')
     } finally {
@@ -141,6 +142,7 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
       toast.show(`${spec.title} dinonaktifkan.`, 'success')
       setConfirming(null)
       reload()
+      onChanged?.()
     } catch (failure) {
       toast.show(failure instanceof ApiError ? failure.message : 'Tidak dapat menonaktifkan.', 'danger')
     } finally {
@@ -157,6 +159,7 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
       toast.show(`${spec.title} berhasil dihapus.`, 'success')
       setDeleting(null)
       reload()
+      onChanged?.()
     } catch (failure) {
       toast.show(failure instanceof ApiError ? failure.message : 'Tidak dapat menghapus.', 'danger')
     } finally {
@@ -173,6 +176,7 @@ export function ConfigSection({ spec }: { spec: ConfigSpec }) {
       })
       toast.show(`${spec.title} diaktifkan kembali.`, 'success')
       reload()
+      onChanged?.()
     } catch (failure) {
       toast.show(failure instanceof ApiError ? failure.message : 'Tidak dapat mengaktifkan.', 'danger')
     } finally {

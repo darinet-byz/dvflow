@@ -43,7 +43,8 @@ export function allowsProduct(access: ProductAccess, code: string | null | undef
 }
 
 export function assertProductAccess(access: ProductAccess, code: string | null | undefined): void {
-  if (!allowsProduct(access, code)) throw new ApiFailure('FORBIDDEN')
+  // '*' is a global write, not a product: plain FORBIDDEN. A concrete product uses the 05 §4 code.
+  if (!allowsProduct(access, code)) throw new ApiFailure(code && code !== '*' ? 'FORBIDDEN_PRODUCT_ACCESS' : 'FORBIDDEN')
 }
 
 /** Values come from the master table, but are still quoted for PostgREST's filter grammar. */

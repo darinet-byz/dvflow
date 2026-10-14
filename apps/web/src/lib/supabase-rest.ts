@@ -72,6 +72,12 @@ const SQLSTATE_TO_CODE: Record<string, ApiErrorCode> = {
   DF012: 'FORBIDDEN_REPORT_TAX',
   // `insufficient_privilege` standar Postgres — dipetakan PostgREST ke 403.
   '42501': 'FORBIDDEN',
+  // RPC/tabel/kolom belum ada: database tertinggal dari versi aplikasi.
+  PGRST202: 'SCHEMA_OUT_OF_DATE',
+  PGRST205: 'SCHEMA_OUT_OF_DATE',
+  '42883': 'SCHEMA_OUT_OF_DATE',
+  '42703': 'SCHEMA_OUT_OF_DATE',
+  '42P01': 'SCHEMA_OUT_OF_DATE',
 }
 
 const LOCAL_MESSAGES: Partial<Record<ApiErrorCode, string>> = {
@@ -80,6 +86,7 @@ const LOCAL_MESSAGES: Partial<Record<ApiErrorCode, string>> = {
   FORBIDDEN_REPORT_TAX: 'Anda tidak memiliki izin membuka Report Tax.',
   INVALID_ARGUMENT: 'Permintaan data tidak valid.',
   NOT_FOUND: 'Data tidak ditemukan.',
+  SCHEMA_OUT_OF_DATE: 'Database belum diperbarui ke versi aplikasi ini. Hubungi developer.',
   INTERNAL_ERROR: 'Data tidak dapat dimuat.',
 }
 

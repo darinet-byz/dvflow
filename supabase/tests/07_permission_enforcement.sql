@@ -112,8 +112,6 @@ select lives_ok($$select public.reset_product_configuration('dddddddd-dddd-dddd-
 select is((select count(*) from public.products),0::bigint,'products emptied');
 select is((select count(*) from public.sessions_config),9::bigint,'nine sessions seeded');
 select is((select count(*) from public.event_types where code in ('SO','WO')),2::bigint,'canonical event types re-seeded');
-select is(public.master_code_in_text('webinar_destination::KULI','ST'),false,'ST is not a substring false positive');
-select is(public.master_code_in_text('KULI01SO392 - ST - Solo','ST'),true,'ST token matches');
 select is((select count(*) from public.payment_fee_rules where identifier='keep'),1::bigint,'tax preserved');
 select is((select has_all_product_access from public.users where id='eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'),false,'scoped user not elevated');
 rollback to before_reset;

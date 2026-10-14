@@ -38,7 +38,7 @@ export function TeamPage() {
   const session = useSession()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
-  const [role, setRole] = useState<AppRole>('staff')
+  const [role, setRole] = useState<AppRole>('member')
   const [hasAllProducts, setHasAllProducts] = useState(true)
   const [selectedProductCodes, setSelectedProductCodes] = useState<string[]>([])
 
@@ -48,7 +48,7 @@ export function TeamPage() {
 
   const [editing, setEditing] = useState<Member | null>(null)
   const [editDisplayName, setEditDisplayName] = useState('')
-  const [editRole, setEditRole] = useState<AppRole>('staff')
+  const [editRole, setEditRole] = useState<AppRole>('member')
   const [editActive, setEditActive] = useState(true)
   const [editPassword, setEditPassword] = useState('')
   const [editHasAllProducts, setEditHasAllProducts] = useState(true)
@@ -63,6 +63,11 @@ export function TeamPage() {
   )
 
   const { data: configLists } = useAsyncData(fetchConfigLists, [])
+  // Role kustom dari Konfigurasi Role juga harus dapat dipilih (bukan hanya daftar tetap).
+  const { data: roleList } = useAsyncData(
+    () => authorizedRequest<{ roles: { id: string; name: string }[] }>('/api/roles'),
+    [],
+  )
   const productOptions = configLists?.products ?? []
 
   const term = search.trim().toLowerCase()
@@ -110,7 +115,7 @@ export function TeamPage() {
       })
       setUsername('')
       setPassword('')
-      setRole('staff')
+      setRole('member')
       setHasAllProducts(true)
       setSelectedProductCodes([])
       reload()
@@ -185,7 +190,9 @@ export function TeamPage() {
     }
   }
 
-  const roleOptions = Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }))
+  const roleOptions = roleList?.roles?.length
+    ? roleList.roles.map((item) => ({ value: item.id, label: ROLE_LABELS[item.id] ?? item.name }))
+    : Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }))
 
   return (
     <>

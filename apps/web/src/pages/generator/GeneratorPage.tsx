@@ -5,6 +5,7 @@ import { PageHeader } from '../../layout/PageHeader'
 import { Button } from '../../ui/Button'
 import { Card, CardHeader } from '../../ui/Card'
 import { TextInput, Select } from '../../ui/Field'
+import { ErrorState } from '../../ui/Feedback'
 import { useToast } from '../../ui/Toast'
 import { cn } from '../../ui/cn'
 
@@ -27,7 +28,7 @@ import { cn } from '../../ui/cn'
 const TYPE_LABEL = 'Seminar / Webinar'
 
 export function GeneratorPage() {
-  const { lists } = useConfigLists()
+  const { lists, error: listsError } = useConfigLists()
   const toast = useToast()
 
   const [productCode, setProductCode] = useState('')
@@ -87,6 +88,7 @@ export function GeneratorPage() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader title="Input" description="Semua field wajib diisi." />
+          {listsError ? <ErrorState title="Pilihan kode gagal dimuat" message={listsError} /> : null}
 
           <div className="flex flex-col gap-3">
             <Select

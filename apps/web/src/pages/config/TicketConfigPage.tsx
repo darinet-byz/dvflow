@@ -85,6 +85,8 @@ export function TicketConfigPage() {
   const [active, setActive] = useState(true)
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState(false)
+  // Key rule yang sedang diedit: server membuangnya bila scope berubah (tanpa rule ganda).
+  const [originalKey, setOriginalKey] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<SeminarTicketRow | null>(null)
   const [previewRow, setPreviewRow] = useState<{
     product_code: string
@@ -124,6 +126,7 @@ export function TicketConfigPage() {
     setNotes('')
     setActive(true)
     setEditing(false)
+    setOriginalKey(null)
     setFailure(null)
   }
 
@@ -143,6 +146,7 @@ export function TicketConfigPage() {
           schedule: schedule.trim(),
           notes: notes.trim(),
           active,
+          ...(originalKey ? { original_key: originalKey } : {}),
         },
       })
       resetForm()
@@ -182,6 +186,7 @@ export function TicketConfigPage() {
   }
 
   function startEdit(row: SeminarTicketRow) {
+    setOriginalKey(row.key)
     setProductCode(row.product_code || '*')
     setBatch(row.batch === '*' ? '' : row.batch)
     setSessionCode(row.session_code || '*')

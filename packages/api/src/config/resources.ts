@@ -24,7 +24,6 @@ export type ConfigResource = {
   columns: readonly string[]
   /** Kolom identitas yang unik — dipakai untuk pesan duplikat yang tepat. */
   identityColumn: 'code' | 'identifier'
-  identityErrorCode: 'CODE_TAKEN' | 'IDENTIFIER_TAKEN'
   /** Sumber daya yang ikut menentukan kombinasi kode produk. */
   participatesInCodeCombinations: boolean
   /** Kolom yang boleh ditulis, berurutan. */
@@ -37,7 +36,6 @@ export const CONFIG_RESOURCES: Record<ConfigResourceName, ConfigResource> = {
     table: 'products',
     columns: ['id', 'name', 'code', 'active', 'created_at', 'updated_at'],
     identityColumn: 'code',
-    identityErrorCode: 'CODE_TAKEN',
     participatesInCodeCombinations: true,
     writableColumns: ['name', 'code', 'active'],
   },
@@ -46,7 +44,6 @@ export const CONFIG_RESOURCES: Record<ConfigResourceName, ConfigResource> = {
     table: 'advertisers',
     columns: ['id', 'name', 'code', 'active', 'created_at', 'updated_at'],
     identityColumn: 'code',
-    identityErrorCode: 'CODE_TAKEN',
     participatesInCodeCombinations: true,
     writableColumns: ['name', 'code', 'active'],
   },
@@ -55,7 +52,6 @@ export const CONFIG_RESOURCES: Record<ConfigResourceName, ConfigResource> = {
     table: 'event_types',
     columns: ['id', 'name', 'code', 'kind', 'active', 'created_at', 'updated_at'],
     identityColumn: 'code',
-    identityErrorCode: 'CODE_TAKEN',
     // `kind` menentukan `orders.event_type` (K7), jadi kode event type ikut
     // membentuk kombinasi kode produk.
     participatesInCodeCombinations: true,
@@ -66,7 +62,6 @@ export const CONFIG_RESOURCES: Record<ConfigResourceName, ConfigResource> = {
     table: 'sessions_config',
     columns: ['id', 'name', 'code', 'active', 'created_at', 'updated_at'],
     identityColumn: 'code',
-    identityErrorCode: 'CODE_TAKEN',
     // Sesi dipisah oleh " - " pada product_raw, bukan bagian dari blok kode.
     participatesInCodeCombinations: false,
     writableColumns: ['name', 'code', 'active'],
@@ -76,7 +71,6 @@ export const CONFIG_RESOURCES: Record<ConfigResourceName, ConfigResource> = {
     table: 'payment_fee_rules',
     columns: ['id', 'name', 'identifier', 'fee_type', 'fee_value', 'active', 'created_at', 'updated_at'],
     identityColumn: 'identifier',
-    identityErrorCode: 'IDENTIFIER_TAKEN',
     participatesInCodeCombinations: false,
     writableColumns: ['name', 'identifier', 'fee_type', 'fee_value', 'active'],
   },
@@ -150,7 +144,7 @@ export function validateConfigBody(
   if (resource.writableColumns.includes('fee_type') && has('fee_type')) {
     const feeType = readText(body['fee_type'])
     if (feeType === null || !FEE_TYPES.includes(feeType as (typeof FEE_TYPES)[number])) {
-      throw new ApiFailure('INVALID_ARGUMENT', 'fee_type harus flat atau percentage')
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Tipe biaya harus flat atau percentage.')
     }
     patch['fee_type'] = feeType
   }
@@ -158,10 +152,10 @@ export function validateConfigBody(
   if (resource.writableColumns.includes('fee_value') && has('fee_value')) {
     const feeValue = body['fee_value']
     if (typeof feeValue !== 'number' || !Number.isFinite(feeValue)) {
-      throw new ApiFailure('INVALID_ARGUMENT', 'fee_value harus berupa angka')
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nilai biaya wajib diisi dengan angka.')
     }
     if (feeValue < 0 || feeValue > FEE_VALUE_MAX) {
-      throw new ApiFailure('INVALID_ARGUMENT', 'fee_value di luar rentang yang wajar')
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nilai biaya di luar rentang yang wajar.')
     }
     patch['fee_value'] = feeValue
   }

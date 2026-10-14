@@ -42,11 +42,12 @@ describe('Developer Reset Data & 90-Day Unmapped Retention', () => {
   it('mengembalikan ringkasan data jika role adalah developer', async () => {
     const devUser = { id: 'dev-1', role: 'developer', active: true }
     const db = {
-      selectRows: vi.fn(async (table: string) => {
-        if (table === 'users') return [devUser]
-        if (table === 'orders') return [{ id: '1' }, { id: '2' }]
-        if (table === 'webhook_logs') return [{ id: 'l1' }]
-        return []
+      selectRows: vi.fn(async (table: string) => (table === 'users' ? [devUser] : [])),
+      // COUNT exact: jumlah di atas batas max_rows PostgREST (1000) tetap akurat.
+      countRows: vi.fn(async (table: string, query: Record<string, string>) => {
+        if (table === 'orders') return query['product_parse_status'] ? 0 : 2500
+        if (table === 'webhook_logs') return 1
+        return 0
       }),
     } as unknown as Db
 
@@ -61,7 +62,7 @@ describe('Developer Reset Data & 90-Day Unmapped Retention', () => {
     expect(res.status).toBe(200)
     const body = await res.json() as { ok: boolean; data: Record<string, number> }
     expect(body.ok).toBe(true)
-    expect(body.data.orders_count).toBe(2)
+    expect(body.data.orders_count).toBe(2500)
     expect(body.data.webhook_logs_count).toBe(1)
   })
 

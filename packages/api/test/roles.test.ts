@@ -117,7 +117,9 @@ describe('Fitur 2.0: Roles & Permissions API', () => {
         headers: { authorization: `Bearer ${token}` },
       }),
     )
-    expect(delRes.status).toBe(403)
+    // 05 §2: 400 SYSTEM_ROLE_CANNOT_BE_DELETED.
+    expect(delRes.status).toBe(400)
+    expect(((await delRes.json()) as { error: { code: string } }).error.code).toBe('SYSTEM_ROLE_CANNOT_BE_DELETED')
   })
 
   it('GET /api/permissions mengembalikan kelompok modul', async () => {
@@ -199,6 +201,7 @@ describe('Fitur 2.0: Roles & Permissions API', () => {
     )
     expect(checkinMt.status).toBe(403)
     const errBody = await readBody<{ ok: false; error: { code: string; message: string } }>(checkinMt)
-    expect(errBody.error.code).toBe('FORBIDDEN')
+    // 05 §4: produk di luar penugasan operator.
+    expect(errBody.error.code).toBe('FORBIDDEN_PRODUCT_ACCESS')
   })
 })

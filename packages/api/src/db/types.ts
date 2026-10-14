@@ -13,6 +13,8 @@ export type Db = {
   rpc<T>(name: string, args: Record<string, unknown>): Promise<T>
   /** SELECT baris. `query` memakai sintaks PostgREST, mis. `{ active: 'is.true' }`. */
   selectRows<T>(table: string, query: Record<string, string>, columns: string): Promise<T[]>
+  /** Jumlah baris yang cocok (COUNT exact, tidak terkena batas max_rows). */
+  countRows(table: string, query: Record<string, string>): Promise<number>
   /** INSERT dan kembalikan baris yang dibuat. */
   insertRow<T>(table: string, row: Record<string, unknown>, columns?: string): Promise<T>
   /** UPDATE baris yang cocok dengan `query`. */

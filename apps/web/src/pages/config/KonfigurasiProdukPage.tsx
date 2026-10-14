@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { hasPermission } from '../../lib/roles'
 import { useSession } from '../../lib/useSession'
 import { PageHeader } from '../../layout/PageHeader'
@@ -19,6 +20,9 @@ import { ADVERTISER_SPEC, EVENT_TYPE_SPEC, PRODUCT_SPEC, SESSION_SPEC } from './
  */
 export function KonfigurasiProdukPage() {
   const { profile } = useSession()
+  // Pilihan kode di bagian alias ikut diperbarui setelah master berubah di bagian atas.
+  const [configVersion, setConfigVersion] = useState(0)
+  const bump = () => setConfigVersion((v) => v + 1)
   return (
     <>
       <PageHeader
@@ -27,11 +31,11 @@ export function KonfigurasiProdukPage() {
       />
 
       <div className="flex flex-col gap-4">
-        {hasPermission(profile, 'config.produk') ? <ConfigSection spec={PRODUCT_SPEC} /> : null}
-        {hasPermission(profile, 'config.produk') ? <ConfigSection spec={ADVERTISER_SPEC} /> : null}
-        {hasPermission(profile, 'config.produk') ? <ConfigSection spec={EVENT_TYPE_SPEC} /> : null}
-        {hasPermission(profile, 'config.produk') ? <ConfigSection spec={SESSION_SPEC} /> : null}
-        {hasPermission(profile, 'config.alias_produk') ? <ProductAliasSection /> : null}
+        {hasPermission(profile, 'config.produk') ? <ConfigSection spec={PRODUCT_SPEC} onChanged={bump} /> : null}
+        {hasPermission(profile, 'config.produk') ? <ConfigSection spec={ADVERTISER_SPEC} onChanged={bump} /> : null}
+        {hasPermission(profile, 'config.produk') ? <ConfigSection spec={EVENT_TYPE_SPEC} onChanged={bump} /> : null}
+        {hasPermission(profile, 'config.produk') ? <ConfigSection spec={SESSION_SPEC} onChanged={bump} /> : null}
+        {hasPermission(profile, 'config.alias_produk') ? <ProductAliasSection configVersion={configVersion} /> : null}
       </div>
     </>
   )

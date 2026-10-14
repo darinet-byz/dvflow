@@ -305,7 +305,7 @@ describe('webhook: ingestion yang diterima', () => {
     const failingDb: Db = {
       ...createFakeDb(state),
       async rpc() {
-        throw new DbError('42P01', 'relation "orders" does not exist')
+        throw new DbError('XX000', 'internal error on orders')
       },
     }
     const env = await createTestEnv({ ORDERONLINE_WEBHOOK_SECRET: SECRET })
@@ -320,10 +320,10 @@ describe('webhook: ingestion yang diterima', () => {
       error: { code: 'INTERNAL_ERROR', message: 'Terjadi kesalahan pada server.' },
     })
     expect(raw).not.toContain('orders')
-    expect(raw).not.toContain('42P01')
+    expect(raw).not.toContain('XX000')
 
     expect(state.webhookLogs[0]?.['outcome']).toBe('failed')
-    expect(state.webhookLogs[0]?.['error_code']).toBe('42P01')
+    expect(state.webhookLogs[0]?.['error_code']).toBe('XX000')
   })
 
   it('webhook tidak memerlukan header Origin (server-to-server)', async () => {

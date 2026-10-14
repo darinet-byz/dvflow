@@ -1,4 +1,5 @@
 import { requirePermission, productAccess, assertProductAccess } from '../permissions'
+import { resolveProductAlias } from '../webhooks/handlers'
 import { buildCheckinPath, isOrderIdShaped } from '@dvflow/shared'
 import type { Db } from '../db/types'
 import { ApiFailure } from '../http/errors'
@@ -55,6 +56,16 @@ export async function loadOrder(db: Db, orderId: string): Promise<OrderRow | nul
  * pernah membuat gambar QR).
  */
 export async function accessOrder(context: RouteContext): Promise<Response> {
+  // 03 §15: peserta selalu menerima halaman HTML, tidak pernah JSON 500 dari router.
+  try {
+    return await accessOrderPage(context)
+  } catch (error) {
+    console.error(`[access] gagal ${error instanceof Error ? error.name : typeof error}`)
+    return renderErrorPage('GENERIC_ACCESS_ERROR', null)
+  }
+}
+
+async function accessOrderPage(context: RouteContext): Promise<Response> {
   const kodeToko = context.params['kodeToko']?.trim().toUpperCase()
   const orderId = context.params['orderId'] ?? ''
 
@@ -115,7 +126,7 @@ export async function accessOrder(context: RouteContext): Promise<Response> {
 
   const byKey = new Map(ticketRows.map((row) => [row.key, row.value_text]))
   let matchedRaw: string | null = null
-  for (const candidate of candidateSettingKeys(order, TICKET_PREFIX)) {
+  for (const candidate of candidateSettingKeys({ ...order, alias_target: await resolveProductAlias(context.db, order.product_raw) }, TICKET_PREFIX)) {
     const val = byKey.get(candidate)
     if (val !== undefined && val !== null && val.trim() !== '') {
       matchedRaw = val
@@ -168,7 +179,7 @@ async function redirectToWebinar(context: RouteContext, order: OrderRow): Promis
 
   const byKey = new Map(rows.map((row) => [row.key, row.value_text]))
   let destination: string | null = null
-  for (const candidate of candidateSettingKeys(order, WEBINAR_PREFIX)) {
+  for (const candidate of candidateSettingKeys({ ...order, alias_target: await resolveProductAlias(context.db, order.product_raw) }, WEBINAR_PREFIX)) {
     const val = byKey.get(candidate)
     if (val !== undefined && val !== null && val.trim() !== '') {
       destination = val

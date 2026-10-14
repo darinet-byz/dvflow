@@ -49,7 +49,10 @@ async function request(path, init) {
  * endpoint dan secret-nya benar-benar cocok dengan server yang lain.
  */
 function webhookSecret() {
+  // Server lokal selalu memakai .dev.vars; .env.setup.local hanya untuk target sungguhan.
+  const isLocalTarget = ['127.0.0.1', 'localhost'].includes(new URL(BASE).hostname)
   try {
+    if (isLocalTarget) throw new Error('lokal')
     const setup = readFileSync('.env.setup.local', 'utf8')
     const line = setup.split('\n').find((row) => row.startsWith('ORDERONLINE_WEBHOOK_SECRET='))
     const value = line?.slice('ORDERONLINE_WEBHOOK_SECRET='.length).trim()
@@ -96,6 +99,8 @@ const access = await request('/access/999999')
 check('/access/* ditangani Functions (halaman error, bukan index.html)', access.type.includes('html') && !access.body.includes('id="root"'))
 check('order tidak dikenal -> 404', access.status === 404, `status ${access.status}`)
 check('halaman error peserta tampil', access.body.includes('Tiket tidak ditemukan'))
+const storeAccess = await request('/access/TK01/999999')
+check('/access/:kodeToko/:orderId ditangani Functions', storeAccess.type.includes('html') && !storeAccess.body.includes('id="root"'))
 
 const checkinPage = await request('/checkin/123456')
 check('/checkin/* ditangani Functions', checkinPage.type.includes('html') && checkinPage.body.includes('Bukan halaman check-in'))
@@ -113,7 +118,7 @@ const orderPayload = {
   action: 'create',
   payload: {
     order_id: orderId,
-    product_data: { name: 'KM01SO392 - S1 - Solo' },
+    product_data: { name: 'KULI01SO392 - S1 - Solo' },
     customer_data: { name: 'Peserta Smoke', phone: '+628000', email: 'smoke@example.com' },
     payment: { method: 'bank_transfer', data: [], channels: [], status: 'unpaid' },
     status: 'processing',

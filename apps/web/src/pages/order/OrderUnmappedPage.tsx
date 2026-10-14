@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   validateProductNameInput,
   type ProductAliasItem,
@@ -8,7 +8,7 @@ import { PageHeader } from '../../layout/PageHeader'
 import { authorizedRequest } from '../../lib/session'
 import { useSession } from '../../lib/useSession'
 import { hasPermission } from '../../lib/roles'
-import { useAsyncData } from '../../lib/useAsyncData'
+import { useAsyncData, useDebouncedValue } from '../../lib/useAsyncData'
 import { useConfigLists } from '../../lib/useConfigLists'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
@@ -32,6 +32,8 @@ export function OrderUnmappedPage() {
   const { profile } = useSession()
   const canManageAliases = hasPermission(profile, 'config.alias_produk')
   const [search, setSearch] = useState('')
+  const debouncedSearch = useDebouncedValue(search.trim())
+  const [page, setPage] = useState(1)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [modalOpen, setModalOpen] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -49,12 +51,19 @@ export function OrderUnmappedPage() {
   const [saveAlias, setSaveAlias] = useState(canManageAliases)
 
   const toast = useToast()
-  const { lists } = useConfigLists()
+  const { lists, error: listsError } = useConfigLists()
 
   const { data, loading, error, reload } = useAsyncData(
-    () => authorizedRequest<{ rows: UnmappedOrderItem[] }>(`/api/orders/unmapped?search=${encodeURIComponent(search.trim())}`),
-    [search],
+    () => authorizedRequest<{ rows: UnmappedOrderItem[]; has_more?: boolean }>(
+      `/api/orders/unmapped?search=${encodeURIComponent(debouncedSearch)}&page=${page}`,
+    ),
+    [debouncedSearch, page],
   )
+
+  // Pilihan hanya berlaku untuk baris yang sedang terlihat: order yang hilang dari
+  // hasil pencarian tidak boleh ikut dipetakan diam-diam.
+  useEffect(() => { setSelectedIds(new Set()) }, [debouncedSearch, page])
+  useEffect(() => { setPage(1) }, [debouncedSearch])
 
   const { data: aliasData, reload: reloadAliases } = useAsyncData(
     () => canManageAliases ? authorizedRequest<{ rows: ProductAliasItem[] }>('/api/product-aliases') : Promise.resolve({ rows: [] as ProductAliasItem[] }),
@@ -110,6 +119,8 @@ export function OrderUnmappedPage() {
     setModalOpen(true)
   }
 
+  const aliasEnabled = canManageAliases && saveAlias
+
   async function handleBatchRemap() {
     if (!canonicalPreview) {
       toast.show('Konfigurasi target belum lengkap / tidak valid.', 'danger')
@@ -125,8 +136,8 @@ export function OrderUnmappedPage() {
           body: {
             orderIds: Array.from(selectedIds),
             canonicalTarget: canonicalPreview,
-            saveAlias: canManageAliases && saveAlias,
-            aliasName: saveAlias ? aliasName.trim() : null,
+            saveAlias: aliasEnabled,
+            aliasName: aliasEnabled ? aliasName.trim() : null,
           },
         },
       )
@@ -184,6 +195,7 @@ export function OrderUnmappedPage() {
           </div>
 
           {error ? <ErrorState message={error} action={<Button onClick={reload}>Coba lagi</Button>} /> : null}
+          {listsError ? <ErrorState title="Pilihan kode gagal dimuat" message={listsError} /> : null}
 
           {loading && !data ? (
             <SkeletonRows rows={4} />
@@ -266,6 +278,18 @@ export function OrderUnmappedPage() {
               })}
             </DataTable>
           )}
+
+          {page > 1 || data?.has_more ? (
+            <div className="flex items-center justify-end gap-2 text-[12px] text-ink-muted">
+              <Button size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={loading || page === 1}>
+                Sebelumnya
+              </Button>
+              <span>Halaman {page}</span>
+              <Button size="sm" onClick={() => setPage((p) => p + 1)} disabled={loading || !data?.has_more}>
+                Berikutnya
+              </Button>
+            </div>
+          ) : null}
 
           {!loading && !error && rows.length === 0 ? (
             <div className="py-12 text-center">
@@ -403,6 +427,10 @@ export function OrderUnmappedPage() {
               {canonicalPreview || '(Lengkapi pilihan di atas untuk melihat preview)'}
             </p>
           </div>
+
+          <p className="text-[11px] text-ink-muted">
+            Nama produk asli dari OrderOnline otomatis diingat ke target ini, sehingga pembaruan webhook berikutnya (mis. Pending → Paid) tetap terpetakan.
+          </p>
 
           {canManageAliases ? <div className="border-t border-line pt-3 flex flex-col gap-2">
             <label className="flex items-center gap-2 text-[13px] font-medium text-ink cursor-pointer">

@@ -91,6 +91,8 @@ export function ZoomPage() {
   const [destination, setDestination] = useState('')
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState(false)
+  // Key rule yang sedang diedit: server membuangnya bila scope berubah (tanpa rule ganda).
+  const [originalKey, setOriginalKey] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<WebinarRow | null>(null)
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
@@ -119,6 +121,7 @@ export function ZoomPage() {
     setProductRaw('')
     setDestination('')
     setEditing(false)
+    setOriginalKey(null)
     setFailure(null)
   }
 
@@ -138,7 +141,10 @@ export function ZoomPage() {
               session_code: sessionCode || '*',
               destination,
             }
-      await authorizedRequest('/api/webinar-destinations', { method: 'POST', body })
+      await authorizedRequest('/api/webinar-destinations', {
+        method: 'POST',
+        body: originalKey ? { ...body, original_key: originalKey } : body,
+      })
       resetForm()
       reload()
       toast.show('Link Zoom disimpan. Salin link peserta untuk template followup.', 'success')
@@ -177,6 +183,7 @@ export function ZoomPage() {
   }
 
   function startEdit(row: WebinarRow) {
+    setOriginalKey(row.key ?? row.product_raw)
     const isScope = row.mode === 'scope' || row.product_raw.startsWith('__scope__::')
     if (isScope) {
       const rawParts = row.product_raw.startsWith('__scope__::')
@@ -269,7 +276,7 @@ export function ZoomPage() {
             value={productRaw}
             onChange={setProductRaw}
             disabled={busy}
-            placeholder="Opsional — isi hanya jika ingin spesifik 1 nama produk utuh (Contoh: KM01WO001 - ST - Jakarta)"
+            placeholder="Opsional — isi hanya jika ingin spesifik 1 nama produk utuh (Contoh: KULI01WO001 - ST - Jakarta)"
           />
 
           <TextInput

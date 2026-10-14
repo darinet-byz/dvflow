@@ -27,6 +27,12 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm test
+      # Kode tidak boleh mendahului database: deploy ditahan sampai migrasi terbaru diterapkan.
+      - name: Check database schema version
+        run: node scripts/check-schema-version.mjs
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
       - name: Build production assets
         run: npm run build
         env:

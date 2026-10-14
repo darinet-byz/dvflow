@@ -1,4 +1,5 @@
 import { parseProductRaw, type ProductAliasItem } from '@dvflow/shared'
+import { buildIlikeOrFilter, sanitizeSearchTerm } from '../http/postgrest-filter'
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
 import type { RouteContext } from '../router'
@@ -36,13 +37,13 @@ export async function saveAlias(context: RouteContext): Promise<Response> {
   const canonicalTarget = readString(body, 'canonical_target')?.trim()
 
   if (!aliasName || aliasName.length > 200 || !canonicalTarget || canonicalTarget.length > 200) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Nama alias dan target konfigurasi wajib diisi (maks 200 karakter)')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nama alias dan target konfigurasi wajib diisi (maks 200 karakter)')
   }
 
   const config = await loadProductConfig(context.db)
   const parse = parseProductRaw(canonicalTarget, config)
   if (parse.product_parse_status !== 'valid') {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Target konfigurasi tidak valid menurut aturan parser DVFLOW')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Target konfigurasi tidak valid menurut aturan parser DVFLOW')
   }
 
   const access = await productAccess(context, actor)
@@ -104,7 +105,7 @@ export async function listUnmappedOrders(context: RouteContext): Promise<Respons
   const access = await productAccess(context, actor)
   if (!access.all) throw new ApiFailure('FORBIDDEN')
 
-  const search = context.url.searchParams.get('search')?.trim() ?? ''
+  const search = sanitizeSearchTerm(context.url.searchParams.get('search'))
   const page = Math.max(1, parseInt(context.url.searchParams.get('page') ?? '1', 10) || 1)
   const pageSize = Math.min(100, Math.max(10, parseInt(context.url.searchParams.get('pageSize') ?? '50', 10) || 50))
   const offset = (page - 1) * pageSize
@@ -114,12 +115,13 @@ export async function listUnmappedOrders(context: RouteContext): Promise<Respons
     product_parse_status: 'eq.invalid',
     created_at: `gte.${cutoffDate}`,
     order: 'created_at.desc',
-    limit: String(pageSize),
+    // One extra row tells the UI whether a next page exists without a COUNT.
+    limit: String(pageSize + 1),
     offset: String(offset),
   }
 
   if (search) {
-    query['or'] = `(order_id.ilike.*${search}*,name.ilike.*${search}*,product_raw.ilike.*${search}*)`
+    query['or'] = buildIlikeOrFilter(['order_id', 'name', 'product_raw'], search)
   }
 
   const rows = await context.db.selectRows<Record<string, unknown>>(
@@ -129,9 +131,10 @@ export async function listUnmappedOrders(context: RouteContext): Promise<Respons
   )
 
   return ok({
-    rows,
+    rows: rows.slice(0, pageSize),
     page,
     pageSize,
+    has_more: rows.length > pageSize,
   })
 }
 
@@ -152,16 +155,16 @@ export async function batchRemapOrders(context: RouteContext): Promise<Response>
   if (saveAlias) await requirePermission(context, 'config.alias_produk')
 
   if (orderIds.length === 0 || orderIds.length > 1000) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Daftar orderId minimal 1 dan maksimal 1000')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Daftar orderId minimal 1 dan maksimal 1000')
   }
   if (!canonicalTarget) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Target konfigurasi wajib ditentukan')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Target konfigurasi wajib ditentukan')
   }
 
   const config = await loadProductConfig(context.db)
   const parse = parseProductRaw(canonicalTarget, config)
   if (parse.product_parse_status !== 'valid') {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Target konfigurasi tidak valid menurut aturan format DVFLOW')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Target konfigurasi tidak valid menurut aturan format DVFLOW')
   }
 
   const result = await context.db.rpc<{ success: boolean; updated_count: number; alias_saved: boolean }>(

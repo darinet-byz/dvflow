@@ -37,6 +37,18 @@ export function createPostgrestDb(env: Env, fetchImpl: typeof fetch = fetch): Db
       return (await response.json()) as T[]
     },
 
+    async countRows(table: string, query: Record<string, string>): Promise<number> {
+      const search = buildQuery({ ...query, select: '*', limit: '0' })
+      const response = await fetchImpl(`${restUrl}/${table}?${search}`, {
+        headers: { ...authHeaders, prefer: 'count=exact' },
+      })
+      await ensureOk(response, `count ${table}`)
+      // Content-Range: "*/123" (atau "0-0/123").
+      const total = Number(response.headers.get('content-range')?.split('/')[1])
+      if (!Number.isFinite(total)) throw new DbError('PGRST_COUNT', `count ${table} tanpa content-range`)
+      return total
+    },
+
     async insertRow<T>(table: string, row: Record<string, unknown>, columns = '*'): Promise<T> {
       const response = await fetchImpl(`${restUrl}/${table}?select=${encodeURIComponent(columns)}`, {
         method: 'POST',

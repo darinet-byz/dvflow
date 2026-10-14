@@ -2,7 +2,7 @@ import { createJwtSigner, type AccessTokenClaims, type JwtSigner } from './auth/
 import type { Db } from './db/types'
 import { DbError } from './db/types'
 import type { Env } from './env'
-import { ApiFailure, DB_SQLSTATE_TO_API_CODE } from './http/errors'
+import { ApiFailure, DB_SQLSTATE_TO_API_CODE, type ApiErrorCode } from './http/errors'
 import { assertSameOrigin } from './http/origin'
 import { fail } from './http/response'
 
@@ -87,7 +87,7 @@ export function createApi(deps: ApiDeps): Api {
         claims,
       })
     } catch (error) {
-      return toFailureResponse(error)
+      return toFailureResponse(error, `${request.method} ${matched.route.path}`)
     }
   }
 }
@@ -121,7 +121,12 @@ function matchPath(pattern: string, pathname: string): Record<string, string> | 
 
     if (patternSegment.startsWith(':')) {
       if (pathSegment === '') return null
-      params[patternSegment.slice(1)] = decodeURIComponent(pathSegment)
+      // Malformed percent-encoding is "no such route", never an uncaught URIError.
+      try {
+        params[patternSegment.slice(1)] = decodeURIComponent(pathSegment)
+      } catch {
+        return null
+      }
       continue
     }
     if (patternSegment !== pathSegment) return null
@@ -147,13 +152,27 @@ async function readAccessClaims(request: Request, signer: JwtSigner, now: Date):
  * `ApiFailure.logContext` dan detail `DbError` sengaja hanya dibuang di sini —
  * tidak ada jalur yang meneruskan pesan internal ke klien.
  */
-function toFailureResponse(error: unknown): Response {
+function toFailureResponse(error: unknown, route: string): Response {
   if (error instanceof ApiFailure) return fail(error.code, {}, error.publicMessage)
 
   if (error instanceof DbError) {
-    const mapped = DB_SQLSTATE_TO_API_CODE[error.sqlState]
+    const mapped = mapDbError(error)
+    // Only the SQLSTATE and route reach the log: DB messages may echo row values.
+    if (mapped === undefined || mapped === 'SCHEMA_OUT_OF_DATE') console.error(`[api] ${route} db error ${error.sqlState}`)
     if (mapped !== undefined) return fail(mapped)
+    return fail('INTERNAL_ERROR')
   }
 
+  console.error(`[api] ${route} unexpected ${error instanceof Error ? error.name : typeof error}`)
   return fail('INTERNAL_ERROR')
+}
+
+/** Some SQLSTATEs need the constraint/message name to pick the precise API code. */
+function mapDbError(error: DbError): ApiErrorCode | undefined {
+  if (error.sqlState === '23505') {
+    if (error.detail.includes('users_username')) return 'USERNAME_TAKEN'
+    if (error.detail.includes('payment_fee_rules_identifier')) return 'IDENTIFIER_TAKEN'
+  }
+  if (error.sqlState === 'DF005' && error.detail.includes('USER_NOT_FOUND')) return 'RESOURCE_NOT_FOUND'
+  return DB_SQLSTATE_TO_API_CODE[error.sqlState]
 }

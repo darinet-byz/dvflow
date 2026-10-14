@@ -172,3 +172,40 @@ Hasil lokal bukan bukti deployment aktif sudah berubah. Pengujian ini juga tidak
 - Edit master memvalidasi kode ketat hanya untuk baris baru atau kode yang berubah, sehingga baris legacy tetap dapat diganti nama/dinonaktifkan; Pengiklan hanya menerima digit; sidebar fail-closed tanpa profil.
 - Catatan terbuka: sidebar aplikasi (15 item) menyimpang dari CLAUDE.md §5 (10 item) sejak sebelum perubahan ini — perlu keputusan produk. Profil dikosongkan saat pembacaan gagal adalah keputusan fail-closed yang disengaja.
 - Verifikasi lokal: typecheck, lint, test (api 203, shared 100, web 117), `npm run test:rbac:db` (7 berkas pgTAP, 0 gagal) lulus. Belum diterapkan ke deployment aktif.
+
+## Audit lanjutan dan perbaikan (14 Oktober 2026, sore)
+
+**Gejala:** tombol seperti Hapus di Konfigurasi Produk menampilkan "Terjadi kesalahan pada server".
+
+**Akar masalah:** push ke `main` otomatis di-deploy, sedangkan database produksi belum menerapkan 0027/0028 (riwayatnya pun baru tercatat sampai 0023). RPC yang dipanggil kode tidak ada, dan error PostgREST `PGRST202` tidak dipetakan. Router juga tidak me-log penyebab 500.
+
+| Area | Temuan | Perbaikan |
+|---|---|---|
+| Deploy | Kode bisa ter-deploy di atas DB lama | `schema_version()` (0029) + langkah CI `scripts/check-schema-version.mjs` |
+| Error | Objek skema hilang, FK, dan format UUID → 500 | `SCHEMA_OUT_OF_DATE` 503, `23503`→`MASTER_IN_USE`, `22P02`→`INVALID_ARGUMENT`; 23505 dibedakan per constraint; router me-log SQLSTATE + rute saja |
+| Error | Pesan validasi (Zoom, alias, role, fee, integrasi, Add Team, reset) hilang | Dikirim sebagai `publicMessage` |
+| Router | `/access/%E0%A4` melempar `URIError` | Percent-encoding rusak → 404 |
+| Pages | `/access/:kodeToko/:orderId` jatuh ke `index.html` | `functions/access/[[path]].ts`; smoke test ditambah |
+| Peserta | Error DB pada halaman peserta → JSON 500 | Halaman `GENERIC_ACCESS_ERROR` |
+| Peserta | Order beralias tidak cocok dengan rule Zoom/tiket exact | Target alias ikut menjadi kandidat key |
+| Remap | Webhook berikutnya membatalkan remap; order valid ikut ter-remap | Alias nama asli disimpan; filter `invalid` (0029) |
+| Kamus | `master_is_used` meloloskan pengiklan/tipe di dalam blok kode | Parse struktur nama kanonik dan key scope (0029) |
+| Kamus | Edit nama baris legacy ditolak karena kode dikirim ulang | Kode yang tidak berubah tidak divalidasi ulang |
+| Tax | Aktifkan ulang fee rule duplikat → pesan salah | Pemeriksaan identifier aktif → `IDENTIFIER_TAKEN` |
+| Integrasi | Mengganti kode toko memecah Order ID | Kode toko immutable (API + UI) |
+| Tim | Hapus user tanpa hierarki; ID non-UUID → 500 | RPC `admin_delete_user`; `22P02` terpetakan |
+| Tim | Role kustom tidak muncul di Add Team | Opsi dari `GET /api/roles`; default role baru `member` |
+| Role | Hapus Role aktif walau masih dipakai | Tombol nonaktif bila `user_count > 0`; kode `ROLE_IN_USE`/`SYSTEM_ROLE_CANNOT_BE_DELETED` |
+| Zoom/Tiket | Edit scope meninggalkan rule lama | `original_key` dibuang setelah rule baru tersimpan |
+| Unmapped | Pencarian mentah ke filter PostgREST; tanpa paging/debounce | `buildIlikeOrFilter`, `has_more`, debounce 300 ms, pilihan direset |
+| Reset Data | Checkbox tidak bisa dicentang lewat kartu; hitungan maksimum 1000 | `onChange` pada input; `countRows` (COUNT exact) |
+| UI | Daftar kode alias basi setelah master berubah; error daftar kode tidak tampil; form profil kosong | `configVersion`; `ErrorState`; sinkronisasi profil |
+| Kode mati | `profileFromRow`, `profileFromVerified`, `identityErrorCode` | Dihapus |
+
+**Data:** atas keputusan pengguna, seluruh data trial dihapus (`scripts/wipe-trial-data.mjs`). DB lokal sudah dimigrasi ke 0029 dan dibersihkan. Untuk produksi, ikuti dok 09.
+
+**Belum dikerjakan:**
+
+- Ekstraksi komponen bersama untuk pembangun nama kanonik (Alias + Unmapped) dan form scope (Zoom + Tiket). Ini refactor tanpa perubahan perilaku dan ditunda supaya tidak menambah risiko.
+- Modal panjang (checklist permission, remap, edit tim) belum dipindah ke drawer.
+- `npm run lint` tidak memeriksa apa pun karena tidak ada workspace yang punya skrip lint.

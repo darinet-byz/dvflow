@@ -16,25 +16,25 @@ export async function getDataSummary(context: RouteContext): Promise<Response> {
   }
 
   const [orders, unmappedOrders, attendance, orderSources, logs, aliases, connections, products] = await Promise.all([
-    context.db.selectRows('orders', { limit: '100000' }, 'id'),
-    context.db.selectRows('orders', { product_parse_status: 'eq.invalid', limit: '100000' }, 'id'),
-    context.db.selectRows('attendance_events', { limit: '100000' }, 'id'),
-    context.db.selectRows('orderonline_order_sources', { limit: '100000' }, 'order_id'),
-    context.db.selectRows('webhook_logs', { limit: '100000' }, 'id'),
-    context.db.selectRows('product_aliases', { limit: '100000' }, 'id'),
-    context.db.selectRows('orderonline_connections', { limit: '100000' }, 'id'),
-    context.db.selectRows('products', { limit: '100000' }, 'id'),
+    context.db.countRows('orders', {}),
+    context.db.countRows('orders', { product_parse_status: 'eq.invalid' }),
+    context.db.countRows('attendance_events', {}),
+    context.db.countRows('orderonline_order_sources', {}),
+    context.db.countRows('webhook_logs', {}),
+    context.db.countRows('product_aliases', {}),
+    context.db.countRows('orderonline_connections', {}),
+    context.db.countRows('products', {}),
   ])
 
   const summary: DataSummaryResult = {
-    orders_count: orders.length,
-    unmapped_orders_count: unmappedOrders.length,
-    attendance_events_count: attendance.length,
-    order_sources_count: orderSources.length,
-    webhook_logs_count: logs.length,
-    product_aliases_count: aliases.length,
-    connections_count: connections.length,
-    products_count: products.length,
+    orders_count: orders,
+    unmapped_orders_count: unmappedOrders,
+    attendance_events_count: attendance,
+    order_sources_count: orderSources,
+    webhook_logs_count: logs,
+    product_aliases_count: aliases,
+    connections_count: connections,
+    products_count: products,
   }
 
   return ok(summary)
@@ -59,15 +59,15 @@ export async function resetData(context: RouteContext): Promise<Response> {
   const password = readString(body, 'password')
 
   if (scopes.length === 0) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Pilih minimal satu cakupan data yang ingin direset')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih minimal satu cakupan data yang ingin direset')
   }
 
   if (confirmationText !== 'Ya, Aku yakin') {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Teks konfirmasi harus persis "Ya, Aku yakin"')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Teks konfirmasi harus persis "Ya, Aku yakin"')
   }
 
   if (!password || password.trim() === '') {
-    throw new ApiFailure('INVALID_CREDENTIALS', 'Password developer wajib diisi')
+    throw new ApiFailure('INVALID_CREDENTIALS', undefined, 'Password developer wajib diisi')
   }
 
   // Verifikasi password developer via database RPC verify_developer_password
@@ -77,7 +77,7 @@ export async function resetData(context: RouteContext): Promise<Response> {
   })
 
   if (!isPasswordValid) {
-    throw new ApiFailure('INVALID_CREDENTIALS', 'Password developer salah. Tindakan reset dibatalkan.')
+    throw new ApiFailure('INVALID_CREDENTIALS', undefined, 'Password developer salah. Tindakan reset dibatalkan.')
   }
 
   const result = await context.db.rpc<ResetDataResult>('developer_reset_data', {

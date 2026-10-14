@@ -67,9 +67,18 @@ export async function updateConfig(context: RouteContext): Promise<Response> {
   assertProductAccess(access, resource.urlName === 'products' ? String(existing['code']) : '*')
 
   const body = await readJsonObject(context.request)
+  // An unchanged code is not an edit of the code: legacy rows stay renamable and
+  // the strict format rule only applies to codes that are actually written.
+  if (resource.identityColumn === 'code' && typeof body['code'] === 'string' &&
+    body['code'].trim().toUpperCase() === String(existing['code']).toUpperCase()) delete body['code']
+  if (Object.keys(body).length === 0) return ok({ resource: resource.urlName, item: existing })
   const values = validateConfigBody(resource, body, { partial: true })
 
-  await assertIdentityAvailable(context.db, resource, { ignoringId: id, incoming: values })
+  // Re-activating a fee rule must respect the active-only unique identifier too.
+  await assertIdentityAvailable(context.db, resource, {
+    ignoringId: id,
+    incoming: { [resource.identityColumn]: existing[resource.identityColumn], active: existing['active'], ...values },
+  })
 
   // Pemeriksaan ambiguitas hanya dijalankan bila kodenya benar-benar berubah:
   // menyunting nama tidak boleh ikut terblokir oleh keadaan konfigurasi yang

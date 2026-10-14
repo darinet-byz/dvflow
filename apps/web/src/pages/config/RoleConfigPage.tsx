@@ -264,6 +264,8 @@ export function RoleConfigPage() {
                         variant="danger"
                         size="sm"
                         onClick={() => { setDeletingRole(role); setFailure(null) }}
+                        disabled={(role.user_count ?? 0) > 0}
+                        title={(role.user_count ?? 0) > 0 ? 'Pindahkan pengguna ke role lain sebelum menghapus.' : undefined}
                       >
                         Hapus
                       </Button>

@@ -41,13 +41,19 @@ export async function saveConnection(context: RouteContext): Promise<Response> {
     slug = (prefix + suffix).slice(0, 4)
   }
   if (slug && !/^[A-Z0-9]{1,4}$/.test(slug)) {
-    throw new ApiFailure('INVALID_ARGUMENT', 'Kode toko wajib 1-4 karakter alfanumerik kapital')
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Kode toko wajib 1-4 karakter alfanumerik kapital')
   }
   const patch: Record<string, unknown> = { name, active: body['active'] }
   if (slug) patch['slug'] = slug
   if (token) patch['api_token_encrypted'] = await encrypt(token, context.env.INTEGRATION_ENCRYPTION_KEY)
   if (context.params['id']) {
     const row = await getConnection(context)
+    // The store code prefixes every order id of this connection (0025); changing it
+    // would split one OrderOnline order into two Master Order rows.
+    if (slug && slug !== row.slug) {
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Kode toko tidak dapat diubah setelah koneksi dibuat.')
+    }
+    delete patch['slug']
     await context.db.updateRows('orderonline_connections', { id: `eq.${row.id}` }, patch)
     return ok({ id: row.id })
   }
