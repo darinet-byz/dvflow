@@ -192,7 +192,14 @@ export function refreshProfile(): Promise<void> {
   if (!accessToken) return Promise.resolve()
   if (profileFlight) return profileFlight
   const token = accessToken
-  profileFlight = apiRequest<{ profile: Profile }>('/api/profile', { accessToken: token })
+  const load = () => apiRequest<{ profile: Profile }>('/api/profile', { accessToken: token })
+  profileFlight = load()
+    // Satu kali coba ulang untuk gangguan sesaat (jaringan saat tab kembali fokus, 5xx).
+    .catch(async (error: unknown) => {
+      if (!isTransientProfileError(error)) throw error
+      await new Promise((resolve) => setTimeout(resolve, PROFILE_RETRY_DELAY_MS))
+      return load()
+    })
     .then(({ profile }) => {
       if (accessToken === token) setSession({ status: 'authenticated', profile }, token)
     }).catch((error: unknown) => {
@@ -200,11 +207,22 @@ export function refreshProfile(): Promise<void> {
       if (error instanceof ApiError && error.code === 'SESSION_INVALID') return bootstrapSession()
       if (error instanceof ApiError && error.code === 'USER_DISABLED') {
         setSession({ status: 'anonymous', profile: null }, null)
-      } else {
-        // No stale master-role bypass when the current authority could not be read.
-        // Keep the token only to allow a later focus/navigation refresh to recover.
-        setSession({ status: 'authenticated', profile: null }, token)
+        return
       }
+      // Gangguan sesaat tidak boleh mengosongkan layar yang sedang dipakai: profil
+      // terakhir tetap dipakai untuk tampilan. Batas akses sesungguhnya ada di server
+      // (guard API + RLS membaca role terkini setiap permintaan), bukan di menu ini.
+      // Tanpa profil sama sekali tetap fail-closed (halaman "Akses belum dapat diverifikasi").
+      if (snapshot.profile !== null) return
+      setSession({ status: 'authenticated', profile: null }, token)
     }).finally(() => { profileFlight = null })
   return profileFlight
+}
+
+const PROFILE_RETRY_DELAY_MS = 1500
+
+/** Gagal yang bukan keputusan otorisasi: jaringan putus, server/DB sedang bermasalah. */
+function isTransientProfileError(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return true
+  return error.status >= 500 || error.code === 'INTERNAL_ERROR' || error.code === 'SCHEMA_OUT_OF_DATE'
 }

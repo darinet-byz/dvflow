@@ -41,7 +41,14 @@ export function App() {
   const location = useLocation()
   useEffect(() => { if (session.status === 'authenticated') void refreshProfile() }, [location.pathname, session.status])
   useEffect(() => {
-    const onFocus = () => { void refreshProfile() }
+    // Fokus jendela terjadi sangat sering (pindah aplikasi, screenshot); cukup sekali
+    // per 10 detik, dan hanya saat tab memang terlihat.
+    let lastFocusRefresh = 0
+    const onFocus = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - lastFocusRefresh < 10_000) return
+      lastFocusRefresh = Date.now()
+      void refreshProfile()
+    }
     window.addEventListener('focus', onFocus)
     return () => window.removeEventListener('focus', onFocus)
   }, [])

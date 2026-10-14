@@ -32,16 +32,35 @@ const PROFILE = {
 }
 
 describe('current permission refresh', () => {
-  it('fails closed even for Developer and recovers on the next successful refresh', async () => {
+  it('gangguan sesaat tidak mengosongkan layar: profil terakhir dipertahankan', async () => {
     const developer = { ...PROFILE, role: 'developer', permissions: ['config.produk'] }
     vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(200, { ok: true, data: { profile: developer, access_token: 't' } })))
     await login('developer', 'test')
-    vi.stubGlobal('fetch', vi.fn(async () => failureResponse('INTERNAL_ERROR', 500)))
+    const failing = vi.fn(async () => failureResponse('INTERNAL_ERROR', 500))
+    vi.stubGlobal('fetch', failing)
     await refreshProfile()
-    expect(getSessionSnapshot().profile).toBeNull()
-    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(200, { ok: true, data: { profile: developer } })))
-    await refreshProfile()
+    expect(failing).toHaveBeenCalledTimes(2) // satu kali coba ulang
     expect(getSessionSnapshot().profile?.role).toBe('developer')
+    expect(getSessionSnapshot().status).toBe('authenticated')
+  })
+
+  it('pulih lewat coba ulang bila gangguan hanya sekali', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(200, { ok: true, data: { profile: PROFILE, access_token: 't' } })))
+    await login('admin1', 'test')
+    let calls = 0
+    vi.stubGlobal('fetch', vi.fn(async () => (++calls === 1
+      ? failureResponse('INTERNAL_ERROR', 500)
+      : jsonResponse(200, { ok: true, data: { profile: { ...PROFILE, permissions: ['operasional.order'] } } }))))
+    await refreshProfile()
+    expect(getSessionSnapshot().profile?.permissions).toEqual(['operasional.order'])
+  })
+
+  it('pencabutan hak akses yang berhasil dibaca tetap langsung berlaku', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(200, { ok: true, data: { profile: { ...PROFILE, permissions: ['config.produk'] }, access_token: 't' } })))
+    await login('admin1', 'test')
+    vi.stubGlobal('fetch', vi.fn(async () => jsonResponse(200, { ok: true, data: { profile: { ...PROFILE, permissions: [] } } })))
+    await refreshProfile()
+    expect(getSessionSnapshot().profile?.permissions).toEqual([])
   })
 
   it('a forbidden response reloads revoked permissions without repeating the write', async () => {
