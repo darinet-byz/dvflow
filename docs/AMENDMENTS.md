@@ -531,3 +531,16 @@ Sumber: informasi provider OrderOnline yang diteruskan pengguna. Migrasi `0032_p
 - Status aktif berupa toggle on/off di baris.
 
 **Masih menunggu.** Payload `instant` nyata untuk memastikan bentuk `channels`. QRIS tidak ada di daftar provider; di Midtrans biasanya masuk `gopay`, sehingga dipastikan dari transaksi nyata.
+
+## A17 — Pemetaan order dikunci walau alias dihapus (16 Oktober 2026)
+
+Keputusan pengguna: alias produk tetap boleh dihapus, tetapi order yang sudah terpetakan tidak boleh menjadi Unmapped pada webhook berikutnya. Migrasi `0034_keep_order_mapping.sql`.
+
+**Pengecualian terhadap aturan "parse invalid → kolom NULL" (CLAUDE.md §4).** Bila webhook berikutnya untuk order yang **sudah valid** membawa nama produk yang **sama** (tanpa membedakan huruf besar/kecil dan spasi tepi) dan hasil parse-nya invalid, misalnya karena alias sudah dihapus:
+- pemetaan produk, pengiklan, tipe, batch, sesi, dan kota dipertahankan;
+- status, pembayaran, dan potongan tetap diperbarui seperti biasa;
+- `webhook_logs.payload_sanitized.mapping_kept = true`.
+
+**Tetap mengikuti hasil parse:**
+- order dengan nama produk yang **berbeda** (produk memang berganti);
+- order **baru** dengan nama yang aliasnya sudah dihapus. Order seperti ini menjadi Unmapped.

@@ -94,9 +94,9 @@ export async function orderOnlineWebhook(context: RouteContext): Promise<Respons
   const effectiveProductRaw = aliasTarget ?? canonical.productRaw
   const parse = parseProductRaw(effectiveProductRaw, config)
 
-  let result: { order_id: string; action: string }
+  let result: { order_id: string; action: string; mapping_kept?: boolean }
   try {
-    result = await context.db.rpc<{ order_id: string; action: string }>(connected ? 'upsert_connected_order' : 'upsert_order_webhook', {
+    result = await context.db.rpc<{ order_id: string; action: string; mapping_kept?: boolean }>(connected ? 'upsert_connected_order' : 'upsert_order_webhook', {
       ...(connected ? { p_connection_id: context.params['connectionId'] } : {}),
       p_payload: buildRpcPayload(canonical, appStatus, parse),
     })
@@ -118,6 +118,8 @@ export async function orderOnlineWebhook(context: RouteContext): Promise<Respons
     summary: {
       shape: adapted.shape,
       action: result.action,
+      // A17: true bila parse invalid diabaikan karena order sudah terpetakan dengan nama produk yang sama.
+      mapping_kept: result.mapping_kept === true,
       raw_status: canonical.rawStatus,
       app_status: appStatus,
       product_raw: canonical.productRaw,

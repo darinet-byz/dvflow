@@ -172,6 +172,9 @@ If `product_raw` is invalid or a code cannot be resolved:
 - do not auto-create configuration;
 - deny participant event access when event type cannot be determined.
 
+Exception (A17, `docs/AMENDMENTS.md`): a later webhook for an order that is already `valid`, carrying the
+**same** product name with an invalid parse (e.g. its alias was deleted), keeps the existing mapping.
+
 ### Tax
 
 Tax is configuration-driven.

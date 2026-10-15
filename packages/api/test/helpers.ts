@@ -326,7 +326,16 @@ export function createFakeDb(state: FakeState): Db {
         }
 
         const existing = state.orders.find((row) => row['order_id'] === orderId)
-        const parse = isFakeObject(payload['parse']) ? payload['parse'] : null
+        const incomingParse = isFakeObject(payload['parse']) ? payload['parse'] : null
+        // Meniru 0034 (A17): parse invalid untuk nama produk yang sama tidak menghapus pemetaan valid.
+        const sameRaw = (a: unknown, b: unknown) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase()
+        const mappingKept = existing !== undefined && incomingParse !== null && incomingParse['status'] !== 'valid' &&
+          existing['product_parse_status'] === 'valid' && sameRaw(payload['productRaw'], existing['product_raw'])
+        const parse = mappingKept ? {
+          status: 'valid', productCode: existing['product_code'], productName: existing['product_name'],
+          advertiserCode: existing['advertiser_code'], advertiserName: existing['advertiser_name'], eventType: existing['event_type'],
+          batch: existing['batch'], session: existing['session'], city: existing['city'],
+        } : incomingParse
 
         const row: Record<string, unknown> = {
           id: existing?.['id'] ?? generatedUuid((nextId += 1)),
@@ -356,7 +365,7 @@ export function createFakeDb(state: FakeState): Db {
         if (existing === undefined) state.orders.push(row)
         else Object.assign(existing, row)
 
-        return { order_id: orderId, action: existing === undefined ? 'inserted' : 'updated' } as T
+        return { order_id: orderId, action: existing === undefined ? 'inserted' : 'updated', mapping_kept: mappingKept } as T
       }
 
       if (name === 'checkin_seminar') {

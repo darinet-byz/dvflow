@@ -462,3 +462,4 @@ sering terlanggar:
 | 2026-10-14 | F2.0 | Jenis acara Hybrid (A14, 0030); label Cara Hadir; perbaikan sesi frontend (gangguan sesaat tidak lagi menampilkan "Akses belum dapat diverifikasi") |
 | 2026-10-15 | F2.0 | Platform Fee + E-payment Fee Tax (A15, 0031); Report Tax & nominal Dashboard hanya order Paid |
 | 2026-10-15 | F2.0 | Kode metode bayar OrderOnline (A16, 0032): instant + payment.channels, katalog 14 metode (toggle), e-payment fee kombinasi persen + flat |
+| 2026-10-16 | F2.0 | A17 (0034): pemetaan order dikunci walau alias dihapus; Report Tax per channel (0033); link akses peserta {{order_id}} |

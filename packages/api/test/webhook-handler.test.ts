@@ -333,3 +333,22 @@ describe('webhook: ingestion yang diterima', () => {
     expect(response.status).toBe(200)
   })
 })
+
+describe('webhook: pemetaan dikunci walau alias dihapus (A17)', () => {
+  it('alias dipakai saat Pending, alias dihapus, webhook Paid tetap terpetakan', async () => {
+    const { state, api } = await setup()
+    state.productAliases.push({ id: 'a1', alias_name: 'Test', alias_name_normalized: 'test', canonical_target: 'KM01SO392 - S1 - Solo' })
+    expect((await post(api)).status).toBe(200)
+    const order = () => state.orders.find((row) => row['order_id'] === '281343516')!
+    expect(order()['product_parse_status']).toBe('valid')
+    expect(order()['product_code']).toBe('KM')
+
+    state.productAliases.length = 0 // alias dihapus
+    expect((await post(api, { body: coFormOrder({ status: 'processing' }) })).status).toBe(200)
+    expect(order()['app_status']).toBe('Paid')
+    expect(order()['product_parse_status']).toBe('valid')
+    expect(order()['product_code']).toBe('KM')
+    expect(order()['event_type']).toBe('Seminar Offline')
+    expect(state.webhookLogs.at(-1)?.['payload_sanitized']).toMatchObject({ mapping_kept: true })
+  })
+})
