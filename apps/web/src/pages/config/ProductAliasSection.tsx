@@ -212,7 +212,7 @@ export function ProductAliasSection({ configVersion = 0 }: { configVersion?: num
             placeholder="Contoh: Workshop Kuliner Solo VIP"
           />
           <p className="text-[11px] text-ink-muted -mt-1">
-            Tulis persis seperti nama produk yang dipasang di checkout form OrderOnline.
+            Tulis persis seperti <strong>Nama Produk</strong> di OrderOnline (bukan nama form/halaman checkout).
           </p>
 
           <span className="mt-2 text-[12px] font-bold uppercase tracking-wider text-ink-muted">
