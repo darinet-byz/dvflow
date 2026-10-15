@@ -626,7 +626,9 @@ Still missing — and therefore still blocking a production-ready claim:
 
 - samples for processing/complete/cancelled (both available samples are `pending`); the mapping is
   already settled by PRD §52, but the real payload shape of those transitions has not been seen;
-- a second payment method (both are `bank_transfer`);
+- a second payment method (both samples are `bank_transfer`). Provider info (A16): e-payment is
+  `payment.method = "instant"` with the channel code in `payment.channels` (`bca_va`, `echannel`, `gopay`, …);
+  the adapter maps it, but a real `instant` payload is still needed to confirm the array shape;
 - whether `paymentIdentifier` is granular enough for per-bank fee rules — `payment.data` and
   `payment.channels` are empty in every sample, so the bank/channel field is unknown.
 

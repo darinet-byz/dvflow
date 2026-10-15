@@ -57,6 +57,10 @@ export type ConfigSpec = {
   identityKey: string
   /** Opsional: ringkasan di bawah form yang dihitung dari nilai form saat ini (mis. contoh perhitungan fee). */
   preview?: (values: Record<string, string>) => ReactNode
+  /** Urutan tetap berdasarkan nilai identitas (mis. katalog metode bayar); yang tidak terdaftar di belakang. */
+  order?: readonly string[]
+  /** Status aktif ditampilkan sebagai toggle on/off di baris, bukan tombol Nonaktifkan/Aktifkan. */
+  activeToggle?: boolean
 }
 
 export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged?: () => void }) {
@@ -86,13 +90,22 @@ export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged
             Object.values(row).some((value) => String(value ?? '').toLowerCase().includes(term)),
           )
 
+    if (spec.order) {
+      const rank = (row: ConfigRow) => {
+        const index = spec.order!.indexOf(String(row[spec.identityKey]))
+        return index === -1 ? Number.MAX_SAFE_INTEGER : index
+      }
+      return [...filtered].sort((left, right) => rank(left) - rank(right) ||
+        String(left[spec.identityKey]).localeCompare(String(right[spec.identityKey]), 'id'))
+    }
+
     // Aktif lebih dulu, lalu menurut identitas — daftar panjang tetap terbaca.
     return [...filtered].sort((left, right) => {
       const activeDiff = Number(right['active'] === true) - Number(left['active'] === true)
       if (activeDiff !== 0) return activeDiff
       return String(left[spec.identityKey]).localeCompare(String(right[spec.identityKey]), 'id')
     })
-  }, [data, search, spec.identityKey])
+  }, [data, search, spec.identityKey, spec.order])
 
   async function submit(formValues: Record<string, string>, target: ConfigRow | null): Promise<void> {
     // Strict only for new/changed codes, so a legacy row can still be renamed or deactivated.
@@ -227,7 +240,19 @@ export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged
                     <Button size="sm" variant="ghost" onClick={() => setEditing(row)}>
                       Edit
                     </Button>
-                    {row['active'] === true ? (
+                    {spec.activeToggle ? (
+                      <label className="mr-1 inline-flex cursor-pointer items-center gap-1.5 text-[12px] text-ink-soft">
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          aria-label={`Aktif ${String(row[spec.identityKey])}`}
+                          checked={row['active'] === true}
+                          disabled={busy}
+                          onChange={() => void (row['active'] === true ? deactivate(row) : reactivate(row))}
+                        />
+                        {row['active'] === true ? 'On' : 'Off'}
+                      </label>
+                    ) : row['active'] === true ? (
                       <Button size="sm" variant="secondary" onClick={() => setConfirming(row)}>
                         Nonaktifkan
                       </Button>
@@ -396,7 +421,9 @@ function ConfigForm({
                   id={`config-${spec.resource}-${field.key}`}
                   label={field.label}
                   value={value}
-                  options={field.options ?? []}
+                  options={value !== '' && !(field.options ?? []).some((option) => option.value === value)
+                    ? [...(field.options ?? []), { value, label: value }]
+                    : field.options ?? []}
                   onChange={update}
                 />
                 {field.help === undefined ? null : (

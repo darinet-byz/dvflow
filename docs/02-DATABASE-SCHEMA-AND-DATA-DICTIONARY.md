@@ -97,7 +97,9 @@ Purpose: mapping S1/S2/ST. Nama tabel sengaja tidak `sessions` agar tidak bentro
 - identifier TEXT NOT NULL
 - identifier_normalized TEXT NOT NULL
 - fee_type TEXT NOT NULL CHECK fee_type IN ('flat','percentage')
-- fee_value NUMERIC(18,4) NOT NULL CHECK fee_value >= 0  -- e-payment fee
+- fee_value NUMERIC(18,4) NOT NULL CHECK fee_value >= 0  -- e-payment fee (persen untuk percentage / percentage_flat)
+- fee_type: flat | percentage | percentage_flat  -- percentage_flat: A16 (0032)
+- fee_flat_value NUMERIC(18,4) NOT NULL DEFAULT 0  -- A16: bagian flat untuk percentage_flat
 - platform_fee_applies BOOLEAN NOT NULL DEFAULT FALSE  -- A15 (0031)
 - epayment_tax_type TEXT NULL CHECK IN ('flat','percentage')  -- A15; berpasangan dengan nilai
 - epayment_tax_value NUMERIC(18,4) NULL CHECK >= 0  -- A15; % dihitung dari e-payment fee
@@ -152,6 +154,7 @@ Tax snapshot:
 - fee_rule_name_snapshot TEXT NULL
 - fee_type_snapshot TEXT NULL CHECK fee_type_snapshot IN ('flat','percentage') OR fee_type_snapshot IS NULL
 - fee_value_snapshot NUMERIC(18,4) NULL
+- fee_flat_value_snapshot NUMERIC(18,4) NULL  -- A16 (0032)
 - epayment_tax_amount NUMERIC(18,2) NOT NULL DEFAULT 0  -- A15 (0031)
 - epayment_tax_type_snapshot TEXT NULL; epayment_tax_value_snapshot NUMERIC(18,4) NULL  -- A15
 - platform_fee_amount NUMERIC(18,2) NOT NULL DEFAULT 0  -- A15: hanya order Paid

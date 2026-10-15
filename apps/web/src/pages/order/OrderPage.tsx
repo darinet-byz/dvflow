@@ -168,7 +168,7 @@ export function OrderPage() {
             ariaLabel="Filter payment method"
             className="w-[190px]"
             value={state.filters.paymentMethod}
-            placeholder="Payment method (mis. bank_transfer)"
+            placeholder="Payment method (mis. bank_transfer, bca_va, gopay)"
             onChange={(value) => state.update('paymentMethod', value)}
           />
           <DateRangeFilters filters={state.filters} lists={lists} update={state.update} />

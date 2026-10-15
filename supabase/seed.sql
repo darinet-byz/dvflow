@@ -34,17 +34,13 @@ on conflict (code_normalized) do nothing;
 --   E01 flat 4000;
 --   E02 percentage 0.7 (= 0,7%).
 --
--- Identifier di sini SENGAJA memakai nilai yang benar-benar dikirim provider
--- (`payment.method` apa adanya: `bank_transfer`, `qris`), bukan label yang lebih
--- rapi seperti "Bank Transfer". Alasannya 06 §15: yang didaftarkan adalah
--- "exact canonical payment identifier" — identifier yang benar-benar diterima
--- aplikasi. Menuliskan label lain di sini hanya akan menghasilkan tax `unmapped`
--- yang membingungkan saat pengembangan.
-insert into public.payment_fee_rules (name, identifier, fee_type, fee_value)
-values
-  ('Admin Bank Transfer', 'bank_transfer', 'flat', 4000),
-  ('Fee QRIS 0.7%', 'qris', 'percentage', 0.7)
-on conflict do nothing;
+-- Katalog metode bayar ditulis migrasi 0032 (nonaktif, nilai 0). Untuk pengembangan,
+-- dua di antaranya dinyalakan dengan nilai contoh: identifier = kode yang dikirim
+-- OrderOnline (bank_transfer; e-payment "instant" + channel, mis. gopay) — A16.
+update public.payment_fee_rules set fee_type = 'flat', fee_value = 4000, active = true
+ where identifier = 'bank_transfer' and not active;
+update public.payment_fee_rules set fee_type = 'percentage', fee_value = 0.7, active = true
+ where identifier = 'gopay' and not active;
 
 -- Catatan: `on conflict do nothing` pada payment_fee_rules tidak memakai target
 -- kolom karena unique-nya adalah partial index (`where active`).

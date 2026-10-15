@@ -1,4 +1,4 @@
-import type { CanonicalOrderWebhook } from '@dvflow/shared'
+import { INSTANT_METHOD, isKnownPaymentChannel, type CanonicalOrderWebhook } from '@dvflow/shared'
 
 /**
  * Batas adapter OrderOnline — SATU-SATUNYA berkas yang boleh menyentuh nama key
@@ -27,7 +27,7 @@ export type AdapterFailureReason =
   | 'MISSING_GROSS_AMOUNT'
 
 export type AdapterOutcome =
-  | { ok: true; value: CanonicalOrderWebhook; shape: AdapterShape; warnings: string[] }
+  | { ok: true; value: CanonicalOrderWebhook; shape: AdapterShape; warnings: string[]; paymentChannels: string[] }
   | { ok: false; reason: AdapterFailureReason; detail: string | null }
 
 export function adaptOrderOnlineWebhook(body: unknown): AdapterOutcome {
@@ -60,6 +60,13 @@ export function adaptOrderOnlineWebhook(body: unknown): AdapterOutcome {
 
   const paymentMethod = readText(payment['method'])
   const paymentProvider = readProviderLabel(payment)
+  // E-payment: method "instant", kode channel di payment.channels (info provider, VA-1/A16).
+  const paymentChannels = readChannelCodes(payment['channels'])
+  const instantChannel = paymentMethod?.toLowerCase() === INSTANT_METHOD ? singleKnownChannel(paymentChannels) : null
+  if (paymentMethod?.toLowerCase() === INSTANT_METHOD && instantChannel === null) {
+    // Kosong, lebih dari satu, atau kode di luar daftar provider: jangan menebak.
+    warnings.push('payment_channel_undetermined')
+  }
 
   // product_raw = nama produk di OrderOnline (keputusan pengguna 2026-10-13).
   //
@@ -84,6 +91,7 @@ export function adaptOrderOnlineWebhook(body: unknown): AdapterOutcome {
     ok: true,
     shape,
     warnings,
+    paymentChannels,
     value: {
       orderId,
       customerName: readText(customer['name']),
@@ -95,12 +103,24 @@ export function adaptOrderOnlineWebhook(body: unknown): AdapterOutcome {
       paymentProvider,
       // Lihat VA-1: label provider lebih spesifik daripada `method`; keduanya
       // key yang teramati, dan urutannya didokumentasikan (bukan tebakan).
-      paymentIdentifier: paymentProvider ?? paymentMethod,
+      paymentIdentifier: instantChannel ?? paymentProvider ?? paymentMethod,
       grossAmount,
       sourceCreatedAt: toIsoTimestamp(order['created_at']),
       sourceUpdatedAt: toIsoTimestamp(updatedAt ?? createdAt),
     },
   }
+}
+
+/** Hanya string pendek; objek/angka dibuang. Dicatat ke webhook_logs untuk memastikan bentuk aslinya. */
+function readChannelCodes(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === 'string' && item.trim() !== '' && item.length <= 64)
+    .map((item) => item.trim().toLowerCase())
+}
+
+function singleKnownChannel(codes: string[]): string | null {
+  const known = [...new Set(codes.filter(isKnownPaymentChannel))]
+  return known.length === 1 ? known[0]! : null
 }
 
 function fail(reason: AdapterFailureReason, detail: string | null): AdapterOutcome {

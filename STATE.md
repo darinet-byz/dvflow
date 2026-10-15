@@ -461,3 +461,4 @@ sering terlanggar:
 | 2026-10-14 | F2.0 | **Runbook dok 09 dijalankan di produksi**: backup (`.local-backups/prod-*-20261014-184636.sql`), skema prod = repo 0001–0026 (335/335 item identik), `migration repair` 0024–0026, `db push` 0027–0029, `schema_version()=29`, data trial dihapus (1 order, 2 produk; backup JSON lokal), seed SO/WO + ST/S1–S8, constraint kode tervalidasi. Akun (3), koneksi (1), fee rule (1) dipertahankan |
 | 2026-10-14 | F2.0 | Jenis acara Hybrid (A14, 0030); label Cara Hadir; perbaikan sesi frontend (gangguan sesaat tidak lagi menampilkan "Akses belum dapat diverifikasi") |
 | 2026-10-15 | F2.0 | Platform Fee + E-payment Fee Tax (A15, 0031); Report Tax & nominal Dashboard hanya order Paid |
+| 2026-10-15 | F2.0 | Kode metode bayar OrderOnline (A16, 0032): instant + payment.channels, katalog 14 metode (toggle), e-payment fee kombinasi persen + flat |

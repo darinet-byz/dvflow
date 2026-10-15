@@ -174,3 +174,13 @@ describe('calculateFees (A15): e-payment fee, e-payment fee tax, platform fee', 
     expect(calculateFees(100_000, null, paid)).toEqual({ epayment_fee: 0, epayment_fee_tax: 0, platform_fee: 0, net_amount: 100000 })
   })
 })
+
+describe('E-payment fee kombinasi persen + flat (A16)', () => {
+  it('0,7% + Rp1.000 dari 100.000 = 1.700', () => {
+    expect(calcTaxAmount(100_000, { fee_type: 'percentage_flat', fee_value: 0.7, fee_flat_value: 1000 })).toBe(1700)
+  })
+  it('calculateFees memakai kombinasi', () => {
+    const rule = { fee_type: 'percentage_flat' as const, fee_value: 0.7, fee_flat_value: 1000, platform_fee_applies: false, epayment_tax_type: null, epayment_tax_value: null }
+    expect(calculateFees(100_000, rule, { platformFeePercent: 2, isPaid: true }).net_amount).toBe(98300)
+  })
+})

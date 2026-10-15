@@ -84,6 +84,8 @@ export type AppStatus = 'Pending' | 'Paid' | 'Cancelled'
 export type ProductParseStatus = 'valid' | 'invalid'
 export type TaxMappingStatus = 'mapped' | 'unmapped'
 export type FeeType = 'flat' | 'percentage'
+/** E-payment fee boleh kombinasi: gross × persen + flat (A16, 0032). */
+export type EpaymentFeeType = FeeType | 'percentage_flat'
 
 /** `hybrid`: satu order berlaku untuk tiket QR (check-in di lokasi) DAN link Zoom (A14). */
 export type EventKind = 'seminar' | 'webinar' | 'hybrid'
@@ -190,8 +192,10 @@ export type ProductConfigSet = {
 export type MatchedFeeRule = {
   id: string | null
   name: string
-  fee_type: FeeType
+  fee_type: EpaymentFeeType
   fee_value: number
+  /** Bagian flat untuk `percentage_flat`; 0 untuk tipe lain. */
+  fee_flat_value?: number
 }
 
 export type ProductAliasItem = {

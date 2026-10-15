@@ -334,11 +334,15 @@ kolom `source_*_at` tidak dipakai untuk filter, sort, maupun perhitungan apa pun
 1. sample status `processing`/`complete` dan `cancelled` — semua sample hanya `pending`.
    Pemetaannya sudah pasti (PRD §52) dan sudah diuji, tetapi belum pernah dilihat bentuk
    payload aslinya: bila provider menaruh data tambahan pada transisi itu, kita tidak tahu;
-2. payment method kedua — semua sample hanya `bank_transfer`;
-3. **granularitas `paymentIdentifier`.** Bila rule per bank dibutuhkan ("VA BCA" vs
-   "VA Mandiri"), perlu diketahui field mana yang membawa nama bank/channel:
-   `payment.data` dan `payment.channels` **kosong di semua sample**, jadi isinya belum boleh
-   ditebak. Bukan penghambat untuk berjalan — hanya penghambat untuk fee per bank;
+2. payment method kedua — semua sample hanya `bank_transfer`. **Informasi provider (15 Okt 2026,
+   lihat A16):** e-payment dikirim sebagai `payment.method = "instant"`; payload `instant` nyata
+   tetap dibutuhkan untuk memastikan bentuknya;
+3. **granularitas `paymentIdentifier`** — sebagian terjawab oleh provider: kode channel ada di
+   `payment.channels` (`bca_va`, `bri_va`, `bni_va`, `bsi_va`, `permata_va`, `echannel` = Mandiri,
+   `gopay`, `ovo`, `dana`, `shopeepay`, `alfamart`, `credit_card`). Adapter memakai kode itu
+   bila ada tepat satu; bentuk array nyata (string vs objek) belum terlihat, karena itu isinya
+   dicatat di `webhook_logs.summary.payment_channels` dan selain satu kode dikenal identifier
+   tetap `instant` + warning `payment_channel_undetermined` (tidak menebak);
 4. Order storefront berisi banyak produk. Tidak menghambat selama CO Form yang dipakai
    (keputusan pengguna), tetapi tetap **tidak boleh dikarang** bila order seperti itu muncul.
    Perilaku sekarang: order tersimpan, `product_raw` NULL, parse `invalid`, akses acara ditolak —
@@ -500,3 +504,30 @@ Atas permintaan eksplisit pengguna (migrasi `0031_platform_fee_and_epayment_tax.
 - Label Blueprint dipertahankan. "Total Tax" di Report Tax sekarang berarti jumlah ketiga potongan, dan rinciannya ditampilkan di sebelahnya.
 
 **Batasan.** Penentuan VA, QRIS, atau bank transfer dilakukan lewat identifier dan centang per rule, bukan deteksi otomatis. Sampel webhook nyata yang tersedia baru `bank_transfer` (VA-1).
+
+## A16 — Kode metode bayar OrderOnline dan katalog Konfigurasi Tax (15 Oktober 2026)
+
+Sumber: informasi provider OrderOnline yang diteruskan pengguna. Migrasi `0032_payment_methods_catalog.sql`.
+
+**Identifier (adapter webhook).**
+- Bank transfer: `payment.method = "bank_transfer"`, sehingga identifier `bank_transfer`. Bila storefront mengirim `providers.label`, label itu yang dipakai.
+- E-payment: `payment.method = "instant"`, dan identifier diambil dari kode di `payment.channels`.
+- Daftar kode channel: `credit_card`, `bsi_va`, `bca_va`, `bni_va`, `bri_va`, `permata_va`, `echannel` (Mandiri; kodenya hanya `echannel`), `gopay`, `ovo`, `dana`, `shopeepay`, `alfamart`.
+- Hanya dipakai bila `channels` berisi tepat satu kode dari daftar ini. Selain itu identifier tetap `instant`. Daftar ada di `packages/shared/src/domain/payment-channels.ts`.
+
+**Katalog.** Migrasi menulis 14 metode bayar dalam keadaan nonaktif dengan nilai 0, tanpa menimpa rule yang sudah ada. Isinya bank_transfer, 12 channel di atas, dan cadangan `instant`.
+- Platform Fee dicentang untuk semua metode kecuali bank_transfer.
+- E-payment Fee Tax awal 1% untuk VA (termasuk `echannel`).
+- Operator menyalakan tiap metode lewat toggle dan mengisi nilainya.
+
+**Fee kombinasi.**
+- E-payment Fee boleh Flat, Persentase, atau Persentase + Flat (`percentage_flat` = gross × persen + `fee_flat_value`).
+- Bagian flat dibekukan di `orders.fee_flat_value_snapshot`.
+- E-payment Fee Tax tetap flat atau persentase.
+
+**UI.**
+- Kode metode dipilih dari daftar, tidak diketik bebas.
+- Baris diurutkan sesuai katalog.
+- Status aktif berupa toggle on/off di baris.
+
+**Masih menunggu.** Payload `instant` nyata untuk memastikan bentuk `channels`. QRIS tidak ada di daftar provider; di Midtrans biasanya masuk `gopay`, sehingga dipastikan dari transaksi nyata.

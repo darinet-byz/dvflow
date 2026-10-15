@@ -65,3 +65,29 @@ describe('A15: platform fee & e-payment fee tax', () => {
     expect(state.config.feeRules[0]).toMatchObject({ epayment_tax_type: null, epayment_tax_value: null })
   })
 })
+
+describe('A16: e-payment fee kombinasi persen + flat', () => {
+  it('menyimpan percentage_flat beserta bagian flat', async () => {
+    const { state, request } = await setup()
+    const response = await request('POST', '/api/config/payment-fee-rules', {
+      name: 'VA BCA', identifier: 'bca_va', fee_type: 'percentage_flat', fee_value: 0.7, fee_flat_value: 1000,
+    })
+    expect(response.status).toBe(201)
+    expect(state.config.feeRules.at(-1)).toMatchObject({ fee_type: 'percentage_flat', fee_value: 0.7, fee_flat_value: 1000 })
+  })
+
+  it('ganti ke tipe biasa mengosongkan bagian flat', async () => {
+    const { state, request } = await setup()
+    const id = String(state.config.feeRules[0]!['id'])
+    await request('PATCH', `/api/config/payment-fee-rules/${id}`, { fee_type: 'percentage_flat', fee_value: 1, fee_flat_value: 500 })
+    await request('PATCH', `/api/config/payment-fee-rules/${id}`, { fee_type: 'flat', fee_value: 4000, fee_flat_value: 500 })
+    expect(state.config.feeRules[0]).toMatchObject({ fee_type: 'flat', fee_flat_value: 0 })
+  })
+
+  it('tipe tidak dikenal ditolak dengan pesan jelas', async () => {
+    const { request } = await setup()
+    const response = await request('POST', '/api/config/payment-fee-rules', { name: 'X', identifier: 'x', fee_type: 'campur', fee_value: 1 })
+    expect(response.status).toBe(400)
+    expect(((await response.json()) as Failure).error.message).toContain('Persentase + Flat')
+  })
+})

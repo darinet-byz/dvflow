@@ -34,13 +34,16 @@ export function roundMoney(value: number): number {
 
 export function calcTaxAmount(
   grossAmount: number,
-  rule: Pick<MatchedFeeRule, 'fee_type' | 'fee_value'>,
+  rule: Pick<MatchedFeeRule, 'fee_type' | 'fee_value' | 'fee_flat_value'>,
 ): number {
   const gross = roundMoney(grossAmount)
+  const percentPart = gross * (rule.fee_value / PERCENTAGE_DIVISOR)
   const tax =
-    rule.fee_type === ('flat' satisfies FeeType)
+    rule.fee_type === 'flat'
       ? rule.fee_value
-      : gross * (rule.fee_value / PERCENTAGE_DIVISOR)
+      : rule.fee_type === 'percentage_flat'
+        ? percentPart + (rule.fee_flat_value ?? 0)
+        : percentPart
   return roundMoney(tax)
 }
 
@@ -109,7 +112,7 @@ export function shouldRecalculateTax(params: {
  *   platform fee      = PLATFORM FEE % x gross, hanya order Paid dan rule yang dicentang
  *   net               = gross - ketiganya
  */
-export type FeeBreakdownRule = Pick<MatchedFeeRule, 'fee_type' | 'fee_value'> & {
+export type FeeBreakdownRule = Pick<MatchedFeeRule, 'fee_type' | 'fee_value' | 'fee_flat_value'> & {
   platform_fee_applies: boolean
   epayment_tax_type: FeeType | null
   epayment_tax_value: number | null

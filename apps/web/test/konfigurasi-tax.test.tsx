@@ -53,4 +53,20 @@ describe('Konfigurasi Tax: platform fee & contoh perhitungan', () => {
     fireEvent.change(within(dialog).getByLabelText('E-payment Fee — Nilai'), { target: { value: '0' } })
     expect(within(dialog).getByTestId('fee-example').textContent).toContain('Rp100.000')
   })
+
+  it('kombinasi persen + flat dan kode metode dari daftar provider (A16)', async () => {
+    render(<MemoryRouter><ToastProvider><KonfigurasiTaxPage /></ToastProvider></MemoryRouter>)
+    await screen.findByDisplayValue('2')
+    fireEvent.click(screen.getAllByRole('button', { name: /Tambah/ })[0]!)
+    const dialog = await screen.findByRole('dialog')
+    const code = within(dialog).getByLabelText('Kode Metode Bayar (OrderOnline)') as HTMLSelectElement
+    const codes = Array.from(code.options).map((option) => option.value)
+    expect(codes).toEqual(expect.arrayContaining(['bank_transfer', 'bca_va', 'echannel', 'gopay', 'instant']))
+    fireEvent.change(within(dialog).getByLabelText('E-payment Fee — Tipe'), { target: { value: 'percentage_flat' } })
+    fireEvent.change(within(dialog).getByLabelText('E-payment Fee — Nilai'), { target: { value: '0.7' } })
+    fireEvent.change(within(dialog).getByLabelText('E-payment Fee — Flat tambahan (Rp)'), { target: { value: '1000' } })
+    // 100.000 x 0,7% + 1.000 = 1.700; tanpa platform fee & tax -> net 98.300
+    expect(within(dialog).getByTestId('fee-example').textContent).toContain('Rp1.700')
+    expect(within(dialog).getByTestId('fee-example').textContent).toContain('Rp98.300')
+  })
 })

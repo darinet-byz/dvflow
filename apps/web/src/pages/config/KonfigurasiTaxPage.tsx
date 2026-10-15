@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { calculateFees, type FeeType } from '@dvflow/shared'
+import { calculateFees, type EpaymentFeeType, type FeeType } from '@dvflow/shared'
 import { PageHeader } from '../../layout/PageHeader'
 import { ApiError } from '../../lib/api'
 import { hasAllProductAccess, hasPermission } from '../../lib/roles'
@@ -99,8 +99,9 @@ function FeeExample({ values, platformFeePercent }: { values: Record<string, str
   }
 
   const result = calculateFees(EXAMPLE_GROSS, {
-    fee_type: (values['fee_type'] || 'flat') as FeeType,
+    fee_type: (values['fee_type'] || 'flat') as EpaymentFeeType,
     fee_value: feeValue,
+    fee_flat_value: num(values['fee_flat_value']) ?? 0,
     platform_fee_applies: values['platform_fee_applies'] === 'true',
     epayment_tax_type: taxType && taxValue !== null ? taxType : null,
     epayment_tax_value: taxType && taxValue !== null ? taxValue : null,

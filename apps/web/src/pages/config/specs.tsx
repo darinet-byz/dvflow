@@ -1,4 +1,4 @@
-import { SESSION_CODES } from '@dvflow/shared'
+import { KNOWN_PAYMENT_IDENTIFIERS, SESSION_CODES } from '@dvflow/shared'
 import { Badge } from '../../ui/Badge'
 import type { ConfigRow, ConfigSpec } from './ConfigSection'
 
@@ -150,9 +150,10 @@ export const SESSION_SPEC: ConfigSpec = {
 }
 
 /** Rp / % dengan format Indonesia untuk kolom fee. */
-function formatFee(type: unknown, value: unknown): string {
+function formatFee(type: unknown, value: unknown, flat?: unknown): string {
   if (type === null || type === undefined || value === null || value === undefined || value === '') return '-'
   const n = Number(value)
+  if (type === 'percentage_flat') return `${n.toLocaleString('id-ID')}% + Rp${Number(flat ?? 0).toLocaleString('id-ID')}`
   return type === 'percentage' ? `${n.toLocaleString('id-ID')}%` : `Rp${n.toLocaleString('id-ID')}`
 }
 
@@ -165,17 +166,19 @@ export const FEE_RULE_SPEC: ConfigSpec = {
   resource: 'payment-fee-rules',
   title: 'Metode Pembayaran',
   tableName: 'payment_fee_rules',
-  readColumns: 'id,name,identifier,fee_type,fee_value,platform_fee_applies,epayment_tax_type,epayment_tax_value,active',
+  readColumns: 'id,name,identifier,fee_type,fee_value,fee_flat_value,platform_fee_applies,epayment_tax_type,epayment_tax_value,active',
   identityKey: 'identifier',
+  order: KNOWN_PAYMENT_IDENTIFIERS.map((item) => item.code),
+  activeToggle: true,
   fields: [
     { key: 'name', label: 'Nama', maxLength: 200, type: 'text', initial: '', placeholder: 'mis. VA BCA' },
     {
       key: 'identifier',
-      label: 'Identifier / Mapping Payment',
-      type: 'text',
-      initial: '',
-      placeholder: 'mis. bank_transfer',
-      help: 'Harus sama persis dengan identifier yang dikirim webhook (hanya besar/kecil huruf dan spasi tepi yang diabaikan).',
+      label: 'Kode Metode Bayar (OrderOnline)',
+      type: 'select',
+      initial: 'bank_transfer',
+      // Kode persis yang dikirim webhook: payment.method (bank_transfer) atau payment.channels (e-payment).
+      options: KNOWN_PAYMENT_IDENTIFIERS.map((item) => ({ value: item.code, label: `${item.code} — ${item.label}` })),
     },
     {
       key: 'platform_fee_applies',
@@ -184,14 +187,28 @@ export const FEE_RULE_SPEC: ConfigSpec = {
       initial: 'false',
       help: 'Centang untuk e-payment (VA, QRIS, e-wallet). Bank transfer jangan dicentang.',
     },
-    { key: 'fee_type', label: 'E-payment Fee — Tipe', type: 'select', initial: 'flat', options: FEE_TYPE_OPTIONS },
+    {
+      key: 'fee_type',
+      label: 'E-payment Fee — Tipe',
+      type: 'select',
+      initial: 'flat',
+      options: [...FEE_TYPE_OPTIONS, { value: 'percentage_flat', label: 'Persentase + Flat' }],
+    },
     {
       key: 'fee_value',
       label: 'E-payment Fee — Nilai',
       type: 'number',
       initial: '',
       placeholder: 'mis. 4000 atau 0.7',
-      help: 'Persentase dihitung dari nominal order; isi angka persen: 0.7 berarti 0,7%.',
+      help: 'Flat: Rupiah. Persentase / Persentase + Flat: angka persen dari nominal order (0.7 = 0,7%).',
+    },
+    {
+      key: 'fee_flat_value',
+      label: 'E-payment Fee — Flat tambahan (Rp)',
+      type: 'number',
+      initial: '0',
+      placeholder: 'mis. 1000',
+      help: 'Hanya untuk tipe Persentase + Flat.',
     },
     {
       key: 'epayment_tax_type',
@@ -215,12 +232,11 @@ export const FEE_RULE_SPEC: ConfigSpec = {
     { key: 'fee', header: 'E-payment Fee', align: 'right', minWidth: 120 },
     { key: 'epayment_tax', header: 'E-payment Fee Tax', align: 'right', minWidth: 130 },
     { key: 'platform_fee_applies', header: 'Platform Fee', minWidth: 110 },
-    { key: 'active', header: 'Status', minWidth: 100 },
   ],
   render: {
     name: (row) => String(row['name'] ?? '-'),
     identifier: (row) => CodeCell(row, 'identifier'),
-    fee: (row) => formatFee(row['fee_type'], row['fee_value']),
+    fee: (row) => formatFee(row['fee_type'], row['fee_value'], row['fee_flat_value']),
     epayment_tax: (row) => formatFee(row['epayment_tax_type'], row['epayment_tax_value']),
     platform_fee_applies: (row) => (row['platform_fee_applies'] === true ? 'Ya' : 'Tidak'),
     active: (row) => ActiveBadge(row),

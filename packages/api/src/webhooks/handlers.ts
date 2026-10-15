@@ -130,6 +130,8 @@ export async function orderOnlineWebhook(context: RouteContext): Promise<Respons
       payment_identifier: canonical.paymentIdentifier,
       gross_amount: canonical.grossAmount,
       warnings: adapted.warnings,
+      // Kode channel e-payment apa adanya (tanpa data pribadi) untuk memastikan bentuk payload nyata.
+      payment_channels: adapted.paymentChannels,
     },
   })
 

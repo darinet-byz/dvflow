@@ -69,10 +69,10 @@ export const CONFIG_RESOURCES: Record<ConfigResourceName, ConfigResource> = {
   'payment-fee-rules': {
     urlName: 'payment-fee-rules',
     table: 'payment_fee_rules',
-    columns: ['id', 'name', 'identifier', 'fee_type', 'fee_value', 'platform_fee_applies', 'epayment_tax_type', 'epayment_tax_value', 'active', 'created_at', 'updated_at'],
+    columns: ['id', 'name', 'identifier', 'fee_type', 'fee_value', 'fee_flat_value', 'platform_fee_applies', 'epayment_tax_type', 'epayment_tax_value', 'active', 'created_at', 'updated_at'],
     identityColumn: 'identifier',
     participatesInCodeCombinations: false,
-    writableColumns: ['name', 'identifier', 'fee_type', 'fee_value', 'platform_fee_applies', 'epayment_tax_type', 'epayment_tax_value', 'active'],
+    writableColumns: ['name', 'identifier', 'fee_type', 'fee_value', 'fee_flat_value', 'platform_fee_applies', 'epayment_tax_type', 'epayment_tax_value', 'active'],
   },
 }
 
@@ -87,6 +87,8 @@ const IDENTIFIER_MAX_LENGTH = 200
 const FEE_VALUE_MAX = 1_000_000_000
 
 const FEE_TYPES = ['flat', 'percentage'] as const
+/** E-payment fee boleh kombinasi persen + flat (A16); e-payment fee tax tetap flat/persen. */
+const EPAYMENT_FEE_TYPES = ['flat', 'percentage', 'percentage_flat'] as const
 const EVENT_KINDS = ['seminar', 'webinar', 'hybrid'] as const
 
 /**
@@ -143,10 +145,21 @@ export function validateConfigBody(
 
   if (resource.writableColumns.includes('fee_type') && has('fee_type')) {
     const feeType = readText(body['fee_type'])
-    if (feeType === null || !FEE_TYPES.includes(feeType as (typeof FEE_TYPES)[number])) {
-      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Tipe biaya harus flat atau percentage.')
+    if (feeType === null || !EPAYMENT_FEE_TYPES.includes(feeType as (typeof EPAYMENT_FEE_TYPES)[number])) {
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Tipe E-payment Fee harus Flat, Persentase, atau Persentase + Flat.')
     }
     patch['fee_type'] = feeType
+    // Bagian flat hanya bermakna untuk kombinasi; tipe lain selalu 0 supaya tidak ada sisa nilai lama.
+    if (feeType !== 'percentage_flat') patch['fee_flat_value'] = 0
+  }
+
+  if (resource.writableColumns.includes('fee_flat_value') && has('fee_flat_value') && patch['fee_type'] !== 'flat' && patch['fee_type'] !== 'percentage') {
+    const flat = body['fee_flat_value']
+    const value = flat === '' || flat === null ? 0 : flat
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > FEE_VALUE_MAX) {
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Bagian flat E-payment Fee wajib angka Rupiah yang wajar.')
+    }
+    patch['fee_flat_value'] = value
   }
 
   if (resource.writableColumns.includes('fee_value') && has('fee_value')) {

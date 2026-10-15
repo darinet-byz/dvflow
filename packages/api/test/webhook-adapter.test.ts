@@ -40,10 +40,38 @@ describe('adapter: envelope CO Form', () => {
 
     // Walaupun payment.status berubah, rawStatus tetap dari `status` order.
     const paidPayment = expectOk(
-      adaptOrderOnlineWebhook(coFormOrder({ payment: { method: 'qris', status: 'paid' }, status: 'processing' })),
+      adaptOrderOnlineWebhook(coFormOrder({ payment: { method: 'instant', channels: ['gopay'], status: 'paid' }, status: 'processing' })),
     )
     expect(paidPayment.value.rawStatus).toBe('processing')
-    expect(paidPayment.value.paymentIdentifier).toBe('qris')
+    expect(paidPayment.value.paymentIdentifier).toBe('gopay')
+  })
+
+  describe('e-payment: method "instant" + kode channel di payment.channels (VA-1/A16)', () => {
+    const instant = (channels: unknown) =>
+      adaptOrderOnlineWebhook(coFormOrder({ payment: { method: 'instant', data: [], channels, status: 'paid' }, status: 'processing' }))
+
+    it('satu kode channel dikenal -> identifier = kode itu', () => {
+      const adapted = expectOk(instant(['bca_va']))
+      expect(adapted.value.paymentMethod).toBe('instant')
+      expect(adapted.value.paymentIdentifier).toBe('bca_va')
+      expect(adapted.paymentChannels).toEqual(['bca_va'])
+      expect(adapted.warnings).not.toContain('payment_channel_undetermined')
+    })
+
+    it('Mandiri dikirim sebagai echannel', () => {
+      expect(expectOk(instant(['echannel'])).value.paymentIdentifier).toBe('echannel')
+    })
+
+    it.each([[[]], [['bca_va', 'gopay']], [['qris_unknown']], [[{ code: 'bca_va' }]]])('channels %j -> tetap "instant" + warning (tidak menebak)', (channels) => {
+      const adapted = expectOk(instant(channels))
+      expect(adapted.value.paymentIdentifier).toBe('instant')
+      expect(adapted.warnings).toContain('payment_channel_undetermined')
+    })
+
+    it('bank_transfer tidak terpengaruh channels', () => {
+      const adapted = expectOk(adaptOrderOnlineWebhook(coFormOrder({ payment: { method: 'bank_transfer', channels: ['bca_va'], status: 'unpaid' } })))
+      expect(adapted.value.paymentIdentifier).toBe('bank_transfer')
+    })
   })
 
   it('menolak envelope dengan type yang bukan "order"', () => {
