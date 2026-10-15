@@ -228,7 +228,6 @@ export function ZoomPage() {
     <>
       <PageHeader
         title="Konfigurasi Zoom"
-        description="Atur 1 link Zoom untuk semua produk/sesi, per produk, per batch, per sesi, atau untuk nama produk tertentu. Berlaku untuk order Webinar Online dan Hybrid."
       />
       <Card>
         <form
@@ -264,11 +263,6 @@ export function ZoomPage() {
               onChange={setSessionCode}
             />
           </div>
-          <p className="text-[12px] text-ink-soft">
-            Biarkan <strong>Semua Produk</strong>, <strong>Batch kosong</strong>, dan <strong>Semua Sesi</strong> bila
-            ingin memakai <strong>1 link Zoom untuk semua webinar</strong>. Sistem otomatis memilih aturan yang paling
-            spesifik saat peserta membuka link akses.
-          </p>
 
           <TextInput
             id="zoom-product"
@@ -319,11 +313,6 @@ export function ZoomPage() {
             />
             <Button onClick={() => void copy()}>Salin link peserta</Button>
           </div>
-          <p className="mt-2 text-ink-soft">
-            {
-              'Biarkan {{order_id}} tetap seperti ini. OrderOnline akan menggantinya dengan ID order peserta. Link mencatat presensi lalu membuka Zoom sesuai aturan yang paling spesifik untuk order Paid.'
-            }
-          </p>
         </div>
       </Card>
 

@@ -219,7 +219,6 @@ export function TicketConfigPage() {
     <>
       <PageHeader
         title="Konfigurasi Barcode / Tiket"
-        description="Atur tampilan dan informasi tiket QR check-in untuk peserta Seminar Offline & Hybrid (per produk, per batch, per sesi, atau 1 pengaturan untuk semua)."
       />
       <Card>
         <form
@@ -340,11 +339,6 @@ export function TicketConfigPage() {
             />
             <Button onClick={() => void copyTemplate()}>Salin link tiket</Button>
           </div>
-          <p className="mt-2 text-ink-soft">
-            {
-              'Gunakan link {{order_id}} yang sama di template pesan WhatsApp/Email OrderOnline. Untuk produk bertipe Seminar Offline atau Hybrid yang sudah Paid, link ini otomatis menampilkan halaman Tiket QR peserta (beserta Lokasi, Jadwal, dan Catatan sesuai cakupan yang paling spesifik) untuk dipindai di menu Scan QR.'
-            }
-          </p>
         </div>
       </Card>
 

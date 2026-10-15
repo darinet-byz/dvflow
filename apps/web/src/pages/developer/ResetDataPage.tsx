@@ -125,7 +125,6 @@ export function ResetDataPage() {
     <>
       <PageHeader
         title="Reset Data (Developer Only)"
-        description="Pusat pembersihan data uji coba dan reset database transaksi DVFLOW dengan proteksi 2x verifikasi."
       />
 
       <div className="flex flex-col gap-4">

@@ -62,19 +62,12 @@ export function KonfigurasiTaxPage() {
     <>
       <PageHeader
         title="Konfigurasi Tax"
-        description="Potongan per metode pembayaran dan Platform Fee OrderOnline. Berlaku untuk perhitungan berikutnya, bukan order lama."
       />
 
       <div className="flex flex-col gap-4">
         <Card>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div className="max-w-xl">
-              <p className="text-[12px] font-semibold uppercase tracking-wide text-primary">Platform Fee</p>
-              <p className="mt-1 text-[13px] text-ink-soft">
-                Potongan OrderOnline dalam persen dari nominal order. Hanya untuk order <strong className="text-ink">Paid</strong> dengan
-                metode bayar yang dicentang "Kena Platform Fee" (bank transfer tidak).
-              </p>
-            </div>
+            <p className="text-[12px] font-semibold uppercase tracking-wide text-primary">Platform Fee</p>
             <div className="flex items-end gap-2">
               <div className="w-32">
                 <TextInput id="platform-fee-percent" label="Persen (%)" value={draft} onChange={setDraft} placeholder="mis. 2" disabled={!canEdit} />
@@ -89,12 +82,6 @@ export function KonfigurasiTaxPage() {
           {error ? <div className="mt-3"><ErrorState message={error} action={<Button onClick={reload}>Coba lagi</Button>} /></div> : null}
         </Card>
 
-        <Card>
-          <p className="text-ink-soft">
-            Pencocokan identifier bersifat <strong className="text-ink">exact</strong> — tidak ada pencocokan mendekati. Bila
-            identifier tidak cocok, order tetap tersimpan tanpa potongan dan status mapping <em>unmapped</em>, terlihat di drawer Order.
-          </p>
-        </Card>
 
         <ConfigSection spec={spec} />
       </div>

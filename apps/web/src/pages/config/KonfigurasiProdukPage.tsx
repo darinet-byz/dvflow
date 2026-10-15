@@ -27,7 +27,6 @@ export function KonfigurasiProdukPage() {
     <>
       <PageHeader
         title="Konfigurasi Produk"
-        description="Pusat mapping kode: produk, pengiklan, type, sesi, serta alias produk OrderOnline."
       />
 
       <div className="flex flex-col gap-4">

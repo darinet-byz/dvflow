@@ -185,7 +185,6 @@ export function RoleConfigPage() {
     <div className="flex flex-col gap-6">
       <PageHeader
         title="Konfigurasi Role & Hak Akses"
-        description="Kelola peran pengguna dan atur checklist perizinan akses secara granular per modul."
         action={
           <Button variant="primary" onClick={() => { setIsCreating(true); setFailure(null) }}>
             + Tambah Role Baru

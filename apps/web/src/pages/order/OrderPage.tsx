@@ -111,7 +111,6 @@ export function OrderPage() {
     <>
       <PageHeader
         title="Order"
-        description="Satu Order ID selalu menjadi satu baris Master Order."
       />
 
       <FilterBar

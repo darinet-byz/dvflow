@@ -108,7 +108,6 @@ export function IntegrationsPage() {
     <>
       <PageHeader
         title="API & Webhook"
-        description="Hubungkan hingga 10+ akun atau toko OrderOnline. Setiap toko memiliki kode toko unik dan URL redirect yang seirama."
       />
       <Card>
         <form
@@ -167,9 +166,6 @@ export function IntegrationsPage() {
               id ? 'Kosongkan untuk mempertahankan token tersimpan' : 'Paste personal access token API OrderOnline'
             }
           />
-          <p className="text-[12px] text-ink-soft">
-            Token disimpan terenkripsi. Digunakan untuk fitur Tes API. Order masuk secara otomatis melalui webhook.
-          </p>
 
           <label className="flex items-center gap-2 text-[13px] text-ink">
             <input

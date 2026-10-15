@@ -82,12 +82,11 @@ export function GeneratorPage() {
     <>
       <PageHeader
         title="Product Name Generator"
-        description="Membantu tim membuat nama produk yang konsisten dan dapat dibaca sistem."
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader title="Input" description="Semua field wajib diisi." />
+          <CardHeader title="Input" />
           {listsError ? <ErrorState title="Pilihan kode gagal dimuat" message={listsError} /> : null}
 
           <div className="flex flex-col gap-3">
@@ -147,7 +146,7 @@ export function GeneratorPage() {
         </Card>
 
         <Card>
-          <CardHeader title="Generated Product Name" description="Inilah yang disalin ke OrderOnline." />
+          <CardHeader title="Generated Product Name" />
 
           <div
             className={cn(

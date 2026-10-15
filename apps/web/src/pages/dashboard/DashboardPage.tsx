@@ -46,7 +46,7 @@ export function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Dashboard Resume" description="Ringkasan kondisi operasional." />
+      <PageHeader title="Dashboard Resume" />
 
       <FilterBar
         filters={
@@ -77,7 +77,7 @@ export function DashboardPage() {
       ) : (
         <div className="mt-4 flex flex-col gap-4">
           <Card>
-            <CardHeader title="Order" description="Leads dan status pembayaran mengikuti filter aktif." />
+            <CardHeader title="Order" />
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
               <KpiCard label="Leads" value={formatCount(data.leads)} />
               <KpiCard label="Paid" value={formatCount(data.paid)} highlight />
@@ -91,7 +91,7 @@ export function DashboardPage() {
           </Card>
 
           <Card>
-            <CardHeader title="Finansial" description="Nilai transaksi dari order Paid yang lolos filter." />
+            <CardHeader title="Finansial" />
             <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
               <KpiCard label="Gross" value={formatMoney(data.gross_amount)} />
               <KpiCard label="E-payment Fee" value={formatMoney(data.tax_amount)} />
@@ -102,7 +102,7 @@ export function DashboardPage() {
           </Card>
 
           <Card>
-            <CardHeader title="Kehadiran" description="Dihitung dari presensi webinar dan seminar." />
+            <CardHeader title="Kehadiran" />
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
               <KpiCard label="Sudah Hadir" value={formatCount(data.sudah_hadir)} />
               <KpiCard label="Belum Hadir" value={formatCount(data.belum_hadir)} />

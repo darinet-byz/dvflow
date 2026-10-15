@@ -92,11 +92,11 @@ export function ProfilePage() {
 
   return (
     <>
-      <PageHeader title="Profil" description="Data akun Anda dan penggantian password." />
+      <PageHeader title="Profil" />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
-          <CardHeader title="Akun" description="Username tidak dapat diubah pada MVP." />
+          <CardHeader title="Akun" />
 
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-3">
@@ -147,7 +147,6 @@ export function ProfilePage() {
         <Card>
           <CardHeader
             title="Ganti Password"
-            description={`Minimal ${PASSWORD_MIN_LENGTH} karakter. Setelah diubah, semua sesi dicabut dan Anda harus login kembali.`}
           />
 
           <div className="flex flex-col gap-3">

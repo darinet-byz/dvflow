@@ -198,7 +198,6 @@ export function TeamPage() {
     <>
       <PageHeader
         title="Add Team"
-        description="Tambahkan akun, ubah akses, atau hapus member. Hanya Master Admin yang dapat mengakses menu ini."
       />
       <Card>
         <form

@@ -49,7 +49,6 @@ const CODE_RENDER = {
 export const PRODUCT_SPEC: ConfigSpec = {
   resource: 'products',
   title: 'Produk',
-  description: 'Kode produk/event yang dikenali parser. Standar: tepat 4 huruf kapital (mis. BOMM, KULI).',
   tableName: 'products',
   readColumns: 'id,name,code,active',
   identityKey: 'code',
@@ -73,7 +72,6 @@ export const PRODUCT_SPEC: ConfigSpec = {
 export const ADVERTISER_SPEC: ConfigSpec = {
   resource: 'advertisers',
   title: 'Pengiklan',
-  description: 'Kode pengiklan yang dikenali parser. Standar: tepat 2 digit angka (mis. 01, 02).',
   tableName: 'advertisers',
   readColumns: 'id,name,code,active',
   identityKey: 'code',
@@ -103,7 +101,6 @@ const KIND_LABELS = {
 export const EVENT_TYPE_SPEC: ConfigSpec = {
   resource: 'event-types',
   title: 'Type',
-  description: 'Jenis acara (mis. Seminar, Workshop, Webinar). "Cara Hadir" menentukan alur peserta: offline atau online (PRD §60).',
   tableName: 'event_types',
   readColumns: 'id,name,code,kind,active',
   identityKey: 'code',
@@ -144,7 +141,6 @@ export const EVENT_TYPE_SPEC: ConfigSpec = {
 export const SESSION_SPEC: ConfigSpec = {
   resource: 'sessions',
   title: 'Sesi',
-  description: '9 Sesi paten (ST, S1 - S8) yang dikenali parser (PRD §61).',
   tableName: 'sessions_config',
   readColumns: 'id,name,code,active',
   identityKey: 'code',
@@ -168,8 +164,6 @@ const FEE_TYPE_OPTIONS = [
 export const FEE_RULE_SPEC: ConfigSpec = {
   resource: 'payment-fee-rules',
   title: 'Metode Pembayaran',
-  description:
-    'Potongan per metode pembayaran. Identifier diisi persis seperti yang diterima dari webhook (PRD §75–§77).',
   tableName: 'payment_fee_rules',
   readColumns: 'id,name,identifier,fee_type,fee_value,platform_fee_applies,epayment_tax_type,epayment_tax_value,active',
   identityKey: 'identifier',

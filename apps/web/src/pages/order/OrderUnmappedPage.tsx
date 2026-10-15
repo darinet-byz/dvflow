@@ -162,13 +162,8 @@ export function OrderUnmappedPage() {
     <>
       <PageHeader
         title="Order Unmapped"
-        description="Daftar pesanan dengan nama produk tidak standar yang menunggu pemetaan ke format kanonik resmi DVFLOW."
       />
 
-      <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary-soft/40 px-3.5 py-2.5 text-[12px] text-ink-soft">
-        <span className="font-semibold text-primary">ℹ️ Kebijakan Retensi 90 Hari (Evergreen):</span>
-        <span>Halaman ini otomatis menampilkan pesanan 90 hari terakhir. Order unmapped yang tidak dipetakan dalam 90 hari akan kedaluwarsa secara otomatis agar database tetap bersih.</span>
-      </div>
 
       <Card>
         <div className="flex flex-col gap-4">

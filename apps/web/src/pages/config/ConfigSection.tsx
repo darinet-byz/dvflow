@@ -48,7 +48,6 @@ export type ConfigField = {
 export type ConfigSpec = {
   resource: 'products' | 'advertisers' | 'event-types' | 'sessions' | 'payment-fee-rules'
   title: string
-  description: string
   tableName: string
   readColumns: string
   fields: readonly ConfigField[]
@@ -189,7 +188,7 @@ export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged
   return (
     <Card padding="none">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line p-4">
-        <CardHeader title={spec.title} description={spec.description} />
+        <CardHeader title={spec.title} />
         <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
           <SearchInput
             id={`config-search-${spec.resource}`}

@@ -168,7 +168,6 @@ export function ScanQrPage() {
     <>
       <PageHeader
         title="Scan Presensi Seminar"
-        description="Arahkan kamera atau gunakan scanner stick ke kode QR pada tiket peserta."
       />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -261,8 +260,7 @@ export function ScanQrPage() {
         <div className="flex flex-col gap-4">
           <Card className={cn(outcome !== null && outcome.tone === 'success' && 'border-success/30 bg-success-soft')}>
             <CardHeader
-              title="Hasil terakhir"
-              description={busy ? 'Memproses…' : 'Muncul otomatis setelah QR terbaca.'}
+              title="Hasil terakhir" description={busy ? 'Memproses…' : undefined}
             />
 
             {busy ? (
@@ -377,7 +375,6 @@ function ManualSearch({ onCheckin, busy }: { onCheckin: (orderId: string) => voi
     <Card>
       <CardHeader
         title="Manual Search"
-        description="Dipakai bila kamera bermasalah. Cari Order ID, nama, atau nomor WA."
       />
 
       <SearchInput

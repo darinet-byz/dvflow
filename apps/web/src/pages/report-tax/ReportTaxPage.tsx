@@ -92,7 +92,7 @@ export function ReportTaxPage() {
   if (errorCode === 'FORBIDDEN_REPORT_TAX') {
     return (
       <>
-        <PageHeader title="Report Tax" description="Ringkasan dan breakdown potongan transaksi — hanya order Paid." />
+        <PageHeader title="Report Tax" />
         <Card>
           <ErrorState
             title="Tidak punya akses"
@@ -107,7 +107,6 @@ export function ReportTaxPage() {
     <>
       <PageHeader
         title="Report Tax"
-        description="Ringkasan dan breakdown tax/fee dari transaksi yang lolos filter."
       />
 
       <FilterBar
@@ -170,7 +169,6 @@ export function ReportTaxPage() {
             <div className="border-b border-line px-4 py-3">
               <CardHeader
                 title={`Breakdown per ${dimensionLabel}`}
-                description="Ringkasan di atas dihitung dari seluruh baris yang lolos filter, bukan dari jumlah kelompok yang tampil."
               />
             </div>
 

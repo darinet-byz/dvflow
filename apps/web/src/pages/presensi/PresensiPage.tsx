@@ -124,7 +124,6 @@ export function PresensiPage() {
     <>
       <PageHeader
         title="Presensi Acara"
-        description="Webinar dan Seminar dalam satu tabel. Filter dipakai untuk memisahkan."
       />
 
       <FilterBar
