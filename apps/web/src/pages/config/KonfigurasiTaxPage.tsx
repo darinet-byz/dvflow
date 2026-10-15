@@ -12,7 +12,7 @@ import { TextInput } from '../../ui/Field'
 import { ErrorState } from '../../ui/Feedback'
 import { useToast } from '../../ui/Toast'
 import { ConfigSection } from './ConfigSection'
-import { FEE_RULE_SPEC } from './specs'
+import { FEE_RULE_SPEC, feeColumnsFromParts } from './specs'
 
 /**
  * Konfigurasi Tax (PRD §74–§80, §164; A15).
@@ -91,17 +91,17 @@ export function KonfigurasiTaxPage() {
 
 function FeeExample({ values, platformFeePercent }: { values: Record<string, string>; platformFeePercent: number }) {
   const num = (raw: string | undefined) => (raw === undefined || raw.trim() === '' || !Number.isFinite(Number(raw)) ? null : Number(raw))
-  const feeValue = num(values['fee_value'])
+  const percent = num(values['fee_percent']) ?? 0
+  const flat = num(values['fee_flat']) ?? 0
   const taxType = (values['epayment_tax_type'] || null) as FeeType | null
   const taxValue = num(values['epayment_tax_value'])
-  if (feeValue === null) {
-    return <p className="rounded-lg bg-soft px-3 py-2 text-[12px] text-ink-muted">Isi nilai E-payment Fee untuk melihat contoh perhitungan.</p>
-  }
+  // Rumus dan pemetaan sama dengan yang dikirim ke server (feeColumnsFromParts -> calculateFees).
+  const columns = feeColumnsFromParts(percent, flat)
 
   const result = calculateFees(EXAMPLE_GROSS, {
-    fee_type: (values['fee_type'] || 'flat') as EpaymentFeeType,
-    fee_value: feeValue,
-    fee_flat_value: num(values['fee_flat_value']) ?? 0,
+    fee_type: columns['fee_type'] as EpaymentFeeType,
+    fee_value: Number(columns['fee_value']),
+    fee_flat_value: Number(columns['fee_flat_value']),
     platform_fee_applies: values['platform_fee_applies'] === 'true',
     epayment_tax_type: taxType && taxValue !== null ? taxType : null,
     epayment_tax_value: taxType && taxValue !== null ? taxValue : null,
@@ -109,7 +109,7 @@ function FeeExample({ values, platformFeePercent }: { values: Record<string, str
   const rp = (n: number) => `Rp${n.toLocaleString('id-ID', { maximumFractionDigits: 2 })}`
   const rows: Array<[string, string]> = [
     ['Nominal order (Paid)', rp(EXAMPLE_GROSS)],
-    ['− E-payment Fee', rp(result.epayment_fee)],
+    [`− E-payment Fee${percent > 0 || flat > 0 ? ` (${[percent > 0 ? `${percent.toLocaleString('id-ID')}%` : '', flat > 0 ? rp(flat) : ''].filter(Boolean).join(' + ')})` : ''}`, rp(result.epayment_fee)],
     ['− E-payment Fee Tax', rp(result.epayment_fee_tax)],
     [`− Platform Fee (${platformFeePercent.toLocaleString('id-ID')}%)`, rp(result.platform_fee)],
   ]

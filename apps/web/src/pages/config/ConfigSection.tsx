@@ -61,6 +61,10 @@ export type ConfigSpec = {
   order?: readonly string[]
   /** Status aktif ditampilkan sebagai toggle on/off di baris, bukan tombol Nonaktifkan/Aktifkan. */
   activeToggle?: boolean
+  /** Nilai form dari baris tersimpan, untuk field form yang tidak sama dengan kolom (mis. persen/flat terpisah). */
+  fromRow?: (row: ConfigRow) => Record<string, string>
+  /** Ubah body hasil form menjadi body API (kolom asli). */
+  toBody?: (body: Record<string, unknown>) => Record<string, unknown>
 }
 
 export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged?: () => void }) {
@@ -125,15 +129,16 @@ export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged
       body[field.key] = field.type === 'number' ? (raw === '' ? '' : Number(raw)) : field.type === 'checkbox' ? raw === 'true' : raw
     }
     if (strictCode) body['code'] = strictCode
+    const payload = spec.toBody ? spec.toBody(body) : body
 
     try {
       if (target === null) {
-        await authorizedRequest(`/api/config/${spec.resource}`, { method: 'POST', body })
+        await authorizedRequest(`/api/config/${spec.resource}`, { method: 'POST', body: payload })
         toast.show(`${spec.title} ditambahkan.`, 'success')
       } else {
         await authorizedRequest(`/api/config/${spec.resource}/${String(target['id'])}`, {
           method: 'PATCH',
-          body,
+          body: payload,
         })
         toast.show(`${spec.title} diperbarui.`, 'success')
       }
@@ -461,5 +466,5 @@ function initialValues(spec: ConfigSpec, target: ConfigRow | null): Record<strin
     const current = target?.[field.key]
     values[field.key] = current === undefined || current === null ? field.initial : String(current)
   }
-  return values
+  return target !== null && spec.fromRow ? { ...values, ...spec.fromRow(target) } : values
 }

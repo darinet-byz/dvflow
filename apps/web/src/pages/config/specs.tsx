@@ -157,6 +157,17 @@ function formatFee(type: unknown, value: unknown, flat?: unknown): string {
   return type === 'percentage' ? `${n.toLocaleString('id-ID')}%` : `Rp${n.toLocaleString('id-ID')}`
 }
 
+/** Persen dan flat (field form) -> kolom API. Kosong dibaca 0; nilai tidak valid diteruskan agar server menolaknya. */
+export function feeColumnsFromParts(percentRaw: unknown, flatRaw: unknown): Record<string, unknown> {
+  const read = (value: unknown) => (value === '' || value === undefined || value === null ? 0 : value)
+  const percent = read(percentRaw)
+  const flat = read(flatRaw)
+  if (typeof percent !== 'number' || typeof flat !== 'number') return { fee_type: 'flat', fee_value: percent, fee_flat_value: flat }
+  if (percent > 0 && flat > 0) return { fee_type: 'percentage_flat', fee_value: percent, fee_flat_value: flat }
+  if (percent > 0) return { fee_type: 'percentage', fee_value: percent, fee_flat_value: 0 }
+  return { fee_type: 'flat', fee_value: flat, fee_flat_value: 0 }
+}
+
 const FEE_TYPE_OPTIONS = [
   { value: 'flat', label: 'Flat (Rp)' },
   { value: 'percentage', label: 'Persentase (%)' },
@@ -170,6 +181,14 @@ export const FEE_RULE_SPEC: ConfigSpec = {
   identityKey: 'identifier',
   order: KNOWN_PAYMENT_IDENTIFIERS.map((item) => item.code),
   activeToggle: true,
+  fromRow: (row) => {
+    const type = row['fee_type']
+    const value = String(row['fee_value'] ?? 0)
+    if (type === 'percentage') return { fee_percent: value, fee_flat: '0' }
+    if (type === 'percentage_flat') return { fee_percent: value, fee_flat: String(row['fee_flat_value'] ?? 0) }
+    return { fee_percent: '0', fee_flat: value }
+  },
+  toBody: ({ fee_percent, fee_flat, ...rest }) => ({ ...rest, ...feeColumnsFromParts(fee_percent, fee_flat) }),
   fields: [
     { key: 'name', label: 'Nama', maxLength: 200, type: 'text', initial: '', placeholder: 'mis. VA BCA' },
     {
@@ -187,28 +206,22 @@ export const FEE_RULE_SPEC: ConfigSpec = {
       initial: 'false',
       help: 'Centang untuk e-payment (VA, QRIS, e-wallet). Bank transfer jangan dicentang.',
     },
+    // Dua field dengan arti tetap (A16): tidak ada lagi satu "Nilai" yang artinya berubah menurut tipe.
     {
-      key: 'fee_type',
-      label: 'E-payment Fee — Tipe',
-      type: 'select',
-      initial: 'flat',
-      options: [...FEE_TYPE_OPTIONS, { value: 'percentage_flat', label: 'Persentase + Flat' }],
-    },
-    {
-      key: 'fee_value',
-      label: 'E-payment Fee — Nilai',
-      type: 'number',
-      initial: '',
-      placeholder: 'mis. 4000 atau 0.7',
-      help: 'Flat: Rupiah. Persentase / Persentase + Flat: angka persen dari nominal order (0.7 = 0,7%).',
-    },
-    {
-      key: 'fee_flat_value',
-      label: 'E-payment Fee — Flat tambahan (Rp)',
+      key: 'fee_percent',
+      label: 'E-payment Fee — Persen (%)',
       type: 'number',
       initial: '0',
-      placeholder: 'mis. 1000',
-      help: 'Hanya untuk tipe Persentase + Flat.',
+      placeholder: 'mis. 0.7',
+      help: 'Persen dari nominal order. 0.7 berarti 0,7%. Isi 0 bila tidak ada.',
+    },
+    {
+      key: 'fee_flat',
+      label: 'E-payment Fee — Flat (Rp)',
+      type: 'number',
+      initial: '0',
+      placeholder: 'mis. 4000',
+      help: 'Rupiah per order. Bisa digabung dengan persen. Isi 0 bila tidak ada.',
     },
     {
       key: 'epayment_tax_type',
