@@ -3,7 +3,7 @@ import { IntegrationsPage } from './pages/config/IntegrationsPage'
 import { ZoomPage } from './pages/config/ZoomPage'
 import { TicketConfigPage } from './pages/config/TicketConfigPage'
 import { canAccessPath, PATH_PERMISSION_MAP } from './lib/roles'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AppShell } from './layout/AppShell'
 import { DASHBOARD_PATH, LOGIN_PATH } from './layout/navigation'
@@ -103,13 +103,37 @@ export function App() {
  * Ini BUKAN batas keamanan — RLS dan RPC tetap menolak di server (04 §5).
  * Fungsinya hanya mencegah pengunjung anonim melihat kerangka aplikasi.
  */
+/** Percobaan memuat profil sebelum menyerah ke layar "Muat ulang". */
+const PROFILE_RECOVERY_ATTEMPTS = 4
+const PROFILE_RECOVERY_DELAY_MS = 2000
+
 function RequireAuth() {
   const session = useSession()
   const location = useLocation()
+  const missingProfile = session.status === 'authenticated' && !session.profile
+  const [attempts, setAttempts] = useState(0)
+
+  // Profil kosong karena gangguan sesaat dipulihkan sendiri di latar belakang (masih fail-closed:
+  // tidak ada menu yang terbuka tanpa profil). Layar "Muat ulang" hanya setelah semua percobaan gagal.
+  useEffect(() => {
+    if (!missingProfile) { setAttempts(0); return }
+    if (attempts >= PROFILE_RECOVERY_ATTEMPTS) return
+    const timer = setTimeout(() => { void refreshProfile().finally(() => setAttempts((n) => n + 1)) }, attempts === 0 ? 0 : PROFILE_RECOVERY_DELAY_MS)
+    return () => clearTimeout(timer)
+  }, [missingProfile, attempts])
 
   if (session.status === 'anonymous') return <Navigate to={LOGIN_PATH} replace state={{ from: location.pathname }} />
   if (session.status !== 'authenticated') return <Navigate to={LOGIN_PATH} replace />
-  if (!session.profile) return <ErrorState title="Akses belum dapat diverifikasi" message="Muat ulang halaman untuk mencoba kembali." action={<a href={location.pathname}>Muat ulang</a>} />
+  if (!session.profile) {
+    if (attempts < PROFILE_RECOVERY_ATTEMPTS) {
+      return (
+        <div className="p-4" aria-busy="true">
+          <SkeletonRows rows={4} />
+        </div>
+      )
+    }
+    return <ErrorState title="Akses belum dapat diverifikasi" message="Muat ulang halaman untuk mencoba kembali." action={<a href={location.pathname}>Muat ulang</a>} />
+  }
 
   if (!canAccessPath(session.profile, location.pathname)) {
     const fallback = Object.keys(PATH_PERMISSION_MAP).find((path) => canAccessPath(session.profile, path))
