@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { KNOWN_PAYMENT_IDENTIFIERS } from '@dvflow/shared'
 import { EMPTY_COMMON_FILTERS, activeCommonFilters, toFilterArgs, type CommonFilters } from '../../lib/filters'
 import { formatCount, formatMoney } from '../../lib/format'
 import { supabaseRpc } from '../../lib/supabase-rest'
@@ -50,7 +51,7 @@ type TaxReport = {
 }
 
 const DIMENSIONS = [
-  { value: 'payment_method', label: 'Payment Method' },
+  { value: 'payment_method', label: 'Metode Bayar' },
   { value: 'product', label: 'Produk' },
   { value: 'batch', label: 'Batch' },
   { value: 'advertiser', label: 'Pengiklan' },
@@ -58,6 +59,14 @@ const DIMENSIONS = [
   { value: 'city', label: 'Kota' },
   { value: 'event_type', label: 'Seminar / Webinar' },
 ]
+
+/** Kode metode/channel -> "VA BCA (bca_va)"; label lain (produk, kota, ...) apa adanya. */
+const PAYMENT_LABELS: Record<string, string> = Object.fromEntries(KNOWN_PAYMENT_IDENTIFIERS.map((item) => [item.code, item.label]))
+function groupLabel(dimension: string, label: string): string {
+  if (dimension !== 'payment_method') return label
+  const name = PAYMENT_LABELS[label.toLowerCase()]
+  return name ? `${name} (${label})` : label
+}
 
 const COLUMNS: readonly TableColumn[] = [
   { key: 'label', header: 'Kelompok', minWidth: 160 },
@@ -175,7 +184,7 @@ export function ReportTaxPage() {
             <DataTable columns={COLUMNS} exportConfig={{ filename: `report-tax-${dimension}`, loadRows: async () => (await supabaseRpc<TaxReport>('tax_report', { p_dimension: dimension, ...toFilterArgs(state.applied) })).rows.map(row => ({ ...row })) }}>
               {(data?.rows ?? []).map((row) => (
                 <TableRow key={row.label}>
-                  <TableCell>{row.label}</TableCell>
+                  <TableCell>{groupLabel(dimension, row.label)}</TableCell>
                   <TableCell align="right">{formatCount(row.transactions)}</TableCell>
                   <TableCell align="right">{formatMoney(row.gross_amount)}</TableCell>
                   <TableCell align="right">{formatMoney(row.tax_amount)}</TableCell>

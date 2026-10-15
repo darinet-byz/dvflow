@@ -36,5 +36,15 @@ select is((select tax_amount from public.orders where order_id = 'pm2'), 2500.00
 select public.upsert_order_webhook('{"orderId":"pm3","rawStatus":"processing","appStatus":"Paid","grossAmount":100000,"paymentMethod":"instant","paymentIdentifier":"ovo"}');
 select is((select tax_mapping_status from public.orders where order_id = 'pm3'), 'unmapped', 'metode nonaktif tidak dipakai');
 
+-- Report Tax "Metode Bayar" dikelompokkan per kode channel, bukan "instant" (0033).
+insert into public.users(id,username,display_name,password_hash,role) values ('f2000000-0000-0000-0000-000000000001','pm_dev','Dev','test','developer');
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"f2000000-0000-0000-0000-000000000001","app_role":"developer"}';
+select ok(exists(select 1 from jsonb_array_elements(public.tax_report('payment_method')->'rows') r where r->>'label' = 'bca_va'),
+  'Report Tax mengelompokkan per channel (bca_va)');
+select ok(not exists(select 1 from jsonb_array_elements(public.tax_report('payment_method')->'rows') r where r->>'label' = 'instant' and (r->>'transactions')::int > 1),
+  'e-payment ber-channel tidak digabung menjadi instant');
+reset role;
+
 select * from finish();
 rollback;
