@@ -97,4 +97,16 @@ describe('Konfigurasi Tax: platform fee & contoh perhitungan', () => {
     expect(options.body).toMatchObject(expected)
     expect(options.body).not.toHaveProperty('fee_percent')
   })
+
+  it('peringatan bila Kena Platform Fee dicentang tetapi tarif global masih 0%', async () => {
+    authorizedRequest.mockImplementation(async (path: string) => (path === '/api/config/platform-fee' ? { percent: 0 } : {}))
+    render(<MemoryRouter><ToastProvider><KonfigurasiTaxPage /></ToastProvider></MemoryRouter>)
+    expect(await screen.findByDisplayValue('0')).toBeDefined()
+    fireEvent.click(screen.getAllByRole('button', { name: /Tambah/ })[0]!)
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).queryByRole('alert')).toBeNull()
+    fireEvent.click(within(dialog).getByLabelText('Kena Platform Fee'))
+    expect(within(dialog).getByRole('alert').textContent).toContain('PLATFORM FEE global masih 0%')
+    authorizedRequest.mockImplementation(async (path: string) => (path === '/api/config/platform-fee' ? { percent: 2 } : {}))
+  })
 })

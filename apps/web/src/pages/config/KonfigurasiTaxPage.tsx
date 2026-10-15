@@ -127,6 +127,11 @@ function FeeExample({ values, platformFeePercent }: { values: Record<string, str
         <dt className="mt-1 border-t border-line pt-1 font-semibold text-ink">Net</dt>
         <dd className="mt-1 border-t border-line pt-1 text-right font-semibold tabular-nums text-ink">{rp(result.net_amount)}</dd>
       </dl>
+      {values['platform_fee_applies'] === 'true' && platformFeePercent === 0 ? (
+        <p className="mt-2 rounded-md bg-warning-soft px-2 py-1.5 text-[12px] font-medium text-[#c78a21]" role="alert">
+          Kena Platform Fee dicentang, tetapi tarif PLATFORM FEE global masih 0%. Isi dan simpan di kartu Platform Fee di atas.
+        </p>
+      ) : null}
     </div>
   )
 }
