@@ -220,7 +220,7 @@ export function IntegrationsPage() {
             {webhook.redirectUrl ? (
               <div>
                 <label htmlFor="integration-redirect" className="font-semibold text-[13px] text-ink">
-                  2. URL Redirect Peserta (Halaman Terima Kasih OrderOnline)
+                  2. Link Akses Peserta (Tiket QR / Zoom)
                 </label>
                 <div className="mt-1 flex gap-2">
                   <input
@@ -234,7 +234,7 @@ export function IntegrationsPage() {
                   </Button>
                 </div>
                 <p className="mt-1 text-[11px] text-ink-soft">
-                  Salin URL ini ke pengaturan form checkout OrderOnline pada kolom <strong>Redirect URL</strong>. Variabel <code>{`{order_id}`}</code> akan otomatis diganti oleh OrderOnline.
+                  Tempel di template pesan OrderOnline atau kolom Redirect URL. Variabel <code>{'{{order_id}}'}</code> diganti otomatis oleh OrderOnline.
                 </p>
               </div>
             ) : null}

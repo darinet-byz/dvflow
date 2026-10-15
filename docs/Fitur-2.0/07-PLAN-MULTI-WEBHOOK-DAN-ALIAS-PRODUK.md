@@ -18,7 +18,7 @@ Hanya menampilkan 1 format Webhook dan 1 format Redirect Peserta yang seirama:
 1. **URL Webhook**:
    `https://api.dvflow.id/api/webhooks/orderonline/{connectionId}/{webhookSecret}`
 2. **URL Redirect Peserta (Halaman Terima Kasih OrderOnline)**:
-   `https://app.dvflow.id/access/{kodeToko}/{order_id}`
+   `https://app.dvflow.id/access/{kodeToko}/{{order_id}}` (variabel OrderOnline ditulis `{{order_id}}`)
 
 ### C. Rute Backend & Resolusi Peserta
 - **Rute Seirama**: `GET /access/:kodeToko/:orderId`

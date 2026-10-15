@@ -34,7 +34,10 @@ describe('OrderOnline connections', () => {
     expect(list).not.toContain('encrypted')
     expect(list).not.toContain('webhook_secret')
     context.params = { id: String(rows[0]!.id) }
-    const url = (await (await connectionWebhookUrl(context)).json()).data.url as string
+    const links = (await (await connectionWebhookUrl(context)).json()).data as { url: string; redirectUrl: string }
+    const url = links.url
+    // Variabel OrderOnline: {{order_id}} (kurung kurawal ganda), dengan kode toko di depannya.
+    expect(links.redirectUrl).toBe(`https://dvflow.test/access/${String(rows[0]!.slug)}/{{order_id}}`)
     context.params = { connectionId: String(rows[0]!.id), webhookSecret: url.split('/').at(-1)! }
     expect(await validateConnectionWebhook(context)).toBe(true)
     context.params.connectionId = String(rows[1]!.id)

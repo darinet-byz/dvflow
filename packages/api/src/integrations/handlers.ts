@@ -69,7 +69,8 @@ export async function connectionWebhookUrl(context: RouteContext): Promise<Respo
   const secret = await decrypt(row.webhook_secret_encrypted, context.env.INTEGRATION_ENCRYPTION_KEY)
   return ok({
     url: `${context.url.origin}/api/webhooks/orderonline/${row.id}/${secret}`,
-    redirectUrl: `${context.url.origin}/access/${row.slug}/{order_id}`,
+    // Variabel OrderOnline ditulis {{order_id}} (sama dengan template chat); server hanya menerima Order ID hasil penggantian.
+    redirectUrl: `${context.url.origin}/access/${row.slug}/{{order_id}}`,
   }, { headers: { 'Cache-Control': 'no-store' } })
 }
 export async function testConnection(context: RouteContext): Promise<Response> {
