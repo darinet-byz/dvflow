@@ -153,16 +153,28 @@ export const SESSION_SPEC: ConfigSpec = {
   render: CODE_RENDER,
 }
 
+/** Rp / % dengan format Indonesia untuk kolom fee. */
+function formatFee(type: unknown, value: unknown): string {
+  if (type === null || type === undefined || value === null || value === undefined || value === '') return '-'
+  const n = Number(value)
+  return type === 'percentage' ? `${n.toLocaleString('id-ID')}%` : `Rp${n.toLocaleString('id-ID')}`
+}
+
+const FEE_TYPE_OPTIONS = [
+  { value: 'flat', label: 'Flat (Rp)' },
+  { value: 'percentage', label: 'Persentase (%)' },
+] as const
+
 export const FEE_RULE_SPEC: ConfigSpec = {
   resource: 'payment-fee-rules',
-  title: 'Fee Rule',
+  title: 'Metode Pembayaran',
   description:
-    'Aturan tax/fee per identifier pembayaran. Identifier diisi persis seperti yang diterima dari webhook (PRD §75–§77).',
+    'Potongan per metode pembayaran. Identifier diisi persis seperti yang diterima dari webhook (PRD §75–§77).',
   tableName: 'payment_fee_rules',
-  readColumns: 'id,name,identifier,fee_type,fee_value,active',
+  readColumns: 'id,name,identifier,fee_type,fee_value,platform_fee_applies,epayment_tax_type,epayment_tax_value,active',
   identityKey: 'identifier',
   fields: [
-    { key: 'name', label: 'Nama', maxLength: 200, type: 'text', initial: '', placeholder: 'mis. Admin Bank Transfer' },
+    { key: 'name', label: 'Nama', maxLength: 200, type: 'text', initial: '', placeholder: 'mis. VA BCA' },
     {
       key: 'identifier',
       label: 'Identifier / Mapping Payment',
@@ -172,36 +184,51 @@ export const FEE_RULE_SPEC: ConfigSpec = {
       help: 'Harus sama persis dengan identifier yang dikirim webhook (hanya besar/kecil huruf dan spasi tepi yang diabaikan).',
     },
     {
-      key: 'fee_type',
-      label: 'Type',
-      type: 'select',
-      initial: 'flat',
-      options: [
-        { value: 'flat', label: 'Flat' },
-        { value: 'percentage', label: 'Percentage' },
-      ],
+      key: 'platform_fee_applies',
+      label: 'Kena Platform Fee',
+      type: 'checkbox',
+      initial: 'false',
+      help: 'Centang untuk e-payment (VA, QRIS, e-wallet). Bank transfer jangan dicentang.',
     },
+    { key: 'fee_type', label: 'E-payment Fee — Tipe', type: 'select', initial: 'flat', options: FEE_TYPE_OPTIONS },
     {
       key: 'fee_value',
-      label: 'Value',
+      label: 'E-payment Fee — Nilai',
       type: 'number',
       initial: '',
       placeholder: 'mis. 4000 atau 0.7',
-      help: 'Untuk percentage, isi angka persen: 0.7 berarti 0,7%.',
+      help: 'Persentase dihitung dari nominal order; isi angka persen: 0.7 berarti 0,7%.',
+    },
+    {
+      key: 'epayment_tax_type',
+      label: 'E-payment Fee Tax — Tipe',
+      type: 'select',
+      initial: '',
+      options: [{ value: '', label: 'Tidak ada' }, ...FEE_TYPE_OPTIONS],
+    },
+    {
+      key: 'epayment_tax_value',
+      label: 'E-payment Fee Tax — Nilai',
+      type: 'number',
+      initial: '',
+      placeholder: 'mis. 1',
+      help: 'Persentase dihitung dari E-payment Fee (mis. PPN 1% untuk VA). Kosongkan bila tipe "Tidak ada".',
     },
   ],
   columns: [
-    { key: 'name', header: 'Nama', minWidth: 180 },
-    { key: 'identifier', header: 'Identifier', minWidth: 170 },
-    { key: 'fee_type', header: 'Type', minWidth: 110 },
-    { key: 'fee_value', header: 'Value', align: 'right', minWidth: 100 },
+    { key: 'name', header: 'Nama', minWidth: 160 },
+    { key: 'identifier', header: 'Identifier', minWidth: 150 },
+    { key: 'fee', header: 'E-payment Fee', align: 'right', minWidth: 120 },
+    { key: 'epayment_tax', header: 'E-payment Fee Tax', align: 'right', minWidth: 130 },
+    { key: 'platform_fee_applies', header: 'Platform Fee', minWidth: 110 },
     { key: 'active', header: 'Status', minWidth: 100 },
   ],
   render: {
     name: (row) => String(row['name'] ?? '-'),
     identifier: (row) => CodeCell(row, 'identifier'),
-    fee_type: (row) => String(row['fee_type'] ?? '-'),
-    fee_value: (row) => String(row['fee_value'] ?? '-'),
+    fee: (row) => formatFee(row['fee_type'], row['fee_value']),
+    epayment_tax: (row) => formatFee(row['epayment_tax_type'], row['epayment_tax_value']),
+    platform_fee_applies: (row) => (row['platform_fee_applies'] === true ? 'Ya' : 'Tidak'),
     active: (row) => ActiveBadge(row),
   },
 }

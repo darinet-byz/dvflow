@@ -69,10 +69,10 @@ export const CONFIG_RESOURCES: Record<ConfigResourceName, ConfigResource> = {
   'payment-fee-rules': {
     urlName: 'payment-fee-rules',
     table: 'payment_fee_rules',
-    columns: ['id', 'name', 'identifier', 'fee_type', 'fee_value', 'active', 'created_at', 'updated_at'],
+    columns: ['id', 'name', 'identifier', 'fee_type', 'fee_value', 'platform_fee_applies', 'epayment_tax_type', 'epayment_tax_value', 'active', 'created_at', 'updated_at'],
     identityColumn: 'identifier',
     participatesInCodeCombinations: false,
-    writableColumns: ['name', 'identifier', 'fee_type', 'fee_value', 'active'],
+    writableColumns: ['name', 'identifier', 'fee_type', 'fee_value', 'platform_fee_applies', 'epayment_tax_type', 'epayment_tax_value', 'active'],
   },
 }
 
@@ -158,6 +158,34 @@ export function validateConfigBody(
       throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nilai biaya di luar rentang yang wajar.')
     }
     patch['fee_value'] = feeValue
+  }
+
+  if (resource.writableColumns.includes('platform_fee_applies') && has('platform_fee_applies')) {
+    if (typeof body['platform_fee_applies'] !== 'boolean') {
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Platform Fee harus dicentang atau tidak.')
+    }
+    patch['platform_fee_applies'] = body['platform_fee_applies']
+  }
+
+  // E-payment fee tax (A15) opsional, tetapi tipe dan nilainya selalu berpasangan.
+  if (resource.writableColumns.includes('epayment_tax_type') && (has('epayment_tax_type') || has('epayment_tax_value'))) {
+    const type = readText(body['epayment_tax_type'])
+    const raw = body['epayment_tax_value']
+    if (type === null) {
+      patch['epayment_tax_type'] = null
+      patch['epayment_tax_value'] = null
+    } else {
+      if (!FEE_TYPES.includes(type as (typeof FEE_TYPES)[number])) {
+        throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Tipe E-payment Fee Tax harus flat atau percentage.')
+      }
+      if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0 || raw > (type === 'percentage' ? 100 : FEE_VALUE_MAX)) {
+        throw new ApiFailure('INVALID_ARGUMENT', undefined, type === 'percentage'
+          ? 'Nilai E-payment Fee Tax wajib angka 0–100 (%).'
+          : 'Nilai E-payment Fee Tax wajib angka Rupiah yang wajar.')
+      }
+      patch['epayment_tax_type'] = type
+      patch['epayment_tax_value'] = raw
+    }
   }
 
   if (has('active')) {

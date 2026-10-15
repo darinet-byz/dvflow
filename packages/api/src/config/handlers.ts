@@ -271,3 +271,34 @@ function withCodeChange<T extends { code: string }>(
   next[index] = { ...current, code: String(change.incoming['code'] ?? current.code) }
   return next
 }
+
+/** A15: PLATFORM FEE global (persen dari gross) — `app_settings` key ini dibaca `platform_fee_percent()` (0031). */
+const PLATFORM_FEE_KEY = 'fee_setting::platform_fee_percent'
+
+/** GET /api/config/platform-fee */
+export async function getPlatformFee(context: RouteContext): Promise<Response> {
+  await requirePermission(context, 'config.tax')
+  const [row] = await context.db.selectRows<{ value_text: string | null }>('app_settings', { key: `eq.${PLATFORM_FEE_KEY}` }, 'value_text')
+  const percent = Number(row?.value_text ?? 0)
+  return ok({ percent: Number.isFinite(percent) ? percent : 0 })
+}
+
+/** PUT /api/config/platform-fee — berlaku untuk order yang dihitung berikutnya; snapshot lama tidak berubah. */
+export async function savePlatformFee(context: RouteContext): Promise<Response> {
+  const actor = await requirePermission(context, 'config.tax')
+  // Setting global, sama seperti menulis fee rule: perlu akses semua produk.
+  assertProductAccess(await productAccess(context, actor), '*')
+  const body = await readJsonObject(context.request)
+  const percent = body['percent']
+  if (typeof percent !== 'number' || !Number.isFinite(percent) || percent < 0 || percent > 100) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Platform Fee wajib angka 0–100 (%).')
+  }
+  const value = String(Math.round(percent * 10000) / 10000)
+  const [existing] = await context.db.selectRows<{ key: string }>('app_settings', { key: `eq.${PLATFORM_FEE_KEY}` }, 'key')
+  if (existing) {
+    await context.db.updateRows('app_settings', { key: `eq.${PLATFORM_FEE_KEY}` }, { value_text: value, updated_by: actor.id })
+  } else {
+    await context.db.insertRow('app_settings', { key: PLATFORM_FEE_KEY, value_text: value, updated_by: actor.id }, 'key')
+  }
+  return ok({ percent: Number(value) })
+}

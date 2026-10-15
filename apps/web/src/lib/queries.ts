@@ -20,6 +20,8 @@ export type DashboardSummary = {
   conversion_rate: number | null
   gross_amount: number
   tax_amount: number
+  epayment_tax_amount?: number
+  platform_fee_amount?: number
   net_amount: number
   sudah_hadir: number
   belum_hadir: number
@@ -55,6 +57,12 @@ export type OrderRow = {
   gross_amount: number
   tax_amount: number
   net_amount: number
+  /** A15 (0031): e-payment fee tax dan platform fee. */
+  epayment_tax_amount?: number
+  platform_fee_amount?: number
+  epayment_tax_type_snapshot?: 'flat' | 'percentage' | null
+  epayment_tax_value_snapshot?: number | null
+  platform_fee_percent_snapshot?: number | null
   tax_mapping_status: 'mapped' | 'unmapped'
   fee_rule_name_snapshot: string | null
   fee_type_snapshot: 'flat' | 'percentage' | null

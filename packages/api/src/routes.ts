@@ -1,7 +1,7 @@
 import type { Route } from './router'
 import { listConnections, saveConnection, connectionWebhookUrl, testConnection, deleteConnection } from './integrations/handlers'
 import { changePassword, login, logout, refresh } from './auth/handlers'
-import { createConfig, deactivateConfig, updateConfig } from './config/handlers'
+import { createConfig, deactivateConfig, getPlatformFee, savePlatformFee, updateConfig } from './config/handlers'
 import {
   deleteSeminarTicket,
   deleteWebinar,
@@ -104,6 +104,9 @@ export const ROUTES: Route[] = [
   { method: 'POST', path: '/api/scanner/manual-checkin', handler: scannerManualCheckin, auth: 'access' },
 
   // Konfigurasi (tulis saja; baca langsung lewat RLS).
+  // Rute statis sebelum :resource (A15).
+  { method: 'GET', path: '/api/config/platform-fee', handler: getPlatformFee, auth: 'access' },
+  { method: 'PUT', path: '/api/config/platform-fee', handler: savePlatformFee, auth: 'access' },
   { method: 'POST', path: '/api/config/:resource', handler: createConfig, auth: 'access' },
   { method: 'PATCH', path: '/api/config/:resource/:id', handler: updateConfig, auth: 'access' },
   { method: 'DELETE', path: '/api/config/:resource/:id', handler: deactivateConfig, auth: 'access' },

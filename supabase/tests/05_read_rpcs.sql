@@ -175,10 +175,11 @@ select is((select (public.dashboard_summary() ->> 'paid')::int), 2, 'KPI Paid');
 select is((select (public.dashboard_summary() ->> 'pending')::int), 1, 'KPI Pending');
 select is((select (public.dashboard_summary() ->> 'conversion_rate')::numeric), 0.5,
   'K4 Conversion Rate = Paid / Leads');
-select is((select (public.dashboard_summary() ->> 'gross_amount')::numeric), 800000.00,
-  'KPI Gross = jumlah seluruh order yang lolos filter');
+-- A15: nominal uang hanya dari order Paid (400001 + 400002); leads tetap semua status.
+select is((select (public.dashboard_summary() ->> 'gross_amount')::numeric), 600000.00,
+  'KPI Gross = jumlah order Paid yang lolos filter');
 select is((select (public.dashboard_summary() ->> 'tax_amount')::numeric), 6100.00, 'KPI Tax');
-select is((select (public.dashboard_summary() ->> 'net_amount')::numeric), 793900.00, 'KPI Net');
+select is((select (public.dashboard_summary() ->> 'net_amount')::numeric), 593900.00, 'KPI Net (Paid)');
 select is((select (public.dashboard_summary() ->> 'sudah_hadir')::int), 2, 'KPI Sudah Hadir');
 select is((select (public.dashboard_summary() ->> 'belum_hadir')::int), 0, 'KPI Belum Hadir');
 select is((select (public.dashboard_summary() ->> 'attendance_rate')::numeric), 1.0,
@@ -221,8 +222,8 @@ select throws_ok('select public.tax_report(''gross_amount'')',
   'DF011', 'INVALID_DIMENSION', 'dimensi di luar daftar ditolak');
 
 -- Summary Report Tax hanya menghitung order Paid (Report Tax adalah laporan transaksi).
-select is((select (public.tax_report('city') -> 'summary' ->> 'transactions')::int), 4,
-  'Report Tax: jumlah transaksi mengikuti filter');
+select is((select (public.tax_report('city') -> 'summary' ->> 'transactions')::int), 2,
+  'Report Tax: hanya transaksi Paid');
 select is((select (public.tax_report('city') -> 'summary' ->> 'tax_amount')::numeric), 6100.00,
   'Report Tax: total tax mengikuti filter');
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calcTaxAmount, calculateTax, roundMoney, shouldRecalculateTax } from '../src/domain/tax'
+import { calcTaxAmount, calculateFees, calculateTax, roundMoney, shouldRecalculateTax } from '../src/domain/tax'
 import type { MatchedFeeRule } from '../src/types'
 
 const FLAT_4000: MatchedFeeRule = {
@@ -146,5 +146,31 @@ describe('kapan snapshot tax boleh dihitung ulang (01 §12)', () => {
         hasMatchingRuleNow: false,
       }),
     ).toBe(true)
+  })
+})
+
+describe('calculateFees (A15): e-payment fee, e-payment fee tax, platform fee', () => {
+  const va = { fee_type: 'flat' as const, fee_value: 4000, platform_fee_applies: true, epayment_tax_type: 'percentage' as const, epayment_tax_value: 1 }
+  const qris = { fee_type: 'percentage' as const, fee_value: 0.7, platform_fee_applies: true, epayment_tax_type: null, epayment_tax_value: null }
+  const transfer = { fee_type: 'flat' as const, fee_value: 0, platform_fee_applies: false, epayment_tax_type: null, epayment_tax_value: null }
+  const paid = { platformFeePercent: 2, isPaid: true }
+
+  it('VA: flat fee + PPN 1% dari fee + platform fee 2%', () => {
+    expect(calculateFees(1_000_000, va, paid)).toEqual({ epayment_fee: 4000, epayment_fee_tax: 40, platform_fee: 20000, net_amount: 975960 })
+  })
+  it('QRIS: % fee + platform fee, tanpa e-payment fee tax', () => {
+    expect(calculateFees(1_000_000, qris, paid)).toEqual({ epayment_fee: 7000, epayment_fee_tax: 0, platform_fee: 20000, net_amount: 973000 })
+  })
+  it('bank transfer tidak kena platform fee', () => {
+    expect(calculateFees(1_000_000, transfer, paid).platform_fee).toBe(0)
+  })
+  it('order belum Paid tidak kena platform fee', () => {
+    expect(calculateFees(100_000, qris, { platformFeePercent: 2, isPaid: false }).platform_fee).toBe(0)
+  })
+  it('e-payment fee tax flat', () => {
+    expect(calculateFees(100_000, { ...va, epayment_tax_type: 'flat', epayment_tax_value: 500 }, paid).epayment_fee_tax).toBe(500)
+  })
+  it('tanpa rule: semua 0, net = gross', () => {
+    expect(calculateFees(100_000, null, paid)).toEqual({ epayment_fee: 0, epayment_fee_tax: 0, platform_fee: 0, net_amount: 100000 })
   })
 })

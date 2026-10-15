@@ -126,7 +126,12 @@ export function OrderDetailDrawer({ order, onClose }: { order: OrderRow | null; 
             <DetailList
               items={[
                 { label: 'Gross', value: formatMoney(order.gross_amount) },
-                { label: 'Tax', value: formatMoney(order.tax_amount) },
+                { label: 'E-payment Fee', value: formatMoney(order.tax_amount) },
+                { label: 'E-payment Fee Tax', value: formatMoney(order.epayment_tax_amount ?? 0) },
+                {
+                  label: 'Platform Fee',
+                  value: `${formatMoney(order.platform_fee_amount ?? 0)}${order.platform_fee_percent_snapshot == null ? '' : ` (${order.platform_fee_percent_snapshot}%)`}`,
+                },
                 { label: 'Net', value: formatMoney(order.net_amount) },
               ]}
             />
@@ -141,6 +146,12 @@ export function OrderDetailDrawer({ order, onClose }: { order: OrderRow | null; 
                 {
                   label: 'Nilai',
                   value: order.fee_value_snapshot === null ? '-' : String(order.fee_value_snapshot),
+                },
+                {
+                  label: 'E-payment Fee Tax',
+                  value: order.epayment_tax_type_snapshot == null
+                    ? '-'
+                    : `${order.epayment_tax_type_snapshot} ${String(order.epayment_tax_value_snapshot ?? '')}`,
                 },
               ]}
             />

@@ -97,7 +97,10 @@ Purpose: mapping S1/S2/ST. Nama tabel sengaja tidak `sessions` agar tidak bentro
 - identifier TEXT NOT NULL
 - identifier_normalized TEXT NOT NULL
 - fee_type TEXT NOT NULL CHECK fee_type IN ('flat','percentage')
-- fee_value NUMERIC(18,4) NOT NULL CHECK fee_value >= 0
+- fee_value NUMERIC(18,4) NOT NULL CHECK fee_value >= 0  -- e-payment fee
+- platform_fee_applies BOOLEAN NOT NULL DEFAULT FALSE  -- A15 (0031)
+- epayment_tax_type TEXT NULL CHECK IN ('flat','percentage')  -- A15; berpasangan dengan nilai
+- epayment_tax_value NUMERIC(18,4) NULL CHECK >= 0  -- A15; % dihitung dari e-payment fee
 - active BOOLEAN NOT NULL DEFAULT TRUE
 - created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 - updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -149,6 +152,11 @@ Tax snapshot:
 - fee_rule_name_snapshot TEXT NULL
 - fee_type_snapshot TEXT NULL CHECK fee_type_snapshot IN ('flat','percentage') OR fee_type_snapshot IS NULL
 - fee_value_snapshot NUMERIC(18,4) NULL
+- epayment_tax_amount NUMERIC(18,2) NOT NULL DEFAULT 0  -- A15 (0031)
+- epayment_tax_type_snapshot TEXT NULL; epayment_tax_value_snapshot NUMERIC(18,4) NULL  -- A15
+- platform_fee_amount NUMERIC(18,2) NOT NULL DEFAULT 0  -- A15: hanya order Paid
+- platform_fee_percent_snapshot NUMERIC(9,4) NULL  -- A15
+- net_amount = gross_amount - tax_amount - epayment_tax_amount - platform_fee_amount  -- A15
 
 Timestamps:
 - source_created_at TIMESTAMPTZ NULL
@@ -193,6 +201,8 @@ Fields:
 
 Key MVP yang diizinkan:
 - `webinar_destination::<product_raw>`
+- `seminar_ticket::<scope>` (A12)
+- `fee_setting::platform_fee_percent` — PLATFORM FEE global dalam persen (A15, 0031)
 
 Jangan menambah key lain tanpa requirement.
 

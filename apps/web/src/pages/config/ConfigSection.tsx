@@ -35,7 +35,7 @@ export type ConfigRow = Record<string, unknown>
 export type ConfigField = {
   key: string
   label: string
-  type: 'text' | 'select' | 'number'
+  type: 'text' | 'select' | 'number' | 'checkbox'
   placeholder?: string
   options?: readonly SelectOption[]
   help?: string
@@ -56,6 +56,8 @@ export type ConfigSpec = {
   render: Record<string, (row: ConfigRow) => ReactNode>
   /** Kunci yang ditampilkan sebagai identitas utama baris. */
   identityKey: string
+  /** Opsional: ringkasan di bawah form yang dihitung dari nilai form saat ini (mis. contoh perhitungan fee). */
+  preview?: (values: Record<string, string>) => ReactNode
 }
 
 export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged?: () => void }) {
@@ -108,7 +110,7 @@ export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged
     const body: Record<string, unknown> = {}
     for (const field of spec.fields) {
       const raw = formValues[field.key] ?? ''
-      body[field.key] = field.type === 'number' ? (raw === '' ? '' : Number(raw)) : raw
+      body[field.key] = field.type === 'number' ? (raw === '' ? '' : Number(raw)) : field.type === 'checkbox' ? raw === 'true' : raw
     }
     if (strictCode) body['code'] = strictCode
 
@@ -369,6 +371,25 @@ function ConfigForm({
           const value = values[field.key] ?? ''
           const update = (next: string): void => setValues((current) => ({ ...current, [field.key]: next }))
 
+          if (field.type === 'checkbox') {
+            return (
+              <div key={field.key}>
+                <label className="flex cursor-pointer items-center gap-2 text-[13px] font-medium text-ink">
+                  <input
+                    id={`config-${spec.resource}-${field.key}`}
+                    type="checkbox"
+                    checked={value === 'true'}
+                    onChange={(event) => update(event.target.checked ? 'true' : 'false')}
+                  />
+                  {field.label}
+                </label>
+                {field.help === undefined ? null : (
+                  <p className="mt-1 text-[11px] text-ink-muted">{field.help}</p>
+                )}
+              </div>
+            )
+          }
+
           if (field.type === 'select') {
             return (
               <div key={field.key}>
@@ -402,6 +423,7 @@ function ConfigForm({
             </div>
           )
         })}
+        {spec.preview ? spec.preview(values) : null}
       </form>
     </Modal>
   )

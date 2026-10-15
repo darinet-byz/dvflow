@@ -91,10 +91,12 @@ export function DashboardPage() {
           </Card>
 
           <Card>
-            <CardHeader title="Finansial" description="Nilai transaksi dari order yang lolos filter." />
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <CardHeader title="Finansial" description="Nilai transaksi dari order Paid yang lolos filter." />
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
               <KpiCard label="Gross" value={formatMoney(data.gross_amount)} />
-              <KpiCard label="Tax / Fee" value={formatMoney(data.tax_amount)} />
+              <KpiCard label="E-payment Fee" value={formatMoney(data.tax_amount)} />
+              <KpiCard label="E-payment Fee Tax" value={formatMoney(data.epayment_tax_amount ?? 0)} />
+              <KpiCard label="Platform Fee" value={formatMoney(data.platform_fee_amount ?? 0)} />
               <KpiCard label="Net" value={formatMoney(data.net_amount)} />
             </div>
           </Card>

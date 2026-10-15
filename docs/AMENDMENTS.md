@@ -471,3 +471,32 @@ Atas permintaan eksplisit pengguna (migrasi `0030_hybrid_event_kind.sql`).
 **Skema.** Tidak ada tabel atau kolom baru. Yang diperluas hanya `event_types.kind` (`hybrid`) dan `orders.event_type` (`Hybrid`).
 
 **Perbaikan ikutan.** Pilihan filter "Event Type" di Order, Presensi, dan Dashboard kini memakai nilai yang benar-benar tersimpan di order (Seminar Offline/Webinar Online/Hybrid), bukan nama baris konfigurasi. Sebelumnya, Type dengan nama lain (mis. "Workshop") tidak pernah cocok saat difilter.
+
+## A15 — Platform Fee, E-payment Fee Tax, dan laporan uang hanya order Paid (15 Oktober 2026)
+
+Atas permintaan eksplisit pengguna (migrasi `0031_platform_fee_and_epayment_tax.sql`).
+
+**Potongan per order.** Semua komponen disimpan sebagai snapshot dan dibulatkan 2 desimal. Mengubah tarif tidak mengubah order lama.
+
+| Komponen | Rumus | Kapan |
+|---|---|---|
+| E-payment Fee (`tax_amount`, kolom lama) | flat Rp, atau % dari gross | rule metode bayar cocok |
+| E-payment Fee Tax (`epayment_tax_amount`) | flat Rp, atau % dari E-payment Fee (mis. PPN 1% untuk VA) | rule punya tipe+nilai |
+| Platform Fee (`platform_fee_amount`) | PLATFORM FEE % global × gross | order **Paid** dan rule dicentang "Kena Platform Fee" |
+| Net | gross − tiga potongan di atas | |
+
+**Konfigurasi.**
+- PLATFORM FEE (%) adalah satu nilai global di Konfigurasi Tax, disimpan di `app_settings` dengan key `fee_setting::platform_fee_percent`.
+- Tiap metode pembayaran memiliki Nama, Identifier, centang Platform Fee, E-payment Fee (flat/%), dan E-payment Fee Tax (flat/%, opsional).
+- Form menampilkan contoh perhitungan untuk order Rp100.000, memakai rumus yang sama dengan server (`calculateFees` di shared).
+
+**Kapan dihitung.**
+- Aturan hitung ulang 01 §12 tetap berlaku.
+- Ditambah satu kondisi: perhitungan ulang juga terjadi saat order **berubah menjadi Paid**. Dengan begitu platform fee memakai tarif saat order dibayar.
+
+**Laporan.**
+- Report Tax dan nominal Dashboard (Gross, potongan, Net) hanya menjumlahkan order **Paid**.
+- Leads, Pending, dan Cancelled di Dashboard tetap menghitung semua status.
+- Label Blueprint dipertahankan. "Total Tax" di Report Tax sekarang berarti jumlah ketiga potongan, dan rinciannya ditampilkan di sebelahnya.
+
+**Batasan.** Penentuan VA, QRIS, atau bank transfer dilakukan lewat identifier dan centang per rule, bukan deteksi otomatis. Sampel webhook nyata yang tersedia baru `bank_transfer` (VA-1).

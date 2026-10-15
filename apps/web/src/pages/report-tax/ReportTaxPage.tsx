@@ -38,12 +38,14 @@ type TaxReportRow = {
   transactions: number
   gross_amount: number
   tax_amount: number
+  epayment_tax_amount?: number
+  platform_fee_amount?: number
   net_amount: number
 }
 
 type TaxReport = {
   dimension: string
-  summary: { transactions: number; gross_amount: number; tax_amount: number; net_amount: number }
+  summary: { transactions: number; gross_amount: number; tax_amount: number; epayment_tax_amount?: number; platform_fee_amount?: number; net_amount: number }
   rows: TaxReportRow[]
 }
 
@@ -61,7 +63,9 @@ const COLUMNS: readonly TableColumn[] = [
   { key: 'label', header: 'Kelompok', minWidth: 160 },
   { key: 'transactions', header: 'Transaksi', align: 'right', minWidth: 100 },
   { key: 'gross_amount', header: 'Gross', align: 'right', minWidth: 140 },
-  { key: 'tax_amount', header: 'Total Tax', align: 'right', minWidth: 130 },
+  { key: 'tax_amount', header: 'E-payment Fee', align: 'right', minWidth: 130 },
+  { key: 'epayment_tax_amount', header: 'E-payment Fee Tax', align: 'right', minWidth: 140 },
+  { key: 'platform_fee_amount', header: 'Platform Fee', align: 'right', minWidth: 130 },
   { key: 'net_amount', header: 'Net', align: 'right', minWidth: 140 },
 ]
 
@@ -88,7 +92,7 @@ export function ReportTaxPage() {
   if (errorCode === 'FORBIDDEN_REPORT_TAX') {
     return (
       <>
-        <PageHeader title="Report Tax" description="Ringkasan dan breakdown tax/fee transaksi." />
+        <PageHeader title="Report Tax" description="Ringkasan dan breakdown potongan transaksi — hanya order Paid." />
         <Card>
           <ErrorState
             title="Tidak punya akses"
@@ -140,10 +144,19 @@ export function ReportTaxPage() {
 
       {data === null ? null : (
         <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <KpiCard label="Jumlah transaksi" value={formatCount(data.summary.transactions)} />
+          <KpiCard label="Jumlah transaksi" value={formatCount(data.summary.transactions)} hint="Order Paid" />
           <KpiCard label="Gross" value={formatMoney(data.summary.gross_amount)} />
-          <KpiCard label="Total Tax" value={formatMoney(data.summary.tax_amount)} highlight />
+          {/* Total Tax (Blueprint §17) = seluruh potongan; rinciannya di kartu sebelahnya (A15). */}
+          <KpiCard
+            label="Total Tax"
+            value={formatMoney(data.summary.tax_amount + (data.summary.epayment_tax_amount ?? 0) + (data.summary.platform_fee_amount ?? 0))}
+            hint="E-payment fee + tax + platform fee"
+            highlight
+          />
           <KpiCard label="Net" value={formatMoney(data.summary.net_amount)} />
+          <KpiCard label="E-payment Fee" value={formatMoney(data.summary.tax_amount)} />
+          <KpiCard label="E-payment Fee Tax" value={formatMoney(data.summary.epayment_tax_amount ?? 0)} />
+          <KpiCard label="Platform Fee" value={formatMoney(data.summary.platform_fee_amount ?? 0)} />
         </div>
       )}
 
@@ -168,6 +181,8 @@ export function ReportTaxPage() {
                   <TableCell align="right">{formatCount(row.transactions)}</TableCell>
                   <TableCell align="right">{formatMoney(row.gross_amount)}</TableCell>
                   <TableCell align="right">{formatMoney(row.tax_amount)}</TableCell>
+                  <TableCell align="right">{formatMoney(row.epayment_tax_amount ?? 0)}</TableCell>
+                  <TableCell align="right">{formatMoney(row.platform_fee_amount ?? 0)}</TableCell>
                   <TableCell align="right">{formatMoney(row.net_amount)}</TableCell>
                 </TableRow>
               ))}

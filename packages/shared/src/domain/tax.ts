@@ -100,3 +100,51 @@ export function shouldRecalculateTax(params: {
 
   return identifierChanged || grossChanged || becameMappable
 }
+
+/**
+ * Rincian potongan per order (A15, migrasi 0031) — cermin `upsert_order_webhook`.
+ *
+ *   e-payment fee     = calcTaxAmount (flat Rp atau % dari gross)
+ *   e-payment fee tax = flat Rp atau % dari e-payment fee (mis. PPN 1% untuk VA)
+ *   platform fee      = PLATFORM FEE % x gross, hanya order Paid dan rule yang dicentang
+ *   net               = gross - ketiganya
+ */
+export type FeeBreakdownRule = Pick<MatchedFeeRule, 'fee_type' | 'fee_value'> & {
+  platform_fee_applies: boolean
+  epayment_tax_type: FeeType | null
+  epayment_tax_value: number | null
+}
+
+export type FeeBreakdown = {
+  epayment_fee: number
+  epayment_fee_tax: number
+  platform_fee: number
+  net_amount: number
+}
+
+export function calculateFees(
+  grossAmount: number,
+  rule: FeeBreakdownRule | null,
+  options: { platformFeePercent: number; isPaid: boolean },
+): FeeBreakdown {
+  const gross = roundMoney(grossAmount)
+  if (rule === null) return { epayment_fee: 0, epayment_fee_tax: 0, platform_fee: 0, net_amount: gross }
+
+  const epaymentFee = calcTaxAmount(gross, rule)
+  const epaymentFeeTax =
+    rule.epayment_tax_type === null || rule.epayment_tax_value === null
+      ? 0
+      : roundMoney(rule.epayment_tax_type === 'flat'
+        ? rule.epayment_tax_value
+        : epaymentFee * (rule.epayment_tax_value / PERCENTAGE_DIVISOR))
+  const platformFee = rule.platform_fee_applies && options.isPaid
+    ? roundMoney(gross * (options.platformFeePercent / PERCENTAGE_DIVISOR))
+    : 0
+
+  return {
+    epayment_fee: epaymentFee,
+    epayment_fee_tax: epaymentFeeTax,
+    platform_fee: platformFee,
+    net_amount: roundMoney(gross - epaymentFee - epaymentFeeTax - platformFee),
+  }
+}
