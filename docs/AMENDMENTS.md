@@ -328,6 +328,8 @@ di adapter berubah — dan itu perlu keputusan, bukan tebakan.
 sebagai **UTC**. Belum terverifikasi apakah platform mengirim waktu lokal (WIB). Dampaknya kecil:
 kolom `source_*_at` tidak dipakai untuk filter, sort, maupun perhitungan apa pun —
 `orders.created_at` (waktu terima lokal) yang memegang peran itu.
+**Diperbarui A24:** data produksi menunjukkan `source_created_at` memang UTC (selisih ~1 detik dari waktu terima),
+dan filter tanggal kini memakai `coalesce(source_created_at, created_at)` dalam hari WIB.
 
 ### Yang MASIH KURANG sebelum adapter boleh disebut production-ready (`06 §13`)
 
@@ -664,4 +666,24 @@ Yang tidak lagi ditampilkan: nama pengiklan, label jenis acara, dan Order ID bes
 - Tombol "QR Tes Scanner" di halaman Scan QR menampilkan QR berisi `DVFLOW-TES-SCANNER`, bisa juga diunduh untuk dicetak.
 - Payload ini dikenali sebelum parsing Order ID: tidak dikirim ke server dan tidak mencatat presensi, jadi bisa dipindai berulang.
 - Hasilnya "QR tes terbaca". Pada mode Scanner Stick, scan ini sekaligus mengubah status menjadi "Scanner terhubung" (A22).
+
+## A24 — Filter tanggal: tanggal order OrderOnline dalam hari WIB (16 Oktober 2026)
+
+**Temuan.** Hari ini OrderOnline mencatat 54 leads, sedangkan aplikasi menampilkan 45.
+- Tidak ada webhook yang gagal: 85 webhook hari ini, semuanya `accepted`.
+- Database berisi 54 order dengan tanggal order hari ini.
+
+**Penyebab 1: batas hari UTC.** Filter `o.created_at >= $2::date` dievaluasi di zona sesi database (UTC).
+- Akibatnya "hari ini" baru mulai pukul 07:00 WIB.
+- 10 order antara 00:00–06:59 WIB masuk ke hari sebelumnya, termasuk 4 order Paid (31 → 27).
+
+**Penyebab 2: tanggal terima, bukan tanggal order.** `created_at` adalah waktu order diterima aplikasi.
+- Contoh: `MTIX-283503758` dibuat di OrderOnline 12 Okt tetapi baru tersinkron 16 Okt, sehingga terhitung di 16 Okt.
+
+**Perbaikan (0039).**
+- Semua RPC baca dengan filter tanggal sekarang memakai `coalesce(source_created_at, created_at)` dengan batas 00:00–24:00 Asia/Jakarta: `orders_page`, `export_orders_page`, `presensi_page`, `export_presensi_page`, `dashboard_summary`, `presensi_summary`, `tax_report`.
+- Ditambah indeks ekspresi `orders_order_date_idx`.
+- Urutan default tabel tetap `created_at`.
+
+**Catatan status.** "Paid" di aplikasi = status order `processing`/`complete` (PRD §52). OrderOnline dapat menampilkan order `processing` sebagai "unpaid" di sisi pembayaran. Karena itu Paid aplikasi bisa lebih besar daripada "paid" OrderOnline. Hari ini: 30 vs 27, dengan 3 order processing yang di OrderOnline masih unpaid.
 

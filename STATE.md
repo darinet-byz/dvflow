@@ -469,3 +469,4 @@ sering terlanggar:
 | 2026-10-16 | F2.0 | A21: label role di Add Team & sidebar = nama di Konfigurasi Role (`app_roles.name`, `profile.role_name`); label lama "Team" dihapus |
 | 2026-10-16 | F2.0 | A22: Scanner Stick tidak lagi langsung "Aktif"; status Menunggu → Terhubung setelah scan pertama dari alat, plus peringatan halaman tidak fokus |
 | 2026-10-16 | F2.0 | A23 (0038): `presensi_summary` — kartu Hadir/Belum Hadir Presensi cukup izin Presensi (tanpa angka keuangan); QR Tes Scanner `DVFLOW-TES-SCANNER` (tidak ke server, bisa berulang) |
+| 2026-10-16 | F2.0 | A24 (0039): filter tanggal = tanggal order OrderOnline (`coalesce(source_created_at, created_at)`) dalam hari WIB; sebelumnya batas hari UTC membuat 54 leads tampil 45 |
