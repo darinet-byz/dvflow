@@ -1,5 +1,6 @@
 import { Select, TextInput } from '../../ui/Field'
 import type { CommonFilters } from '../../lib/filters'
+import { DateRangeField } from './DateRangeField'
 import type { ConfigLists } from '../../lib/queries'
 
 /**
@@ -84,30 +85,19 @@ export function SessionFilter<T extends CommonFilters>(props: FilterControlsProp
   )
 }
 
+/** Satu field tanggal: preset + kalender (tanpa mengetik). Nilai tetap dateFrom/dateTo. */
 export function DateRangeFilters<T extends CommonFilters>(props: FilterControlsProps<T>) {
   return (
-    <>
-      <TextInput
-        id="filter-dari"
-        ariaLabel="Dari tanggal"
-        className={CONTROL_WIDTH}
-        type="text"
-        value={props.filters.dateFrom}
-        disabled={props.disabled === true}
-        placeholder="Dari tanggal (YYYY-MM-DD)"
-        onChange={(value) => props.update('dateFrom' as keyof T, value)}
-      />
-      <TextInput
-        id="filter-sampai"
-        ariaLabel="Sampai tanggal"
-        className={CONTROL_WIDTH}
-        type="text"
-        value={props.filters.dateTo}
-        disabled={props.disabled === true}
-        placeholder="Sampai tanggal (YYYY-MM-DD)"
-        onChange={(value) => props.update('dateTo' as keyof T, value)}
-      />
-    </>
+    <DateRangeField
+      className={CONTROL_WIDTH}
+      from={props.filters.dateFrom}
+      to={props.filters.dateTo}
+      disabled={props.disabled === true}
+      onChange={(range) => {
+        props.update('dateFrom' as keyof T, range.from)
+        props.update('dateTo' as keyof T, range.to)
+      }}
+    />
   )
 }
 

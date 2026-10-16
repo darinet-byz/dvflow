@@ -1,4 +1,5 @@
 import { SEARCH_DEBOUNCE_MS, SEARCH_MIN_CHARS, DEFAULT_PAGE_SIZE, ALLOWED_PAGE_SIZES } from '@dvflow/shared'
+import { describeRange } from './date-range'
 
 /**
  * Model filter halaman baca (PRD §34–§37, §41, §47, §108; 01 §6–§7).
@@ -138,6 +139,9 @@ export function toCommonFilters(filters: CommonFilters): CommonFilters {
 /** Chip filter yang sedang aktif, siap ditampilkan (PRD §35). */
 export type ActiveFilter = { key: string; label: string }
 
+/** Key chip gabungan rentang tanggal (dateFrom + dateTo). */
+export const DATE_RANGE_CHIP = 'dateRange'
+
 export type FilterLabels = {
   product?: string
   advertiser?: string
@@ -152,8 +156,10 @@ export function activeCommonFilters(filters: CommonFilters, labels: FilterLabels
     chips.push({ key, label: `${prefix}${mapped ?? trimmed}` })
   }
 
-  push('dateFrom', 'Dari ', filters.dateFrom)
-  push('dateTo', 'Sampai ', filters.dateTo)
+  // Satu chip untuk rentang tanggal; menghapusnya mengosongkan dateFrom dan dateTo sekaligus.
+  if (filters.dateFrom.trim() !== '' || filters.dateTo.trim() !== '') {
+    chips.push({ key: DATE_RANGE_CHIP, label: `Tanggal: ${describeRange(filters.dateFrom, filters.dateTo)}` })
+  }
   push('productCode', 'Produk: ', filters.productCode, labels.product ?? filters.productCode)
   push('advertiserCode', 'Pengiklan: ', filters.advertiserCode, labels.advertiser ?? filters.advertiserCode)
   push('eventType', 'Jenis: ', filters.eventType)
@@ -169,6 +175,7 @@ export function activeCommonFilters(filters: CommonFilters, labels: FilterLabels
  * (PRD §36).
  */
 export function clearFilter<T extends CommonFilters>(filters: T, key: string): T {
+  if (key === DATE_RANGE_CHIP) return { ...filters, dateFrom: '', dateTo: '' }
   if (!(key in filters)) return filters
   return { ...filters, [key]: '' }
 }
