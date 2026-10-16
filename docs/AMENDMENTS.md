@@ -687,3 +687,10 @@ Yang tidak lagi ditampilkan: nama pengiklan, label jenis acara, dan Order ID bes
 
 **Catatan status.** "Paid" di aplikasi = status order `processing`/`complete` (PRD §52). OrderOnline dapat menampilkan order `processing` sebagai "unpaid" di sisi pembayaran. Karena itu Paid aplikasi bisa lebih besar daripada "paid" OrderOnline. Hari ini: 30 vs 27, dengan 3 order processing yang di OrderOnline masih unpaid.
 
+## A25 — Jumlah Tiket di Dashboard (16 Oktober 2026)
+
+- **Leads** = jumlah Order ID (tidak berubah).
+- **Paid** = jumlah Order ID berstatus `processing`/`complete` (tidak berubah). Tidak pernah dobel: 1 Order ID = 1 baris, dan perubahan `processing` → `complete` hanya memperbarui baris yang sama.
+- **Jumlah Tiket** (baru) = total `orders.quantity` (A19) dari order Paid, yaitu tiket terjual. Keputusan pengguna: order Pending/Cancelled tidak dihitung. `dashboard_summary` (0040) mengembalikan `paid_tickets`.
+- **Batasan data lama:** order yang belum menerima webhook lagi sejak 0036 masih bernilai default 1, karena log webhook lama tidak menyimpan quantity. Nilainya otomatis benar saat order itu menerima webhook berikutnya. Mulai A25, `quantity` ikut dicatat di `webhook_logs`.
+

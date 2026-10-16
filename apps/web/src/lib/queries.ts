@@ -15,6 +15,8 @@ import { toFilterArgs, toOrderArgs, toPresensiArgs } from './filters'
 export type DashboardSummary = {
   leads: number
   paid: number
+  /** A25: total quantity order Paid (tiket terjual); 1 Order ID bisa 2+ tiket. */
+  paid_tickets?: number
   pending: number
   cancelled: number
   conversion_rate: number | null
