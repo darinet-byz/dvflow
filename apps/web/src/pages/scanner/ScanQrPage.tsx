@@ -1,6 +1,6 @@
 import { hasPermission } from '../../lib/roles'
 import { useSession } from '../../lib/useSession'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { extractOrderIdFromQrPayload } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
 import { useAsyncData, useDebouncedValue } from '../../lib/useAsyncData'
@@ -24,6 +24,7 @@ import {
 } from './scan-feedback'
 import type { CameraFailure } from './camera-permission'
 import { useQrScanner } from './useQrScanner'
+import { useScannerStick } from './useScannerStick'
 
 /**
  * Scan QR (PRD §95–§98, 01 §14, 03 §9–§11).
@@ -59,8 +60,6 @@ export function ScanQrPage() {
   const [busy, setBusy] = useState(false)
   const [scanMode, setScanMode] = useState<'camera' | 'scanner_stick'>('camera')
   const lastQrRef = useRef<{ orderId: string; at: number } | null>(null)
-  const barcodeBufferRef = useRef<string>('')
-  const lastKeyTimeRef = useRef<number>(0)
 
   function playAudioFeedback(success: boolean) {
     try {
@@ -133,39 +132,7 @@ export function ScanQrPage() {
 
   const scanner = useQrScanner(handlePayload)
 
-  // Listener keyboard wedge untuk Scanner Stick (USB / Bluetooth HID)
-  useEffect(() => {
-    if (scanMode !== 'scanner_stick') return
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement | null
-      if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
-        return
-      }
-
-      const now = Date.now()
-      if (now - lastKeyTimeRef.current > 1000) {
-        barcodeBufferRef.current = ''
-      }
-      lastKeyTimeRef.current = now
-
-      if (e.key === 'Enter') {
-        const payload = barcodeBufferRef.current.trim()
-        barcodeBufferRef.current = ''
-        if (payload.length > 0) {
-          e.preventDefault()
-          handlePayload(payload)
-        }
-      } else if (e.key.length === 1) {
-        barcodeBufferRef.current += e.key
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [scanMode, handlePayload])
+  const stick = useScannerStick(scanMode === 'scanner_stick', handlePayload)
 
   return (
     <>
@@ -242,21 +209,7 @@ export function ScanQrPage() {
               {scanner.failure === null ? null : <CameraHelp failure={scanner.failure} onRetry={() => void scanner.start()} />}
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-success/40 bg-success-soft/30 p-8 text-center min-h-[295px]">
-              <div className="relative mb-3 flex h-16 w-16 items-center justify-center">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-success/20 opacity-75" />
-                <span className="relative inline-flex h-12 w-12 items-center justify-center rounded-full bg-success text-white shadow-md">
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
-                  </svg>
-                </span>
-              </div>
-              <Badge tone="success" className="mb-2">🟢 SCANNER STICK AKTIF</Badge>
-              <p className="text-[14px] font-semibold text-ink">Siap Menerima Tembakan Laser Scanner</p>
-              <p className="mt-1 max-w-xs text-[12px] text-ink-muted">
-                Arahkan laser scanner USB atau dongle Bluetooth ke barcode/QR tiket peserta. Tembakan laser akan diproses seketika (0% CPU, tanpa izin kamera).
-              </p>
-            </div>
+            <ScannerStickPanel state={stick} />
           )}
         </Card>
 
@@ -436,5 +389,51 @@ function ManualSearch({ onCheckin, busy }: { onCheckin: (orderId: string) => voi
         </ul>
       )}
     </Card>
+  )
+}
+
+/**
+ * Status Scanner Stick. "Terhubung" hanya setelah halaman menerima tembakan scan dari alat
+ * (browser tidak bisa mendeteksi colokan USB/Bluetooth keyboard), lihat useScannerStick.
+ */
+function ScannerStickPanel({ state }: { state: ReturnType<typeof useScannerStick> }) {
+  const tone = !state.focused ? 'danger' : state.connected ? 'success' : 'warning'
+  return (
+    <div
+      data-stick-status={!state.focused ? 'unfocused' : state.connected ? 'connected' : 'waiting'}
+      className={cn(
+        'flex min-h-[295px] flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 text-center',
+        tone === 'success' && 'border-success/40 bg-success-soft/30',
+        tone === 'warning' && 'border-warning/50 bg-warning-soft/40',
+        tone === 'danger' && 'border-danger/40 bg-danger-soft/40',
+      )}
+    >
+      {!state.focused ? (
+        <>
+          <Badge tone="danger" className="mb-2">Halaman tidak fokus</Badge>
+          <p className="text-[14px] font-semibold text-ink">Klik di halaman ini dulu</p>
+          <p className="mt-1 max-w-xs text-[12px] text-ink-muted">
+            Scanner mengetik ke jendela yang sedang aktif. Selama jendela lain yang aktif, hasil scan tidak sampai ke sini.
+          </p>
+        </>
+      ) : state.connected ? (
+        <>
+          <Badge tone="success" className="mb-2">Scanner terhubung</Badge>
+          <p className="text-[14px] font-semibold text-ink">Siap memindai tiket peserta</p>
+          <p className="mt-1 max-w-xs text-[12px] text-ink-muted">
+            Scan terakhir diterima {state.lastScanAt === null ? '' : formatTime(new Date(state.lastScanAt).toISOString())}.
+          </p>
+        </>
+      ) : (
+        <>
+          <Badge tone="warning" className="mb-2">Menunggu scanner</Badge>
+          <p className="text-[14px] font-semibold text-ink">Belum ada data dari Scanner Stick</p>
+          <p className="mt-1 max-w-xs text-[12px] text-ink-muted">
+            Sambungkan scanner (USB atau Bluetooth), lalu scan QR apa saja untuk tes koneksi. Status berubah menjadi
+            "Scanner terhubung" setelah hasil scan pertama diterima halaman ini.
+          </p>
+        </>
+      )}
+    </div>
   )
 }

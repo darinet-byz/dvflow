@@ -641,3 +641,14 @@ Yang tidak lagi ditampilkan: nama pengiklan, label jenis acara, dan Order ID bes
 - Label A10 "staff = Team" dan "master_admin = Admin Master" diganti menjadi nama di Konfigurasi Role. ID role tidak berubah.
 - Mengganti nama role di Konfigurasi Role otomatis mengubah labelnya di semua tempat.
 
+## A22 — Status Scanner Stick berdasarkan data yang benar-benar diterima (16 Oktober 2026)
+
+- Dulu mode Scanner Stick langsung menampilkan "SCANNER STICK AKTIF", padahal belum ada alat yang tersambung.
+- Scanner USB/Bluetooth dikenali browser sebagai keyboard ("keyboard wedge"). Browser tidak bisa mendeteksi keyboard yang tersambung (WebHID memblokir perangkat keyboard).
+- Status sekarang (`useScannerStick`):
+  - **Menunggu scanner**: belum ada data dari alat. Petunjuk: scan QR apa saja untuk tes koneksi.
+  - **Scanner terhubung**: halaman menerima tembakan scan secepat alat (rata-rata jeda ≤ 60 ms per karakter, minimal 4 karakter, diakhiri Enter), plus jam scan terakhir. Ketikan tangan tidak mengubah status.
+  - **Halaman tidak fokus**: jendela/tab lain sedang aktif, jadi ketikan scanner tidak sampai ke halaman ini.
+- Pemrosesan check-in tidak berubah.
+- Lepasnya alat tidak bisa dideteksi browser. Status "terhubung" berarti pernah menerima scan di sesi halaman ini; jam scan terakhir yang menjadi petunjuk.
+

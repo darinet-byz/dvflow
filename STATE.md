@@ -467,3 +467,4 @@ sering terlanggar:
 | 2026-10-16 | F2.0 | A19 (0036): `orders.quantity` dari CO Form; tiket QR disederhanakan (nama, Order ID, produk, batch, kota, sesi, catatan, QR, N TIKET), stempel CHECK-IN BERHASIL otomatis, tombol JOIN SECARA ONLINE (ZOOM), scanner menampilkan jumlah tiket, Konfigurasi Tiket hanya Catatan |
 | 2026-10-16 | F2.0 | A20 (0037): role Advertiser (1 akun = 1 pengiklan + produk terpilih; RLS `can_access_order`, check-in & scanner ikut); `admin_create_user`/`admin_update_user` 0024 yang terbuka PUBLIC dihapus |
 | 2026-10-16 | F2.0 | A21: label role di Add Team & sidebar = nama di Konfigurasi Role (`app_roles.name`, `profile.role_name`); label lama "Team" dihapus |
+| 2026-10-16 | F2.0 | A22: Scanner Stick tidak lagi langsung "Aktif"; status Menunggu → Terhubung setelah scan pertama dari alat, plus peringatan halaman tidak fokus |
