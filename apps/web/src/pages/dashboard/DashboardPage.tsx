@@ -92,12 +92,13 @@ export function DashboardPage() {
 
           <Card>
             <CardHeader title="Finansial" />
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5">
-              <KpiCard label="Gross" value={formatMoney(data.gross_amount)} />
-              <KpiCard label="E-payment Fee" value={formatMoney(data.tax_amount)} />
-              <KpiCard label="E-payment Fee Tax" value={formatMoney(data.epayment_tax_amount ?? 0)} />
-              <KpiCard label="Platform Fee" value={formatMoney(data.platform_fee_amount ?? 0)} />
-              <KpiCard label="Net" value={formatMoney(data.net_amount)} />
+            {/* Grid 6 kolom: baris 1 Gross & Net (masing-masing 3), baris 2 tiga potongan (masing-masing 2) -> tepi rata. */}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+              <KpiCard size="lg" className="md:col-span-3" label="Gross" value={formatMoney(data.gross_amount)} />
+              <KpiCard size="lg" className="md:col-span-3" label="Net" value={formatMoney(data.net_amount)} highlight />
+              <KpiCard className="md:col-span-2" label="Platform Fee" value={formatMoney(data.platform_fee_amount ?? 0)} />
+              <KpiCard className="md:col-span-2" label="E-payment Fee" value={formatMoney(data.tax_amount)} />
+              <KpiCard className="md:col-span-2" label="E-payment Fee Tax" value={formatMoney(data.epayment_tax_amount ?? 0)} />
             </div>
           </Card>
 

@@ -62,23 +62,30 @@ export function KpiCard({
   value,
   hint,
   highlight = false,
+  size = 'md',
+  className,
 }: {
   label: string
   value: string
   hint?: string
   highlight?: boolean
+  /** `lg` untuk angka utama (mis. Gross/Net) yang perlu lebih menonjol. */
+  size?: 'md' | 'lg'
+  className?: string
 }) {
   return (
     <div
       className={cn(
-        'min-w-0 rounded-md border p-3',
+        'min-w-0 rounded-md border',
+        size === 'lg' ? 'p-4' : 'p-3',
         highlight ? 'border-primary/20 bg-primary-soft' : 'border-line bg-card',
+        className,
       )}
     >
       <p className={cn('text-[11px] font-semibold uppercase tracking-wide', highlight ? 'text-primary' : 'text-ink-soft')}>
         {label}
       </p>
-      <p className="mt-1 break-words text-[20px] font-bold text-ink">{value}</p>
+      <p className={cn('mt-1 break-words font-bold text-ink', size === 'lg' ? 'text-[28px]' : 'text-[20px]')}>{value}</p>
       {hint === undefined ? null : <p className="text-[11px] text-ink-soft">{hint}</p>}
     </div>
   )
