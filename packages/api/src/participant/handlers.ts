@@ -38,10 +38,12 @@ type OrderRow = {
   batch: string | null
   session: string | null
   city: string | null
+  /** Jumlah tiket (A19); default DB 1. */
+  quantity: number
 }
 
 const ORDER_COLUMNS =
-  'order_id,name,app_status,product_parse_status,event_type,product_raw,product_code,product_name,advertiser_name,batch,session,city'
+  'order_id,name,app_status,product_parse_status,event_type,product_raw,product_code,product_name,advertiser_name,batch,session,city,quantity'
 
 export async function loadOrder(db: Db, orderId: string): Promise<OrderRow | null> {
   const rows = await db.selectRows<OrderRow>('orders', { order_id: `eq.${orderId}` }, ORDER_COLUMNS)
@@ -108,7 +110,7 @@ async function accessOrderPage(context: RouteContext): Promise<Response> {
   }
 
   // Webinar: selalu ke Zoom. Hybrid (A14): link yang sama membuka tiket QR, dan
-  // tombol "Gabung via Zoom" kembali ke link ini dengan ?via=zoom.
+  // tombol "JOIN SECARA ONLINE (ZOOM)" kembali ke link ini dengan ?via=zoom.
   const wantsZoom = order.event_type === 'Webinar Online' ||
     (order.event_type === 'Hybrid' && context.url.searchParams.get('via') === 'zoom')
   if (wantsZoom) {
@@ -138,10 +140,8 @@ async function accessOrderPage(context: RouteContext): Promise<Response> {
     }
   }
 
+  // A19: aturan tiket hanya membawa catatan; tidak pernah menolak peserta yang sudah Paid.
   const ticketMeta = matchedRaw !== null ? parseSeminarTicketValue(matchedRaw) : null
-  if (ticketMeta !== null && !ticketMeta.active) {
-    return renderErrorPage('WEBINAR_DESTINATION_NOT_CONFIGURED', order.order_id)
-  }
 
   const checkedInEvent = attendanceRows[0] ?? null
 
@@ -154,9 +154,8 @@ async function accessOrderPage(context: RouteContext): Promise<Response> {
     batch: order.batch,
     session: order.session,
     city: order.city,
-    venue: ticketMeta?.venue ?? null,
-    schedule: ticketMeta?.schedule ?? null,
     notes: ticketMeta?.notes ?? null,
+    quantity: order.quantity ?? 1,
     checkinPath: buildCheckinPath(order.order_id),
     alreadyCheckedIn: checkedInEvent !== null,
     checkedInAt: checkedInEvent?.clicked_at ?? null,
@@ -336,6 +335,8 @@ export async function checkinSeminar(
     name: order?.name ?? null,
     event_type: order?.event_type ?? null,
     session: order?.session ?? null,
+    // A19: jumlah tiket untuk notifikasi panitia di scanner.
+    quantity: order?.quantity ?? 1,
     clicked_at: result.clicked_at,
     attendance_id: result.attendance_id,
     scanner: describeOperator(operator),

@@ -146,6 +146,8 @@ export type CanonicalOrderWebhook = {
   paymentProvider?: string | null
   paymentIdentifier?: string | null
   grossAmount: number
+  /** Jumlah tiket (CO Form `customer_data.quantity`, A19); null = tidak disebut. */
+  quantity?: number | null
   sourceCreatedAt?: string | null
   sourceUpdatedAt?: string | null
 }

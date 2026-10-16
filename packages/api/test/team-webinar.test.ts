@@ -147,7 +147,7 @@ describe('Zoom mapping (scoped & exact) and participant access', () => {
 })
 
 describe('Seminar Ticket / Barcode configuration and participant ticket rendering', () => {
-  it('saves scoped ticket metadata and renders venue, schedule, and notes on participant QR ticket page', async () => {
+  it('saves scoped ticket metadata and renders only notes on participant QR ticket page (A19)', async () => {
     const { api, headers, state } = await setup('staff')
     state.orders.push(fakeOrder({
       order_id: '888001',
@@ -169,7 +169,7 @@ describe('Seminar Ticket / Barcode configuration and participant ticket renderin
         venue: 'Hotel Solo Paragon Ballroom',
         schedule: 'Minggu, 09:00 - 15:00 WIB',
         notes: 'Hadir 30 menit sebelum acara.',
-        active: true,
+        active: false,
       },
     }))
     expect(saveRes.status).toBe(200)
@@ -177,8 +177,9 @@ describe('Seminar Ticket / Barcode configuration and participant ticket renderin
     const ticketPage = await api(makeRequest({ method: 'GET', path: '/access/888001' }))
     expect(ticketPage.status).toBe(200)
     const html = await ticketPage.text()
-    expect(html).toContain('Hotel Solo Paragon Ballroom')
-    expect(html).toContain('Minggu, 09:00 - 15:00 WIB')
+    // Lokasi/Jadwal/Aktif tidak lagi dipakai; aturan tiket tidak pernah memblokir.
+    expect(html).not.toContain('Hotel Solo Paragon Ballroom')
+    expect(html).not.toContain('Minggu, 09:00 - 15:00 WIB')
     expect(html).toContain('Hadir 30 menit sebelum acara.')
     expect(html).toContain('data-checkin-payload="/checkin/888001"')
 

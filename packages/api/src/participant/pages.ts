@@ -24,11 +24,12 @@
  *     menggambar QR di browser. Tanpa `'unsafe-inline'` dan tanpa `'unsafe-eval'`;
  *   * halaman error tidak memuat skrip sama sekali.
  *
- * Tidak ada `img-src`, `connect-src`, atau `frame-src`: halaman ini tidak perlu
- * memuat atau menghubungi apa pun. QR-nya SVG inline buatan skrip di atas.
+ * `connect-src 'self'` hanya untuk skrip yang sama memeriksa ulang halaman tiket ini
+ * (GET tanpa efek samping) agar QR berganti stempel sesudah check-in (A19).
+ * Tidak ada `img-src` atau `frame-src`: QR-nya SVG inline buatan skrip di atas.
  */
 const TICKET_CSP =
-  "default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; base-uri 'none'; form-action 'none'"
+  "default-src 'none'; style-src 'unsafe-inline'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'"
 const ERROR_CSP = "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'"
 
 /**
@@ -51,9 +52,10 @@ export type TicketData = {
   batch: string | null
   session: string | null
   city: string | null
-  venue?: string | null
-  schedule?: string | null
+  /** Catatan opsional dari Konfigurasi Tiket (A19: satu-satunya isi aturan tiket). */
   notes?: string | null
+  /** Jumlah tiket order (A19, `orders.quantity`). */
+  quantity: number
   /** Payload yang nantinya diubah menjadi QR di browser (03 §8, 05 §G03). */
   checkinPath: string
   alreadyCheckedIn?: boolean
@@ -83,57 +85,46 @@ export function formatCheckinTime(isoDate: string | null | undefined): string | 
   }
 }
 
+/**
+ * Tiket peserta (A19). Urutan tetap: nama, Order ID (sekali), produk, batch, kota, sesi,
+ * catatan, QR, jumlah tiket. Sesudah check-in semua info tetap; hanya QR yang diganti stempel.
+ */
 export function renderTicketPage(data: TicketData): Response {
   const rows: Array<[string, string | null]> = [
     ['Produk', data.productName],
-    ['Pengiklan', data.advertiserName],
     ['Batch', data.batch],
-    ['Sesi', data.session],
     ['Kota', data.city],
-    ['Lokasi', data.venue ?? null],
-    ['Jadwal', data.schedule ?? null],
+    ['Sesi', data.session],
     ['Catatan', data.notes ?? null],
   ]
 
   const formattedDate = formatCheckinTime(data.checkedInAt)
 
-  const checkinSection = data.alreadyCheckedIn
+  const qrOrStamp = data.alreadyCheckedIn
     ? `
-    <section class="card checkin checkin-card">
-      <p class="event">Status Kehadiran</p>
-      <div class="badge-success">✓ Check-in Telah Berhasil</div>
-      <p class="hint">
-        Tiket ini sudah digunakan untuk masuk ke acara dan tidak dapat dipindai ulang.
-      </p>
-      ${formattedDate ? `<p class="checkin-time">Waktu check-in: <strong>${escapeHtml(formattedDate)}</strong></p>` : ''}
-      <p class="payload">${escapeHtml(data.orderId)}</p>
-    </section>`
+      <div class="stamp" role="status">
+        <span class="stamp-mark">✓</span>
+        <span class="stamp-text">CHECK-IN BERHASIL</span>
+        ${formattedDate ? `<span class="stamp-time">${escapeHtml(formattedDate)}</span>` : ''}
+      </div>`
     : `
-    <section class="card checkin">
-      <p class="event">Check-in panitia</p>
       <div
         id="${CHECKIN_QR_ELEMENT_ID}"
         class="qr"
         data-checkin-payload="${escapeHtml(data.checkinPath)}"
       ></div>
-      <p class="hint">
-        Tunjukkan kode QR di atas kepada panitia. Bila kamera panitia bermasalah,
-        sebutkan Order ID di bawah — panitia dapat mencarinya secara manual.
-      </p>
-      <p class="payload">${escapeHtml(data.orderId)}</p>
-    </section>`
+      <p class="hint">Tunjukkan QR ini kepada panitia saat masuk.</p>`
 
-  const scriptTag = data.alreadyCheckedIn ? '' : `\n    <script src="${TICKET_QR_SCRIPT_PATH}" defer></script>`
+  const scriptTag = data.alreadyCheckedIn ? '' : `
+    <script src="${TICKET_QR_SCRIPT_PATH}" defer></script>`
 
   const body = `
     <header>
-      <p class="eyebrow">Tiket Peserta</p>
-      <h1>${escapeHtml(data.participantName ?? 'Peserta')}</h1>
+      <h1 class="name">${escapeHtml(data.participantName ?? 'Peserta')}</h1>
       <p class="order">Order ID <strong>${escapeHtml(data.orderId)}</strong></p>
     </header>
 
     <section class="card">
-      <p class="event">${escapeHtml(data.eventType)}</p>
       <dl>
         ${rows
           .filter(([, value]) => value !== null && value !== '')
@@ -141,13 +132,12 @@ export function renderTicketPage(data: TicketData): Response {
           .join('\n        ')}
       </dl>
     </section>
-${checkinSection}
+
+    <section class="card checkin" data-checked-in="${data.alreadyCheckedIn ? 'true' : 'false'}">${qrOrStamp}
+      <p class="quantity"><strong>${data.quantity}</strong> TIKET</p>
+    </section>
 ${data.zoomPath ? `
-    <section class="card online">
-      <p class="event">Ikut secara online</p>
-      <p class="hint">Tidak hadir di lokasi? Gabung lewat Zoom dengan tiket yang sama.</p>
-      <a class="btn-zoom" href="${escapeHtml(data.zoomPath)}" rel="noopener">Gabung via Zoom</a>
-    </section>` : ''}
+    <a class="btn-zoom" href="${escapeHtml(data.zoomPath)}" rel="noopener">JOIN SECARA ONLINE (ZOOM)</a>` : ''}
 
     <footer>Simpan halaman ini sampai acara selesai.</footer>${scriptTag}
   `
@@ -242,22 +232,21 @@ function htmlResponse(status: number, title: string, body: string, contentSecuri
   .hint { margin: 12px 0 12px; color: #737786; }
   .qr { width: 100%; max-width: 260px; aspect-ratio: 1 / 1; margin: 0 auto; background: #fff; }
   .qr svg { display: block; width: 100%; height: 100%; }
-  .payload { margin: 0; font-size: 30px; font-weight: 700; letter-spacing: .06em; text-align: center; }
-  .badge-success {
-    display: inline-block;
-    padding: 8px 16px;
-    border-radius: 9999px;
-    background: #e6f7ec;
-    color: #0e8345;
-    font-weight: 700;
-    font-size: 15px;
-    margin: 4px auto 12px;
+  .name { margin: 0 0 6px; font-size: 28px; line-height: 1.2; word-break: break-word; }
+  .checkin { text-align: center; }
+  .checkin .hint { margin: 12px 0 0; }
+  .stamp {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    width: 100%; max-width: 260px; aspect-ratio: 1 / 1; margin: 0 auto;
+    border: 4px solid #35c96c; border-radius: 18px; background: #e6f7ec; color: #0e8345;
+    transform: rotate(-4deg);
   }
-  .checkin-card { text-align: center; }
-  .checkin-time { margin: 8px 0 16px; color: #737786; font-size: 13px; }
-  .checkin-time strong { color: #171821; }
-  .online { text-align: center; }
-  .btn-zoom { display: inline-block; padding: 12px 20px; border-radius: 10px; background: #4f46f5; color: #fff; font-weight: 700; text-decoration: none; }
+  .stamp-mark { font-size: 44px; font-weight: 700; line-height: 1; }
+  .stamp-text { font-size: 22px; font-weight: 800; letter-spacing: .04em; }
+  .stamp-time { font-size: 13px; font-weight: 600; color: #171821; }
+  .quantity { margin: 16px 0 0; font-size: 18px; font-weight: 700; letter-spacing: .06em; color: #4f46f5; }
+  .quantity strong { font-size: 40px; margin-right: 4px; }
+  .btn-zoom { display: block; margin-top: 16px; padding: 16px 20px; border-radius: 10px; background: #4f46f5; color: #fff; font-size: 16px; font-weight: 800; letter-spacing: .02em; text-align: center; text-decoration: none; }
   .btn-zoom:hover { background: #4338e8; }
   footer { margin-top: 20px; font-size: 12px; color: #737786; text-align: center; }
 </style>

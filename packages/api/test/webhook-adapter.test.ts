@@ -29,6 +29,7 @@ describe('adapter: envelope CO Form', () => {
       paymentProvider: null,
       paymentIdentifier: 'bank_transfer',
       grossAmount: 22000,
+      quantity: null,
       sourceCreatedAt: '2026-09-15T02:31:33Z',
       sourceUpdatedAt: '2026-09-15T02:31:33Z',
     })
@@ -173,5 +174,16 @@ describe('adapter: normalisasi timestamp', () => {
     for (const value of [null, undefined, '', '   ', 'kemarin', '15/09/2026', 42, {}, { $date: 5 }, []]) {
       expect(toIsoTimestamp(value)).toBeNull()
     }
+  })
+})
+
+describe('adapter: jumlah tiket (A19)', () => {
+  const withQuantity = (quantity: unknown) =>
+    adaptOrderOnlineWebhook(coFormOrder({ customer_data: { name: 'Budi', quantity } }))
+  it.each([[3, 3], ['2', 2], [1, 1]])('customer_data.quantity %j -> %j', (input, expected) => {
+    expect(expectOk(withQuantity(input)).value.quantity).toBe(expected)
+  })
+  it.each([[0], [-1], [1.5], ['abc'], [null], [20000]])('nilai tidak wajar %j -> null (tidak menebak)', (input) => {
+    expect(expectOk(withQuantity(input)).value.quantity).toBeNull()
   })
 })

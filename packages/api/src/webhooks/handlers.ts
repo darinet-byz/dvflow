@@ -247,6 +247,7 @@ function buildRpcPayload(
     paymentProvider: canonical.paymentProvider ?? null,
     paymentIdentifier: canonical.paymentIdentifier ?? null,
     grossAmount: canonical.grossAmount,
+    quantity: canonical.quantity ?? null,
     sourceCreatedAt: canonical.sourceCreatedAt ?? null,
     sourceUpdatedAt: canonical.sourceUpdatedAt ?? null,
     appStatus,

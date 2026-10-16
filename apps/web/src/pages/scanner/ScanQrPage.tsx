@@ -98,7 +98,10 @@ export function ScanQrPage() {
 
         setOutcome(fromCheckinSuccess(payload))
         playAudioFeedback(true)
-        if (payload.state === 'ALREADY_CHECKED_IN') toast.show('Peserta sudah check-in sebelumnya.', 'info')
+        // A19: panitia langsung tahu berapa orang yang masuk dengan tiket ini.
+        const tickets = `${payload.quantity ?? 1} tiket`
+        if (payload.state === 'ALREADY_CHECKED_IN') toast.show(`Sudah check-in sebelumnya · ${tickets}`, 'info')
+        else toast.show(`Check-in berhasil · ${tickets}`, 'success')
       } catch (error) {
         setOutcome(fromCheckinError(error))
         playAudioFeedback(false)
@@ -294,6 +297,11 @@ export function ScanQrPage() {
                 )}
                 {outcome.orderId === null ? null : (
                   <p className="font-mono text-[12px] text-ink-soft">Order {outcome.orderId}</p>
+                )}
+                {outcome.quantity === null ? null : (
+                  <p className="my-1 text-[15px] font-bold tracking-wide text-primary" aria-label={`Jumlah tiket ${outcome.quantity}`}>
+                    <span className="mr-1 text-[40px] leading-none">{outcome.quantity}</span>TIKET
+                  </p>
                 )}
                 <p className="mt-1 text-[12px] text-ink-soft">{outcome.detail}</p>
                 {outcome.clickedAt === null ? null : (

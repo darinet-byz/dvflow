@@ -20,10 +20,7 @@ type SeminarTicketRow = {
   product_code: string
   batch: string
   session_code: string
-  venue: string
-  schedule: string
   notes: string
-  active: boolean
   updated_at: string
 }
 
@@ -37,8 +34,7 @@ type SeminarTicketListResponse = {
 
 const columns = [
   { key: 'scope', header: 'Cakupan Tiket' },
-  { key: 'details', header: 'Info Tiket (Lokasi / Jadwal / Catatan)' },
-  { key: 'status', header: 'Status' },
+  { key: 'details', header: 'Catatan' },
   { key: 'actions', header: 'Aksi' },
 ]
 
@@ -79,10 +75,7 @@ export function TicketConfigPage() {
   const [productCode, setProductCode] = useState(allProducts ? '*' : '')
   const [batch, setBatch] = useState('')
   const [sessionCode, setSessionCode] = useState('*')
-  const [venue, setVenue] = useState('')
-  const [schedule, setSchedule] = useState('')
   const [notes, setNotes] = useState('')
-  const [active, setActive] = useState(true)
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState(false)
   // Key rule yang sedang diedit: server membuangnya bila scope berubah (tanpa rule ganda).
@@ -92,8 +85,6 @@ export function TicketConfigPage() {
     product_code: string
     batch: string
     session_code: string
-    venue: string
-    schedule: string
     notes: string
   } | null>(null)
   const [busy, setBusy] = useState(false)
@@ -112,7 +103,7 @@ export function TicketConfigPage() {
 
   const rows = (data?.rows ?? []).filter((row) => {
     const scopeInfo = describeTicketScope(row, products, sessions)
-    return `${scopeInfo.label} ${row.venue} ${row.schedule} ${row.notes}`
+    return `${scopeInfo.label} ${row.notes}`
       .toLowerCase()
       .includes(search.trim().toLowerCase())
   })
@@ -121,10 +112,7 @@ export function TicketConfigPage() {
     setProductCode(allProducts ? '*' : '')
     setBatch('')
     setSessionCode('*')
-    setVenue('')
-    setSchedule('')
     setNotes('')
-    setActive(true)
     setEditing(false)
     setOriginalKey(null)
     setFailure(null)
@@ -142,10 +130,7 @@ export function TicketConfigPage() {
           product_code: productCode || '*',
           batch: batch.trim() || '*',
           session_code: sessionCode || '*',
-          venue: venue.trim(),
-          schedule: schedule.trim(),
           notes: notes.trim(),
-          active,
           ...(originalKey ? { original_key: originalKey } : {}),
         },
       })
@@ -190,13 +175,10 @@ export function TicketConfigPage() {
     setProductCode(row.product_code || '*')
     setBatch(row.batch === '*' ? '' : row.batch)
     setSessionCode(row.session_code || '*')
-    setVenue(row.venue)
-    setSchedule(row.schedule)
     setNotes(row.notes)
-    setActive(row.active)
     setEditing(true)
     setFailure(null)
-    document.getElementById('ticket-venue')?.focus()
+    document.getElementById('ticket-notes')?.focus()
   }
 
   const productOptions = [
@@ -255,43 +237,14 @@ export function TicketConfigPage() {
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <TextInput
-              id="ticket-venue"
-              label="Lokasi / Venue Acara (opsional)"
-              value={venue}
-              onChange={setVenue}
-              disabled={busy}
-              placeholder="Contoh: Ballroom Hotel Solo Paragon Lt. 2"
-            />
-            <TextInput
-              id="ticket-schedule"
-              label="Jadwal / Jam Acara (opsional)"
-              value={schedule}
-              onChange={setSchedule}
-              disabled={busy}
-              placeholder="Contoh: Minggu, 09:00 - 15:00 WIB"
-            />
-          </div>
-
           <TextInput
             id="ticket-notes"
-            label="Catatan Tiket Peserta (opsional)"
+            label="Catatan Opsional"
             value={notes}
             onChange={setNotes}
             disabled={busy}
             placeholder="Contoh: Tunjukkan QR ini di meja registrasi 30 menit sebelum sesi dimulai."
           />
-
-          <label className="flex items-center gap-2 text-[13px] font-medium text-ink">
-            <input
-              type="checkbox"
-              checked={active}
-              disabled={busy}
-              onChange={(e) => setActive(e.target.checked)}
-            />
-            Tiket QR aktif untuk cakupan ini
-          </label>
 
           {failure ? (
             <p role="alert" className="text-danger">
@@ -310,8 +263,6 @@ export function TicketConfigPage() {
                   product_code: productCode || '*',
                   batch: batch.trim() || '*',
                   session_code: sessionCode || '*',
-                  venue: venue.trim(),
-                  schedule: schedule.trim(),
                   notes: notes.trim(),
                 })
               }
@@ -348,7 +299,7 @@ export function TicketConfigPage() {
             id="ticket-search"
             value={search}
             onChange={setSearch}
-            placeholder="Cari cakupan, lokasi, jadwal, atau catatan tiket"
+            placeholder="Cari cakupan atau catatan tiket"
           />
           {error ? <ErrorState message={error} action={<Button onClick={reload}>Coba lagi</Button>} /> : null}
           {loading && !data ? (
@@ -362,8 +313,7 @@ export function TicketConfigPage() {
                 loadRows: () =>
                   rows.map((row) => ({
                     scope: describeTicketScope(row, products, sessions).label,
-                    details: [row.venue, row.schedule, row.notes].filter(Boolean).join(' | ') || 'Default',
-                    status: row.active ? 'Aktif' : 'Nonaktif',
+                    details: row.notes || '-',
                     participant_link: template,
                   })),
                 columns: [
@@ -384,30 +334,8 @@ export function TicketConfigPage() {
                         <span className="font-medium text-ink">{scopeInfo.label}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-[320px] break-words">
-                      <div className="flex flex-col gap-0.5 text-[12px]">
-                        {row.venue ? (
-                          <span>
-                            <strong>Lokasi:</strong> {row.venue}
-                          </span>
-                        ) : null}
-                        {row.schedule ? (
-                          <span>
-                            <strong>Jadwal:</strong> {row.schedule}
-                          </span>
-                        ) : null}
-                        {row.notes ? (
-                          <span>
-                            <strong>Catatan:</strong> {row.notes}
-                          </span>
-                        ) : null}
-                        {!row.venue && !row.schedule && !row.notes ? (
-                          <span className="text-ink-muted">Info standar (tanpa catatan tambahan)</span>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge tone={row.active ? 'success' : 'danger'}>{row.active ? 'Aktif' : 'Nonaktif'}</Badge>
+                    <TableCell className="max-w-[320px] break-words text-[12px]">
+                      {row.notes ? row.notes : <span className="text-ink-muted">Tanpa catatan</span>}
                     </TableCell>
                     <TableCell>
                       <div className="flex flex-wrap gap-1.5">
@@ -430,7 +358,7 @@ export function TicketConfigPage() {
           {!loading && !error && rows.length === 0 ? (
             <p className="py-4 text-ink-soft">
               Belum ada aturan khusus tiket seminar. Secara bawaan semua order Seminar Offline & Hybrid yang Paid tetap
-              mendapatkan tiket QR standar, atau tambahkan aturan di atas untuk menampilkan lokasi, jadwal, dan catatan.
+              mendapatkan tiket QR standar; tambahkan aturan di atas untuk menampilkan catatan.
             </p>
           ) : null}
         </Card>
@@ -444,16 +372,15 @@ export function TicketConfigPage() {
       >
         {previewRow === null ? null : (
           <div className="flex flex-col gap-3 rounded-md border border-line bg-page p-4 text-[13px]">
+            {/* Mengikuti urutan halaman tiket peserta (A19). */}
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-ink-muted">Tiket Peserta</p>
-              <p className="text-[18px] font-bold text-ink">Ahmad (Contoh Peserta)</p>
+              <p className="text-[24px] font-bold leading-tight text-ink">Ahmad (Contoh Peserta)</p>
               <p className="text-ink-soft">
                 Order ID <strong className="font-mono text-ink">283033796</strong>
               </p>
             </div>
 
             <div className="rounded-md border border-line bg-card p-3">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-primary">Seminar Offline</p>
               <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1">
                 <dt className="text-ink-muted">Produk</dt>
                 <dd className="font-semibold text-ink">
@@ -461,24 +388,12 @@ export function TicketConfigPage() {
                 </dd>
                 <dt className="text-ink-muted">Batch</dt>
                 <dd className="font-semibold text-ink">{previewRow.batch === '*' ? '392' : previewRow.batch}</dd>
+                <dt className="text-ink-muted">Kota</dt>
+                <dd className="font-semibold text-ink">Solo</dd>
                 <dt className="text-ink-muted">Sesi</dt>
                 <dd className="font-semibold text-ink">
                   {previewRow.session_code === '*' ? 'S1' : previewRow.session_code}
                 </dd>
-                <dt className="text-ink-muted">Kota</dt>
-                <dd className="font-semibold text-ink">Solo</dd>
-                {previewRow.venue ? (
-                  <>
-                    <dt className="text-ink-muted">Lokasi</dt>
-                    <dd className="font-semibold text-ink">{previewRow.venue}</dd>
-                  </>
-                ) : null}
-                {previewRow.schedule ? (
-                  <>
-                    <dt className="text-ink-muted">Jadwal</dt>
-                    <dd className="font-semibold text-ink">{previewRow.schedule}</dd>
-                  </>
-                ) : null}
                 {previewRow.notes ? (
                   <>
                     <dt className="text-ink-muted">Catatan</dt>
@@ -489,15 +404,14 @@ export function TicketConfigPage() {
             </div>
 
             <div className="rounded-md border border-line bg-card p-3 text-center">
-              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-primary">Check-in Panitia</p>
               <div
                 className="mx-auto aspect-square w-full max-w-[200px]"
                 dangerouslySetInnerHTML={{ __html: sampleQrSvg }}
               />
-              <p className="mt-2 text-[12px] text-ink-muted">
-                Tunjukkan kode QR di atas kepada panitia untuk dipindai di menu Scan QR.
+              <p className="mt-2 text-[12px] text-ink-muted">Tunjukkan QR ini kepada panitia saat masuk.</p>
+              <p className="mt-2 text-[15px] font-bold tracking-wide text-primary">
+                <span className="mr-1 text-[32px] leading-none">1</span>TIKET
               </p>
-              <p className="mt-1 font-mono text-[22px] font-bold tracking-wider text-ink">283033796</p>
             </div>
           </div>
         )}

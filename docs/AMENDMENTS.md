@@ -566,3 +566,43 @@ Database dasar di produksi ±13 MB. Setelah dikurangi ruang log webhook 7 hari d
 **Default tanggal.**
 - Dashboard, Order, Presensi, dan Report Tax dibuka dengan **30 Hari Terakhir**. "Clear All" kembali ke 30 hari.
 - "Semua tanggal" masih bisa dipilih manual: lewat preset di panel tanggal, atau ✕ pada chip tanggal.
+
+## A19 — Tiket QR disederhanakan, jumlah tiket, stempel check-in (16 Oktober 2026)
+
+**Jumlah tiket.**
+- `orders.quantity` (0036): bilangan bulat 1–10000, default 1.
+- Sumbernya CO Form `payload.customer_data.quantity`; angka dalam string ikut dikonversi.
+- Nilai tidak wajar (0, negatif, pecahan, teks) dari adapter menjadi `null` (tidak menebak). `null` berarti nilai tersimpan dipertahankan.
+- RPC menolak quantity tidak valid dengan `INVALID_PAYLOAD`. Storefront tidak dipetakan (VA-1).
+
+**Halaman tiket peserta** (`/access/:orderId`). Urutan tetap:
+1. Nama Peserta (besar)
+2. Order ID (sekali)
+3. Produk
+4. Batch
+5. Kota
+6. Sesi
+7. Catatan (opsional)
+8. QR
+9. **N TIKET** (besar)
+
+Yang tidak lagi ditampilkan: nama pengiklan, label jenis acara, dan Order ID besar di bawah QR.
+
+**Sesudah check-in.**
+- Semua info tetap tampil. QR diganti stempel **CHECK-IN BERHASIL** beserta waktu (WIB).
+- Skrip `ticket-qr.js` memeriksa ulang halaman yang sama tiap 15 detik (GET tanpa efek samping; CSP ditambah `connect-src 'self'`) dan memuat ulang ketika muncul `data-checked-in="true"`.
+- Tidak ada endpoint baru.
+
+**Hybrid.** Tombol penuh **JOIN SECARA ONLINE (ZOOM)**. Tombol hanya muncul bila link Zoom dikonfigurasi.
+
+**Scanner.**
+- Respons check-in membawa `quantity`.
+- Kartu hasil scan menampilkan jumlah tiket besar.
+- Toast: "Check-in berhasil · N tiket" / "Sudah check-in sebelumnya · N tiket".
+
+**Konfigurasi Barcode / Tiket.**
+- Isinya cakupan (produk/batch/sesi) + **Catatan Opsional** saja. Lokasi, Jadwal, dan Aktif dihapus.
+- Nilai lama yang sudah tersimpan diabaikan dan tidak dihapus.
+- Aturan tiket tidak pernah lagi menolak peserta Paid (cabang "tiket nonaktif" dihapus).
+- Konfigurasi Zoom tidak berubah.
+

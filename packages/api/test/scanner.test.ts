@@ -27,7 +27,7 @@ async function setup(seed: Partial<Parameters<typeof createFakeState>[0]> = {}) 
       fakeUser({ id: 'user-admin', username: 'admin1', display_name: 'Admin Satu', role: 'admin' }),
     ],
     orders: [
-      fakeOrder({ order_id: '700001', name: 'Ahmad', phone: '+628111' }),
+      fakeOrder({ order_id: '700001', name: 'Ahmad', phone: '+628111', quantity: 3 }),
       fakeOrder({ order_id: '700002', name: 'Bella', phone: '+628222', event_type: 'Webinar Online' }),
       fakeOrder({ order_id: '700003', name: 'Candra', phone: '+628333', app_status: 'Pending' }),
     ],
@@ -56,11 +56,12 @@ describe('check-in seminar lewat QR (03 §9)', () => {
     expect(response.status).toBe(200)
 
     const body = await readBody<{
-      data: { state: string; order_id: string; name: string; session: string; scanner: { display_name: string } }
+      data: { state: string; order_id: string; name: string; session: string; quantity: number; scanner: { display_name: string } }
     }>(response)
     expect(body.data.state).toBe('CHECKIN_SUCCESS')
     expect(body.data.order_id).toBe('700001')
     expect(body.data.name).toBe('Ahmad')
+    expect(body.data.quantity).toBe(3)
     expect(body.data.scanner.display_name).toBe('Operator Satu')
 
     const event = state.attendanceEvents[0]
@@ -80,6 +81,7 @@ describe('check-in seminar lewat QR (03 §9)', () => {
 
     expect(second.data.state).toBe('ALREADY_CHECKED_IN')
     expect(second.data.clicked_at).toBe(first.data.clicked_at)
+    expect((second.data as { quantity?: number }).quantity).toBe(3)
     expect(state.attendanceEvents).toHaveLength(1)
   })
 

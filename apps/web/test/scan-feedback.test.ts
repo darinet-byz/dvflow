@@ -40,12 +40,18 @@ describe('hasil check-in', () => {
     expect(outcome.alert).toBe(false)
   })
 
+  it('A19: jumlah tiket dari server ditampilkan', () => {
+    expect(fromCheckinSuccess({ ...BASE, quantity: 4 }).quantity).toBe(4)
+    expect(fromUnknownQr('x').quantity).toBeNull()
+  })
+
   it('sudah check-in -> kuning, BUKAN merah: bukan kegagalan', () => {
     const outcome = fromCheckinSuccess({ ...BASE, state: 'ALREADY_CHECKED_IN' })
 
     expect(outcome.tone).toBe('warning')
     expect(outcome.title).toBe('Sudah check-in')
     expect(outcome.alert).toBe(false)
+    expect(outcome.quantity).toBe(1)
     // Timestamp yang ditampilkan adalah check-in PERTAMA (01 §13).
     expect(outcome.clickedAt).toBe('2026-10-13T09:00:00.000Z')
   })

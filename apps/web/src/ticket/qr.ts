@@ -79,7 +79,7 @@ export function buildCheckinQrSvg(payload: string, options: QrSvgOptions = {}): 
  * Dipanggil oleh skrip kecil yang dirujuk halaman tiket
  * (`/assets/ticket-qr.js`). Bila elemennya tidak ada atau payloadnya kosong,
  * tidak ada yang dilakukan — halaman tetap berguna tanpa QR, karena Order ID
- * sudah tercetak besar di sana untuk check-in manual.
+ * tetap tercetak di kepala tiket untuk check-in manual.
  */
 export function mountCheckinQr(doc: Document = document): boolean {
   const container = doc.getElementById(CHECKIN_QR_ELEMENT_ID)

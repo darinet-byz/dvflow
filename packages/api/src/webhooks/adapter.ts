@@ -105,6 +105,8 @@ export function adaptOrderOnlineWebhook(body: unknown): AdapterOutcome {
       // key yang teramati, dan urutannya didokumentasikan (bukan tebakan).
       paymentIdentifier: instantChannel ?? paymentProvider ?? paymentMethod,
       grossAmount,
+      // A19: jumlah tiket = customer_data.quantity (CO Form). Bukan bilangan bulat >= 1 -> null.
+      quantity: readQuantity(customer['quantity']),
       sourceCreatedAt: toIsoTimestamp(order['created_at']),
       sourceUpdatedAt: toIsoTimestamp(updatedAt ?? createdAt),
     },
@@ -121,6 +123,11 @@ function readChannelCodes(value: unknown): string[] {
 function singleKnownChannel(codes: string[]): string | null {
   const known = [...new Set(codes.filter(isKnownPaymentChannel))]
   return known.length === 1 ? known[0]! : null
+}
+
+function readQuantity(value: unknown): number | null {
+  const n = typeof value === 'string' && value.trim() !== '' ? Number(value) : value
+  return typeof n === 'number' && Number.isInteger(n) && n >= 1 && n <= 10000 ? n : null
 }
 
 function fail(reason: AdapterFailureReason, detail: string | null): AdapterOutcome {

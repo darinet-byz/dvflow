@@ -143,6 +143,9 @@ Payment:
 - payment_identifier TEXT NULL
 - payment_identifier_normalized TEXT NULL
 
+Ticket:
+- quantity INTEGER NOT NULL DEFAULT 1 CHECK quantity BETWEEN 1 AND 10000  -- A19: CO Form customer_data.quantity; webhook tanpa quantity mempertahankan nilai
+
 Money:
 - gross_amount NUMERIC(18,2) NOT NULL DEFAULT 0 CHECK gross_amount >= 0
 - tax_amount NUMERIC(18,2) NOT NULL DEFAULT 0 CHECK tax_amount >= 0

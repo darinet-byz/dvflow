@@ -223,6 +223,7 @@ export function fakeOrder(overrides: Record<string, unknown> = {}): Record<strin
     session: 'S1',
     city: 'Solo',
     gross_amount: 300000,
+    quantity: 1,
     tax_amount: 4000,
     net_amount: 296000,
     ...overrides,
@@ -358,6 +359,7 @@ export function createFakeDb(state: FakeState): Db {
           payment_provider: payload['paymentProvider'] ?? null,
           payment_identifier: payload['paymentIdentifier'] ?? existing?.['payment_identifier'] ?? null,
           gross_amount: payload['grossAmount'] ?? 0,
+          quantity: payload['quantity'] ?? existing?.['quantity'] ?? 1,
           tax_amount: existing?.['tax_amount'] ?? 0,
           net_amount: existing?.['net_amount'] ?? payload['grossAmount'] ?? 0,
         }

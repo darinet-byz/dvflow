@@ -24,6 +24,8 @@ export type ScanOutcome = {
   orderId: string | null
   /** Waktu check-in dari server (bukan waktu perangkat). */
   clickedAt: string | null
+  /** Jumlah tiket order (A19); null bila bukan hasil check-in. */
+  quantity: number | null
   /** Apakah ini hasil yang perlu perhatian operator. */
   alert: boolean
 }
@@ -34,6 +36,8 @@ export type CheckinResponse = {
   name: string | null
   event_type: string | null
   session: string | null
+  /** A19: jumlah tiket order; server lama mungkin belum mengirim. */
+  quantity?: number
   clicked_at: string
   attendance_id: string
   scanner: { user_id: string; display_name: string }
@@ -48,6 +52,7 @@ export function fromCheckinSuccess(payload: CheckinResponse): ScanOutcome {
       name: payload.name,
       orderId: payload.order_id,
       clickedAt: payload.clicked_at,
+      quantity: payload.quantity ?? 1,
       alert: false,
     }
   }
@@ -59,6 +64,7 @@ export function fromCheckinSuccess(payload: CheckinResponse): ScanOutcome {
     name: payload.name,
     orderId: payload.order_id,
     clickedAt: payload.clicked_at,
+    quantity: payload.quantity ?? 1,
     alert: false,
   }
 }
@@ -90,6 +96,7 @@ export function fromCheckinError(error: unknown): ScanOutcome {
     name: null,
     orderId: null,
     clickedAt: null,
+    quantity: null,
     alert: true,
   }
 }
@@ -109,6 +116,7 @@ export function fromUnknownQr(rawPayload: string): ScanOutcome {
     name: null,
     orderId: null,
     clickedAt: null,
+    quantity: null,
     alert: true,
   }
 }

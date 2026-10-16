@@ -108,12 +108,16 @@ describe('requested team, Zoom, and Barcode Ticket screens', () => {
     fireEvent.change(screen.getByLabelText('Cakupan Produk'), { target: { value: 'KM' } })
     fireEvent.change(screen.getByLabelText('Cakupan Batch (opsional)'), { target: { value: '392' } })
     fireEvent.change(screen.getByLabelText('Cakupan Sesi'), { target: { value: 'S1' } })
-    fireEvent.change(screen.getByLabelText('Lokasi / Venue Acara (opsional)'), {
-      target: { value: 'Ballroom Hotel Solo' },
+    fireEvent.change(screen.getByLabelText('Catatan Opsional'), {
+      target: { value: 'Hadir 30 menit lebih awal' },
     })
     fireEvent.click(screen.getByRole('button', { name: 'Preview Tiket QR' }))
     expect(await screen.findByText('Preview Tiket Barcode / QR Peserta')).toBeDefined()
     expect(screen.getByRole('img', { name: 'Kode QR check-in' })).toBeDefined()
+    // A19: hanya catatan; Lokasi/Jadwal/Aktif tidak ada lagi.
+    expect(screen.getAllByText('Hadir 30 menit lebih awal').length).toBeGreaterThan(0)
+    expect(screen.queryByLabelText(/Lokasi/)).toBeNull()
+    expect(screen.queryByText('Tiket QR aktif untuk cakupan ini')).toBeNull()
     fireEvent.click(screen.getByRole('button', { name: 'Tutup preview' }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Simpan konfigurasi tiket' }))
@@ -124,10 +128,7 @@ describe('requested team, Zoom, and Barcode Ticket screens', () => {
           product_code: 'KM',
           batch: '392',
           session_code: 'S1',
-          venue: 'Ballroom Hotel Solo',
-          schedule: '',
-          notes: '',
-          active: true,
+          notes: 'Hadir 30 menit lebih awal',
         },
       }),
     )

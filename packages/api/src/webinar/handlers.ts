@@ -284,26 +284,21 @@ export async function deleteWebinar(context: RouteContext): Promise<Response> {
   return ok({ deleted: targetKey })
 }
 
+/**
+ * Aturan tiket (A19): hanya catatan opsional. Nilai lama `venue`/`schedule`/`active`
+ * dari versi sebelumnya dibiarkan tersimpan tetapi diabaikan.
+ */
 export type SeminarTicketRuleValue = {
-  venue: string | null
-  schedule: string | null
   notes: string | null
-  active: boolean
 }
 
 export function parseSeminarTicketValue(raw: string | null): SeminarTicketRuleValue {
-  if (!raw) return { venue: null, schedule: null, notes: null, active: true }
+  if (!raw) return { notes: null }
   try {
     const parsed = JSON.parse(raw) as Record<string, unknown>
-    return {
-      venue: typeof parsed['venue'] === 'string' && parsed['venue'].trim() !== '' ? parsed['venue'].trim() : null,
-      schedule:
-        typeof parsed['schedule'] === 'string' && parsed['schedule'].trim() !== '' ? parsed['schedule'].trim() : null,
-      notes: typeof parsed['notes'] === 'string' && parsed['notes'].trim() !== '' ? parsed['notes'].trim() : null,
-      active: parsed['active'] !== false,
-    }
+    return { notes: typeof parsed['notes'] === 'string' && parsed['notes'].trim() !== '' ? parsed['notes'].trim() : null }
   } catch {
-    return { venue: null, schedule: null, notes: null, active: true }
+    return { notes: null }
   }
 }
 
@@ -341,10 +336,7 @@ export async function listSeminarTickets(context: RouteContext): Promise<Respons
         product_code: scope.product_code,
         batch: scope.batch,
         session_code: scope.session_code,
-        venue: val.venue ?? '',
-        schedule: val.schedule ?? '',
         notes: val.notes ?? '',
-        active: val.active,
         updated_at: row.updated_at,
       }
     }),
@@ -365,21 +357,12 @@ export async function saveSeminarTicket(context: RouteContext): Promise<Response
     readString(body, 'session_code'),
   )
 
-  const venue = (readString(body, 'venue') ?? '').trim()
-  const schedule = (readString(body, 'schedule') ?? '').trim()
   const notes = (readString(body, 'notes') ?? '').trim()
-  const active = body['active'] !== false
-
-  if (venue.length > 300 || schedule.length > 200 || notes.length > 500) {
-    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Panjang teks info tiket melebihi batas')
+  if (notes.length > 500) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Catatan tiket maksimal 500 karakter')
   }
 
-  const valueJson = JSON.stringify({
-    venue: venue === '' ? null : venue,
-    schedule: schedule === '' ? null : schedule,
-    notes: notes === '' ? null : notes,
-    active,
-  })
+  const valueJson = JSON.stringify({ notes: notes === '' ? null : notes })
 
   assertProductAccess(access, productCode)
   await context.db.rpc('save_seminar_ticket', {
@@ -394,10 +377,7 @@ export async function saveSeminarTicket(context: RouteContext): Promise<Response
     product_code: productCode,
     batch,
     session_code: sessionCode,
-    venue,
-    schedule,
     notes,
-    active,
   })
 }
 

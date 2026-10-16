@@ -78,14 +78,26 @@ describe('akses peserta seminar: halaman tiket (PRD §93, §G01, §G03)', () => 
     expect(response.headers.get('content-type')).toContain('text/html')
 
     const html = await response.text()
-    expect(html).toContain('Ahmad')
     expect(html).toContain('283033796')
-    expect(html).toContain('Seminar Offline')
-    expect(html).toContain('Kuliner Masteri')
-    expect(html).toContain('392')
-    expect(html).toContain('Solo')
     // Payload QR (03 §8) — QR sendiri dibuat browser, bukan di sini.
     expect(html).toContain('/checkin/283033796')
+  })
+
+  it('A19: urutan nama, Order ID (sekali), produk, batch, kota, sesi, QR, jumlah tiket; tanpa pengiklan/label acara', async () => {
+    const { api } = await setup({ orders: [fakeOrder({ quantity: 3 })] })
+    const html = await (await access(api, '283033796')).text()
+    const at = (needle: string) => {
+      const index = html.indexOf(needle)
+      expect(index, needle).toBeGreaterThan(-1)
+      return index
+    }
+    const order = [at('class="name">Ahmad'), at('Order ID <strong>283033796'), at('<dd>Kuliner Masteri'), at('<dd>392'),
+      at('<dd>Solo'), at('<dd>S1'), at('data-checkin-payload'), at('<strong>3</strong> TIKET')]
+    expect([...order].sort((a, b) => a - b)).toEqual(order)
+    expect(html.split('>283033796<')).toHaveLength(2)
+    expect(html).not.toContain('Zul')
+    expect(html).not.toContain('Seminar Offline')
+    expect(html).toContain('data-checked-in="false"')
   })
 
   it('halaman tiket tidak memuat email maupun nomor WA (04 §12)', async () => {
@@ -145,11 +157,13 @@ describe('akses peserta seminar: halaman tiket (PRD §93, §G01, §G03)', () => 
 
     const html = await (await access(api, '283033796')).text()
 
-    // Menampilkan pesan sukses check-in dan Order ID
-    expect(html).toContain('Check-in Telah Berhasil')
-    expect(html).toContain('Tiket ini sudah digunakan untuk masuk ke acara dan tidak dapat dipindai ulang.')
-    expect(html).toContain('Waktu check-in:')
-    expect(html).toContain('283033796')
+    // A19: stempel menggantikan QR; info lain dan jumlah tiket tetap tampil.
+    expect(html).toContain('CHECK-IN BERHASIL')
+    expect(html).toContain('WIB')
+    expect(html).toContain('data-checked-in="true"')
+    for (const text of ['Ahmad', '283033796', 'Kuliner Masteri', '392', 'Solo', 'S1', '<strong>1</strong> TIKET']) {
+      expect(html).toContain(text)
+    }
 
     // TIDAK menampilkan wadah QR dan TIDAK memuat skrip ticket-qr.js
     expect(html).not.toContain(`id="${CHECKIN_QR_ELEMENT_ID}"`)
@@ -306,6 +320,7 @@ describe('akses peserta: Hybrid (A14) — satu Order ID untuk tiket QR dan Zoom'
     const html = await response.text()
     expect(html).toContain('data-checkin-payload="/checkin/777"')
     expect(html).toContain('href="/access/777?via=zoom"')
+    expect(html).toContain('JOIN SECARA ONLINE (ZOOM)')
     expect(state.attendanceEvents).toHaveLength(0)
   })
 

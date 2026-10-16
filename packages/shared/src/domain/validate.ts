@@ -138,6 +138,16 @@ export function validateCanonicalOrderWebhook(input: unknown): CanonicalValidati
   )
   if (!paymentIdentifier.ok) return paymentIdentifier
 
+  // Jumlah tiket opsional: bilangan bulat 1..10000 (A19). Tidak disebut = null (nilai tersimpan dipakai).
+  const quantityRaw = input['quantity']
+  let quantity: number | null = null
+  if (quantityRaw !== undefined && quantityRaw !== null) {
+    if (typeof quantityRaw !== 'number' || !Number.isInteger(quantityRaw) || quantityRaw < 1 || quantityRaw > 10000) {
+      return fail('Jumlah tiket harus bilangan bulat 1–10000.')
+    }
+    quantity = quantityRaw
+  }
+
   const sourceCreatedAt = readOptionalTimestamp(input, 'sourceCreatedAt', 'Waktu dibuat sumber')
   if (!sourceCreatedAt.ok) return sourceCreatedAt
 
@@ -157,6 +167,7 @@ export function validateCanonicalOrderWebhook(input: unknown): CanonicalValidati
       paymentProvider: paymentProvider.value,
       paymentIdentifier: paymentIdentifier.value,
       grossAmount: roundMoney(grossRaw),
+      quantity,
       sourceCreatedAt: sourceCreatedAt.value,
       sourceUpdatedAt: sourceUpdatedAt.value,
     },
