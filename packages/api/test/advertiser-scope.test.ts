@@ -57,7 +57,7 @@ describe('A20: scope Advertiser', () => {
   it('profil memuat kode & nama pengiklan', async () => {
     const { as } = await setup('advertiser', { advertiser_id: ZUL })
     const body = (await (await (await as('admin1'))('GET', '/api/profile')).json()) as { data: { profile: Record<string, unknown> } }
-    expect(body.data.profile).toMatchObject({ role: 'advertiser', advertiser_code: '01', advertiser_name: 'Zul' })
+    expect(body.data.profile).toMatchObject({ role: 'advertiser', role_name: 'Advertiser', advertiser_code: '01', advertiser_name: 'Zul' })
   })
 
   it('Add Team: advertiser wajib pengiklan aktif; role lain mengosongkan pengiklan', async () => {

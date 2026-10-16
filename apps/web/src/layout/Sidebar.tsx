@@ -67,7 +67,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           </span>
           <div className="min-w-0">
             <p className="truncate text-[12px] font-semibold text-ink">{session.profile.display_name}</p>
-            <p className="truncate text-[11px] text-ink-muted">{ROLE_LABELS[session.profile.role] ?? session.profile.role}</p>
+            <p className="truncate text-[11px] text-ink-muted">{session.profile.role_name ?? ROLE_LABELS[session.profile.role] ?? session.profile.role}</p>
           </div>
         </div>
       )}

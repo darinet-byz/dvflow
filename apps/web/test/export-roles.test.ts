@@ -31,8 +31,10 @@ describe('requested role matrix', () => {
     expect(ROLE_LABELS['admin']).toBe('Admin')
     expect(ROLE_LABELS['pimpro']).toBe('Pimpro')
     expect(ROLE_LABELS['member']).toBe('Member')
-    expect(ROLE_LABELS['master_admin']).toBe('Admin Master')
-    expect(ROLE_LABELS['staff']).toBe('Team')
+    // Sama dengan nama di Konfigurasi Role (app_roles).
+    expect(ROLE_LABELS['master_admin']).toBe('Admin Master (Legacy)')
+    expect(ROLE_LABELS['staff']).toBe('Staff (Legacy)')
+    expect(ROLE_LABELS['advertiser']).toBe('Advertiser')
     for (const path of ['/add-team', '/konfigurasi-produk', '/konfigurasi-tax', '/report-tax']) {
       expect(canAccessPath('master_admin', path)).toBe(true)
       expect(canAccessPath('staff', path)).toBe(false)

@@ -89,9 +89,13 @@ export function TeamPage() {
     return item ? `${item.code} — ${item.name}` : null
   }
 
+  // Nama role sama persis dengan Konfigurasi Role; ROLE_LABELS hanya cadangan saat daftar belum dimuat.
+  const roleNames = new Map((roleList?.roles ?? []).map((item) => [item.id, item.name]))
+  const roleLabel = (id: string) => roleNames.get(id) ?? ROLE_LABELS[id] ?? id
+
   const term = search.trim().toLowerCase()
   const rows = (data?.users ?? []).filter((row) =>
-    [row.username, row.display_name, ROLE_LABELS[row.role] ?? row.role].some((value) =>
+    [row.username, row.display_name, roleLabel(row.role)].some((value) =>
       value.toLowerCase().includes(term),
     ),
   )
@@ -222,7 +226,7 @@ export function TeamPage() {
   }
 
   const roleOptions = roleList?.roles?.length
-    ? roleList.roles.map((item) => ({ value: item.id, label: ROLE_LABELS[item.id] ?? item.name }))
+    ? roleList.roles.map((item) => ({ value: item.id, label: item.name }))
     : Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }))
 
   return (
@@ -366,7 +370,7 @@ export function TeamPage() {
                   rows.map((row) => ({
                     username: row.username,
                     display_name: row.display_name,
-                    role: ROLE_LABELS[row.role] ?? row.role,
+                    role: roleLabel(row.role),
                     product_access: [
                       row.has_all_product_access !== false ? 'Semua Produk' : (row.allowed_product_codes ?? []).join(', '),
                       describeAdvertiser(row.advertiser_id) ? `Pengiklan ${describeAdvertiser(row.advertiser_id)}` : null,
@@ -381,7 +385,7 @@ export function TeamPage() {
                   <TableRow key={row.id}>
                     <TableCell>{row.username}</TableCell>
                     <TableCell>{row.display_name}</TableCell>
-                    <TableCell>{ROLE_LABELS[row.role] ?? row.role}</TableCell>
+                    <TableCell>{roleLabel(row.role)}</TableCell>
                     <TableCell>
                       {row.has_all_product_access !== false ? (
                         <Badge tone="neutral">Semua Produk</Badge>

@@ -149,6 +149,6 @@ describe('requested team, Zoom, and Barcode Ticket screens', () => {
     expect(screen.getByRole('link', { name: 'Konfigurasi Barcode / Tiket' })).toBeDefined()
     expect(screen.getByRole('link', { name: 'Product Name Generator' })).toBeDefined()
     expect(screen.getByRole('link', { name: 'Order' })).toBeDefined()
-    expect(screen.getByText('Team')).toBeDefined()
+    expect(screen.getByText('Staff (Legacy)')).toBeDefined()
   })
 })

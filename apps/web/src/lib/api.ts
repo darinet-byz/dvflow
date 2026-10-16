@@ -108,6 +108,8 @@ export type Profile = {
   username: string
   display_name: string
   role: AppRole
+  /** Nama role dari Konfigurasi Role; sumber label yang sama dengan Add Team. */
+  role_name?: string
   avatar_emoji: string | null
   has_all_product_access?: boolean
   allowed_product_codes?: string[]

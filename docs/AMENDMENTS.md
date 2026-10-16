@@ -632,3 +632,12 @@ Yang tidak lagi ditampilkan: nama pengiklan, label jenis acara, dan Order ID bes
 
 **Catatan.** Konfigurasi Zoom/Tiket tetap level produk. Role Advertiser bawaan tidak punya izin `config.*` (sama dengan Pimpro).
 
+## A21 — Label role mengikuti Konfigurasi Role (16 Oktober 2026)
+
+- Add Team menampilkan label lama "Team" (dari A10), padahal di Konfigurasi Role role itu bernama "Staff (Legacy)".
+- Sumber nama role sekarang satu: `app_roles.name` (Konfigurasi Role).
+  - Add Team mengambil nama dari `/api/roles`, untuk pilihan role maupun tabel.
+  - Sidebar memakai `profile.role_name` dari server.
+- Label A10 "staff = Team" dan "master_admin = Admin Master" diganti menjadi nama di Konfigurasi Role. ID role tidak berubah.
+- Mengganti nama role di Konfigurasi Role otomatis mengubah labelnya di semua tempat.
+

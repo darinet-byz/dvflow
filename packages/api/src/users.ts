@@ -37,6 +37,8 @@ export type Profile = {
   username: string
   display_name: string
   role: AppRole
+  /** Nama role persis seperti di Konfigurasi Role (app_roles.name). */
+  role_name?: string
   avatar_emoji: string | null
   has_all_product_access?: boolean
   allowed_product_codes?: string[]
@@ -110,6 +112,8 @@ export async function buildUserProfile(
     }
   }
 
+  const [roleRow] = await context.db.selectRows<{ name: string }>('app_roles', { id: `eq.${user.role}` }, 'name')
+
   let advertiser: { code: string; name: string } | null = null
   if (userId && !isMasterAdminRole(user.role)) {
     const rows = await context.db.selectRows<{ advertiser_id: string | null }>('users', { id: `eq.${userId}` }, 'advertiser_id')
@@ -124,6 +128,7 @@ export async function buildUserProfile(
     username: user.username,
     display_name: user.display_name,
     role: user.role,
+    role_name: roleRow?.name ?? user.role,
     avatar_emoji: user.avatar_emoji,
     has_all_product_access: hasAllProductAccess,
     allowed_product_codes,

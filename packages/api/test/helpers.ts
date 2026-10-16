@@ -61,6 +61,7 @@ export const DEFAULT_ROLES = [
   { id: 'member', name: 'Member', description: 'Operator registrasi', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
   { id: 'master_admin', name: 'Admin Master (Legacy)', description: 'Role legacy setara Owner/Developer', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
   { id: 'staff', name: 'Staff (Legacy)', description: 'Role legacy setara Member', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
+  { id: 'advertiser', name: 'Advertiser', description: 'Pengiklan', is_system: true, created_at: '2026-10-16T08:00:00Z', updated_at: '2026-10-16T08:00:00Z' },
 ]
 
 export const DEFAULT_PERMISSIONS = [

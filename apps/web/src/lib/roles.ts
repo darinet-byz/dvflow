@@ -1,5 +1,9 @@
 import { isMasterAdminRole, type AppRole } from '@dvflow/shared'
 
+/**
+ * Cadangan label role. Sumber utama adalah nama di Konfigurasi Role (`app_roles.name`):
+ * Add Team memakai `/api/roles`, sidebar memakai `profile.role_name`.
+ */
 export const ROLE_LABELS: Record<string, string> = {
   developer: 'Developer',
   owner: 'Owner',
@@ -8,8 +12,8 @@ export const ROLE_LABELS: Record<string, string> = {
   pimpro: 'Pimpro',
   advertiser: 'Advertiser',
   member: 'Member',
-  master_admin: 'Admin Master',
-  staff: 'Team',
+  master_admin: 'Admin Master (Legacy)',
+  staff: 'Staff (Legacy)',
 }
 
 export const PATH_PERMISSION_MAP: Record<string, string> = {
