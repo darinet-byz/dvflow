@@ -11,6 +11,9 @@ export const DEFAULT_PAGE_SIZE = 50
 /** Opsi ukuran halaman yang diizinkan (PRD §33). */
 export const ALLOWED_PAGE_SIZES: readonly number[] = [50, 100]
 
+/** Batas baris yang bisa dibuka lewat pagination list (A18): 10 halaman x 50. Ringkasan tetap angka asli. */
+export const MAX_LIST_ROWS = 500
+
 /** Jeda debounce pencarian (01-IMPLEMENTATION-DECISIONS §7). */
 export const SEARCH_DEBOUNCE_MS = 300
 

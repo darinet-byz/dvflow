@@ -729,6 +729,7 @@ function matchesQuery(row: Record<string, unknown>, query: Record<string, string
 
     if (expression === 'is.null') return value === null || value === undefined
     if (expression === 'is.true') return value === true
+    if (expression.startsWith('gte.')) return typeof value === 'string' && value >= expression.slice(4)
     if (expression.startsWith('gt.')) return typeof value === 'string' && value > expression.slice(3)
     if (expression.startsWith('eq.')) return String(value ?? '') === expression.slice(3)
     if (expression.startsWith('in.')) {

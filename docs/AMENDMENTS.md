@@ -544,3 +544,25 @@ Keputusan pengguna: alias produk tetap boleh dihapus, tetapi order yang sudah te
 **Tetap mengikuti hasil parse:**
 - order dengan nama produk yang **berbeda** (produk memang berganti);
 - order **baru** dengan nama yang aliasnya sudah dihapus. Order seperti ini menjadi Unmapped.
+
+## A18 — Kapasitas database, batas list 500 baris, default tanggal 30 hari (16 Oktober 2026)
+
+**Kapasitas (Supabase Free, batas 500 MB).** Benchmark lokal dengan 20.000 order sintetis yang realistis lewat `upsert_connected_order`, semua migrasi aktif:
+
+| Komponen | Ukuran | Masa simpan |
+|---|---|---|
+| Order (data + 29 indeks, termasuk 9 GIN trigram untuk pencarian, + baris sumber toko) | **±3,2 KB per order** | permanen |
+| Log webhook | ±0,5 KB per webhook | 7 hari (cron) |
+| Presensi | kecil per baris | 30 hari (cron) |
+
+Database dasar di produksi ±13 MB. Setelah dikurangi ruang log webhook 7 hari dan cadangan aman 20%, kapasitas **±120.000 order dengan aman**, dan batas keras di sekitar **150.000 order**. Lewat dari 500 MB, Supabase membuat database read-only. Mulai rencanakan upgrade ke Pro (8 GB, ±2 juta order) atau arsip order lama saat ukuran database mendekati **400 MB** (Dashboard Supabase → Database → Usage).
+
+**Batas list.**
+- Pagination Order dan Presensi hanya bisa dibuka sampai **500 baris**: 10 halaman × 50, atau 5 × 100 (`MAX_LIST_ROWS`).
+- Guard ada di server: `orders_page`/`presensi_page` → `DF011 PAGE_LIMIT` (0035). Order Unmapped juga ditolak setelah halaman 10.
+- Kartu ringkasan tetap menampilkan total asli, dan UI menyarankan mempersempit filter.
+- Export CSV tidak dibatasi.
+
+**Default tanggal.**
+- Dashboard, Order, Presensi, dan Report Tax dibuka dengan **30 Hari Terakhir**. "Clear All" kembali ke 30 hari.
+- "Semua tanggal" masih bisa dipilih manual: lewat preset di panel tanggal, atau ✕ pada chip tanggal.

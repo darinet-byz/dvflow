@@ -463,3 +463,4 @@ sering terlanggar:
 | 2026-10-15 | F2.0 | Platform Fee + E-payment Fee Tax (A15, 0031); Report Tax & nominal Dashboard hanya order Paid |
 | 2026-10-15 | F2.0 | Kode metode bayar OrderOnline (A16, 0032): instant + payment.channels, katalog 14 metode (toggle), e-payment fee kombinasi persen + flat |
 | 2026-10-16 | F2.0 | A17 (0034): pemetaan order dikunci walau alias dihapus; Report Tax per channel (0033); link akses peserta {{order_id}} |
+| 2026-10-16 | F2.0 | A18 (0035): kapasitas ±3,2 KB/order -> ±120 ribu order aman di Supabase Free; list maks 500 baris; default tanggal 30 hari; filter tanggal satu field (preset + kalender) |

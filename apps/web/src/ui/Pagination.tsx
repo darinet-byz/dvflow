@@ -1,4 +1,4 @@
-import { ALLOWED_PAGE_SIZES } from '@dvflow/shared'
+import { ALLOWED_PAGE_SIZES, MAX_LIST_ROWS } from '@dvflow/shared'
 import { cn } from './cn'
 import { pageRange, totalPages, type PageSize } from '../lib/filters'
 
@@ -22,7 +22,10 @@ export function Pagination({
   onPageChange: (page: number) => void
   onPageSizeChange: (size: PageSize) => void
 }) {
-  const pages = totalPages(total, pageSize)
+  // Maksimal MAX_LIST_ROWS baris (10 halaman x 50) agar halaman dalam tidak membebani database.
+  const pageLimit = Math.max(1, Math.floor(MAX_LIST_ROWS / pageSize))
+  const pages = Math.min(totalPages(total, pageSize), pageLimit)
+  const capped = total > MAX_LIST_ROWS
   const range = pageRange(page, pageSize, total)
 
   return (
@@ -30,6 +33,11 @@ export function Pagination({
       <p>
         Menampilkan <strong className="text-ink">{range.from}</strong>–
         <strong className="text-ink">{range.to}</strong> dari <strong className="text-ink">{total}</strong> baris
+        {capped ? (
+          <span className="mt-0.5 block text-[11px] text-[#c78a21]" role="note">
+            Hanya {MAX_LIST_ROWS} data pertama yang bisa dibuka. Persempit filter (tanggal/produk) untuk melihat sisanya.
+          </span>
+        ) : null}
       </p>
 
       <div className="flex max-w-full flex-wrap items-center gap-3">

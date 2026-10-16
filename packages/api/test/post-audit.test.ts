@@ -87,3 +87,21 @@ describe('perbaikan pasca-audit', () => {
     expect(state.users.map((u) => u.id)).toEqual(['u-dev'])
   })
 })
+
+describe('A18: batas pagination Order Unmapped (10 halaman x 50)', () => {
+  it('halaman 11 ditolak; halaman 10 tidak menawarkan halaman berikutnya', async () => {
+    const { state, request } = await setup()
+    for (let i = 0; i < 520; i += 1) {
+      state.orders.push({ order_id: `u${i}`, product_parse_status: 'invalid', created_at: '2026-10-16T01:00:00.000Z', gross_amount: 1000, app_status: 'Pending' })
+    }
+    const page11 = await request('GET', '/api/orders/unmapped?page=11')
+    expect(page11.status).toBe(400)
+    expect(((await page11.json()) as Failure).error.message).toContain('500 data pertama')
+    const page10 = await request('GET', '/api/orders/unmapped?page=10')
+    expect(page10.status).toBe(200)
+    expect(((await page10.json()) as { data: { has_more: boolean } }).data.has_more).toBe(false)
+    const page1 = (await (await request('GET', '/api/orders/unmapped?page=1')).json()) as { data: { has_more: boolean; rows: unknown[] } }
+    expect(page1.data.has_more).toBe(true)
+    expect(page1.data.rows).toHaveLength(50)
+  })
+})

@@ -1,4 +1,4 @@
-import { parseProductRaw, type ProductAliasItem } from '@dvflow/shared'
+import { MAX_LIST_ROWS, parseProductRaw, type ProductAliasItem } from '@dvflow/shared'
 import { buildIlikeOrFilter, sanitizeSearchTerm } from '../http/postgrest-filter'
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
@@ -108,6 +108,11 @@ export async function listUnmappedOrders(context: RouteContext): Promise<Respons
   const search = sanitizeSearchTerm(context.url.searchParams.get('search'))
   const page = Math.max(1, parseInt(context.url.searchParams.get('page') ?? '1', 10) || 1)
   const pageSize = Math.min(100, Math.max(10, parseInt(context.url.searchParams.get('pageSize') ?? '50', 10) || 50))
+  // A18: maksimal MAX_LIST_ROWS baris lewat pagination (10 halaman x 50).
+  const maxPage = Math.max(1, Math.floor(MAX_LIST_ROWS / pageSize))
+  if (page > maxPage) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, `Hanya ${MAX_LIST_ROWS} data pertama yang bisa dibuka. Persempit pencarian.`)
+  }
   const offset = (page - 1) * pageSize
 
   const cutoffDate = new Date(context.now.getTime() - 90 * 24 * 60 * 60 * 1000).toISOString()
@@ -134,7 +139,7 @@ export async function listUnmappedOrders(context: RouteContext): Promise<Respons
     rows: rows.slice(0, pageSize),
     page,
     pageSize,
-    has_more: rows.length > pageSize,
+    has_more: rows.length > pageSize && page < maxPage,
   })
 }
 

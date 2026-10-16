@@ -128,6 +128,17 @@ export function DateRangeField({
                 {preset.label}
               </button>
             ))}
+            {/* Pilihan sadar: default halaman adalah 30 hari, semua data hanya bila diminta. */}
+            <button
+              type="button"
+              onClick={() => apply({ from: '', to: '' })}
+              className={cn(
+                'rounded-sm px-2.5 py-1.5 text-left text-[13px] hover:bg-soft',
+                !from && !to ? 'bg-primary-soft font-semibold text-primary' : 'text-ink',
+              )}
+            >
+              Semua tanggal
+            </button>
             <span
               className={cn(
                 'rounded-sm px-2.5 py-1.5 text-[13px]',
