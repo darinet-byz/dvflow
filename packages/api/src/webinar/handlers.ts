@@ -174,6 +174,7 @@ export async function listWebinars(context: RouteContext): Promise<Response> {
     }),
     products: config.products.filter((item) => allowsProduct(access, item.code)).map((item) => ({ code: item.code, name: item.name, active: item.active })),
     sessions: config.sessions.map((item) => ({ code: item.code, name: item.name, active: item.active })),
+    stores: await loadStoreCodes(context),
   })
 }
 
@@ -288,6 +289,18 @@ export async function deleteWebinar(context: RouteContext): Promise<Response> {
  * Aturan tiket (A19): hanya catatan opsional. Nilai lama `venue`/`schedule`/`active`
  * dari versi sebelumnya dibiarkan tersimpan tetapi diabaikan.
  */
+/**
+ * Kode toko koneksi OrderOnline aktif, untuk link peserta `/access/{KODE}/{{order_id}}`
+ * (Fitur 2.0 dok 07: Order ID disimpan `KODE-nomor`, jadi kode toko mencegah tabrakan antar toko).
+ * Hanya nama + kode — token/secret koneksi tidak pernah ikut.
+ */
+async function loadStoreCodes(context: RouteContext): Promise<{ name: string; slug: string }[]> {
+  const rows = await context.db.selectRows<{ name: string; slug: string | null }>(
+    'orderonline_connections', { active: 'is.true', order: 'slug.asc' }, 'name,slug',
+  )
+  return rows.filter((row) => row.slug).map((row) => ({ name: row.name, slug: row.slug as string }))
+}
+
 export type SeminarTicketRuleValue = {
   notes: string | null
 }
@@ -342,6 +355,7 @@ export async function listSeminarTickets(context: RouteContext): Promise<Respons
     }),
     products: config.products.filter((item) => allowsProduct(access, item.code)).map((item) => ({ code: item.code, name: item.name, active: item.active })),
     sessions: config.sessions.map((item) => ({ code: item.code, name: item.name, active: item.active })),
+    stores: await loadStoreCodes(context),
   })
 }
 

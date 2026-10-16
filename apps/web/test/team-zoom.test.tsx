@@ -33,6 +33,7 @@ beforeEach(() => {
           rows: [],
           products: [{ code: 'KM', name: 'Kuliner Masteri', active: true }],
           sessions: [{ code: 'S1', name: 'Sesi 1', active: true }],
+          stores: [{ name: 'Master Tiktok Indonesia', slug: 'MTIX' }],
         },
   )
 })
@@ -67,8 +68,9 @@ describe('requested team, Zoom, and Barcode Ticket screens', () => {
 
   it('preserves the literal OrderOnline variable and sends either exact or scoped Zoom mapping', async () => {
     render(<ZoomPage />)
-    const link = screen.getByLabelText('Link peserta untuk template followup OrderOnline') as HTMLInputElement
-    expect(link.value).toBe(`${window.location.origin}/access/{{order_id}}`)
+    // A27: link peserta per toko memuat kode toko (Fitur 2.0 dok 07).
+    const link = (await screen.findByLabelText('Master Tiktok Indonesia (kode toko MTIX)')) as HTMLInputElement
+    expect(link.value).toBe(`${window.location.origin}/access/MTIX/{{order_id}}`)
     fireEvent.change(screen.getByLabelText('Nama produk persis di OrderOnline'), {
       target: { value: 'KM01WO001 - ST - Solo' },
     })

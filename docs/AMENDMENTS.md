@@ -702,3 +702,14 @@ Yang tidak lagi ditampilkan: nama pengiklan, label jenis acara, dan Order ID bes
 - **Pelaksanaan:** dijalankan langsung ke produksi dalam satu transaksi (bukan migrasi, supaya tidak terulang di database lain). Backup lokal ada di `.local-backups/quantity-backfill-*.json`. Skrip dihapus setelah dijalankan.
 - **Hasil:** 2 order diubah dari 1 menjadi 2 tiket, keduanya masih Pending: `MTIX-283753354` (300.371) dan `MTIX-283760387` (300.000). Tidak ada order bernominal di bawah 150.000.
 
+## A27 — Link peserta selalu memakai kode toko (16 Oktober 2026)
+
+- **Keputusan awal** (Fitur 2.0 dok 07, A13): Order ID disimpan `KODE-nomor` dan link peserta `/access/{kodeToko}/{{order_id}}`, supaya order dua toko tidak pernah tertukar. Server dan halaman API & Webhook sudah mengikutinya.
+- **Celah yang ditemukan:**
+  - Konfigurasi Zoom dan Konfigurasi Tiket masih menampilkan template lama `/access/{{order_id}}`.
+  - Drawer detail Order dan Presensi membuat link `/access/MTIX-283…`.
+- **Perbaikan:**
+  - Kedua halaman konfigurasi menampilkan satu link `/access/{KODE}/{{order_id}}` per koneksi OrderOnline aktif. Daftar Zoom dan Tiket kini mengembalikan `stores`: hanya nama dan kode, tanpa token atau secret.
+  - Drawer membuat `/access/MTIX/283818331` (`participantAccessPath`). Order lama tanpa kode toko tetap `/access/<order_id>`.
+- **Kompatibilitas:** link lama `/access/<nomor>` tetap dilayani hanya bila nomor itu unik di semua toko. Bila bentrok, link ditolak "tidak ditemukan", tidak pernah menebak toko.
+

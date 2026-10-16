@@ -472,3 +472,4 @@ sering terlanggar:
 | 2026-10-16 | F2.0 | A24 (0039): filter tanggal = tanggal order OrderOnline (`coalesce(source_created_at, created_at)`) dalam hari WIB; sebelumnya batas hari UTC membuat 54 leads tampil 45 |
 | 2026-10-16 | F2.0 | A25 (0040): Dashboard kartu Jumlah Tiket = total quantity order Paid (`paid_tickets`); Paid tetap per Order ID tanpa dobel; quantity dicatat di webhook_logs |
 | 2026-10-16 | F2.0 | A26: koreksi SEKALI JALAN quantity order lama dari nominal (150.000/tiket) di produksi: 2 order (Pending) 1 → 2 tiket; ke depan hanya dari webhook |
+| 2026-10-16 | F2.0 | A27: link peserta di Konfigurasi Zoom/Tiket (per toko) & drawer Order/Presensi memakai `/access/{KODE}/{nomor}` sesuai dok 07 |

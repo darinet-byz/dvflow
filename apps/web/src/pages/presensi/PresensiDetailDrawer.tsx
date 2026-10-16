@@ -4,6 +4,7 @@ import { DetailList } from '../../ui/Card'
 import { Drawer } from '../../ui/Overlay'
 import { useToast } from '../../ui/Toast'
 import { formatDateTime, formatText, formatTime } from '../../lib/format'
+import { participantAccessPath, participantAccessUrl } from '../../lib/access-link'
 import type { PresensiRow } from '../../lib/queries'
 
 /**
@@ -19,7 +20,8 @@ import type { PresensiRow } from '../../lib/queries'
 export function PresensiDetailDrawer({ row, onClose }: { row: PresensiRow | null; onClose: () => void }) {
   const toast = useToast()
   const timestamps = row?.timestamps ?? []
-  const accessUrl = row ? `${window.location.origin}/access/${encodeURIComponent(row.order_id)}` : ''
+  // A27: link resmi memisahkan kode toko: /access/MTIX/283818331.
+  const accessUrl = row ? participantAccessUrl(row.order_id) : ''
 
   async function copyAccessLink() {
     if (!accessUrl) return
@@ -62,7 +64,7 @@ export function PresensiDetailDrawer({ row, onClose }: { row: PresensiRow | null
                   Salin Link
                 </Button>
                 <a
-                  href={`/access/${encodeURIComponent(row.order_id)}`}
+                  href={participantAccessPath(row.order_id)}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex h-8 items-center rounded-sm border border-line bg-card px-2.5 text-[12px] font-semibold text-primary hover:bg-soft"

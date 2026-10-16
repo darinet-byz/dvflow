@@ -13,6 +13,8 @@ import { ErrorState, SkeletonRows } from '../../ui/Feedback'
 import { Modal } from '../../ui/Overlay'
 import { DataTable, TableCell, TableRow } from '../../ui/Table'
 import { useToast } from '../../ui/Toast'
+import { participantLinkTemplate } from '../../lib/access-link'
+import { ParticipantLinkTemplates, type StoreCode } from './ParticipantLinkTemplates'
 
 type SeminarTicketRow = {
   key: string
@@ -30,6 +32,8 @@ type SeminarTicketListResponse = {
   rows: SeminarTicketRow[]
   products?: ConfigOption[]
   sessions?: ConfigOption[]
+  /** A27: kode toko aktif untuk link `/access/{KODE}/{{order_id}}`. */
+  stores?: StoreCode[]
 }
 
 const columns = [
@@ -98,7 +102,8 @@ export function TicketConfigPage() {
 
   const products = data?.products ?? []
   const sessions = data?.sessions ?? []
-  const template = `${window.location.origin}/access/{{order_id}}`
+  const stores = data?.stores ?? []
+  const templates = stores.map((store) => participantLinkTemplate(store.slug)).join(' | ')
   const sampleQrSvg = useMemo(() => buildCheckinQrSvg('/checkin/283033796'), [])
 
   const rows = (data?.rows ?? []).filter((row) => {
@@ -158,15 +163,6 @@ export function TicketConfigPage() {
       toast.show(e instanceof Error ? e.message : 'Gagal menghapus konfigurasi tiket.', 'danger')
     } finally {
       setBusy(false)
-    }
-  }
-
-  async function copyTemplate() {
-    try {
-      await navigator.clipboard.writeText(template)
-      toast.show('Link tiket peserta disalin.', 'success')
-    } catch {
-      toast.show('Salin link secara manual dari kotak link peserta.', 'danger')
     }
   }
 
@@ -277,20 +273,7 @@ export function TicketConfigPage() {
           </div>
         </form>
 
-        <div className="mt-5 border-t border-line pt-4">
-          <label htmlFor="ticket-template" className="font-semibold">
-            Link tiket barcode / QR untuk template followup OrderOnline
-          </label>
-          <div className="mt-2 flex min-w-0 flex-wrap gap-2">
-            <input
-              id="ticket-template"
-              readOnly
-              value={template}
-              className="min-w-0 w-full rounded-sm border border-line p-3 font-mono text-[12px]"
-            />
-            <Button onClick={() => void copyTemplate()}>Salin link tiket</Button>
-          </div>
-        </div>
+        <ParticipantLinkTemplates idPrefix="ticket-template" label="Link tiket barcode / QR untuk template followup OrderOnline" stores={stores} />
       </Card>
 
       <div className="mt-4">
@@ -314,7 +297,7 @@ export function TicketConfigPage() {
                   rows.map((row) => ({
                     scope: describeTicketScope(row, products, sessions).label,
                     details: row.notes || '-',
-                    participant_link: template,
+                    participant_link: templates,
                   })),
                 columns: [
                   ...columns.filter((c) => c.key !== 'actions'),
