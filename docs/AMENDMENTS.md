@@ -694,3 +694,11 @@ Yang tidak lagi ditampilkan: nama pengiklan, label jenis acara, dan Order ID bes
 - **Jumlah Tiket** (baru) = total `orders.quantity` (A19) dari order Paid, yaitu tiket terjual. Keputusan pengguna: order Pending/Cancelled tidak dihitung. `dashboard_summary` (0040) mengembalikan `paid_tickets`.
 - **Batasan data lama:** order yang belum menerima webhook lagi sejak 0036 masih bernilai default 1, karena log webhook lama tidak menyimpan quantity. Nilainya otomatis benar saat order itu menerima webhook berikutnya. Mulai A25, `quantity` ikut dicatat di `webhook_logs`.
 
+## A26 — Koreksi jumlah tiket order lama dari nominal: SEKALI JALAN (16 Oktober 2026)
+
+- **Keputusan pengguna:** isi jumlah tiket order lama dari nominal, **hanya sekali ini**. Ke depan jumlah tiket selalu dari webhook (`customer_data.quantity`, A19). Nominal **tidak** dipakai untuk menghitung tiket di kode mana pun.
+- **Rumus satu kali:** `floor(gross_amount / 150000)`. Harga tiket saat itu 150.000; kode unik transfer 3 digit ikut terbuang oleh pembulatan ke bawah.
+- **Batasan:** hanya menaikkan nilai yang lebih kecil dari hasil hitung, jadi nilai dari webhook tidak ditimpa.
+- **Pelaksanaan:** dijalankan langsung ke produksi dalam satu transaksi (bukan migrasi, supaya tidak terulang di database lain). Backup lokal ada di `.local-backups/quantity-backfill-*.json`. Skrip dihapus setelah dijalankan.
+- **Hasil:** 2 order diubah dari 1 menjadi 2 tiket, keduanya masih Pending: `MTIX-283753354` (300.371) dan `MTIX-283760387` (300.000). Tidak ada order bernominal di bawah 150.000.
+
