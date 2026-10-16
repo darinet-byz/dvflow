@@ -1,4 +1,4 @@
-import { requirePermission, productAccess, assertProductAccess } from '../permissions'
+import { requirePermission, productAccess, assertOrderAccess } from '../permissions'
 import { resolveProductAlias } from '../webhooks/handlers'
 import { buildCheckinPath, isOrderIdShaped } from '@dvflow/shared'
 import type { Db } from '../db/types'
@@ -34,6 +34,7 @@ type OrderRow = {
   product_raw: string | null
   product_code?: string | null
   product_name: string | null
+  advertiser_code: string | null
   advertiser_name: string | null
   batch: string | null
   session: string | null
@@ -43,7 +44,7 @@ type OrderRow = {
 }
 
 const ORDER_COLUMNS =
-  'order_id,name,app_status,product_parse_status,event_type,product_raw,product_code,product_name,advertiser_name,batch,session,city,quantity'
+  'order_id,name,app_status,product_parse_status,event_type,product_raw,product_code,product_name,advertiser_code,advertiser_name,batch,session,city,quantity'
 
 export async function loadOrder(db: Db, orderId: string): Promise<OrderRow | null> {
   const rows = await db.selectRows<OrderRow>('orders', { order_id: `eq.${orderId}` }, ORDER_COLUMNS)
@@ -316,7 +317,7 @@ export async function checkinSeminar(
   const access = await productAccess(context, operator)
   const orderBefore = await loadOrder(context.db, input.orderId)
   if (!orderBefore) throw new ApiFailure('ORDER_NOT_FOUND')
-  assertProductAccess(access, orderBefore.product_code)
+  assertOrderAccess(access, { product_code: orderBefore.product_code ?? null, advertiser_code: orderBefore.advertiser_code })
 
   const result = await context.db.rpc<CheckinResult>('checkin_seminar', {
     p_order_id: input.orderId,

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { AppRole } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
 import { ROLE_LABELS } from '../../lib/roles'
-import { fetchConfigLists } from '../../lib/queries'
+import { fetchAdvertiserChoices, fetchConfigLists } from '../../lib/queries'
 import { useAsyncData } from '../../lib/useAsyncData'
 import { useSession } from '../../lib/useSession'
 import { PageHeader } from '../../layout/PageHeader'
@@ -23,7 +23,12 @@ type Member = {
   active: boolean
   has_all_product_access?: boolean
   allowed_product_codes?: string[]
+  /** A20: hanya role advertiser. */
+  advertiser_id?: string | null
 }
+
+/** Role yang wajib memegang satu pengiklan (A20). */
+const ADVERTISER_ROLE = 'advertiser'
 
 const columns = [
   { key: 'username', header: 'Username' },
@@ -41,6 +46,7 @@ export function TeamPage() {
   const [role, setRole] = useState<AppRole>('member')
   const [hasAllProducts, setHasAllProducts] = useState(true)
   const [selectedProductCodes, setSelectedProductCodes] = useState<string[]>([])
+  const [advertiserId, setAdvertiserId] = useState('')
 
   const [search, setSearch] = useState('')
   const [busy, setBusy] = useState(false)
@@ -53,6 +59,7 @@ export function TeamPage() {
   const [editPassword, setEditPassword] = useState('')
   const [editHasAllProducts, setEditHasAllProducts] = useState(true)
   const [editSelectedProductCodes, setEditSelectedProductCodes] = useState<string[]>([])
+  const [editAdvertiserId, setEditAdvertiserId] = useState('')
 
   const [deleting, setDeleting] = useState<Member | null>(null)
 
@@ -69,6 +76,18 @@ export function TeamPage() {
     [],
   )
   const productOptions = configLists?.products ?? []
+  const { data: advertiserChoices } = useAsyncData(fetchAdvertiserChoices, [])
+  const advertiserById = new Map((advertiserChoices ?? []).map((item) => [item.id, item]))
+  const advertiserOptions = (current: string) => [
+    { value: '', label: 'Pilih pengiklan' },
+    ...(advertiserChoices ?? [])
+      .filter((item) => item.active || item.id === current)
+      .map((item) => ({ value: item.id, label: `${item.code} — ${item.name}${item.active ? '' : ' (nonaktif)'}` })),
+  ]
+  const describeAdvertiser = (id: string | null | undefined) => {
+    const item = id ? advertiserById.get(id) : undefined
+    return item ? `${item.code} — ${item.name}` : null
+  }
 
   const term = search.trim().toLowerCase()
   const rows = (data?.users ?? []).filter((row) =>
@@ -96,6 +115,10 @@ export function TeamPage() {
       setFailure('Pilih minimal satu produk jika akses produk dibatasi.')
       return
     }
+    if (role === ADVERTISER_ROLE && !advertiserId) {
+      setFailure('Pilih pengiklan untuk role Advertiser.')
+      return
+    }
     setBusy(true)
     setFailure(null)
     try {
@@ -105,6 +128,7 @@ export function TeamPage() {
         initial_password: password,
         role,
       }
+      if (role === ADVERTISER_ROLE) body.advertiser_id = advertiserId
       if (!hasAllProducts) {
         body.has_all_product_access = false
         body.product_codes = selectedProductCodes
@@ -118,6 +142,7 @@ export function TeamPage() {
       setRole('member')
       setHasAllProducts(true)
       setSelectedProductCodes([])
+      setAdvertiserId('')
       reload()
       toast.show('Member berhasil ditambahkan.', 'success')
     } catch (e) {
@@ -135,6 +160,7 @@ export function TeamPage() {
     setEditPassword('')
     setEditHasAllProducts(row.has_all_product_access !== false)
     setEditSelectedProductCodes(row.allowed_product_codes ?? [])
+    setEditAdvertiserId(row.advertiser_id ?? '')
   }
 
   async function saveEdit() {
@@ -151,6 +177,10 @@ export function TeamPage() {
       toast.show('Pilih minimal satu produk jika akses produk dibatasi.', 'danger')
       return
     }
+    if (editRole === ADVERTISER_ROLE && !editAdvertiserId) {
+      toast.show('Pilih pengiklan untuk role Advertiser.', 'danger')
+      return
+    }
     setBusy(true)
     try {
       const body: Record<string, unknown> = {
@@ -160,6 +190,7 @@ export function TeamPage() {
         has_all_product_access: editHasAllProducts,
         product_codes: editHasAllProducts ? [] : editSelectedProductCodes,
       }
+      if (editRole === ADVERTISER_ROLE) body['advertiser_id'] = editAdvertiserId
       if (editPassword !== '') body['new_password'] = editPassword
       await authorizedRequest(`/api/internal/users/${editing.id}`, {
         method: 'PATCH',
@@ -240,6 +271,19 @@ export function TeamPage() {
               </Button>
             </div>
           </div>
+
+          {role === ADVERTISER_ROLE ? (
+            <div className="max-w-sm">
+              <Select
+                id="team-advertiser"
+                label="Pengiklan (hanya order kode ini yang terlihat)"
+                value={advertiserId}
+                onChange={setAdvertiserId}
+                disabled={busy}
+                options={advertiserOptions(advertiserId)}
+              />
+            </div>
+          ) : null}
 
           <div className="rounded-lg border border-line bg-page p-3 flex flex-col gap-2">
             <span className="text-[12px] font-semibold text-ink">Akses Produk:</span>
@@ -323,7 +367,10 @@ export function TeamPage() {
                     username: row.username,
                     display_name: row.display_name,
                     role: ROLE_LABELS[row.role] ?? row.role,
-                    product_access: row.has_all_product_access !== false ? 'Semua Produk' : (row.allowed_product_codes ?? []).join(', '),
+                    product_access: [
+                      row.has_all_product_access !== false ? 'Semua Produk' : (row.allowed_product_codes ?? []).join(', '),
+                      describeAdvertiser(row.advertiser_id) ? `Pengiklan ${describeAdvertiser(row.advertiser_id)}` : null,
+                    ].filter(Boolean).join(' | '),
                     active: row.active ? 'Aktif' : 'Nonaktif',
                   })),
               }}
@@ -351,6 +398,9 @@ export function TeamPage() {
                           )}
                         </div>
                       )}
+                      {describeAdvertiser(row.advertiser_id) ? (
+                        <div className="mt-1 text-[12px] text-ink-soft">Pengiklan: {describeAdvertiser(row.advertiser_id)}</div>
+                      ) : null}
                     </TableCell>
                     <TableCell>
                       <Badge tone={row.active ? 'success' : 'danger'}>
@@ -421,6 +471,16 @@ export function TeamPage() {
               disabled={busy || isSelf(editing)}
               onChange={(val) => setEditRole(val as AppRole)}
             />
+            {editRole === ADVERTISER_ROLE ? (
+              <Select
+                id="team-edit-advertiser"
+                label="Pengiklan (hanya order kode ini yang terlihat)"
+                value={editAdvertiserId}
+                options={advertiserOptions(editAdvertiserId)}
+                disabled={busy}
+                onChange={setEditAdvertiserId}
+              />
+            ) : null}
             <TextInput
               id="team-edit-password"
               label="Reset password baru (opsional)"

@@ -103,7 +103,8 @@ export async function deleteAlias(context: RouteContext): Promise<Response> {
 export async function listUnmappedOrders(context: RouteContext): Promise<Response> {
   const actor = await requirePermission(context, 'operasional.order_unmapped')
   const access = await productAccess(context, actor)
-  if (!access.all) throw new ApiFailure('FORBIDDEN')
+  // Order unmapped belum punya produk/pengiklan, jadi hanya untuk akses penuh (A20: bukan Advertiser).
+  if (!access.all || access.advertiserCode !== null) throw new ApiFailure('FORBIDDEN')
 
   const search = sanitizeSearchTerm(context.url.searchParams.get('search'))
   const page = Math.max(1, parseInt(context.url.searchParams.get('page') ?? '1', 10) || 1)

@@ -465,3 +465,4 @@ sering terlanggar:
 | 2026-10-16 | F2.0 | A17 (0034): pemetaan order dikunci walau alias dihapus; Report Tax per channel (0033); link akses peserta {{order_id}} |
 | 2026-10-16 | F2.0 | A18 (0035): kapasitas ±3,2 KB/order -> ±120 ribu order aman di Supabase Free; list maks 500 baris; default tanggal 30 hari; filter tanggal satu field (preset + kalender) |
 | 2026-10-16 | F2.0 | A19 (0036): `orders.quantity` dari CO Form; tiket QR disederhanakan (nama, Order ID, produk, batch, kota, sesi, catatan, QR, N TIKET), stempel CHECK-IN BERHASIL otomatis, tombol JOIN SECARA ONLINE (ZOOM), scanner menampilkan jumlah tiket, Konfigurasi Tiket hanya Catatan |
+| 2026-10-16 | F2.0 | A20 (0037): role Advertiser (1 akun = 1 pengiklan + produk terpilih; RLS `can_access_order`, check-in & scanner ikut); `admin_create_user`/`admin_update_user` 0024 yang terbuka PUBLIC dihapus |

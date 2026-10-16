@@ -29,6 +29,8 @@ export type FakeUser = {
   avatar_emoji: string | null
   active: boolean
   has_all_product_access?: boolean
+  /** A20: hanya role advertiser. */
+  advertiser_id?: string | null
   /** "Hash" di tiruan ini adalah plaintext; database sungguhan memakai bcrypt. */
   password: string
 }
@@ -461,6 +463,7 @@ export function createFakeDb(state: FakeState): Db {
           avatar_emoji: (args['p_avatar_emoji'] as string | null) ?? null,
           active: true,
           has_all_product_access: hasAll,
+          advertiser_id: (args['p_advertiser_id'] as string | null | undefined) ?? null,
           password,
         }
         state.users.push(created)
@@ -524,6 +527,7 @@ export function createFakeDb(state: FakeState): Db {
         target.active = active
         const hasAll = args['p_has_all_product_access'] !== false
         target.has_all_product_access = hasAll
+        target.advertiser_id = (args['p_advertiser_id'] as string | null | undefined) ?? null
 
         for (let i = state.userProductAccess.length - 1; i >= 0; i--) {
           if (state.userProductAccess[i]?.user_id === target.id) {

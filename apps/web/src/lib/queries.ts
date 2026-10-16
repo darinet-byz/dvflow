@@ -228,6 +228,14 @@ export async function fetchConfigLists(): Promise<ConfigLists> {
   }
 }
 
+export type AdvertiserChoice = { id: string; code: string; name: string; active: boolean }
+
+/** A20: pilihan pengiklan untuk akun role Advertiser (Add Team). Termasuk nonaktif agar akun lama tetap terbaca. */
+export async function fetchAdvertiserChoices(): Promise<AdvertiserChoice[]> {
+  const rows = await supabaseSelect<AdvertiserChoice>('advertisers', { order: 'code.asc' }, 'id,code,name,active')
+  return rows
+}
+
 /** Label pilihan: "Kode — Nama" supaya kode dan namanya sama-sama terbaca. */
 function toOptions(rows: CodeRow[]): ConfigOption[] {
   return rows

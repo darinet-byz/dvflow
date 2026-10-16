@@ -19,6 +19,8 @@ export type UserRow = {
   avatar_emoji: string | null
   active: boolean
   has_all_product_access?: boolean
+  /** A20: hanya role advertiser; menentukan scope order. */
+  advertiser_id?: string | null
 }
 
 export type VerifiedUser = {
@@ -38,11 +40,14 @@ export type Profile = {
   avatar_emoji: string | null
   has_all_product_access?: boolean
   allowed_product_codes?: string[]
+  /** A20: pengiklan yang dipegang akun Advertiser. */
+  advertiser_code?: string | null
+  advertiser_name?: string | null
   permissions?: string[]
 }
 
 /** Kolom aman saja — tidak memuat kolom kredensial. */
-export const USER_COLUMNS = 'id,username,display_name,role,avatar_emoji,active,has_all_product_access'
+export const USER_COLUMNS = 'id,username,display_name,role,avatar_emoji,active,has_all_product_access,advertiser_id'
 
 export const DISPLAY_NAME_MAX_LENGTH = 200
 export const AVATAR_EMOJI_MAX_LENGTH = 16
@@ -105,6 +110,15 @@ export async function buildUserProfile(
     }
   }
 
+  let advertiser: { code: string; name: string } | null = null
+  if (userId && !isMasterAdminRole(user.role)) {
+    const rows = await context.db.selectRows<{ advertiser_id: string | null }>('users', { id: `eq.${userId}` }, 'advertiser_id')
+    const advertiserId = rows[0]?.advertiser_id
+    if (advertiserId) {
+      advertiser = (await context.db.selectRows<{ code: string; name: string }>('advertisers', { id: `eq.${advertiserId}` }, 'code,name'))[0] ?? null
+    }
+  }
+
   return {
     user_id: userId,
     username: user.username,
@@ -113,6 +127,8 @@ export async function buildUserProfile(
     avatar_emoji: user.avatar_emoji,
     has_all_product_access: hasAllProductAccess,
     allowed_product_codes,
+    advertiser_code: advertiser?.code ?? null,
+    advertiser_name: advertiser?.name ?? null,
     permissions,
   }
 }

@@ -26,6 +26,7 @@ Fields:
 - role TEXT NOT NULL CHECK role IN ('master_admin','admin','staff')
 - avatar_emoji TEXT NULL
 - active BOOLEAN NOT NULL DEFAULT TRUE
+- advertiser_id UUID NULL FK advertisers(id) ON DELETE RESTRICT  -- A20: wajib tepat bila role = 'advertiser' (CHECK (role = 'advertiser') = (advertiser_id IS NOT NULL))
 - created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 - updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 

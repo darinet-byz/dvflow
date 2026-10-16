@@ -28,14 +28,40 @@ export async function requirePermissions(context: RouteContext, permissions: str
   return actor
 }
 
-export type ProductAccess = { all: boolean; codes: string[] }
+/**
+ * Scope data order seorang aktor.
+ *   * `all`/`codes` — produk (Pimpro, Member, …);
+ *   * `advertiserCode` — A20: akun Advertiser hanya melihat order dengan kode pengiklannya,
+ *     di dalam produk yang ditugaskan. `null` = tidak dibatasi pengiklan.
+ * Cermin dari `actor_can_order` di DB (0037); RLS tetap penegak utama.
+ */
+export type ProductAccess = { all: boolean; codes: string[]; advertiserCode: string | null }
 
 export async function productAccess(context: RouteContext, actor: UserRow): Promise<ProductAccess> {
-  if (isMasterAdminRole(actor.role) || actor.has_all_product_access === true) return { all: true, codes: [] }
+  const advertiserCode = await loadAdvertiserCode(context, actor)
+  if (isMasterAdminRole(actor.role) || actor.has_all_product_access === true) return { all: true, codes: [], advertiserCode }
   const rows = await context.db.selectRows<{ product_code: string }>(
     'user_product_access', { user_id: `eq.${actor.id}` }, 'product_code',
   )
-  return { all: false, codes: rows.map((row) => normalizeCode(row.product_code) ?? '') }
+  return { all: false, codes: rows.map((row) => normalizeCode(row.product_code) ?? ''), advertiserCode }
+}
+
+async function loadAdvertiserCode(context: RouteContext, actor: UserRow): Promise<string | null> {
+  if (!actor.advertiser_id) return null
+  const rows = await context.db.selectRows<{ code: string }>('advertisers', { id: `eq.${actor.advertiser_id}` }, 'code')
+  // Akun ber-pengiklan yang pengiklannya tak terbaca tidak boleh jatuh ke "tanpa batas".
+  return rows[0]?.code ? normalizeCode(rows[0].code) : '__NO_ADVERTISER__'
+}
+
+/** Order (produk + pengiklan) boleh diakses aktor ini. */
+export function allowsOrder(access: ProductAccess, order: { product_code: string | null; advertiser_code: string | null }): boolean {
+  if (!allowsProduct(access, order.product_code)) return false
+  return access.advertiserCode === null || normalizeCode(order.advertiser_code ?? '') === access.advertiserCode
+}
+
+export function assertOrderAccess(access: ProductAccess, order: { product_code: string | null; advertiser_code: string | null }): void {
+  assertProductAccess(access, order.product_code)
+  if (!allowsOrder(access, order)) throw new ApiFailure('FORBIDDEN')
 }
 
 export function allowsProduct(access: ProductAccess, code: string | null | undefined): boolean {
@@ -49,6 +75,9 @@ export function assertProductAccess(access: ProductAccess, code: string | null |
 
 /** Values come from the master table, but are still quoted for PostgREST's filter grammar. */
 export function productFilter(access: ProductAccess): Record<string, string> {
-  if (access.all) return {}
-  return { product_code: access.codes.length ? `in.(${access.codes.map((c) => `"${c.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`).join(',')})` : 'eq.__NO_PRODUCT_ACCESS__' }
+  const quoteList = (values: string[]) => `in.(${values.map((c) => `"${c.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`).join(',')})`
+  // A20: akun Advertiser juga dibatasi kode pengiklannya.
+  const advertiser: Record<string, string> = access.advertiserCode === null ? {} : { advertiser_code: quoteList([access.advertiserCode]) }
+  if (access.all) return advertiser
+  return { ...advertiser, product_code: access.codes.length ? quoteList(access.codes) : 'eq.__NO_PRODUCT_ACCESS__' }
 }

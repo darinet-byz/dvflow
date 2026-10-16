@@ -606,3 +606,29 @@ Yang tidak lagi ditampilkan: nama pengiklan, label jenis acara, dan Order ID bes
 - Aturan tiket tidak pernah lagi menolak peserta Paid (cabang "tiket nonaktif" dihapus).
 - Konfigurasi Zoom tidak berubah.
 
+## A20 — Role Advertiser: hanya order hasil iklannya sendiri (16 Oktober 2026)
+
+**Kebutuhan.** Role baru **Advertiser** (`advertiser`):
+- Seperti Pimpro: hanya produk yang ditugaskan (atau Semua Produk).
+- Tambahan: hanya order dengan **kode pengiklan miliknya**. Produk dengan beberapa pengiklan tidak tercampur.
+- Pimpro tidak berubah: tetap level produk dan melihat semua pengiklan di produknya.
+
+**Keputusan pengguna.**
+- 1 akun = 1 pengiklan (master Pengiklan).
+- Produk dipilih seperti Pimpro.
+- Yang terlihat = produk terpilih **DAN** `orders.advertiser_code` = kode pengiklannya.
+
+**Implementasi (0037).**
+- `users.advertiser_id` (FK `advertisers`, restrict) dengan CHECK: role `advertiser` ⇔ pengiklan terisi.
+- Pengiklan yang dipegang akun dihitung "dipakai" (`master_is_used`), jadi tidak bisa dihapus atau diganti kodenya.
+- Izin awal role = salinan izin Pimpro saat migrasi. Tetap bisa diubah di Konfigurasi Role.
+- `actor_can_order(actor, product_code, advertiser_code)` / `can_access_order` dipasang di RLS `orders`. Presensi, Dashboard, Order, Report Tax, dan export ikut otomatis.
+- `checkin_seminar` memakai pemeriksaan yang sama. Worker mencerminkannya (`ProductAccess.advertiserCode`, `productFilter`, `assertOrderAccess`) untuk scanner search dan check-in.
+- Akun Advertiser hanya melihat pengiklannya sendiri di dropdown filter dan Product Name Generator (RLS `advertisers`).
+- Order Unmapped tidak bisa dibuka akun Advertiser, karena order itu belum punya kode pengiklan.
+- Add Team: pilihan **Pengiklan** muncul dan wajib diisi hanya untuk role Advertiser.
+
+**Keamanan.** `admin_create_user`/`admin_update_user` versi 0024 ternyata masih bisa dieksekusi `PUBLIC`. Versi itu dihapus; versi baru hanya untuk `service_role`.
+
+**Catatan.** Konfigurasi Zoom/Tiket tetap level produk. Role Advertiser bawaan tidak punya izin `config.*` (sama dengan Pimpro).
+

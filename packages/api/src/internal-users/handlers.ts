@@ -13,6 +13,29 @@ async function assertKnownProducts(context: RouteContext, codes: string[]): Prom
   if (codes.some((code) => !known.has(code))) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Kode produk tidak dikenal')
 }
 
+/** Role yang wajib memegang satu pengiklan (A20). */
+export const ADVERTISER_ROLE = 'advertiser'
+
+/**
+ * A20: role advertiser wajib memegang tepat satu pengiklan aktif (atau tetap yang lama saat edit);
+ * role lain tidak memegang pengiklan. DB menegakkan hal yang sama (constraint + RPC 0037).
+ */
+async function resolveAdvertiserId(
+  context: RouteContext,
+  role: string,
+  body: Record<string, unknown>,
+  currentId: string | null = null,
+): Promise<string | null> {
+  if (role !== ADVERTISER_ROLE) return null
+  const requested = readString(body, 'advertiser_id')?.trim() || currentId
+  if (!requested) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih pengiklan untuk role Advertiser')
+  const [row] = await context.db.selectRows<{ id: string; active: boolean }>('advertisers', { id: `eq.${requested}` }, 'id,active')
+  if (!row || (!row.active && row.id !== currentId)) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pengiklan tidak dikenal atau nonaktif')
+  }
+  return row.id
+}
+
 type CreatedUser = {
   user_id: string
   username: string
@@ -33,6 +56,7 @@ export type ListedUser = {
   active: boolean
   has_all_product_access: boolean
   allowed_product_codes: string[]
+  advertiser_id: string | null
 }
 
 /**
@@ -98,6 +122,7 @@ export async function createUser(context: RouteContext): Promise<Response> {
 
   const isMasterRole = isMasterAdminRole(trimmedRole)
   const allowMaster = context.env.ALLOW_MASTER_ADMIN_CREATE_MASTER === 'true'
+  const advertiserId = await resolveAdvertiserId(context, trimmedRole, body)
 
   const created = await context.db.rpc<CreatedUser>('admin_create_user', {
     p_actor_user_id: actor.id,
@@ -109,6 +134,7 @@ export async function createUser(context: RouteContext): Promise<Response> {
     p_allow_master: isMasterRole ? allowMaster : false,
     p_has_all_product_access: hasAllProductAccess,
     p_product_codes: productCodes,
+    p_advertiser_id: advertiserId,
   })
 
   return ok(
@@ -158,6 +184,7 @@ export async function listUsers(context: RouteContext): Promise<Response> {
         active: row.active,
         has_all_product_access: row.has_all_product_access ?? true,
         allowed_product_codes: userProductMap[row.id] ?? [],
+        advertiser_id: row.advertiser_id ?? null,
       })),
     )
     if (rows.length < 500) break
@@ -222,6 +249,7 @@ export async function updateUser(context: RouteContext): Promise<Response> {
   const isMasterTarget = isMasterAdminRole(role)
   const allowMaster =
     context.env.ALLOW_MASTER_ADMIN_CREATE_MASTER === 'true' || isMasterAdminRole(existing.role)
+  const advertiserId = await resolveAdvertiserId(context, role, body, existing.advertiser_id ?? null)
 
   const updated = await context.db.rpc<CreatedUser>('admin_update_user', {
     p_actor_user_id: actor.id,
@@ -233,6 +261,7 @@ export async function updateUser(context: RouteContext): Promise<Response> {
     p_allow_master: isMasterTarget ? allowMaster : false,
     p_has_all_product_access: hasAllProductAccess,
     p_product_codes: productCodes,
+    p_advertiser_id: advertiserId,
   })
 
   return ok({

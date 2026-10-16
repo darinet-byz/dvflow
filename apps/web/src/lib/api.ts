@@ -111,6 +111,9 @@ export type Profile = {
   avatar_emoji: string | null
   has_all_product_access?: boolean
   allowed_product_codes?: string[]
+  /** A20: pengiklan yang dipegang akun Advertiser. */
+  advertiser_code?: string | null
+  advertiser_name?: string | null
   permissions?: string[]
 }
 

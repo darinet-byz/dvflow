@@ -12,6 +12,7 @@ export type StandardAppRole =
   | 'manajer'
   | 'admin'
   | 'pimpro'
+  | 'advertiser'
   | 'member'
   | 'master_admin'
   | 'staff'
@@ -24,6 +25,7 @@ export const APP_ROLES: readonly string[] = [
   'manajer',
   'admin',
   'pimpro',
+  'advertiser',
   'member',
   'master_admin',
   'staff',

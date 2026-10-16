@@ -6,6 +6,7 @@ export const ROLE_LABELS: Record<string, string> = {
   manajer: 'Manajer',
   admin: 'Admin',
   pimpro: 'Pimpro',
+  advertiser: 'Advertiser',
   member: 'Member',
   master_admin: 'Admin Master',
   staff: 'Team',
