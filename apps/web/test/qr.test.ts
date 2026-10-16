@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import jsQR from 'jsqr'
 import { buildCheckinQrSvg, QR_QUIET_ZONE_MODULES } from '../src/ticket/qr'
+import { SCANNER_TEST_QR_PAYLOAD } from '../src/pages/scanner/scan-feedback'
 
 /**
  * Bukti bahwa QR kita benar-benar dapat dipindai.
@@ -55,6 +56,10 @@ function decode(svg: string): string | null {
 }
 
 describe('QR check-in dapat dipindai (bukti round-trip dengan decoder independen)', () => {
+  it('QR Tes Scanner (A23) terbaca kembali sama persis', () => {
+    expect(decode(buildCheckinQrSvg(SCANNER_TEST_QR_PAYLOAD))).toBe(SCANNER_TEST_QR_PAYLOAD)
+  })
+
   it('payload nyata /checkin/<orderId> terbaca kembali sama persis', () => {
     const payload = '/checkin/283033796'
     expect(decode(buildCheckinQrSvg(payload))).toBe(payload)

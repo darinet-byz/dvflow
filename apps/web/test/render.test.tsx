@@ -31,6 +31,7 @@ vi.mock('../src/lib/queries', async (importOriginal) => {
       belum_hadir: 0,
       attendance_rate: 1,
     })),
+    fetchPresensiSummary: vi.fn(async () => ({ paid: 2, sudah_hadir: 2, belum_hadir: 0, attendance_rate: 1 })),
     fetchOrdersPage: vi.fn(async () => ({
       rows: [
         {
@@ -208,6 +209,15 @@ describe('tabel Presensi (PRD §103, §105)', () => {
     expect(headers).toContain('Total Activity')
     // Fixture punya 3 aktivitas dan hanya 2 timestamp tersimpan.
     expect(await screen.findByText('3')).toBeDefined()
+  })
+
+  it('A23: kartu Hadir/Belum Hadir memakai presensi_summary, bukan dashboard_summary', async () => {
+    const queries = await import('../src/lib/queries')
+    vi.mocked(queries.fetchDashboardSummary).mockClear()
+    renderPage(<PresensiPage />)
+    expect(await screen.findByText('Belum Hadir')).toBeDefined()
+    expect(queries.fetchPresensiSummary).toHaveBeenCalled()
+    expect(queries.fetchDashboardSummary).not.toHaveBeenCalled()
   })
 
   it('kolom penting di lapangan berada di depan (PRD §103)', async () => {

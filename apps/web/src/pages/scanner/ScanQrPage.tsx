@@ -1,6 +1,6 @@
 import { hasPermission } from '../../lib/roles'
 import { useSession } from '../../lib/useSession'
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import { extractOrderIdFromQrPayload } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
 import { useAsyncData, useDebouncedValue } from '../../lib/useAsyncData'
@@ -14,10 +14,15 @@ import { ErrorState, Spinner } from '../../ui/Feedback'
 import { SearchInput } from '../../ui/Field'
 import { cn } from '../../ui/cn'
 import { useToast } from '../../ui/Toast'
+import { Modal } from '../../ui/Overlay'
+import { buildCheckinQrSvg } from '../../ticket/qr'
 import {
   fromCheckinError,
   fromCheckinSuccess,
+  fromScannerTestQr,
   fromUnknownQr,
+  isScannerTestQr,
+  SCANNER_TEST_QR_PAYLOAD,
   shouldProcessQr,
   type CheckinResponse,
   type ScanOutcome,
@@ -59,6 +64,7 @@ export function ScanQrPage() {
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null)
   const [busy, setBusy] = useState(false)
   const [scanMode, setScanMode] = useState<'camera' | 'scanner_stick'>('camera')
+  const [showTestQr, setShowTestQr] = useState(false)
   const lastQrRef = useRef<{ orderId: string; at: number } | null>(null)
 
   function playAudioFeedback(success: boolean) {
@@ -113,6 +119,16 @@ export function ScanQrPage() {
 
   const handlePayload = useCallback(
     (rawPayload: string): void => {
+      // QR tes: dicek lebih dulu, tidak pernah ke server, tidak mencatat presensi.
+      if (isScannerTestQr(rawPayload)) {
+        if (!shouldProcessQr(lastQrRef.current, SCANNER_TEST_QR_PAYLOAD, Date.now())) return
+        lastQrRef.current = { orderId: SCANNER_TEST_QR_PAYLOAD, at: Date.now() }
+        setOutcome(fromScannerTestQr())
+        playAudioFeedback(true)
+        toast.show('QR tes terbaca · scanner berfungsi', 'success')
+        return
+      }
+
       const orderId = extractOrderIdFromQrPayload(rawPayload)
       if (orderId === null) {
         setOutcome(fromUnknownQr(rawPayload))
@@ -127,7 +143,7 @@ export function ScanQrPage() {
 
       void runCheckin(orderId, 'qr')
     },
-    [runCheckin],
+    [runCheckin, toast],
   )
 
   const scanner = useQrScanner(handlePayload)
@@ -138,7 +154,9 @@ export function ScanQrPage() {
     <>
       <PageHeader
         title="Scan Presensi Seminar"
+        action={<Button onClick={() => setShowTestQr(true)}>QR Tes Scanner</Button>}
       />
+      <TestQrModal open={showTestQr} onClose={() => setShowTestQr(false)} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
@@ -437,3 +455,39 @@ function ScannerStickPanel({ state }: { state: ReturnType<typeof useScannerStick
     </div>
   )
 }
+
+/** QR tes yang bisa dipindai berulang untuk mengecek kamera / Scanner Stick tanpa tiket peserta. */
+function TestQrModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  // SVG dibuat oleh kode kita sendiri dari konstanta; tidak ada input pengguna/webhook.
+  const svg = useMemo(() => buildCheckinQrSvg(SCANNER_TEST_QR_PAYLOAD), [])
+  const downloadHref = useMemo(() => `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`, [svg])
+  return (
+    <Modal
+      open={open}
+      title="QR Tes Scanner"
+      onClose={onClose}
+      footer={
+        <>
+          <a
+            href={downloadHref}
+            download="dvflow-qr-tes-scanner.svg"
+            className="inline-flex items-center rounded-sm border border-line px-3 py-2 text-[13px] font-semibold text-ink hover:bg-soft"
+          >
+            Unduh QR
+          </a>
+          <Button onClick={onClose}>Tutup</Button>
+        </>
+      }
+    >
+      <div className="flex flex-col items-center gap-3 text-center">
+        <div className="aspect-square w-full max-w-[220px] bg-white" data-testid="scanner-test-qr" dangerouslySetInnerHTML={{ __html: svg }} />
+        <p className="font-mono text-[12px] text-ink-soft">{SCANNER_TEST_QR_PAYLOAD}</p>
+        <p className="max-w-sm text-[12px] text-ink-muted">
+          Scan QR ini dengan kamera atau Scanner Stick untuk mengecek alat. Hasilnya "QR tes terbaca", tidak mencatat
+          presensi, dan bisa dipakai berulang. Tampilkan di HP lain, atau unduh lalu cetak.
+        </p>
+      </div>
+    </Modal>
+  )
+}
+

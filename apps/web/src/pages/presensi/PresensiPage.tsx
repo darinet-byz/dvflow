@@ -4,8 +4,8 @@ import { TIMESTAMP_DISPLAY_LIMIT } from '@dvflow/shared'
 import { EMPTY_PRESENSI_FILTERS, activeCommonFilters, toCommonFilters, type PresensiFilters } from '../../lib/filters'
 import { formatCount, formatRate, formatText, formatTime } from '../../lib/format'
 import {
-  fetchDashboardSummary,
   fetchPresensiPage,
+  fetchPresensiSummary,
   type PresensiRow,
   type PresensiSortKey,
   type SortDirection,
@@ -100,11 +100,11 @@ export function PresensiPage() {
   )
 
   /**
-   * KPI dari `dashboard_summary` (satu set filter yang sama, lihat catatan di
-   * atas). Dipisah dari tabel supaya pergantian halaman tidak memuat ulang KPI.
+   * KPI dari `presensi_summary` (A23: cukup izin Presensi; dashboard_summary butuh izin
+   * Dashboard). Dipisah dari tabel supaya pergantian halaman tidak memuat ulang KPI.
    */
   const summary = useAsyncData(
-    () => fetchDashboardSummary(toCommonFilters(state.applied)),
+    () => fetchPresensiSummary(toCommonFilters(state.applied)),
     [`${appliedKey}:kpi`],
   )
 

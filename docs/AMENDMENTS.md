@@ -652,3 +652,16 @@ Yang tidak lagi ditampilkan: nama pengiklan, label jenis acara, dan Order ID bes
 - Pemrosesan check-in tidak berubah.
 - Lepasnya alat tidak bisa dideteksi browser. Status "terhubung" berarti pernah menerima scan di sesi halaman ini; jam scan terakhir yang menjadi petunjuk.
 
+## A23 — Ringkasan Presensi tanpa izin Dashboard + QR Tes Scanner (16 Oktober 2026)
+
+**Ringkasan Presensi.**
+- Masalah: kartu Hadir/Belum Hadir/Attendance Rate di halaman Presensi memakai `dashboard_summary` yang mewajibkan izin Dashboard. Akun dengan izin Presensi saja (mis. Staff) melihat tabel, tetapi kartunya error "Anda tidak memiliki akses ke data ini".
+- RPC baru `presensi_summary` (0038) cukup dengan izin `operasional.presensi`. Filter dan definisinya sama (Hadir dihitung dari order Paid yang punya presensi).
+- RPC ini hanya mengembalikan `paid`, `sudah_hadir`, `belum_hadir`, `attendance_rate`. Angka keuangan Dashboard tetap butuh izin Dashboard.
+- Scope produk/pengiklan ikut RLS.
+
+**QR Tes Scanner.**
+- Tombol "QR Tes Scanner" di halaman Scan QR menampilkan QR berisi `DVFLOW-TES-SCANNER`, bisa juga diunduh untuk dicetak.
+- Payload ini dikenali sebelum parsing Order ID: tidak dikirim ke server dan tidak mencatat presensi, jadi bisa dipindai berulang.
+- Hasilnya "QR tes terbaca". Pada mode Scanner Stick, scan ini sekaligus mengubah status menjadi "Scanner terhubung" (A22).
+

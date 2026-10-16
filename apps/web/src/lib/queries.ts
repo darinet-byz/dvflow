@@ -28,6 +28,9 @@ export type DashboardSummary = {
   attendance_rate: number | null
 }
 
+/** A23: ringkasan kehadiran halaman Presensi (cukup izin Presensi, tanpa angka keuangan). */
+export type PresensiSummary = Pick<DashboardSummary, 'paid' | 'sudah_hadir' | 'belum_hadir' | 'attendance_rate'>
+
 export type AppStatus = 'Pending' | 'Paid' | 'Cancelled'
 export type EventTypeName = 'Seminar Offline' | 'Webinar Online' | 'Hybrid'
 export type AttendanceStatus = 'Hadir' | 'Belum Hadir' | 'Pending' | 'Cancelled'
@@ -140,6 +143,10 @@ export type SortDirection = 'asc' | 'desc'
  */
 export async function fetchDashboardSummary(filters: CommonFilters): Promise<DashboardSummary> {
   return supabaseRpc<DashboardSummary>('dashboard_summary', toFilterArgs(filters))
+}
+
+export async function fetchPresensiSummary(filters: CommonFilters): Promise<PresensiSummary> {
+  return supabaseRpc<PresensiSummary>('presensi_summary', toFilterArgs(filters))
 }
 
 export async function fetchOrdersPage(

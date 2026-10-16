@@ -70,6 +70,31 @@ export function fromCheckinSuccess(payload: CheckinResponse): ScanOutcome {
 }
 
 /**
+ * QR khusus tes alat scan (kamera / Scanner Stick). Isinya bukan Order ID dan dikenali
+ * SEBELUM parsing Order ID, jadi tidak pernah dikirim ke server dan tidak mencatat presensi;
+ * boleh dipindai berulang kali.
+ */
+export const SCANNER_TEST_QR_PAYLOAD = 'DVFLOW-TES-SCANNER'
+
+export function isScannerTestQr(rawPayload: string): boolean {
+  return rawPayload.trim().toUpperCase() === SCANNER_TEST_QR_PAYLOAD
+}
+
+export function fromScannerTestQr(): ScanOutcome {
+  return {
+    tone: 'success',
+    title: 'QR tes terbaca',
+    detail: 'Alat scan berfungsi. QR tes tidak mencatat presensi dan boleh dipakai berulang.',
+    name: null,
+    orderId: null,
+    // Bukan check-in: tanpa waktu check-in agar kartu tidak menulis "Check-in <jam>".
+    clickedAt: null,
+    quantity: null,
+    alert: false,
+  }
+}
+
+/**
  * Pesan penolakan (PRD §98).
  *
  * Pesannya berasal dari backend yang sudah berbahasa Indonesia; di sini hanya

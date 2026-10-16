@@ -4,7 +4,10 @@ import {
   SAME_QR_COOLDOWN_MS,
   fromCheckinError,
   fromCheckinSuccess,
+  fromScannerTestQr,
   fromUnknownQr,
+  isScannerTestQr,
+  SCANNER_TEST_QR_PAYLOAD,
   shouldProcessQr,
   type CheckinResponse,
 } from '../src/pages/scanner/scan-feedback'
@@ -114,3 +117,17 @@ describe('jeda QR yang sama (teknis, bukan aturan produk)', () => {
     expect(shouldProcessQr(previous, '111111', 1010)).toBe(true)
   })
 })
+
+describe('QR tes scanner (A23)', () => {
+  it('dikenali (spasi/huruf kecil toleran), bukan tiket', () => {
+    expect(isScannerTestQr(SCANNER_TEST_QR_PAYLOAD)).toBe(true)
+    expect(isScannerTestQr(' dvflow-tes-scanner \n')).toBe(true)
+    expect(isScannerTestQr('/checkin/283033796')).toBe(false)
+  })
+
+  it('hasilnya hijau, tanpa Order ID & tanpa jumlah tiket', () => {
+    const outcome = fromScannerTestQr()
+    expect(outcome).toMatchObject({ tone: 'success', title: 'QR tes terbaca', orderId: null, clickedAt: null, quantity: null, alert: false })
+  })
+})
+
