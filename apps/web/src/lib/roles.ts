@@ -32,6 +32,8 @@ export const PATH_PERMISSION_MAP: Record<string, string> = {
   '/konfigurasi-role': 'config.roles',
   '/add-team': 'team.manage',
   '/profil': 'account.profile',
+  '/ots': 'action.ots',
+  '/cari-peserta': 'action.manual_checkin',
 }
 
 export type ProfileOrRole = AppRole | { role: AppRole; permissions?: string[]; has_all_product_access?: boolean } | null | undefined

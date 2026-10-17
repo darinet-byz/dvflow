@@ -1,4 +1,4 @@
-import { isMasterAdminRole, type AppPermissionItem, type AppPermissionModuleGroup, type AppRoleItem } from '@dvflow/shared'
+import { FIELD_APP_PERMISSION, FIELD_APP_ROLES, isMasterAdminRole, type AppPermissionItem, type AppPermissionModuleGroup, type AppRoleItem } from '@dvflow/shared'
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
 import type { RouteContext } from '../router'
@@ -10,6 +10,7 @@ const MODULE_NAMES: Record<string, string> = {
   team: 'Manajemen Tim',
   account: 'Akun & Profil',
   aksi: 'Aksi Khusus',
+  tampilan: 'Tampilan',
 }
 
 /**
@@ -86,7 +87,7 @@ export async function createRole(context: RouteContext): Promise<Response> {
     throw new ApiFailure('CODE_TAKEN', undefined, 'Role ID sudah terdaftar')
   }
 
-  const permissions = await validatedPermissions(context, body['permissions'] ?? [])
+  const permissions = await validatedPermissions(context, body['permissions'] ?? [], id)
   const createdRole = await context.db.rpc<AppRoleItem>('save_role_permissions', {
     p_actor: actor.id, p_role: id, p_permissions: permissions, p_create: true,
     p_name: name, p_description: description,
@@ -159,7 +160,7 @@ export async function updateRolePermissions(context: RouteContext): Promise<Resp
     throw new ApiFailure('INVALID_PAYLOAD', 'permissions harus berupa array')
   }
 
-  const permissions = await validatedPermissions(context, body['permissions'])
+  const permissions = await validatedPermissions(context, body['permissions'], roleId)
   await context.db.rpc('save_role_permissions', {
     p_actor: actor.id, p_role: roleId, p_permissions: permissions, p_create: false,
   })
@@ -239,9 +240,12 @@ export async function listPermissions(context: RouteContext): Promise<Response> 
   return ok({ modules })
 }
 
-async function validatedPermissions(context: RouteContext, value: unknown): Promise<string[]> {
+async function validatedPermissions(context: RouteContext, value: unknown, roleId: string): Promise<string[]> {
   if (!Array.isArray(value) || value.some((p) => typeof p !== 'string')) throw new ApiFailure('INVALID_PAYLOAD')
   const keys = [...new Set((value as string[]).map((p) => p.trim()))]
+  if (keys.includes(FIELD_APP_PERMISSION) && !FIELD_APP_ROLES.includes(roleId)) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Tampilan Apps Lapangan hanya untuk role Pimpro, Staff, dan Member.')
+  }
   const catalog = await context.db.selectRows<{ key: string }>('app_permissions', {}, 'key')
   if (keys.some((key) => !catalog.some((p) => p.key === key))) throw new ApiFailure('INVALID_ARGUMENT')
   return keys

@@ -65,6 +65,7 @@ export const DEFAULT_ROLES = [
 ]
 
 export const DEFAULT_PERMISSIONS = [
+  { key: 'ui.field_app', name: 'Tampilan Apps Lapangan', module: 'tampilan', description: 'Tampilan aplikasi lapangan di HP', sort_order: 50 },
   { key: 'operasional.scan_qr', name: 'Scan QR Tiket', module: 'operasional', description: 'Memindai QR tiket', sort_order: 1 },
   { key: 'operasional.dashboard', name: 'Dashboard Resume', module: 'operasional', description: 'Melihat dashboard', sort_order: 2 },
   { key: 'operasional.order', name: 'Data Order', module: 'operasional', description: 'Melihat order', sort_order: 3 },

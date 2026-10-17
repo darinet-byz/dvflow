@@ -9,6 +9,8 @@ import { Card, CardHeader } from '../../ui/Card'
 import { TextInput } from '../../ui/Field'
 import { useToast } from '../../ui/Toast'
 import { cn } from '../../ui/cn'
+import { Link } from 'react-router-dom'
+import { setPreferWebLayout, useFieldAppMode } from '../../lib/field-app'
 
 /**
  * Profil (PRD §113–§116, 03 §13).
@@ -90,9 +92,11 @@ export function ProfilePage() {
     }
   }
 
+  const fieldMode = useFieldAppMode()
+
   return (
     <>
-      <PageHeader title="Profil" />
+      {fieldMode ? null : <PageHeader title="Profil" />}
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
@@ -186,6 +190,25 @@ export function ProfilePage() {
             </Button>
           </div>
         </Card>
+
+        {/* A30: di Tampilan Apps Lapangan tidak ada sidebar — Logout & tampilan web ada di sini. */}
+        {fieldMode ? (
+          <Card>
+            <CardHeader title="Tampilan" />
+            <div className="flex flex-col gap-2">
+              <Button onClick={() => setPreferWebLayout(true)}>Buka tampilan web lengkap</Button>
+              <p className="text-[12px] text-ink-soft">
+                Untuk membuka menu lain (mis. Dashboard). Kembali lewat tombol "Tampilan aplikasi" di bagian atas.
+              </p>
+              <Link
+                to="/logout"
+                className="mt-2 inline-flex h-10 items-center justify-center rounded-sm border border-danger/30 bg-danger-soft text-[13px] font-semibold text-danger"
+              >
+                Logout
+              </Link>
+            </div>
+          </Card>
+        ) : null}
       </div>
     </>
   )

@@ -31,6 +31,13 @@ export const APP_ROLES: readonly string[] = [
   'staff',
 ]
 
+/**
+ * A30: "Tampilan Apps Lapangan" — hanya role ini yang boleh memegang izin `ui.field_app`
+ * (ditegakkan juga di `save_role_permissions`, 0042).
+ */
+export const FIELD_APP_PERMISSION = 'ui.field_app'
+export const FIELD_APP_ROLES: readonly string[] = ['pimpro', 'staff', 'member']
+
 export function isMasterAdminRole(role: string | null | undefined): boolean {
   return role === 'master_admin' || role === 'developer' || role === 'owner'
 }
@@ -53,6 +60,7 @@ export type AppPermissionKey =
   | 'action.export_data'
   | 'action.manual_checkin'
   | 'action.ots'
+  | 'ui.field_app'
   | 'action.delete_master'
 
 export type AppRoleItem = {

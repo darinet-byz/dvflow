@@ -1,6 +1,9 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
+import { FieldAppShell } from './FieldAppShell'
+import { useSession } from '../lib/useSession'
+import { canUseFieldApp, setPreferWebLayout, useIsPhone, usePreferWebLayout } from '../lib/field-app'
 
 /**
  * Kerangka aplikasi (guideline §7).
@@ -12,6 +15,12 @@ import { Sidebar } from './Sidebar'
  */
 export function AppShell() {
   const [menuOpen, setMenuOpen] = useState(false)
+  const { profile } = useSession()
+  const isPhone = useIsPhone()
+  const preferWeb = usePreferWebLayout()
+  // A30: Pimpro/Staff/Member berizin "Tampilan Apps Lapangan" memakai kerangka aplikasi di HP.
+  const fieldEligible = canUseFieldApp(profile) && isPhone
+  if (fieldEligible && !preferWeb) return <FieldAppShell />
 
   return (
     <div className="min-h-screen bg-page p-2 sm:p-4 md:p-8">
@@ -41,6 +50,15 @@ export function AppShell() {
               ☰
             </button>
             <p className="text-[14px] font-bold text-ink">DVFLOW</p>
+            {fieldEligible ? (
+              <button
+                type="button"
+                onClick={() => setPreferWebLayout(false)}
+                className="ml-auto rounded-sm border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-primary"
+              >
+                Tampilan aplikasi
+              </button>
+            ) : null}
           </header>
 
           <main className="min-w-0 flex-1 p-3 sm:p-4 md:p-6">

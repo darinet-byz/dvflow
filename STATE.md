@@ -475,3 +475,4 @@ sering terlanggar:
 | 2026-10-16 | F2.0 | A27: link peserta di Konfigurasi Zoom/Tiket (per toko) & drawer Order/Presensi memakai `/access/{KODE}/{nomor}` sesuai dok 07 |
 | 2026-10-17 | F2.0 | A28: StandardFilterBar (urutan & lebar sama di Dashboard/Order/Presensi/Report Tax, tanpa More Filters), default tanggal Hari Ini |
 | 2026-10-17 | F2.0 | A29 (0041): Peserta OTS — order source 'ots' (OTS-000001), Paid + langsung hadir, edit/hapus khusus OTS, izin action.ots, drawer di Scan QR |
+| 2026-10-17 | F2.0 | A30 (0042): Tampilan Apps Lapangan di HP untuk Pimpro/Staff/Member berizin ui.field_app — tab bawah Presensi · OTS · SCAN · Cari Peserta · Akun; role lain tetap tampilan web |

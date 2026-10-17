@@ -1,3 +1,4 @@
+import { FIELD_APP_PERMISSION, FIELD_APP_ROLES } from '@dvflow/shared'
 import { useState } from 'react'
 import { isMasterAdminRole, type AppPermissionModuleGroup, type AppRoleItem } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
@@ -55,6 +56,14 @@ export function RoleConfigPage() {
 
   const modules = permsData?.modules ?? []
   const allRoles = rolesData?.roles ?? []
+
+  // A30: "Tampilan Apps Lapangan" hanya bisa diatur untuk Pimpro, Staff, Member (server juga menolak role lain).
+  function modulesFor(roleId: string | null) {
+    const eligible = roleId !== null && FIELD_APP_ROLES.includes(roleId)
+    return modules
+      .map((m) => ({ ...m, permissions: m.permissions.filter((p) => p.key !== FIELD_APP_PERMISSION || eligible) }))
+      .filter((m) => m.permissions.length > 0)
+  }
 
   const term = search.trim().toLowerCase()
   const filteredRoles = allRoles.filter((r) =>
@@ -337,7 +346,7 @@ export function RoleConfigPage() {
               <SkeletonRows rows={3} />
             ) : (
               <div className="flex max-h-72 flex-col gap-4 overflow-y-auto rounded-lg border border-line p-3">
-                {modules.map((m) => {
+                {modulesFor(null).map((m) => {
                   const mKeys = m.permissions.map((p) => p.key)
                   const isAllChecked = mKeys.every((k) => newPermissions.has(k))
                   return (
@@ -416,7 +425,7 @@ export function RoleConfigPage() {
             <SkeletonRows rows={4} />
           ) : (
             <div className="flex max-h-80 flex-col gap-4 overflow-y-auto rounded-lg border border-line p-3">
-              {modules.map((m) => {
+              {modulesFor(editingRole?.id ?? null).map((m) => {
                 const mKeys = m.permissions.map((p) => p.key)
                 const isAllChecked = mKeys.every((k) => editPermissions.has(k))
                 return (

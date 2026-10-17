@@ -6,6 +6,8 @@ import { canAccessPath, PATH_PERMISSION_MAP } from './lib/roles'
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { AppShell } from './layout/AppShell'
+import { FieldOtsPage } from './pages/field/FieldOtsPage'
+import { CariPesertaPage } from './pages/field/CariPesertaPage'
 import { DASHBOARD_PATH, LOGIN_PATH } from './layout/navigation'
 import { bootstrapSession, refreshProfile } from './lib/session'
 import { useSession } from './lib/useSession'
@@ -90,6 +92,9 @@ export function App() {
           <Route path="/konfigurasi-role" element={<RoleGuard path="/konfigurasi-role"><RoleConfigPage /></RoleGuard>} />
           <Route path="/reset-data" element={<RoleGuard path="/reset-data"><ResetDataPage /></RoleGuard>} />
           <Route path="/profil" element={<ProfilePage />} />
+          {/* A30: layar Tampilan Apps Lapangan (bukan menu sidebar). */}
+          <Route path="/ots" element={<RoleGuard path="/ots"><FieldOtsPage /></RoleGuard>} />
+          <Route path="/cari-peserta" element={<RoleGuard path="/cari-peserta"><CariPesertaPage /></RoleGuard>} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Route>

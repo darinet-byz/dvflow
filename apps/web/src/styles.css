@@ -86,6 +86,13 @@
   }
 }
 
+/* A30: Tampilan Apps Lapangan — input 16px agar iOS tidak zoom saat mengetik. */
+.field-app input, .field-app select, .field-app textarea { font-size: 16px; }
+.field-app div:has(> input[type="search"]) { flex: 1 1 auto; width: 100%; }
+.field-app input[type="search"] { width: 100%; }
+/* Tombol hapus bawaan browser bentrok dengan tombol hapus SearchInput. */
+input[type="search"]::-webkit-search-cancel-button { -webkit-appearance: none; appearance: none; }
+
 /* A28: semua kontrol bar filter selebar sama (190px); kolom pencarian tetap lebih lebar. */
 @media (min-width: 640px) {
   .filter-bar .filter-row > * { width: 190px; }

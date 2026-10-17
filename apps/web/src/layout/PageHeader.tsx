@@ -18,7 +18,7 @@ export function PageHeader({
   return (
     <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
       <div>
-        <h1 className="text-[22px] font-bold tracking-tight text-ink">{title}</h1>
+        {title === '' ? null : <h1 className="text-[22px] font-bold tracking-tight text-ink">{title}</h1>}
         {description === undefined ? null : <p className="mt-0.5 text-ink-soft">{description}</p>}
       </div>
       {action}

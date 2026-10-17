@@ -7,8 +7,9 @@ select no_plan();
 select ok(public.schema_version() >= 37, 'schema_version mencakup 0037');
 select ok(exists(select 1 from public.app_roles where id = 'advertiser'), 'role advertiser ada');
 select is((select array_agg(permission_key order by permission_key) from public.app_role_permissions where role_id = 'advertiser'),
-  (select array_agg(permission_key order by permission_key) from public.app_role_permissions where role_id = 'pimpro'),
-  'izin awal advertiser = izin pimpro');
+  -- A30: ui.field_app khusus pimpro/staff/member, tidak untuk advertiser.
+  (select array_agg(permission_key order by permission_key) from public.app_role_permissions where role_id = 'pimpro' and permission_key <> 'ui.field_app'),
+  'izin awal advertiser = izin pimpro (tanpa Tampilan Apps Lapangan)');
 
 insert into public.products(id,name,code) values
  ('f5000000-0000-0000-0000-00000000000a','Produk A','AAAA'),

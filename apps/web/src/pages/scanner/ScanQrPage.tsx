@@ -31,6 +31,7 @@ import type { CameraFailure } from './camera-permission'
 import { useQrScanner } from './useQrScanner'
 import { useScannerStick } from './useScannerStick'
 import { OtsDrawer } from './OtsDrawer'
+import { useFieldAppMode } from '../../lib/field-app'
 
 /**
  * Scan QR (PRD §95–§98, 01 §14, 03 §9–§11).
@@ -62,62 +63,12 @@ type Candidate = {
 export function ScanQrPage() {
   const { profile } = useSession()
   const toast = useToast()
-  const [outcome, setOutcome] = useState<ScanOutcome | null>(null)
-  const [busy, setBusy] = useState(false)
+  const { outcome, setOutcome, busy, runCheckin, playAudioFeedback } = useCheckin()
+  const fieldMode = useFieldAppMode()
   const [scanMode, setScanMode] = useState<'camera' | 'scanner_stick'>('camera')
   const [showTestQr, setShowTestQr] = useState(false)
   const [showOts, setShowOts] = useState(false)
   const lastQrRef = useRef<{ orderId: string; at: number } | null>(null)
-
-  function playAudioFeedback(success: boolean) {
-    try {
-      const AudioCtx =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-      if (!AudioCtx) return
-      const ctx = new AudioCtx()
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain)
-      gain.connect(ctx.destination)
-      osc.type = 'sine'
-      osc.frequency.value = success ? 880 : 330
-      gain.gain.setValueAtTime(0.12, ctx.currentTime)
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15)
-      osc.start()
-      osc.stop(ctx.currentTime + 0.15)
-    } catch {
-      // Audio context blocked by browser until user gesture
-    }
-  }
-
-  const runCheckin = useCallback(
-    async (orderId: string, source: 'qr' | 'manual'): Promise<void> => {
-      setBusy(true)
-      try {
-        const payload =
-          source === 'qr'
-            ? await authorizedRequest<CheckinResponse>(`/checkin/${encodeURIComponent(orderId)}`, { method: 'POST' })
-            : await authorizedRequest<CheckinResponse>('/api/scanner/manual-checkin', {
-                method: 'POST',
-                body: { order_id: orderId },
-              })
-
-        setOutcome(fromCheckinSuccess(payload))
-        playAudioFeedback(true)
-        // A19: panitia langsung tahu berapa orang yang masuk dengan tiket ini.
-        const tickets = `${payload.quantity ?? 1} tiket`
-        if (payload.state === 'ALREADY_CHECKED_IN') toast.show(`Sudah check-in sebelumnya · ${tickets}`, 'info')
-        else toast.show(`Check-in berhasil · ${tickets}`, 'success')
-      } catch (error) {
-        setOutcome(fromCheckinError(error))
-        playAudioFeedback(false)
-      } finally {
-        setBusy(false)
-      }
-    },
-    [toast],
-  )
 
   const handlePayload = useCallback(
     (rawPayload: string): void => {
@@ -155,10 +106,10 @@ export function ScanQrPage() {
   return (
     <>
       <PageHeader
-        title="Scan Presensi Seminar"
+        title={fieldMode ? '' : 'Scan Presensi Seminar'}
         action={
           <div className="flex flex-wrap gap-2">
-            {hasPermission(profile, 'action.ots') ? (
+            {!fieldMode && hasPermission(profile, 'action.ots') ? (
               <Button variant="primary" onClick={() => setShowOts(true)}>Peserta OTS</Button>
             ) : null}
             <Button onClick={() => setShowTestQr(true)}>QR Tes Scanner</Button>
@@ -242,59 +193,9 @@ export function ScanQrPage() {
         </Card>
 
         <div className="flex flex-col gap-4">
-          <Card className={cn(outcome !== null && outcome.tone === 'success' && 'border-success/30 bg-success-soft')}>
-            <CardHeader
-              title="Hasil terakhir" description={busy ? 'Memproses…' : undefined}
-            />
+          <OutcomeCard outcome={outcome} busy={busy} />
 
-            {busy ? (
-              <div className="flex items-center gap-2 text-ink-soft">
-                <Spinner />
-                Memeriksa tiket…
-              </div>
-            ) : outcome === null ? (
-              <p className="text-ink-soft">Belum ada tiket yang dipindai.</p>
-            ) : (
-              <div
-                className={cn(
-                  'rounded-md border p-3',
-                  outcome.tone === 'success' && 'border-success/30 bg-success-soft',
-                  outcome.tone === 'warning' && 'border-warning/30 bg-warning-soft',
-                  outcome.tone === 'danger' && 'border-danger/30 bg-danger-soft',
-                )}
-              >
-                <p
-                  className={cn(
-                    'text-[16px] font-bold',
-                    outcome.tone === 'success' && 'text-[#28a95b]',
-                    outcome.tone === 'warning' && 'text-[#c78a21]',
-                    outcome.tone === 'danger' && 'text-danger',
-                  )}
-                >
-                  {outcome.title}
-                </p>
-                {outcome.name === null ? null : (
-                  <p className="text-[15px] font-semibold text-ink">{outcome.name}</p>
-                )}
-                {outcome.orderId === null ? null : (
-                  <p className="font-mono text-[12px] text-ink-soft">Order {outcome.orderId}</p>
-                )}
-                {outcome.quantity === null ? null : (
-                  <p className="my-1 text-[15px] font-bold tracking-wide text-primary" aria-label={`Jumlah tiket ${outcome.quantity}`}>
-                    <span className="mr-1 text-[40px] leading-none">{outcome.quantity}</span>TIKET
-                  </p>
-                )}
-                <p className="mt-1 text-[12px] text-ink-soft">{outcome.detail}</p>
-                {outcome.clickedAt === null ? null : (
-                  <p className="mt-1 text-[12px] font-semibold text-ink">
-                    Check-in {formatTime(outcome.clickedAt)}
-                  </p>
-                )}
-              </div>
-            )}
-          </Card>
-
-          {hasPermission(profile, 'action.manual_checkin') ? <ManualSearch onCheckin={(orderId) => void runCheckin(orderId, 'manual')} busy={busy} /> : null}
+          {!fieldMode && hasPermission(profile, 'action.manual_checkin') ? <ManualSearch onCheckin={(orderId) => void runCheckin(orderId, 'manual')} busy={busy} /> : null}
         </div>
       </div>
     </>
@@ -344,7 +245,7 @@ function CameraHelp({ failure, onRetry }: { failure: CameraFailure; onRetry: () 
  * Validasi check-in-nya identik dengan QR dan tidak dapat mem-bypass aturan Paid
  * (H09) — server yang memutuskan, bukan halaman ini.
  */
-function ManualSearch({ onCheckin, busy }: { onCheckin: (orderId: string) => void; busy: boolean }) {
+export function ManualSearch({ onCheckin, busy }: { onCheckin: (orderId: string) => void; busy: boolean }) {
   const [query, setQuery] = useState('')
   const [refreshKey, setRefreshKey] = useState(0)
   const debounced = useDebouncedValue(query)
@@ -501,3 +402,121 @@ function TestQrModal({ open, onClose }: { open: boolean; onClose: () => void }) 
   )
 }
 
+/**
+ * State & aksi check-in bersama layar Scan dan Cari Peserta (A30): satu sumber pesan,
+ * bunyi, dan toast jumlah tiket, supaya kedua layar berperilaku sama persis.
+ */
+export function useCheckin() {
+  const toast = useToast()
+  const [outcome, setOutcome] = useState<ScanOutcome | null>(null)
+  const [busy, setBusy] = useState(false)
+
+  function playAudioFeedback(success: boolean) {
+    try {
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      if (!AudioCtx) return
+      const ctx = new AudioCtx()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.type = 'sine'
+      osc.frequency.value = success ? 880 : 330
+      gain.gain.setValueAtTime(0.12, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.15)
+      osc.start()
+      osc.stop(ctx.currentTime + 0.15)
+    } catch {
+      // Audio context blocked by browser until user gesture
+    }
+  }
+
+  const runCheckin = useCallback(
+    async (orderId: string, source: 'qr' | 'manual'): Promise<void> => {
+      setBusy(true)
+      try {
+        const payload =
+          source === 'qr'
+            ? await authorizedRequest<CheckinResponse>(`/checkin/${encodeURIComponent(orderId)}`, { method: 'POST' })
+            : await authorizedRequest<CheckinResponse>('/api/scanner/manual-checkin', {
+                method: 'POST',
+                body: { order_id: orderId },
+              })
+
+        setOutcome(fromCheckinSuccess(payload))
+        playAudioFeedback(true)
+        // A19: panitia langsung tahu berapa orang yang masuk dengan tiket ini.
+        const tickets = `${payload.quantity ?? 1} tiket`
+        if (payload.state === 'ALREADY_CHECKED_IN') toast.show(`Sudah check-in sebelumnya · ${tickets}`, 'info')
+        else toast.show(`Check-in berhasil · ${tickets}`, 'success')
+      } catch (error) {
+        setOutcome(fromCheckinError(error))
+        playAudioFeedback(false)
+      } finally {
+        setBusy(false)
+      }
+    },
+    [toast],
+  )
+
+  return { outcome, setOutcome, busy, runCheckin, playAudioFeedback }
+}
+
+/** Kartu "Hasil terakhir" (PRD §96): status, nama, Order ID, jumlah tiket besar. */
+export function OutcomeCard({ outcome, busy }: { outcome: ScanOutcome | null; busy: boolean }) {
+  return (
+    <Card className={cn(outcome !== null && outcome.tone === 'success' && 'border-success/30 bg-success-soft')}>
+      <CardHeader
+        title="Hasil terakhir" description={busy ? 'Memproses…' : undefined}
+      />
+
+      {busy ? (
+        <div className="flex items-center gap-2 text-ink-soft">
+          <Spinner />
+          Memeriksa tiket…
+        </div>
+      ) : outcome === null ? (
+        <p className="text-ink-soft">Belum ada tiket yang dipindai.</p>
+      ) : (
+        <div
+          className={cn(
+            'rounded-md border p-3',
+            outcome.tone === 'success' && 'border-success/30 bg-success-soft',
+            outcome.tone === 'warning' && 'border-warning/30 bg-warning-soft',
+            outcome.tone === 'danger' && 'border-danger/30 bg-danger-soft',
+          )}
+        >
+          <p
+            className={cn(
+              'text-[16px] font-bold',
+              outcome.tone === 'success' && 'text-[#28a95b]',
+              outcome.tone === 'warning' && 'text-[#c78a21]',
+              outcome.tone === 'danger' && 'text-danger',
+            )}
+          >
+            {outcome.title}
+          </p>
+          {outcome.name === null ? null : (
+            <p className="text-[15px] font-semibold text-ink">{outcome.name}</p>
+          )}
+          {outcome.orderId === null ? null : (
+            <p className="font-mono text-[12px] text-ink-soft">Order {outcome.orderId}</p>
+          )}
+          {outcome.quantity === null ? null : (
+            <p className="my-1 text-[15px] font-bold tracking-wide text-primary" aria-label={`Jumlah tiket ${outcome.quantity}`}>
+              <span className="mr-1 text-[40px] leading-none">{outcome.quantity}</span>TIKET
+            </p>
+          )}
+          <p className="mt-1 text-[12px] text-ink-soft">{outcome.detail}</p>
+          {outcome.clickedAt === null ? null : (
+            <p className="mt-1 text-[12px] font-semibold text-ink">
+              Check-in {formatTime(outcome.clickedAt)}
+            </p>
+          )}
+        </div>
+      )}
+    </Card>
+  )
+}

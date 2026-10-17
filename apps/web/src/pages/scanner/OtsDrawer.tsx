@@ -66,6 +66,15 @@ export function describeEvent(event: Pick<OtsEvent, 'product_code' | 'product_na
 }
 
 export function OtsDrawer({ open, onClose, canDelete }: { open: boolean; onClose: () => void; canDelete: boolean }) {
+  return (
+    <Drawer open={open} title="Peserta OTS (Bayar di Lokasi)" onClose={onClose}>
+      <OtsPanel open={open} canDelete={canDelete} />
+    </Drawer>
+  )
+}
+
+/** Isi pendaftaran OTS: dipakai drawer (web) dan layar penuh `/ots` (Tampilan Apps Lapangan, A30). */
+export function OtsPanel({ open, canDelete }: { open: boolean; canDelete: boolean }) {
   const toast = useToast()
   const [eventKey, setEventKey] = useState(() => remember(STORAGE_EVENT))
   const [amount, setAmount] = useState(() => remember(STORAGE_AMOUNT))
@@ -163,7 +172,7 @@ export function OtsDrawer({ open, onClose, canDelete }: { open: boolean; onClose
   const total = rows.reduce((sum, row) => sum + row.gross_amount, 0)
 
   return (
-    <Drawer open={open} title="Peserta OTS (Bayar di Lokasi)" onClose={onClose}>
+    <>
       <form
         className="flex flex-col gap-3"
         onSubmit={(event) => {
@@ -210,7 +219,7 @@ export function OtsDrawer({ open, onClose, canDelete }: { open: boolean; onClose
         </div>
         {failure ? <p role="alert" className="text-[12px] text-danger">{failure}</p> : null}
         <div className="flex gap-2">
-          <Button type="submit" variant="primary" loading={busy}>
+          <Button type="submit" variant="primary" loading={busy} className="flex-1 sm:flex-none">
             {editingId ? 'Simpan perubahan' : 'Simpan & Check-in'}
           </Button>
           {editingId ? <Button disabled={busy} onClick={resetPerson}>Batal edit</Button> : null}
@@ -246,6 +255,6 @@ export function OtsDrawer({ open, onClose, canDelete }: { open: boolean; onClose
           ))}
         </ul>
       </div>
-    </Drawer>
+    </>
   )
 }

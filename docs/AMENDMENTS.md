@@ -757,3 +757,31 @@ Karena tersimpan sebagai order biasa, OTS otomatis masuk Leads, Paid, Jumlah Tik
 
 Order/Presensi menampilkan badge OTS. Detail order OTS tidak menampilkan link tiket.
 
+## A30 — Tampilan Apps Lapangan di HP (17 Oktober 2026)
+
+**Keputusan pengguna.**
+- Tampilan seperti aplikasi hanya untuk petugas lapangan: role **Pimpro, Staff, Member**.
+- Diatur lewat izin **"Tampilan Apps Lapangan"** (`ui.field_app`) yang bisa dicentang atau dilepas di Konfigurasi Role.
+- Role lain tidak mendapat opsi ini dan tetap memakai tampilan web responsif, termasuk di HP. Tidak perlu PWA/install.
+
+**Izin (0042).**
+- `ui.field_app`, modul "Tampilan", default dicentang untuk pimpro/staff/member.
+- `save_role_permissions` menolaknya untuk role lain, dan role master tidak pernah menerimanya walaupun "semua izin".
+- Worker memberi pesan "hanya untuk role Pimpro, Staff, dan Member". Konfigurasi Role hanya menampilkan checkbox ini untuk tiga role tersebut.
+
+**Kapan aktif.** Role ∈ {pimpro, staff, member} **dan** izin dicentang **dan** layar < 768px.
+
+**Kerangka.** `FieldAppShell`:
+- header ringkas, konten selebar layar, safe-area iPhone;
+- tab bawah **Presensi · OTS · [SCAN] · Cari Peserta · Akun**, dengan tombol Scan besar di tengah; tab tanpa izin tidak tampil;
+- halaman di luar tab (mis. Dashboard) diarahkan ke Scan.
+
+**Layar.**
+- **Scan:** tanpa tombol OTS dan pencarian manual (keduanya punya tab sendiri).
+- **OTS** `/ots`: `OtsPanel` layar penuh.
+- **Cari Peserta** `/cari-peserta`: `ManualSearch` + kartu hasil; logika sama dengan Scan lewat `useCheckin`.
+- **Presensi:** kartu, bukan tabel; filter dilipat di balik tombol "Filter (n)"; KPI sebaris.
+- **Akun:** profil, password, **Buka tampilan web lengkap** (preferensi per perangkat, kembali lewat tombol "Tampilan aplikasi"), dan Logout.
+
+**Sidebar tidak berubah.** `/ots` dan `/cari-peserta` adalah layar lapangan, bukan menu sidebar baru; keduanya dijaga `RoleGuard` (`action.ots`, `action.manual_checkin`).
+
