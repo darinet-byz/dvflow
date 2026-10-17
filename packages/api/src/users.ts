@@ -1,4 +1,4 @@
-import { isMasterAdminRole, type AppRole } from '@dvflow/shared'
+import { FIELD_APP_PERMISSION, isMasterAdminRole, type AppRole } from '@dvflow/shared'
 import type { RouteContext } from './router'
 import { ApiFailure } from './http/errors'
 
@@ -91,7 +91,8 @@ export async function buildUserProfile(
 
   if (isMasterAdminRole(user.role)) {
     const rows = await context.db.selectRows<{ key: string }>('app_permissions', {}, 'key')
-    permissions = rows.map((r) => r.key)
+    // A30: Tampilan Apps Lapangan bukan untuk role master walau "semua izin".
+    permissions = rows.map((r) => r.key).filter((key) => key !== FIELD_APP_PERMISSION)
   } else {
     const rows = await context.db.selectRows<{ permission_key: string }>(
       'app_role_permissions', { role_id: `eq.${user.role}` }, 'permission_key',
