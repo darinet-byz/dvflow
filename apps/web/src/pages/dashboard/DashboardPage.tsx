@@ -7,18 +7,8 @@ import { PageHeader } from '../../layout/PageHeader'
 import { Button } from '../../ui/Button'
 import { Card, CardHeader, KpiCard } from '../../ui/Card'
 import { ErrorState, Skeleton } from '../../ui/Feedback'
-import { FilterBar, FilterChip } from '../../ui/Filters'
-import { activeCommonFilters } from '../../lib/filters'
 import { useFilterState } from '../shared/useFilterState'
-import {
-  AdvertiserFilter,
-  BatchFilter,
-  CityFilter,
-  DateRangeFilters,
-  EventTypeFilter,
-  ProductFilter,
-  SessionFilter,
-} from '../shared/FilterControls'
+import { StandardFilterBar } from '../shared/StandardFilterBar'
 
 /**
  * Dashboard Resume (PRD §40–§43, 01 §16).
@@ -42,28 +32,17 @@ export function DashboardPage() {
     [appliedKey],
   )
 
-  const chips = activeCommonFilters(state.filters)
 
   return (
     <>
       <PageHeader title="Dashboard Resume" />
 
-      <FilterBar
-        filters={
-          <>
-            <DateRangeFilters filters={state.filters} lists={lists} update={state.update} />
-            <ProductFilter filters={state.filters} lists={lists} update={state.update} />
-            <AdvertiserFilter filters={state.filters} lists={lists} update={state.update} />
-            <EventTypeFilter filters={state.filters} lists={lists} update={state.update} />
-            <BatchFilter filters={state.filters} lists={lists} update={state.update} />
-            <SessionFilter filters={state.filters} lists={lists} update={state.update} />
-            <CityFilter filters={state.filters} lists={lists} update={state.update} />
-          </>
-        }
-        activeFilters={chips.map((chip) => (
-          <FilterChip key={chip.key} label={chip.label} onRemove={() => state.removeFilter(chip.key)} />
-        ))}
-        onClearAll={state.clearAll}
+      <StandardFilterBar
+        filters={state.filters}
+        lists={lists}
+        update={state.update}
+        removeFilter={state.removeFilter}
+        clearAll={state.clearAll}
       />
 
       {error === null ? null : (

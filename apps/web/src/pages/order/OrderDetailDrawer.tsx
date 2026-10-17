@@ -4,7 +4,7 @@ import { DetailList } from '../../ui/Card'
 import { Drawer } from '../../ui/Overlay'
 import { useToast } from '../../ui/Toast'
 import { formatDateTime, formatMoney, formatText } from '../../lib/format'
-import { participantAccessPath, participantAccessUrl } from '../../lib/access-link'
+import { isOtsOrder, participantAccessPath, participantAccessUrl, paymentMethodLabel } from '../../lib/access-link'
 import type { OrderRow } from '../../lib/queries'
 
 /**
@@ -43,6 +43,11 @@ export function OrderDetailDrawer({ order, onClose }: { order: OrderRow | null; 
             ]}
           />
 
+          {isOtsOrder(order.order_id) ? (
+            <p className="rounded-md border border-line bg-page p-2.5 text-[12px] text-ink-soft">
+              Peserta OTS: terdaftar dan dibayar di lokasi, langsung hadir. Tidak memakai tiket/link online.
+            </p>
+          ) : (
           <Section title="Tautan Akses Peserta (Tiket QR / Zoom)">
             <div className="flex flex-col gap-2 rounded-md border border-line bg-page p-2.5">
               <span className="break-all font-mono text-[12px] text-ink">{accessUrl}</span>
@@ -61,6 +66,7 @@ export function OrderDetailDrawer({ order, onClose }: { order: OrderRow | null; 
               </div>
             </div>
           </Section>
+          )}
 
           <Section title="Produk">
             <DetailList
@@ -108,7 +114,7 @@ export function OrderDetailDrawer({ order, onClose }: { order: OrderRow | null; 
           <Section title="Pembayaran">
             <DetailList
               items={[
-                { label: 'Method', value: formatText(order.payment_method) },
+                { label: 'Method', value: formatText(paymentMethodLabel(order.payment_method)) },
                 { label: 'Provider', value: formatText(order.payment_provider) },
                 { label: 'Identifier', value: formatText(order.payment_identifier) },
                 {

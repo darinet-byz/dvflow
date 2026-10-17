@@ -144,6 +144,11 @@ Payment:
 - payment_identifier TEXT NULL
 - payment_identifier_normalized TEXT NULL
 
+Source (A29):
+- source TEXT NOT NULL DEFAULT 'orderonline' CHECK source IN ('orderonline','ots')  -- 'ots' = peserta bayar di lokasi, Order ID OTS-000001 (sequence ots_order_seq)
+- ots_collected_by UUID NULL FK users(id) ON DELETE SET NULL  -- petugas yang mencatat OTS
+- attendance_events.source menerima 'seminar_ots'; orderonline_connections.slug tidak boleh 'OTS'
+
 Ticket:
 - quantity INTEGER NOT NULL DEFAULT 1 CHECK quantity BETWEEN 1 AND 10000  -- A19: CO Form customer_data.quantity; webhook tanpa quantity mempertahankan nilai
 

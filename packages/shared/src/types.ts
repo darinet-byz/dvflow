@@ -52,6 +52,7 @@ export type AppPermissionKey =
   | 'account.profile'
   | 'action.export_data'
   | 'action.manual_checkin'
+  | 'action.ots'
   | 'action.delete_master'
 
 export type AppRoleItem = {

@@ -4,7 +4,7 @@ import { DetailList } from '../../ui/Card'
 import { Drawer } from '../../ui/Overlay'
 import { useToast } from '../../ui/Toast'
 import { formatDateTime, formatText, formatTime } from '../../lib/format'
-import { participantAccessPath, participantAccessUrl } from '../../lib/access-link'
+import { isOtsOrder, participantAccessPath, participantAccessUrl } from '../../lib/access-link'
 import type { PresensiRow } from '../../lib/queries'
 
 /**
@@ -53,6 +53,11 @@ export function PresensiDetailDrawer({ row, onClose }: { row: PresensiRow | null
             ]}
           />
 
+          {isOtsOrder(row.order_id) ? (
+            <p className="rounded-md border border-line bg-page p-2.5 text-[12px] text-ink-soft">
+              Peserta OTS: terdaftar dan dibayar di lokasi, langsung hadir. Tidak memakai tiket/link online.
+            </p>
+          ) : (
           <section>
             <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
               Tautan Akses Peserta (Tiket QR / Zoom)
@@ -74,6 +79,7 @@ export function PresensiDetailDrawer({ row, onClose }: { row: PresensiRow | null
               </div>
             </div>
           </section>
+          )}
 
           <section>
             <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Acara</h3>

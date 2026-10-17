@@ -1,7 +1,7 @@
 import { collectPages } from '../../lib/export'
 import { useState } from 'react'
 import { TIMESTAMP_DISPLAY_LIMIT } from '@dvflow/shared'
-import { EMPTY_PRESENSI_FILTERS, activeCommonFilters, toCommonFilters, type PresensiFilters } from '../../lib/filters'
+import { EMPTY_PRESENSI_FILTERS, toCommonFilters, type PresensiFilters } from '../../lib/filters'
 import { formatCount, formatRate, formatText, formatTime } from '../../lib/format'
 import {
   fetchPresensiPage,
@@ -17,21 +17,15 @@ import { Badge, appStatusTone, attendanceTone, eventTypeTone } from '../../ui/Ba
 import { Button } from '../../ui/Button'
 import { Card, KpiCard } from '../../ui/Card'
 import { ErrorState, SkeletonRows } from '../../ui/Feedback'
-import { FilterBar, FilterChip } from '../../ui/Filters'
+import { FilterChip } from '../../ui/Filters'
 import { SearchInput, Select } from '../../ui/Field'
 import { Pagination } from '../../ui/Pagination'
 import { DataTable, TableCell, TableRow, type TableColumn } from '../../ui/Table'
 import { useFilterState } from '../shared/useFilterState'
-import {
-  AdvertiserFilter,
-  BatchFilter,
-  CityFilter,
-  DateRangeFilters,
-  EventTypeFilter,
-  ProductFilter,
-  SessionFilter,
-} from '../shared/FilterControls'
+import { CONTROL_WIDTH } from '../shared/FilterControls'
+import { StandardFilterBar } from '../shared/StandardFilterBar'
 import { PresensiDetailDrawer } from './PresensiDetailDrawer'
+import { isOtsOrder } from '../../lib/access-link'
 
 /**
  * Presensi Acara (PRD §102–§112).
@@ -118,7 +112,6 @@ export function PresensiPage() {
     state.setPage(1)
   }
 
-  const chips = activeCommonFilters(state.filters)
 
   return (
     <>
@@ -126,7 +119,12 @@ export function PresensiPage() {
         title="Presensi Acara"
       />
 
-      <FilterBar
+      <StandardFilterBar
+        filters={state.filters}
+        lists={lists}
+        update={state.update}
+        removeFilter={state.removeFilter}
+        clearAll={state.clearAll}
         search={
           <SearchInput
             id="presensi-search"
@@ -134,40 +132,25 @@ export function PresensiPage() {
             onChange={(value) => state.update('search', value)}
           />
         }
-        filters={
-          <>
-            <ProductFilter filters={state.filters} lists={lists} update={state.update} />
-            <AdvertiserFilter filters={state.filters} lists={lists} update={state.update} />
-            <EventTypeFilter filters={state.filters} lists={lists} update={state.update} />
-            <Select
-              id="filter-presensi-status"
-              ariaLabel="Filter status presensi"
-              className="w-[170px]"
-              value={state.filters.attendanceStatus}
-              placeholder="Hadir & Belum Hadir"
-              options={ATTENDANCE_OPTIONS}
-              onChange={(value) => state.update('attendanceStatus', value)}
+        extra={
+          <Select
+            id="filter-presensi-status"
+            ariaLabel="Filter status presensi"
+            className={CONTROL_WIDTH}
+            value={state.filters.attendanceStatus}
+            placeholder="Hadir & Belum Hadir"
+            options={ATTENDANCE_OPTIONS}
+            onChange={(value) => state.update('attendanceStatus', value)}
+          />
+        }
+        extraChips={
+          state.filters.attendanceStatus === '' ? null : (
+            <FilterChip
+              label={`Presensi: ${state.filters.attendanceStatus}`}
+              onRemove={() => state.removeFilter('attendanceStatus')}
             />
-            <BatchFilter filters={state.filters} lists={lists} update={state.update} />
-            <SessionFilter filters={state.filters} lists={lists} update={state.update} />
-            <CityFilter filters={state.filters} lists={lists} update={state.update} />
-            <DateRangeFilters filters={state.filters} lists={lists} update={state.update} />
-          </>
+          )
         }
-        activeFilters={
-          <>
-            {chips.map((chip) => (
-              <FilterChip key={chip.key} label={chip.label} onRemove={() => state.removeFilter(chip.key)} />
-            ))}
-            {state.filters.attendanceStatus === '' ? null : (
-              <FilterChip
-                label={`Presensi: ${state.filters.attendanceStatus}`}
-                onRemove={() => state.removeFilter('attendanceStatus')}
-              />
-            )}
-          </>
-        }
-        onClearAll={state.clearAll}
       />
 
       {summary.error === null ? null : (
@@ -216,6 +199,7 @@ export function PresensiPage() {
                     >
                       {row.order_id}
                     </button>
+                    {isOtsOrder(row.order_id) ? <Badge tone="primary" className="ml-1.5">OTS</Badge> : null}
                   </TableCell>
                   <TableCell>{formatText(row.name)}</TableCell>
                   <TableCell>{formatText(row.phone)}</TableCell>

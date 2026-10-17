@@ -30,6 +30,7 @@ import {
 import type { CameraFailure } from './camera-permission'
 import { useQrScanner } from './useQrScanner'
 import { useScannerStick } from './useScannerStick'
+import { OtsDrawer } from './OtsDrawer'
 
 /**
  * Scan QR (PRD §95–§98, 01 §14, 03 §9–§11).
@@ -65,6 +66,7 @@ export function ScanQrPage() {
   const [busy, setBusy] = useState(false)
   const [scanMode, setScanMode] = useState<'camera' | 'scanner_stick'>('camera')
   const [showTestQr, setShowTestQr] = useState(false)
+  const [showOts, setShowOts] = useState(false)
   const lastQrRef = useRef<{ orderId: string; at: number } | null>(null)
 
   function playAudioFeedback(success: boolean) {
@@ -154,9 +156,17 @@ export function ScanQrPage() {
     <>
       <PageHeader
         title="Scan Presensi Seminar"
-        action={<Button onClick={() => setShowTestQr(true)}>QR Tes Scanner</Button>}
+        action={
+          <div className="flex flex-wrap gap-2">
+            {hasPermission(profile, 'action.ots') ? (
+              <Button variant="primary" onClick={() => setShowOts(true)}>Peserta OTS</Button>
+            ) : null}
+            <Button onClick={() => setShowTestQr(true)}>QR Tes Scanner</Button>
+          </div>
+        }
       />
       <TestQrModal open={showTestQr} onClose={() => setShowTestQr(false)} />
+      <OtsDrawer open={showOts} onClose={() => setShowOts(false)} canDelete={hasPermission(profile, 'action.delete_master')} />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>

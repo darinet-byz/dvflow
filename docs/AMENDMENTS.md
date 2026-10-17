@@ -713,3 +713,47 @@ Yang tidak lagi ditampilkan: nama pengiklan, label jenis acara, dan Order ID bes
   - Drawer membuat `/access/MTIX/283818331` (`participantAccessPath`). Order lama tanpa kode toko tetap `/access/<order_id>`.
 - **Kompatibilitas:** link lama `/access/<nomor>` tetap dilayani hanya bila nomor itu unik di semua toko. Bila bentrok, link ditolak "tidak ditemukan", tidak pernah menebak toko.
 
+## A28 — Bar filter seragam & default "Hari Ini" (17 Oktober 2026)
+
+- **Satu komponen** `StandardFilterBar` untuk Dashboard, Order, Presensi, dan Report Tax. Susunannya:
+  - **Baris 1:** Cari (bila ada) · Tanggal · kontrol tampilan (Report Tax: "Kelompokkan per").
+  - **Baris 2:** Produk · Pengiklan · Seminar & Webinar · Batch · Sesi · Kota · filter khusus halaman (Order: Status, Payment method; Presensi: Hadir/Belum Hadir).
+  - **Baris 3:** chip filter aktif · Clear All.
+- Semua kontrol selebar 190px; di layar sempit selebar layar. "More Filters" di Order dihapus, jadi tidak ada filter yang tersembunyi.
+- Default tanggal semua halaman bertanggal = **Hari Ini** (menggantikan 30 Hari Terakhir dari A18). Clear All kembali ke Hari Ini. Preset lain dan "Semua tanggal" tetap bisa dipilih.
+
+## A29 — Peserta OTS: bayar di lokasi seminar (17 Oktober 2026)
+
+**Keputusan pengguna.**
+- Fitur tersendiri, tidak disambungkan ke order Pending: lokasi ramai, dan mencari nama terlalu lama.
+- Pembayaran cukup dicatat di dvflow; OrderOnline tidak disentuh.
+- Peserta langsung hadir.
+- Data yang dicatat: nominal + metode bayar.
+- Salah input bisa diedit langsung.
+
+**Model data (0041).** Setiap pendaftaran OTS adalah satu order baru:
+- `orders.source = 'ots'`, Order ID `OTS-000001` dari sequence `ots_order_seq`;
+- Paid, `quantity = 1`, `gross = net = nominal`, tanpa e-payment fee, pajak, maupun platform fee;
+- metode `ots_tunai` / `ots_transfer` / `ots_qris`; petugas di `ots_collected_by`;
+- langsung check-in seminar dengan sumber `seminar_ots`.
+
+Karena tersimpan sebagai order biasa, OTS otomatis masuk Leads, Paid, Jumlah Tiket, Gross/Net, Presensi, Report Tax, scope produk, dan filter tanggal.
+
+**Pengecualian aturan.** "No Master Order edit/delete" tidak berlaku untuk order `source = 'ots'`:
+- Edit lewat `save_ots_registration` (izin `action.ots`).
+- Hapus lewat `delete_ots_registration` (izin `action.ots` + `action.delete_master`).
+- Order OrderOnline tetap tidak bisa diedit atau dihapus.
+- Webhook menolak menimpa order OTS.
+
+**Keamanan dan izin.**
+- Kode toko `OTS` dicadangkan (constraint di `orderonline_connections.slug`), sehingga Order ID OTS tidak pernah tabrakan dengan toko (A27).
+- Izin baru `action.ots` ("Pendaftaran OTS") diberikan ke Manajer dan Admin; role lain diatur lewat Konfigurasi Role.
+- Order OTS tidak punya pengiklan, jadi tidak terlihat oleh akun Advertiser (A20).
+
+**UI.** Tidak ada menu baru. Halaman Scan QR punya tombol **Peserta OTS** yang membuka drawer berisi:
+- form dengan pilihan Acara (dari order seminar/hybrid 30 hari terakhir); acara dan nominal diingat per perangkat;
+- Nama, No WA (opsional), Nominal, dan Metode;
+- daftar **OTS hari ini** (total nominal, nama petugas) dengan tombol Edit/Hapus.
+
+Order/Presensi menampilkan badge OTS. Detail order OTS tidak menampilkan link tiket.
+

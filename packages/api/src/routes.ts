@@ -15,6 +15,7 @@ import { createRole, deleteRole, getRole, listPermissions, listRoles, updateRole
 import { accessOrder, checkinByQr, checkinInfoPage } from './participant/handlers'
 import { getProfile, updateProfile } from './profile/handlers'
 import { scannerManualCheckin, scannerSearch } from './scanner/handlers'
+import { deleteOts, listOts, listOtsEvents, saveOts } from './ots/handlers'
 import { orderOnlineWebhook } from './webhooks/handlers'
 import { batchRemapOrders, deleteAlias, listAliases, listUnmappedOrders, saveAlias } from './aliases/handlers'
 import { getDataSummary, purgeExpiredUnmapped, resetData } from './developer/handlers'
@@ -102,6 +103,11 @@ export const ROUTES: Route[] = [
   { method: 'POST', path: '/checkin/:orderId', handler: checkinByQr, auth: 'access' },
   { method: 'GET', path: '/api/scanner/search', handler: scannerSearch, auth: 'access' },
   { method: 'POST', path: '/api/scanner/manual-checkin', handler: scannerManualCheckin, auth: 'access' },
+  // A29: pendaftaran peserta OTS (bayar di lokasi).
+  { method: 'GET', path: '/api/ots/events', handler: listOtsEvents, auth: 'access' },
+  { method: 'GET', path: '/api/ots', handler: listOts, auth: 'access' },
+  { method: 'POST', path: '/api/ots', handler: saveOts, auth: 'access' },
+  { method: 'DELETE', path: '/api/ots/:orderId', handler: deleteOts, auth: 'access' },
 
   // Konfigurasi (tulis saja; baca langsung lewat RLS).
   // Rute statis sebelum :resource (A15).

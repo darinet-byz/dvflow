@@ -22,3 +22,17 @@ export function participantAccessUrl(orderId: string, origin: string = window.lo
 export function participantLinkTemplate(slug: string, origin: string = window.location.origin): string {
   return `${origin}/access/${slug}/{{order_id}}`
 }
+
+/** Order peserta OTS (A29): prefix `OTS-` dicadangkan, tidak bisa dipakai kode toko OrderOnline. */
+export function isOtsOrder(orderId: string): boolean {
+  return /^OTS-\d+$/.test(orderId)
+}
+
+const OTS_PAYMENT_LABELS: Record<string, string> = { ots_tunai: 'OTS · Tunai', ots_transfer: 'OTS · Transfer', ots_qris: 'OTS · QRIS' }
+
+/** Label metode bayar; kode OTS dibuat terbaca, kode lain apa adanya. */
+export function paymentMethodLabel(method: string | null | undefined): string | null {
+  if (!method) return null
+  return OTS_PAYMENT_LABELS[method] ?? method
+}
+

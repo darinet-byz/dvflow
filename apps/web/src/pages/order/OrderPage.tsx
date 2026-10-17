@@ -1,6 +1,6 @@
 import { collectPages } from '../../lib/export'
 import { useState } from 'react'
-import { EMPTY_ORDER_FILTERS, activeCommonFilters, type OrderFilters } from '../../lib/filters'
+import { EMPTY_ORDER_FILTERS, type OrderFilters } from '../../lib/filters'
 import { formatCount, formatDateTime, formatMoney, formatText } from '../../lib/format'
 import { fetchOrdersPage, type OrderRow, type OrderSortKey, type SortDirection } from '../../lib/queries'
 import { useAsyncData } from '../../lib/useAsyncData'
@@ -10,21 +10,15 @@ import { Badge, appStatusTone, eventTypeTone } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card, KpiCard } from '../../ui/Card'
 import { ErrorState, SkeletonRows } from '../../ui/Feedback'
-import { FilterBar, FilterChip } from '../../ui/Filters'
+import { FilterChip } from '../../ui/Filters'
 import { Select, SearchInput, TextInput } from '../../ui/Field'
 import { Pagination } from '../../ui/Pagination'
 import { DataTable, TableCell, TableRow, type TableColumn } from '../../ui/Table'
 import { useFilterState } from '../shared/useFilterState'
-import {
-  AdvertiserFilter,
-  BatchFilter,
-  CityFilter,
-  DateRangeFilters,
-  EventTypeFilter,
-  ProductFilter,
-  SessionFilter,
-} from '../shared/FilterControls'
+import { CONTROL_WIDTH } from '../shared/FilterControls'
+import { StandardFilterBar } from '../shared/StandardFilterBar'
 import { OrderDetailDrawer } from './OrderDetailDrawer'
+import { isOtsOrder, paymentMethodLabel } from '../../lib/access-link'
 
 /**
  * Order — Master Table (PRD §44–§48).
@@ -79,7 +73,6 @@ export function OrderPage() {
     key: 'created_at',
     direction: 'desc',
   })
-  const [moreFilters, setMoreFilters] = useState(false)
   const [selected, setSelected] = useState<OrderRow | null>(null)
 
   const appliedKey = JSON.stringify(state.applied)
@@ -104,7 +97,6 @@ export function OrderPage() {
     state.setPage(1)
   }
 
-  const chips = activeCommonFilters(state.filters)
   const hasPaymentMethod = state.filters.paymentMethod.trim() !== ''
 
   return (
@@ -113,72 +105,53 @@ export function OrderPage() {
         title="Order"
       />
 
-      <FilterBar
+      <StandardFilterBar
+        filters={state.filters}
+        lists={lists}
+        update={state.update}
+        removeFilter={state.removeFilter}
+        clearAll={state.clearAll}
         search={<SearchInput id="order-search" value={state.filters.search} onChange={(value) => state.update('search', value)} />}
-        filters={
+        extra={
           <>
-            <ProductFilter filters={state.filters} lists={lists} update={state.update} />
-            <AdvertiserFilter filters={state.filters} lists={lists} update={state.update} />
-            <EventTypeFilter filters={state.filters} lists={lists} update={state.update} />
             <Select
               id="filter-status"
               ariaLabel="Filter status"
-              className="w-[150px]"
+              className={CONTROL_WIDTH}
               value={state.filters.appStatus}
               placeholder="Semua status"
               options={STATUS_OPTIONS}
               onChange={(value) => state.update('appStatus', value)}
             />
+            {/* Payment method diketik bebas dengan saran dari identifier fee rule:
+                nilainya berasal dari provider, dan rule tax-lah yang membuatnya bermakna. */}
+            <TextInput
+              id="filter-payment"
+              ariaLabel="Filter payment method"
+              className={CONTROL_WIDTH}
+              value={state.filters.paymentMethod}
+              placeholder="Payment method (mis. bca_va)"
+              onChange={(value) => state.update('paymentMethod', value)}
+            />
           </>
         }
-        actions={
-          <Button size="sm" onClick={() => setMoreFilters((open) => !open)}>
-            {moreFilters ? 'Sembunyikan filter' : 'More Filters'}
-          </Button>
-        }
-        activeFilters={
+        extraChips={
           <>
-            {chips.map((chip) => (
-              <FilterChip key={chip.key} label={chip.label} onRemove={() => state.removeFilter(chip.key)} />
-            ))}
+            {state.filters.appStatus === '' ? null : (
+              <FilterChip label={`Status: ${state.filters.appStatus}`} onRemove={() => state.removeFilter('appStatus')} />
+            )}
             {hasPaymentMethod ? (
               <FilterChip
                 label={`Payment: ${state.filters.paymentMethod.trim()}`}
                 onRemove={() => state.removeFilter('paymentMethod')}
               />
             ) : null}
-            {state.filters.appStatus === '' ? null : (
-              <FilterChip label={`Status: ${state.filters.appStatus}`} onRemove={() => state.removeFilter('appStatus')} />
-            )}
           </>
         }
-        onClearAll={state.clearAll}
       />
-
-      {moreFilters ? (
-        <div className="mt-2 flex flex-wrap gap-2.5 rounded-lg border border-line bg-card p-3.5">
-          <BatchFilter filters={state.filters} lists={lists} update={state.update} />
-          <SessionFilter filters={state.filters} lists={lists} update={state.update} />
-          <CityFilter filters={state.filters} lists={lists} update={state.update} />
-          {/* Payment method diketik bebas dengan saran dari identifier fee rule:
-              nilainya berasal dari provider, dan rule tax-lah yang membuatnya
-              bermakna. Saran ditampilkan supaya tidak perlu menebak ejaannya. */}
-          <TextInput
-            id="filter-payment"
-            ariaLabel="Filter payment method"
-            className="w-[190px]"
-            value={state.filters.paymentMethod}
-            placeholder="Payment method (mis. bank_transfer, bca_va, gopay)"
-            onChange={(value) => state.update('paymentMethod', value)}
-          />
-          <DateRangeFilters filters={state.filters} lists={lists} update={state.update} />
-          {lists === null || lists.paymentMethods.length === 0 ? null : (
-            <p className="w-full text-[11px] text-ink-soft">
-              Identifier fee rule yang terdaftar: {lists.paymentMethods.join(', ')}
-            </p>
-          )}
-        </div>
-      ) : null}
+      {lists === null || lists.paymentMethods.length === 0 ? null : (
+        <p className="mt-1.5 text-[11px] text-ink-soft">Identifier fee rule yang terdaftar: {lists.paymentMethods.join(', ')}</p>
+      )}
 
       {error === null ? null : (
         <div className="mt-4">
@@ -220,6 +193,7 @@ export function OrderPage() {
                     >
                       {row.order_id}
                     </button>
+                    {isOtsOrder(row.order_id) ? <Badge tone="primary" className="ml-1.5">OTS</Badge> : null}
                   </TableCell>
                   <TableCell>{formatText(row.name)}</TableCell>
                   <TableCell>{formatText(row.phone)}</TableCell>
@@ -239,7 +213,7 @@ export function OrderPage() {
                   <TableCell>
                     <Badge tone={appStatusTone(row.app_status)}>{row.app_status}</Badge>
                   </TableCell>
-                  <TableCell>{formatText(row.payment_method)}</TableCell>
+                  <TableCell>{formatText(paymentMethodLabel(row.payment_method))}</TableCell>
                   <TableCell>{formatText(row.payment_provider)}</TableCell>
                   <TableCell align="right">{formatMoney(row.gross_amount)}</TableCell>
                   <TableCell align="right">{formatMoney(row.tax_amount)}</TableCell>

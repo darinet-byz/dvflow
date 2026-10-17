@@ -34,14 +34,14 @@ export type FilterState<T extends CommonFilters> = {
   clearAll: () => void
 }
 
-/** Rentang default halaman bertanggal: 30 Hari Terakhir (dihitung saat dipakai), agar tidak memuat semua data. */
+/** Rentang default halaman bertanggal: Hari Ini (A28; sebelumnya 30 Hari Terakhir, A18), dihitung saat dipakai. */
 function withDefaultDates<T extends CommonFilters>(filters: T): T {
-  const last30 = presetRange('last30')
-  return { ...filters, dateFrom: last30.from, dateTo: last30.to }
+  const today = presetRange('today')
+  return { ...filters, dateFrom: today.from, dateTo: today.to }
 }
 
 export function useFilterState<T extends CommonFilters>(initial: T): FilterState<T> {
-  // Filter awal tanpa tanggal berarti "pakai default 30 hari"; "Semua tanggal" tetap bisa dipilih manual.
+  // Filter awal tanpa tanggal berarti "pakai default Hari Ini"; "Semua tanggal" tetap bisa dipilih manual.
   const [filters, setFilters] = useState<T>(() => (initial.dateFrom === '' && initial.dateTo === '' ? withDefaultDates(initial) : initial))
   const [page, setPage] = useState(1)
   const [pageSize, setPageSizeState] = useState<PageSize>(DEFAULT_PAGE_SIZE)
@@ -70,7 +70,7 @@ export function useFilterState<T extends CommonFilters>(initial: T): FilterState
     },
     update: (key, value) => setFilters((current) => ({ ...current, [key]: value })),
     removeFilter: (key) => setFilters((current) => clearFilter(current, key)),
-    // Clear All kembali ke 30 Hari Terakhir, bukan ke semua data.
+    // Clear All kembali ke Hari Ini, bukan ke semua data.
     clearAll: () => setFilters((current) => withDefaultDates(clearAllFilters(current))),
   }
 }

@@ -373,6 +373,42 @@ export function createFakeDb(state: FakeState): Db {
         return { order_id: orderId, action: existing === undefined ? 'inserted' : 'updated', mapping_kept: mappingKept } as T
       }
 
+      // A29: tiruan save/delete_ots_registration (aturan lengkap diuji pgTAP 19_ots.sql).
+      if (name === 'save_ots_registration') {
+        const actorId = String(args['p_actor'] ?? '')
+        const actor = state.users.find((candidate) => candidate.id === actorId)
+        const granted = actor !== undefined && (isMasterAdminRole(actor.role) ||
+          state.rolePermissions.some((row) => row.role_id === actor.role && row.permission_key === 'action.ots'))
+        if (!granted) throw new DbError(FORBIDDEN, 'fake')
+        const existingId = args['p_order_id'] as string | null
+        const fields = {
+          name: args['p_name'], phone: args['p_phone'] ?? null, product_code: String(args['p_product_code']).toUpperCase(),
+          batch: args['p_batch'] ?? null, session: args['p_session'] ?? null, city: args['p_city'] ?? null, event_type: args['p_event_type'],
+          gross_amount: args['p_amount'], net_amount: args['p_amount'], payment_method: args['p_method'],
+        }
+        if (existingId) {
+          const order = state.orders.find((row) => row['order_id'] === existingId)
+          if (order === undefined || order['source'] !== 'ots') throw new DbError('DF001', 'fake')
+          Object.assign(order, fields)
+          return { order_id: existingId, action: 'updated', checked_in_at: null } as T
+        }
+        nextId += 1
+        const orderId = 'OTS-' + String(nextId).padStart(6, '0')
+        state.orders.push({ order_id: orderId, source: 'ots', app_status: 'Paid', quantity: 1, product_parse_status: 'valid',
+          ots_collected_by: actorId, created_at: new Date().toISOString(), ...fields })
+        const created = insertAttendance(state, { order_id: orderId, attendance_type: 'seminar', source: 'seminar_ots', scanner_user_id: actorId })
+        return { order_id: orderId, action: 'created', checked_in_at: created['clicked_at'] } as T
+      }
+
+      if (name === 'delete_ots_registration') {
+        const actor = state.users.find((candidate) => candidate.id === String(args['p_actor'] ?? ''))
+        if (actor === undefined || !isMasterAdminRole(actor.role)) throw new DbError(FORBIDDEN, 'fake')
+        const index = state.orders.findIndex((row) => row['order_id'] === args['p_order_id'] && row['source'] === 'ots')
+        if (index < 0) throw new DbError('DF001', 'fake')
+        state.orders.splice(index, 1)
+        return { order_id: args['p_order_id'], deleted: true } as T
+      }
+
       if (name === 'checkin_seminar') {
         const orderId = String(args['p_order_id'] ?? '')
         const order = state.orders.find((row) => row['order_id'] === orderId)

@@ -22,7 +22,8 @@ export type FilterControlsProps<T extends CommonFilters> = {
   disabled?: boolean
 }
 
-const CONTROL_WIDTH = 'w-[190px]'
+/** Lebar seragam semua kontrol filter (A28); di layar sempit penuh lewat `.filter-row` di styles.css. */
+export const CONTROL_WIDTH = 'w-[190px]'
 
 export function ProductFilter<T extends CommonFilters>(props: FilterControlsProps<T>) {
   return (

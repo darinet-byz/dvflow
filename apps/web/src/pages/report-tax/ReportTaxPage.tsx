@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { KNOWN_PAYMENT_IDENTIFIERS } from '@dvflow/shared'
-import { EMPTY_COMMON_FILTERS, activeCommonFilters, toFilterArgs, type CommonFilters } from '../../lib/filters'
+import { EMPTY_COMMON_FILTERS, toFilterArgs, type CommonFilters } from '../../lib/filters'
 import { formatCount, formatMoney } from '../../lib/format'
 import { supabaseRpc } from '../../lib/supabase-rest'
 import { useAsyncData } from '../../lib/useAsyncData'
@@ -9,19 +9,12 @@ import { PageHeader } from '../../layout/PageHeader'
 import { Button } from '../../ui/Button'
 import { Card, CardHeader, KpiCard } from '../../ui/Card'
 import { ErrorState, SkeletonRows } from '../../ui/Feedback'
-import { FilterBar, FilterChip } from '../../ui/Filters'
 import { Select } from '../../ui/Field'
 import { DataTable, TableCell, TableRow, type TableColumn } from '../../ui/Table'
 import { useFilterState } from '../shared/useFilterState'
-import {
-  AdvertiserFilter,
-  BatchFilter,
-  CityFilter,
-  DateRangeFilters,
-  EventTypeFilter,
-  ProductFilter,
-  SessionFilter,
-} from '../shared/FilterControls'
+import { CONTROL_WIDTH } from '../shared/FilterControls'
+import { StandardFilterBar } from '../shared/StandardFilterBar'
+import { paymentMethodLabel } from '../../lib/access-link'
 
 /**
  * Report Tax (PRD §84–§86, §165, 03 §12).
@@ -65,7 +58,8 @@ const PAYMENT_LABELS: Record<string, string> = Object.fromEntries(KNOWN_PAYMENT_
 function groupLabel(dimension: string, label: string): string {
   if (dimension !== 'payment_method') return label
   const name = PAYMENT_LABELS[label.toLowerCase()]
-  return name ? `${name} (${label})` : label
+  // A29: kode OTS (ots_tunai/ots_transfer/ots_qris) bukan channel OrderOnline.
+  return name ? `${name} (${label})` : paymentMethodLabel(label) ?? label
 }
 
 const COLUMNS: readonly TableColumn[] = [
@@ -93,7 +87,6 @@ export function ReportTaxPage() {
     [appliedKey, dimension],
   )
 
-  const chips = activeCommonFilters(state.filters)
   const dimensionLabel = DIMENSIONS.find((item) => item.value === dimension)?.label ?? dimension
 
   // Penolakan akses datang sebagai kode tersendiri dari RPC, bukan sebagai
@@ -118,30 +111,22 @@ export function ReportTaxPage() {
         title="Report Tax"
       />
 
-      <FilterBar
-        filters={
-          <>
-            <Select
-              id="report-dimension"
-              ariaLabel="Dimensi breakdown"
-              className="w-[190px]"
-              value={dimension}
-              options={DIMENSIONS}
-              onChange={setDimension}
-            />
-            <DateRangeFilters filters={state.filters} lists={lists} update={state.update} />
-            <ProductFilter filters={state.filters} lists={lists} update={state.update} />
-            <AdvertiserFilter filters={state.filters} lists={lists} update={state.update} />
-            <EventTypeFilter filters={state.filters} lists={lists} update={state.update} />
-            <BatchFilter filters={state.filters} lists={lists} update={state.update} />
-            <SessionFilter filters={state.filters} lists={lists} update={state.update} />
-            <CityFilter filters={state.filters} lists={lists} update={state.update} />
-          </>
+      <StandardFilterBar
+        filters={state.filters}
+        lists={lists}
+        update={state.update}
+        removeFilter={state.removeFilter}
+        clearAll={state.clearAll}
+        viewControls={
+          <Select
+            id="report-dimension"
+            ariaLabel="Dimensi breakdown"
+            className={CONTROL_WIDTH}
+            value={dimension}
+            options={DIMENSIONS}
+            onChange={setDimension}
+          />
         }
-        activeFilters={chips.map((chip) => (
-          <FilterChip key={chip.key} label={chip.label} onRemove={() => state.removeFilter(chip.key)} />
-        ))}
-        onClearAll={state.clearAll}
       />
 
       {error === null ? null : (

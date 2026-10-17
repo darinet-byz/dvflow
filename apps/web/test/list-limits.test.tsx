@@ -5,7 +5,7 @@ import { EMPTY_ORDER_FILTERS } from '../src/lib/filters'
 import { useFilterState } from '../src/pages/shared/useFilterState'
 import { Pagination } from '../src/ui/Pagination'
 
-/** A18: list maksimal 500 baris (10 x 50); halaman bertanggal default 30 Hari Terakhir. */
+/** A18: list maksimal 500 baris (10 x 50). A28: halaman bertanggal default Hari Ini. */
 
 beforeEach(() => { vi.useFakeTimers({ toFake: ['Date'] }); vi.setSystemTime(new Date(2026, 9, 16, 9, 0, 0)) })
 afterEach(() => { cleanup(); vi.useRealTimers() })
@@ -33,17 +33,17 @@ describe('Pagination: batas 10 halaman', () => {
   })
 })
 
-describe('filter tanggal default 30 hari', () => {
-  it('halaman dibuka dengan 30 Hari Terakhir', () => {
+describe('filter tanggal default Hari Ini (A28)', () => {
+  it('halaman dibuka dengan Hari Ini', () => {
     const { result } = renderHook(() => useFilterState(EMPTY_ORDER_FILTERS))
-    expect(result.current.filters).toMatchObject({ dateFrom: '2026-09-17', dateTo: '2026-10-16' })
+    expect(result.current.filters).toMatchObject({ dateFrom: '2026-10-16', dateTo: '2026-10-16' })
   })
 
-  it('Clear All kembali ke 30 hari (teks pencarian tetap)', () => {
+  it('Clear All kembali ke Hari Ini (teks pencarian tetap)', () => {
     const { result } = renderHook(() => useFilterState(EMPTY_ORDER_FILTERS))
     act(() => { result.current.update('search', 'Ahmad'); result.current.update('dateFrom', '2026-01-01'); result.current.update('city', 'Solo') })
     act(() => { result.current.clearAll() })
-    expect(result.current.filters).toMatchObject({ dateFrom: '2026-09-17', dateTo: '2026-10-16', city: '', search: 'Ahmad' })
+    expect(result.current.filters).toMatchObject({ dateFrom: '2026-10-16', dateTo: '2026-10-16', city: '', search: 'Ahmad' })
   })
 
   it('"Semua tanggal" tetap bisa dipilih (chip tanggal dihapus)', () => {

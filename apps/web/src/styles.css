@@ -86,7 +86,14 @@
   }
 }
 
+/* A28: semua kontrol bar filter selebar sama (190px); kolom pencarian tetap lebih lebar. */
+@media (min-width: 640px) {
+  .filter-bar .filter-row > * { width: 190px; }
+  .filter-bar .filter-row > *:has(> input[type="search"]) { width: 260px; }
+}
+
 @media (max-width: 639px) {
   .filter-bar > div { width: 100%; }
   .filter-bar input, .filter-bar select { width: 100%; }
+  .filter-bar .filter-row > * { width: 100%; }
 }
