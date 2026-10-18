@@ -785,3 +785,10 @@ Order/Presensi menampilkan badge OTS. Detail order OTS tidak menampilkan link ti
 
 **Sidebar tidak berubah.** `/ots` dan `/cari-peserta` adalah layar lapangan, bukan menu sidebar baru; keduanya dijaga `RoleGuard` (`action.ots`, `action.manual_checkin`).
 
+## A31 — Filter Kota & Batch tidak membedakan huruf besar/kecil (18 Oktober 2026)
+
+- **Laporan pengguna:** filter Kota membedakan "Solo" dan "solo".
+- **Penyebab:** tujuh RPC baca (`orders_page`, `export_orders_page`, `presensi_page`, `export_presensi_page`, `dashboard_summary`, `presensi_summary`, `tax_report`) memakai `o.city = $9` dan `o.batch = $7`, yaitu sama persis. Data produksi sendiri sudah konsisten; masalahnya ada pada teks filter yang diketik bebas.
+- **Perbaikan (0043):** `lower(btrim(o.city)) = lower(btrim($9))` dan hal yang sama untuk batch, sehingga konsisten dengan Payment method yang sejak awal mengabaikan huruf besar/kecil.
+- Pencocokan tetap utuh, bukan sebagian: "Sol" tidak menemukan "Solo". Frontend dan Worker tidak berubah.
+
