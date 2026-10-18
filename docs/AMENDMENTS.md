@@ -792,3 +792,20 @@ Order/Presensi menampilkan badge OTS. Detail order OTS tidak menampilkan link ti
 - **Perbaikan (0043):** `lower(btrim(o.city)) = lower(btrim($9))` dan hal yang sama untuk batch, sehingga konsisten dengan Payment method yang sejak awal mengabaikan huruf besar/kecil.
 - Pencocokan tetap utuh, bukan sebagian: "Sol" tidak menemukan "Solo". Frontend dan Worker tidak berubah.
 
+## A32 — Batch berbagai panjang & cakupan Zoom/Tiket (18 Oktober 2026)
+
+**Pertanyaan pengguna:** batch bisa 1, 2, 3, 4 karakter atau lebih. Apakah aman?
+
+**Hasil uji parser:**
+- Awalan kode berlebar tetap: produk 4 huruf + pengiklan 2 digit + tipe 2 huruf, dikunci `MASTER_CODE_RULES`. Seluruh sisa blok kode menjadi batch, tanpa batas panjang.
+- Terbaca benar: `5`, `58`, `392`, `1001`, `123456`, `001` (nol di depan utuh), dan `58A`, juga tanpa spasi atau dengan huruf kecil.
+- Batch kosong ditolak.
+- Dikunci di `packages/shared/test/batch-length.test.ts`.
+
+**Aturan tetap:** batch adalah teks, jadi `058` ≠ `58` (CLAUDE.md §4). Penulisan batch di nama produk OrderOnline harus konsisten.
+
+**Penyamaan cakupan Zoom/Tiket:**
+- Batch pada cakupan dicocokkan tanpa membedakan huruf besar/kecil (`candidateSettingKeys` dan penyimpanan memakai huruf besar), sehingga `58a` = `58A`, konsisten dengan filter (A31).
+- Batch cakupan kini boleh huruf/angka, maksimal 10 karakter. Sebelumnya hanya angka, sehingga batch seperti `58A` tidak bisa dibuatkan aturan.
+- Aturan lama tidak terpengaruh, karena batch produksi berupa angka.
+

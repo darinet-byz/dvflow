@@ -59,7 +59,8 @@ export function candidateSettingKeys(
   if (order.alias_target) keys.push(`${prefix}${order.alias_target}`)
 
   const p = order.product_code ? normalizeCode(order.product_code) : null
-  const b = order.batch ? order.batch.trim() : null
+  // A32: batch tidak membedakan huruf besar/kecil (58a = 58A), tetapi nol di depan tetap berarti (058 ≠ 58).
+  const b = order.batch ? order.batch.trim().toUpperCase() : null
   const s = order.session ? normalizeCode(order.session) : null
 
   if (p && b && s) keys.push(`${prefix}${buildScopeKey(p, b, s)}`)
@@ -112,10 +113,11 @@ async function validateScopeParts(
     throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Kode produk tidak terdaftar')
   }
 
-  const trimmedBatch = (rawBatch ?? '').trim()
+  // A32: batch disimpan huruf besar (cocok dengan candidateSettingKeys); nol di depan tetap utuh (058 ≠ 58).
+  const trimmedBatch = (rawBatch ?? '').trim().toUpperCase()
   const batch = trimmedBatch === '' || trimmedBatch === '*' ? '*' : trimmedBatch
-  if (batch !== '*' && !/^\d{1,10}$/.test(batch)) {
-    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Batch harus berupa angka (mis. 392 atau 001) atau * untuk semua batch')
+  if (batch !== '*' && !/^[A-Z0-9]{1,10}$/.test(batch)) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Batch hanya huruf/angka, maks 10 karakter (mis. 5, 58, 392, 001, 58A) atau * untuk semua batch')
   }
 
   const trimmedSession = (rawSessionCode ?? '').trim()

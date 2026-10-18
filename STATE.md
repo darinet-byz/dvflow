@@ -477,3 +477,4 @@ sering terlanggar:
 | 2026-10-17 | F2.0 | A29 (0041): Peserta OTS — order source 'ots' (OTS-000001), Paid + langsung hadir, edit/hapus khusus OTS, izin action.ots, drawer di Scan QR |
 | 2026-10-17 | F2.0 | A30 (0042): Tampilan Apps Lapangan di HP untuk Pimpro/Staff/Member berizin ui.field_app — tab bawah Presensi · OTS · SCAN · Cari Peserta · Akun; role lain tetap tampilan web |
 | 2026-10-18 | F2.0 | A31 (0043): filter Kota & Batch tidak membedakan huruf besar/kecil (7 RPC baca) |
+| 2026-10-18 | F2.0 | A32: batch berbagai panjang terverifikasi (tes parser); cakupan Zoom/Tiket menerima batch huruf/angka & tidak membedakan huruf besar/kecil |
