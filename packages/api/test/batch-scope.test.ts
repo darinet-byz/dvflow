@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { candidateSettingKeys } from '../src/webinar/handlers'
 import { createFakeState, createTestApi, fakeOrder, fakeUser, loginAndGetToken, makeRequest, sampleConfig } from './helpers'
 
-/** A32: cakupan Zoom/Tiket — batch tidak membedakan huruf besar/kecil, nol di depan tetap berarti. */
+/** A32/A33: cakupan Zoom/Tiket — batch tidak membedakan huruf besar/kecil; nol di depan diabaikan. */
 async function setup(orderBatch: string) {
   const state = createFakeState({
     users: [fakeUser({ role: 'developer' })],
@@ -26,10 +26,17 @@ describe('batch di cakupan Zoom/Tiket (A32)', () => {
     expect(await ticket()).toContain('Catatan batch 58a')
   })
 
-  it('nol di depan tetap berarti: aturan 058 tidak berlaku untuk batch 58', async () => {
+  it('A33: aturan 058 berlaku untuk order batch 58 (nol di depan diabaikan, disimpan 58)', async () => {
     const { saveRule, ticket } = await setup('58')
-    expect((await saveRule('058')).status).toBe(200)
-    expect(await ticket()).not.toContain('Catatan batch 058')
+    const saved = await saveRule('058')
+    expect(((await saved.json()) as { data: { key: string } }).data.key).toBe('__scope__::KM:58:S1')
+    expect(await ticket()).toContain('Catatan batch 058')
+  })
+
+  it('A33: nol di tengah/belakang tetap berarti — aturan 508 tidak berlaku untuk batch 58', async () => {
+    const { saveRule, ticket } = await setup('58')
+    expect((await saveRule('508')).status).toBe(200)
+    expect(await ticket()).not.toContain('Catatan batch 508')
   })
 
   it.each(['5', '1001', '1234567890'])('batch %s (berbagai panjang) bisa jadi cakupan', async (batch) => {

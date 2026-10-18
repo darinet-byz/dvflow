@@ -48,10 +48,11 @@ describe('parser product_raw (PRD §67, 01 §10)', () => {
     expect(parsed.city).toBe('Online')
   })
 
-  it('C11 leading zero pada batch dipertahankan sebagai string', () => {
+  it('C11/A33 batch tetap string; nol di depan diabaikan, kode pengiklan 01 utuh', () => {
     const parsed = expectValid(parseProductRaw('KM01SO001 - S1 - Solo', TEST_CONFIG))
 
-    expect(parsed.batch).toBe('001')
+    expect(parsed.batch).toBe('1')
+    expect(parsed.advertiser_code).toBe('01')
     expect(typeof parsed.batch).toBe('string')
   })
 
@@ -165,7 +166,8 @@ describe('parser product_raw (PRD §67, 01 §10)', () => {
   it('batch boleh memuat spasi internal dan tetap dapat diparse', () => {
     const parsed = expectValid(parseProductRaw('KM01SObatch 1 - S1 - Solo', TEST_CONFIG))
 
-    expect(parsed.batch).toBe('batch 1')
+    // A33: huruf batch disamakan besar.
+    expect(parsed.batch).toBe('BATCH 1')
   })
 
   it('konfigurasi nonaktif tetap dipakai untuk order lama yang sudah ada', () => {

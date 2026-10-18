@@ -809,3 +809,27 @@ Order/Presensi menampilkan badge OTS. Detail order OTS tidak menampilkan link ti
 - Batch cakupan kini boleh huruf/angka, maksimal 10 karakter. Sebelumnya hanya angka, sehingga batch seperti `58A` tidak bisa dibuatkan aturan.
 - Aturan lama tidak terpengaruh, karena batch produksi berupa angka.
 
+## A33 — Nol di depan batch diabaikan (18 Oktober 2026)
+
+**Keputusan pengguna.** Menggantikan CLAUDE.md §4 ("batch harus teks agar `001` tidak kehilangan nol") dan aturan A32 "058 ≠ 58".
+- Nol **di depan** batch tidak berarti: `058` = `0058` = `00058` = `58`.
+- Nol di tengah/belakang tetap berarti: `508`, `580`, `100`, `101`.
+
+**KHUSUS batch.**
+- Kode pengiklan tetap 2 angka dengan nol di depan (`01`, `02`, …). Parser memotong awalan berlebar tetap (produk 4 + pengiklan 2 + tipe 2) **sebelum** menormalkan sisanya, sehingga pengiklan tidak pernah tersentuh.
+- Kode sesi, produk, Order ID, kode toko, dan payment identifier juga tidak berubah.
+
+**Satu definisi di dua lapisan.**
+- TypeScript: `normalizeBatch()` di `packages/shared/src/domain/text.ts`.
+- SQL: `public.normalize_batch()` (0044).
+- Aturannya: trim → hapus nol di depan selama masih ada karakter sesudahnya → huruf besar. `000` menjadi `0`, tidak pernah kosong.
+
+**Dipakai di:**
+- Parser (batch order dari webhook). `product_raw` tetap disimpan apa adanya.
+- Product Name Generator (`058` menghasilkan `…SO58 - …`).
+- Cakupan Zoom/Tiket (aturan `058` = `58`).
+- Filter Batch di tujuh RPC baca (0044).
+- Pengaman: `update orders` menormalkan batch lama; di produksi saat migrasi 0 baris berubah, karena belum ada batch diawali 0.
+
+**Pemisah ` - `** tetap penanda tiga bagian **[kode+batch] - [sesi] - [kota]**. Penulisan tanpa spasi juga dibaca. Nama kota tidak boleh mengandung ` - ` (generator menolaknya). `Solo-Baru` tanpa spasi tetap aman.
+

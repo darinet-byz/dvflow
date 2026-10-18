@@ -478,3 +478,4 @@ sering terlanggar:
 | 2026-10-17 | F2.0 | A30 (0042): Tampilan Apps Lapangan di HP untuk Pimpro/Staff/Member berizin ui.field_app — tab bawah Presensi · OTS · SCAN · Cari Peserta · Akun; role lain tetap tampilan web |
 | 2026-10-18 | F2.0 | A31 (0043): filter Kota & Batch tidak membedakan huruf besar/kecil (7 RPC baca) |
 | 2026-10-18 | F2.0 | A32: batch berbagai panjang terverifikasi (tes parser); cakupan Zoom/Tiket menerima batch huruf/angka & tidak membedakan huruf besar/kecil |
+| 2026-10-18 | F2.0 | A33 (0044): nol di depan batch diabaikan (058 = 58; 508/100 tetap) di parser, generator, cakupan Zoom/Tiket, dan filter; kode pengiklan 01 tidak tersentuh; CLAUDE.md §4 diperbarui |

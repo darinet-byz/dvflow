@@ -1,4 +1,4 @@
-import { normalizeCode, parseProductRaw } from '@dvflow/shared'
+import { normalizeBatch, normalizeCode, parseProductRaw } from '@dvflow/shared'
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
 import type { RouteContext } from '../router'
@@ -59,8 +59,8 @@ export function candidateSettingKeys(
   if (order.alias_target) keys.push(`${prefix}${order.alias_target}`)
 
   const p = order.product_code ? normalizeCode(order.product_code) : null
-  // A32: batch tidak membedakan huruf besar/kecil (58a = 58A), tetapi nol di depan tetap berarti (058 ≠ 58).
-  const b = order.batch ? order.batch.trim().toUpperCase() : null
+  // A32/A33: 58a = 58A dan 058 = 58 (nol di tengah/belakang tetap berarti).
+  const b = order.batch ? normalizeBatch(order.batch) : null
   const s = order.session ? normalizeCode(order.session) : null
 
   if (p && b && s) keys.push(`${prefix}${buildScopeKey(p, b, s)}`)
@@ -113,9 +113,9 @@ async function validateScopeParts(
     throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Kode produk tidak terdaftar')
   }
 
-  // A32: batch disimpan huruf besar (cocok dengan candidateSettingKeys); nol di depan tetap utuh (058 ≠ 58).
-  const trimmedBatch = (rawBatch ?? '').trim().toUpperCase()
-  const batch = trimmedBatch === '' || trimmedBatch === '*' ? '*' : trimmedBatch
+  // A32/A33: batch dinormalisasi sama seperti parser — huruf besar, nol di depan diabaikan (058 = 58).
+  const trimmedBatch = (rawBatch ?? '').trim()
+  const batch = trimmedBatch === '' || trimmedBatch === '*' ? '*' : normalizeBatch(trimmedBatch)
   if (batch !== '*' && !/^[A-Z0-9]{1,10}$/.test(batch)) {
     throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Batch hanya huruf/angka, maks 10 karakter (mis. 5, 58, 392, 001, 58A) atau * untuk semua batch')
   }

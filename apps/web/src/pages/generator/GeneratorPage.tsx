@@ -21,8 +21,8 @@ import { cn } from '../../ui/cn'
  *   * hanya konfigurasi AKTIF yang ditawarkan (D02);
  *   * hasil hanya muncul setelah Generate, dan tidak pernah muncul setengah jadi
  *     ketika ada input yang kurang (D03);
- *   * batch `001` tidak kehilangan angka nol — nilainya tidak pernah diubah
- *     menjadi angka (D05);
+ *   * batch tetap teks; nol di DEPAN diabaikan (`058` -> `58`, A33), nol di
+ *     tengah/belakang tetap (`508`, `100`); kode pengiklan `01` tidak tersentuh (D05);
  *   * tombol Copy menyalin nilai persis seperti yang tampil (D06).
  */
 const TYPE_LABEL = 'Seminar / Webinar'
@@ -118,7 +118,7 @@ export function GeneratorPage() {
               id="generator-batch"
               label="Batch"
               value={batch}
-              placeholder="mis. 392 atau 001"
+              placeholder="mis. 58 atau 392"
               onChange={setBatch}
               error={errors['batch'] ?? null}
             />

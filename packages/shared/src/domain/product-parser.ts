@@ -34,7 +34,7 @@ import {
   type SessionConfigRow,
 } from '../types'
 import { PRODUCT_SEGMENT_SEPARATOR } from './product-name'
-import { normalizeCode } from './text'
+import { normalizeBatch, normalizeCode } from './text'
 
 export type ProductParseFailureReason =
   | 'EMPTY_PRODUCT_RAW'
@@ -259,8 +259,11 @@ export function parseProductRaw(
   const combination = combinations[0]
   if (combination === undefined) return invalidProduct('UNKNOWN_CODE_COMBINATION')
 
-  const batch = codeBlock.slice(combination.prefix.length)
-  if (batch.length === 0) return invalidProduct('UNKNOWN_CODE_COMBINATION')
+  // Batch = sisa SESUDAH awalan berlebar tetap (produk + pengiklan + tipe). Normalisasi nol di depan
+  // (A33) hanya menyentuh sisa ini, jadi kode pengiklan seperti `01` tidak pernah berubah.
+  const batchRaw = codeBlock.slice(combination.prefix.length)
+  if (batchRaw.length === 0) return invalidProduct('UNKNOWN_CODE_COMBINATION')
+  const batch = normalizeBatch(batchRaw)
 
   return {
     product_parse_status: 'valid',

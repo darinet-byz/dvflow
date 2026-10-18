@@ -127,11 +127,12 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
     choose('Pengiklan', '01')
     choose('Seminar / Webinar', 'SO')
     choose('Sesi', 'S1')
-    type('Batch', '001')
+    type('Batch', '058')
     type('Kota', 'Solo')
     fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
-    expect(await screen.findByText('KULI01SO001 - S1 - Solo')).toBeDefined()
+    // A33: nol di depan batch diabaikan; kode pengiklan 01 tetap utuh.
+    expect(await screen.findByText('KULI01SO58 - S1 - Solo')).toBeDefined()
   })
 
   it('D04: spasi di sekitar kota dipangkas', async () => {

@@ -157,7 +157,9 @@ Example:
 KM01SO392 - S1 - Solo
 ```
 
-Batch MUST remain a string so values such as `001` do not lose leading zeroes.
+Batch MUST remain a string. Leading zeroes in the BATCH are NOT significant (A33): `058` = `0058` = `58`;
+zeroes in the middle/end ARE significant (`508`, `580`, `100`). Use `normalizeBatch()` / `public.normalize_batch()`.
+This applies to the batch ONLY — advertiser codes keep their leading zero (`01`, `02`, exactly 2 digits).
 
 Parser MUST NOT fuzzy guess.
 

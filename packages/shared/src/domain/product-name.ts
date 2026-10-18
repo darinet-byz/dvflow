@@ -11,7 +11,7 @@ import { normalizeMasterCode, MASTER_CODE_RULES, type MasterCodeResource } from 
  * ` - ` ditolak, dan city di-trim sebelum dipakai.
  */
 
-import { isValidCodeFormat, toTrimmedOrNull } from './text'
+import { isValidCodeFormat, toTrimmedOrNull, normalizeBatch } from './text'
 
 /** Pemisah segmen kanonik. Harus persis ini (01 §10). */
 export const PRODUCT_SEGMENT_SEPARATOR = ' - '
@@ -111,7 +111,8 @@ export function validateProductNameInput(input: Partial<Record<ProductNameField,
 
   return {
     ok: true,
-    value: `${productCode}${advertiserCode}${typeCode}${batch}${PRODUCT_SEGMENT_SEPARATOR}${sessionCode}${PRODUCT_SEGMENT_SEPARATOR}${city}`,
+    // A33: batch dinormalisasi (058 -> 58) agar nama yang dibuat sama dengan hasil parser.
+    value: `${productCode}${advertiserCode}${typeCode}${normalizeBatch(batch)}${PRODUCT_SEGMENT_SEPARATOR}${sessionCode}${PRODUCT_SEGMENT_SEPARATOR}${city}`,
   }
 }
 

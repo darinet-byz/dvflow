@@ -29,6 +29,19 @@ export function normalizeCode(value: string): string {
 }
 
 /**
+ * Normalisasi BATCH (A33, keputusan pengguna 18 Okt 2026): nol di DEPAN tidak berarti
+ * (`058` = `0058` = `58`), nol di tengah/belakang tetap berarti (`508`, `580`, `100`).
+ * Batch nol semua menjadi `0`, tidak pernah kosong. Huruf disamakan besar (`58a` = `58A`).
+ *
+ * KHUSUS batch. Jangan dipakai untuk kode pengiklan (`01`, `02` wajib 2 angka), sesi,
+ * produk, maupun Order ID — semuanya tetap memakai `normalizeCode`.
+ * Kembaran SQL: `public.normalize_batch(text)` (0044).
+ */
+export function normalizeBatch(value: string): string {
+  return value.trim().replace(/^0+(?=.)/, '').toUpperCase()
+}
+
+/**
  * Pola kode konfigurasi yang diizinkan.
  *
  * Tanpa spasi dan tanpa tanda hubung, supaya pemisah ` - ` pada product_raw

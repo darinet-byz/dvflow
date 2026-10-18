@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { normalizeBatch } from '../src/domain/text'
 import {
   buildProductName,
   InvalidProductNameError,
@@ -22,9 +23,11 @@ describe('Product Name Generator (PRD §54, §72)', () => {
     expect(buildProductName(VALID_INPUT)).toBe('KM01SO392 - S1 - Solo')
   })
 
-  it('D05 batch 001 tidak kehilangan leading zero', () => {
-    expect(buildProductName({ ...VALID_INPUT, batch: '001' })).toBe('KM01SO001 - S1 - Solo')
-    expect(buildProductName({ ...VALID_INPUT, batch: '000392' })).toBe('KM01SO000392 - S1 - Solo')
+  it('D05/A33 batch: nol di depan diabaikan, nol tengah/belakang tetap; kode pengiklan 01 utuh', () => {
+    expect(buildProductName({ ...VALID_INPUT, batch: '001' })).toBe('KM01SO1 - S1 - Solo')
+    expect(buildProductName({ ...VALID_INPUT, batch: '000392' })).toBe('KM01SO392 - S1 - Solo')
+    expect(buildProductName({ ...VALID_INPUT, batch: '100' })).toBe('KM01SO100 - S1 - Solo')
+    expect(buildProductName({ ...VALID_INPUT, batch: '508' })).toBe('KM01SO508 - S1 - Solo')
   })
 
   it('batch non-string ditolak, tidak diam-diam dikonversi menjadi angka', () => {
@@ -88,7 +91,7 @@ describe('Product Name Generator (PRD §54, §72)', () => {
       expect(parsed.product_parse_status, `gagal parse: ${generated}`).toBe('valid')
       if (parsed.product_parse_status !== 'valid') continue
 
-      expect(parsed.batch).toBe(input.batch.trim())
+      expect(parsed.batch).toBe(normalizeBatch(input.batch))
       expect(parsed.session).toBe(input.sessionCode)
       expect(parsed.city).toBe(input.city.trim())
       expect(parsed.product_code).toBe(input.productCode)
