@@ -28,6 +28,12 @@ export type TableColumn = {
 
 export type TableSort = { key: string; direction: 'asc' | 'desc' }
 
+export type ExtraExport = {
+  label?: string
+  config: ExportConfig
+  columns: readonly TableColumn[]
+}
+
 export function DataTable({
   columns,
   children,
@@ -36,8 +42,10 @@ export function DataTable({
   sort,
   onSortChange,
   exportConfig,
+  extraExports,
 }: {
   exportConfig?: ExportConfig
+  extraExports?: readonly ExtraExport[]
   columns: readonly TableColumn[]
   /** Baris tabel; dipisah supaya pemanggil yang memutuskan isinya. */
   children: ReactNode
@@ -46,9 +54,17 @@ export function DataTable({
   sort?: TableSort
   onSortChange?: (key: string) => void
 }) {
+  const hasExports = exportConfig !== undefined || (extraExports !== undefined && extraExports.length > 0)
   return (
     <div className="min-w-0 max-w-full">
-      {exportConfig ? <ExportButton config={exportConfig} columns={columns.filter(c => c.key !== 'actions')} /> : null}
+      {hasExports ? (
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-2 p-3 empty:hidden">
+          {exportConfig ? <ExportButton config={exportConfig} columns={columns.filter(c => c.key !== 'actions')} /> : null}
+          {(extraExports ?? []).map((item, index) => (
+            <ExportButton key={`${item.label ?? 'export'}-${index}`} config={item.config} columns={item.columns} label={item.label} />
+          ))}
+        </div>
+      ) : null}
     <div className={cn('max-w-full overflow-x-auto rounded-md border border-line bg-card', className)}>
       <table className="w-full border-collapse text-[13px]">
         <thead className={cn('bg-soft text-left', stickyHeader && 'sticky top-0 z-10')}>

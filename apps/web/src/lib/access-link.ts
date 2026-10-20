@@ -28,7 +28,7 @@ export function isOtsOrder(orderId: string): boolean {
   return /^OTS-\d+$/.test(orderId)
 }
 
-const OTS_PAYMENT_LABELS: Record<string, string> = { ots_tunai: 'OTS · Tunai', ots_transfer: 'OTS · Transfer', ots_qris: 'OTS · QRIS' }
+const OTS_PAYMENT_LABELS: Record<string, string> = { ots_tunai: 'OTS · Tunai', ots_transfer: 'OTS · Bank Transfer', ots_qris: 'OTS · QRIS' }
 
 /** Label metode bayar; kode OTS dibuat terbaca, kode lain apa adanya. */
 export function paymentMethodLabel(method: string | null | undefined): string | null {

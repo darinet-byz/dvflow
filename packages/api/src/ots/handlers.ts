@@ -1,20 +1,28 @@
+import { roundMoney } from '@dvflow/shared'
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
 import type { RouteContext } from '../router'
 import { productAccess, productFilter, requirePermission } from '../permissions'
 
 /**
- * Pendaftaran peserta OTS — bayar di lokasi seminar (A29).
+ * Pendaftaran peserta OTS — bayar di lokasi seminar (A29, disederhanakan di A34).
  *
  * Fitur tersendiri: setiap pendaftaran = satu order baru (`source = 'ots'`, Order ID `OTS-000001`),
- * Paid, 1 tiket, langsung check-in. Order Pending OrderOnline tidak disentuh dan OrderOnline tidak
+ * Paid, langsung check-in. Order Pending OrderOnline tidak disentuh dan OrderOnline tidak
  * dihubungi — pembayaran hanya dicatat di dvflow. Aturan & izin ditegakkan ulang di RPC
- * `save_ots_registration` / `delete_ots_registration` (0041).
+ * `save_ots_registration` (0045).
+ *
+ * Ada dua bentuk request selama masa transisi:
+ *   * **form baru (A34)**: `unit_price` + `quantity`; produk/batch/sesi/kota/No HP wajib.
+ *   * **form lama (A29)**: `amount` saja; tetap diterima supaya aplikasi lama yang masih
+ *     terbuka di HP petugas tidak langsung rusak saat backend/database dideploy lebih dulu.
  */
 export const OTS_METHODS = ['ots_tunai', 'ots_transfer', 'ots_qris'] as const
 const OTS_EVENT_TYPES = ['Seminar Offline', 'Hybrid']
 const EVENT_LOOKBACK_DAYS = 30
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
+const MAX_QUANTITY = 100
+const MAX_MONEY = 9_999_999_999
 
 type EventRow = {
   product_code: string | null
@@ -64,6 +72,7 @@ type OtsRow = {
   session: string | null
   city: string | null
   event_type: string | null
+  quantity: number | string | null
   gross_amount: number | string
   payment_method: string | null
   created_at: string
@@ -85,7 +94,7 @@ export async function listOts(context: RouteContext): Promise<Response> {
     created_at: `gte.${start.toISOString()}`,
     order: 'created_at.desc',
     limit: '1000',
-  }, 'order_id,name,phone,product_code,product_name,batch,session,city,event_type,gross_amount,payment_method,created_at,ots_collected_by'))
+  }, 'order_id,name,phone,product_code,product_name,batch,session,city,event_type,quantity,gross_amount,payment_method,created_at,ots_collected_by'))
     .filter((row) => new Date(row.created_at) < end)
 
   const collectorIds = [...new Set(rows.map((row) => row.ots_collected_by).filter((id): id is string => !!id))]
@@ -97,6 +106,7 @@ export async function listOts(context: RouteContext): Promise<Response> {
     date,
     rows: rows.map(({ ots_collected_by, ...row }) => ({
       ...row,
+      quantity: Number(row.quantity ?? 1),
       gross_amount: Number(row.gross_amount),
       collected_by: ots_collected_by ? names.get(ots_collected_by) ?? null : null,
     })),
@@ -108,29 +118,75 @@ export async function saveOts(context: RouteContext): Promise<Response> {
   const actor = await requirePermission(context, 'action.ots')
   const body = await readJsonObject(context.request)
   const name = (readString(body, 'name') ?? '').trim()
+  const phone = (readString(body, 'phone') ?? '').trim()
   const method = readString(body, 'method') ?? ''
-  const eventType = readString(body, 'event_type') ?? ''
   const productCode = (readString(body, 'product_code') ?? '').trim()
-  const amount = typeof body['amount'] === 'number' ? body['amount'] : Number(readString(body, 'amount'))
+  const batch = (readString(body, 'batch') ?? '').trim()
+  const session = (readString(body, 'session') ?? '').trim()
+  const city = (readString(body, 'city') ?? '').trim()
+  const eventTypeInput = (readString(body, 'event_type') ?? '').trim()
+  const orderId = (readString(body, 'order_id') ?? '').trim()
+
+  // Form baru mengirim unit_price; form lama hanya amount. Ini yang membedakan jalur validasi.
+  const isNewForm = body['unit_price'] !== undefined && body['unit_price'] !== null
+  const unitPrice = readNumber(body, 'unit_price')
+  const quantity = readNumber(body, 'quantity')
+  const legacyAmount = readNumber(body, 'amount')
 
   if (name === '' || name.length > 200) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nama peserta wajib diisi (maks 200 karakter).')
-  if (productCode === '' || !OTS_EVENT_TYPES.includes(eventType)) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih acara seminar.')
-  if (!Number.isFinite(amount) || amount <= 0 || amount > 9_999_999_999) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nominal harus lebih dari 0.')
-  if (!(OTS_METHODS as readonly string[]).includes(method)) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih metode bayar: Tunai, Transfer, atau QRIS.')
+  if (phone.length > 32) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'No HP terlalu panjang (maks 32 karakter).')
+  if (!(OTS_METHODS as readonly string[]).includes(method)) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih metode bayar: Tunai, Bank Transfer, atau QRIS.')
 
-  const orderId = (readString(body, 'order_id') ?? '').trim()
-  const result = await context.db.rpc<{ order_id: string; action: 'created' | 'updated'; checked_in_at: string | null }>('save_ots_registration', {
+  let amount: number
+  let eventType: string
+  let finalQuantity: number | null = null
+  let finalUnitPrice: number | null = null
+
+  if (isNewForm) {
+    if (phone === '') throw new ApiFailure('INVALID_ARGUMENT', undefined, 'No HP wajib diisi.')
+    if (productCode === '') throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih produk terlebih dahulu.')
+    if (batch === '') throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Batch wajib diisi.')
+    if (session === '') throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Sesi wajib diisi.')
+    if (city === '') throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Kota wajib diisi.')
+    if (quantity === null || !Number.isInteger(quantity) || quantity < 1 || quantity > MAX_QUANTITY) {
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, `Jumlah tiket harus bilangan bulat 1–${MAX_QUANTITY}.`)
+    }
+    if (unitPrice === null || unitPrice <= 0 || unitPrice > MAX_MONEY) {
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Harga per tiket harus lebih dari 0.')
+    }
+    finalQuantity = quantity
+    finalUnitPrice = roundMoney(unitPrice)
+    amount = roundMoney(finalUnitPrice * finalQuantity)
+    // OTS hanya untuk acara tatap muka; jenis acara tidak lagi dipilih di form.
+    eventType = 'Seminar Offline'
+  } else {
+    // Kompatibilitas form lama (A29).
+    if (productCode === '' || !OTS_EVENT_TYPES.includes(eventTypeInput)) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih acara seminar.')
+    if (legacyAmount === null || legacyAmount <= 0 || legacyAmount > MAX_MONEY) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nominal harus lebih dari 0.')
+    amount = roundMoney(legacyAmount)
+    eventType = eventTypeInput
+  }
+
+  const result = await context.db.rpc<{
+    order_id: string
+    action: 'created' | 'updated'
+    quantity?: number
+    gross_amount?: number | string
+    checked_in_at: string | null
+  }>('save_ots_registration', {
     p_actor: actor.id,
     p_order_id: orderId === '' ? null : orderId,
     p_name: name,
-    p_phone: readString(body, 'phone'),
+    p_phone: phone === '' ? null : phone,
     p_product_code: productCode,
-    p_batch: readString(body, 'batch'),
-    p_session: readString(body, 'session'),
-    p_city: readString(body, 'city'),
+    p_batch: batch === '' ? null : batch,
+    p_session: session === '' ? null : session,
+    p_city: city === '' ? null : city,
     p_event_type: eventType,
     p_amount: amount,
     p_method: method,
+    p_quantity: finalQuantity,
+    p_unit_price: finalUnitPrice,
   })
   return ok(result, { status: result.action === 'created' ? 201 : 200 })
 }
@@ -145,6 +201,16 @@ export async function deleteOts(context: RouteContext): Promise<Response> {
     p_order_id: orderId,
   })
   return ok(result)
+}
+
+function readNumber(body: Record<string, unknown>, key: string): number | null {
+  const value = body[key]
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
 }
 
 function wibDate(now: Date): string {

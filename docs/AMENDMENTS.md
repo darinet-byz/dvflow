@@ -833,3 +833,48 @@ Order/Presensi menampilkan badge OTS. Detail order OTS tidak menampilkan link ti
 
 **Pemisah ` - `** tetap penanda tiga bagian **[kode+batch] - [sesi] - [kota]**. Penulisan tanpa spasi juga dibaca. Nama kota tidak boleh mengandung ` - ` (generator menolaknya). `Solo-Baru` tanpa spasi tetap aman.
 
+## A34 — OTS cepat untuk meja registrasi (20 Oktober 2026)
+
+**Keputusan pengguna.** Form OTS dibuat untuk meja registrasi acara tatap muka yang ramai, tanpa dropdown 200 produk.
+
+**Konteks acara — sekali per perangkat.**
+- Produk dipilih lewat pencarian/combobox (kode atau nama), bukan dropdown panjang.
+- Pilihan **Acara Terakhir** (order seminar/hybrid 30 hari terakhir) mengisi produk + batch + sesi + kota sekaligus.
+- Batch, sesi, dan kota wajib. Batch disimpan lewat `normalize_batch` (`058` = `58`).
+- Konteks diingat per perangkat; ditampilkan sebagai satu baris `Meja: ...`.
+- Jenis acara OTS selalu `Seminar Offline`.
+
+**Data peserta.**
+- Nama, No HP, Jumlah Tiket, Harga per tiket, dan Metode.
+- Harga per tiket memakai 4 preset UI: 99.000, 100.000, 149.000, 150.000.
+- Jumlah tiket 1–100; total bayar = harga × jumlah tiket.
+- Metode memakai kode OTS yang sudah ada: `ots_tunai`, `ots_transfer`, `ots_qris` dengan label Tunai / Bank Transfer / QRIS. Bukan identifier fee OrderOnline (`bank_transfer`/`instant`).
+- Simpan = order OTS Paid, `quantity = N`, `gross = net = harga × N`, langsung check-in `seminar_ots`.
+
+**Akses baca konfigurasi (0046).** `can_read_configuration()` juga menerima `action.ots`, sehingga role yang hanya diberi izin OTS tetap bisa memuat daftar produk/sesi untuk form. Ini bukan izin menulis konfigurasi; produk tetap dibatasi `can_access_product`.
+
+**RPC (0045).**
+- `save_ots_registration` menerima `p_quantity` dan `p_unit_price` (dua parameter default di akhir).
+- Pemanggil lama (11 argumen) tetap bisa memanggil fungsi yang sama selama masa transisi.
+- Server menghitung ulang total dari harga satuan × jumlah tiket; total dari browser tidak dipercaya.
+- Order OTS tetap tanpa e-payment fee, tax, atau platform fee.
+
+**Edit.** OTS lama dengan nominal di luar 4 preset menampilkan opsi sementara `Tersimpan: Rp X` agar nominal tidak berubah diam-diam.
+
+## A35 — Export Meta Conversion Audience (20 Oktober 2026)
+
+**Keputusan pengguna.** Export data konversi untuk Meta Ads dari halaman Order, mengikuti filter yang aktif.
+
+**Perilaku.**
+- Tombol baru **Export Meta (Paid)** di samping Export CSV pada tabel Order. Tidak ada menu baru.
+- Filter tanggal, pencarian, produk, pengiklan, jenis acara, batch, sesi, kota, dan payment method tetap berlaku.
+- `app_status` selalu **dipaksa Paid**. Pending/Cancelled tidak pernah masuk file, walaupun tabel sedang menampilkannya.
+- Kalau filter Status = Pending/Cancelled, tombol dinonaktifkan karena hasilnya pasti kosong.
+- Format mengikuti `docs/Reference-Meta-Conversion-Audience-Format.md`:
+  `order_id,fn,email,phone,ct,country,value,currency,event_name,event_time,data_processing_options`.
+- CSV UTF-8 tanpa BOM, tanpa formula guard `'` (agar `+62` tidak rusak), plaintext (Meta yang menghash).
+- Baris tanpa email dan tanpa No HP dilewati.
+- Izin tetap `action.export_data`. Tidak ada migrasi database untuk fitur ini.
+
+**Keamanan.** File contoh asli berisi PII dan sudah dihapus dari repo setelah formatnya dicatat di dokumen referensi. File export tidak boleh di-commit.
+

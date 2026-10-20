@@ -126,7 +126,7 @@ run('integrasi webhook terhadap Supabase lokal', () => {
     // identifier yang benar-benar diterima aplikasi (06 §15).
     expect(row['payment_identifier_normalized']).toBe('bank_transfer')
     expect(row['tax_mapping_status']).toBe('mapped')
-    expect(row['fee_rule_name_snapshot']).toBe('Admin Bank Transfer')
+    expect(row['fee_rule_name_snapshot']).toBe('Bank Transfer')
     expect(Number(row['tax_amount'])).toBe(4000)
     expect(Number(row['net_amount'])).toBe(18000)
   })
@@ -231,14 +231,14 @@ run('integrasi webhook terhadap Supabase lokal', () => {
         order_id: qrisOrderId,
         product_data: { name: 'KULI01SO392 - S1 - Solo' },
         total_price: 22000,
-        payment: { method: 'QRIS', data: [], channels: [], status: 'unpaid' },
+        payment: { method: 'GOPAY', data: [], channels: [], status: 'unpaid' },
       }),
     )
     expect(response.status).toBe(200)
 
     const row = await orderRow(qrisOrderId)
-    expect(row['payment_identifier_normalized']).toBe('qris')
-    expect(row['fee_rule_name_snapshot']).toBe('Fee QRIS 0.7%')
+    expect(row['payment_identifier_normalized']).toBe('gopay')
+    expect(row['fee_rule_name_snapshot']).toBe('GoPay')
     expect(Number(row['tax_amount'])).toBe(154)
     expect(Number(row['net_amount'])).toBe(21846)
   })

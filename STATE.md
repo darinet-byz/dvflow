@@ -7,7 +7,7 @@
 > Dokumen yang mengikat tetap `CLAUDE.md` + `docs/`. File ini hanya mencatat **sejauh mana**
 > pekerjaan sudah berjalan, bukan aturan baru.
 
-Terakhir diperbarui: 2026-10-13
+Terakhir diperbarui: 2026-10-20
 Repo: `C:\Users\MyBook Z Series\dvflow` (git `main`, **sudah di-commit lokal** — belum di-push)
 Rencana lengkap: `~/.claude/plans/baca-file-claude-md-dan-glowing-pike.md`
 Nama aplikasi: **dvflow** (`OrderOnline` tetap nama provider, bukan nama aplikasi)
@@ -41,16 +41,17 @@ Supabase belum dikonfigurasi di project nyata, dan belum ada deployment.
 # Tidak butuh Docker
 npm install
 npm run typecheck          # → PASS (shared, api, worker, functions, web)
-npm test                   # → 342 test lulus (96 shared + 145 api + 101 web)
+npm test                   # → 611 test lulus (271 api + 133 shared + 207 web)
 npm run build              # → aplikasi web + assets/ticket-qr.js
 npm run verify:ticket-qr   # → membuktikan artefak QR dapat dijalankan & dipindai
 npm audit                  # → 0 vulnerabilities
 
 # Database lokal (BUTUH Docker Desktop menyala)
-npm run db:start           # supabase start
-npm run db:reset           # migrations/ (19 berkas) + seed.sql
-npm run test:db            # pgTAP → 234 test lulus / 6 berkas
-npm run test:integration   # auth + webhook + peserta/scanner/config → 34 test (skip bila env kosong)
+npm run db:start                      # supabase start
+npm run db:reset                      # migrasi 0001–0046 + seed.sql (untuk integration)
+npm run test:integration              # 37 test (butuh SUPABASE_URL/SECRET_KEY/DB_URL; skip bila kosong)
+npx supabase db reset --no-seed       # pgTAP mengasumsikan DB tanpa seed
+npm run test:db                       # pgTAP → 498 test lulus / 22 berkas
 
 # Tooling developer (butuh database hidup)
 npm run create-master-admin
@@ -479,3 +480,7 @@ sering terlanggar:
 | 2026-10-18 | F2.0 | A31 (0043): filter Kota & Batch tidak membedakan huruf besar/kecil (7 RPC baca) |
 | 2026-10-18 | F2.0 | A32: batch berbagai panjang terverifikasi (tes parser); cakupan Zoom/Tiket menerima batch huruf/angka & tidak membedakan huruf besar/kecil |
 | 2026-10-18 | F2.0 | A33 (0044): nol di depan batch diabaikan (058 = 58; 508/100 tetap) di parser, generator, cakupan Zoom/Tiket, dan filter; kode pengiklan 01 tidak tersentuh; CLAUDE.md §4 diperbarui |
+| 2026-10-20 | F2.0 | A34 (0045/0046): OTS cepat - konteks meja (produk/batch/sesi/kota) diisi sekali per perangkat, produk searchable, harga per tiket 4 preset, jumlah tiket, total otomatis, tiga metode OTS lama, selalu Seminar Offline. RPC save_ots_registration menerima p_quantity/p_unit_price dan tetap kompatibel dengan pemanggil lama |
+| 2026-10-20 | F2.0 | A35: Export Meta (Paid) di halaman Order - filter aktif + paksa Paid; format docs/Reference-Meta-Conversion-Audience-Format.md; CSV tanpa BOM & tanpa formula guard; file contoh PII dihapus dari repo |
+| 2026-10-20 | - | Gate: typecheck PASS; unit test 611 lulus (271 api + 133 shared + 207 web); pgTAP 498 PASS (reset --no-seed); integration 37 PASS (termasuk OTS e2e baru); build PASS; verifikasi artefak QR PASS |
+| 2026-10-20 | - | Tiga ekspektasi test integrasi lama diselaraskan dengan perilaku/seed saat ini: label jenis acara di halaman tiket (memang dihapus A19), nama fee rule `Bank Transfer` (katalog 0032), dan E02 memakai `GoPay` (satu-satunya rule persentase yang aktif di seed) |

@@ -9,6 +9,7 @@
 export { Button, type ButtonProps, type ButtonSize, type ButtonVariant } from './Button'
 export { Card, CardHeader, DetailList, KpiCard } from './Card'
 export { EmptyState, ErrorState, Skeleton, SkeletonRows, Spinner } from './Feedback'
+export { Combobox, type ComboboxOption } from './Combobox'
 export { FieldLabel, SearchInput, Select, TextInput, type SelectOption } from './Field'
 export { FilterBar, FilterChip } from './Filters'
 export { Drawer, Modal } from './Overlay'

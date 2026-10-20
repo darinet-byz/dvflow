@@ -52,6 +52,18 @@ export const PASSWORD_MIN_LENGTH = 8
 /** Panjang maksimum body webhook yang diproses; webhook adalah input tak terpercaya (04 §10). */
 export const WEBHOOK_MAX_BODY_BYTES = 64 * 1024
 
+/**
+ * Preset harga per tiket pada form OTS (A34).
+ *
+ * Ini hanya jalan pintas UI, bukan aturan validasi: harga tersimpan per order dan server
+ * menerima harga positif lain untuk kompatibilitas data lama. Kalau daftar ini berubah,
+ * perubahan harus disertai catatan di `docs/AMENDMENTS.md`.
+ */
+export const OTS_UNIT_PRICE_OPTIONS = [99_000, 100_000, 149_000, 150_000] as const
+
+/** Batas jumlah tiket per transaksi OTS (A34) — guard salah ketik di meja registrasi. */
+export const OTS_MAX_QUANTITY = 100
+
 /** Batas panjang teks yang disimpan dari payload webhook (04 §10). */
 export const MAX_TEXT_LENGTH = {
   orderId: 64,

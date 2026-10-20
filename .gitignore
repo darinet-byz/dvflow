@@ -1,4 +1,5 @@
 .claude/settings.local.json
+.claude-openrouter/
 .env
 .env.*
 node_modules/

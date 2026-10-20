@@ -223,7 +223,7 @@ run('integrasi P5/P6 terhadap Supabase lokal', () => {
       expect(html).toContain(seminarOrderId)
       expect(html).toContain('Kuliner Masteri')
       expect(html).toContain(`/checkin/${seminarOrderId}`)
-      expect(html).toContain('Seminar Offline')
+      // A19 sengaja menghapus label jenis acara dari halaman tiket.
     })
 
     it('F05: order tidak dikenal -> 404', async () => {

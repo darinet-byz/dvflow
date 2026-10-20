@@ -237,6 +237,20 @@ export async function fetchConfigLists(): Promise<ConfigLists> {
   }
 }
 
+/** A34: daftar produk & sesi untuk form OTS. RLS tetap membatasi produk sesuai scope user. */
+export type OtsReferenceData = {
+  products: Array<{ code: string; name: string }>
+  sessions: Array<{ code: string; name: string }>
+}
+
+export async function fetchOtsReferenceData(): Promise<OtsReferenceData> {
+  const [products, sessions] = await Promise.all([
+    supabaseSelect<{ code: string; name: string }>('products', { active: 'is.true', order: 'code.asc' }, 'code,name'),
+    supabaseSelect<{ code: string; name: string }>('sessions_config', { active: 'is.true', order: 'code.asc' }, 'code,name'),
+  ])
+  return { products, sessions }
+}
+
 export type AdvertiserChoice = { id: string; code: string; name: string; active: boolean }
 
 /** A20: pilihan pengiklan untuk akun role Advertiser (Add Team). Termasuk nonaktif agar akun lama tetap terbaca. */

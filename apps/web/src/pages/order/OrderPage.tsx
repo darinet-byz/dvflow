@@ -5,6 +5,13 @@ import { formatCount, formatDateTime, formatMoney, formatText } from '../../lib/
 import { fetchOrdersPage, type OrderRow, type OrderSortKey, type SortDirection } from '../../lib/queries'
 import { useAsyncData } from '../../lib/useAsyncData'
 import { useConfigLists } from '../../lib/useConfigLists'
+import {
+  canExportMetaForStatus,
+  META_CONVERSION_COLUMNS,
+  metaConversionFilters,
+  toMetaConversionCsv,
+  toMetaConversionRows,
+} from '../../lib/meta-conversion'
 import { PageHeader } from '../../layout/PageHeader'
 import { Badge, appStatusTone, eventTypeTone } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
@@ -14,6 +21,7 @@ import { FilterChip } from '../../ui/Filters'
 import { Select, SearchInput, TextInput } from '../../ui/Field'
 import { Pagination } from '../../ui/Pagination'
 import { DataTable, TableCell, TableRow, type TableColumn } from '../../ui/Table'
+import type { ExportConfig } from '../../ui/ExportButton'
 import { useFilterState } from '../shared/useFilterState'
 import { CONTROL_WIDTH } from '../shared/FilterControls'
 import { StandardFilterBar } from '../shared/StandardFilterBar'
@@ -98,6 +106,35 @@ export function OrderPage() {
   }
 
   const hasPaymentMethod = state.filters.paymentMethod.trim() !== ''
+  const metaAllowed = canExportMetaForStatus(state.applied.appStatus)
+  const metaFilename = `meta-conversion-${state.applied.dateTo || new Date().toISOString().slice(0, 10)}`
+  const metaExport: ExportConfig = {
+    filename: metaFilename,
+    disabled: !metaAllowed,
+    disabledReason: 'Filter Status saat ini bukan Paid. Pilih Semua status atau Paid untuk export Meta.',
+    // Filter yang sama dengan tabel, tetapi app_status selalu Paid. Kalau filter status
+    // sedang Pending/Cancelled, irisan dengan Paid kosong dan tombol dinonaktifkan.
+    loadRows: async () => {
+      if (!canExportMetaForStatus(state.applied.appStatus)) {
+        throw new Error('Filter Status saat ini bukan Paid. Pilih Semua status atau Paid untuk export Meta.')
+      }
+      const orders = await collectPages((page) =>
+        fetchOrdersPage(metaConversionFilters(state.applied), {
+          sort: sort.key,
+          direction: sort.direction,
+          page,
+          pageSize: 100,
+          exporting: true,
+        }),
+      )
+      const mapped = toMetaConversionRows(orders)
+      if (mapped.rows.length === 0) {
+        throw new Error('Tidak ada order Paid dengan email atau No HP pada filter ini.')
+      }
+      return mapped.rows
+    },
+    serialize: toMetaConversionCsv,
+  }
 
   return (
     <>
@@ -152,6 +189,10 @@ export function OrderPage() {
       {lists === null || lists.paymentMethods.length === 0 ? null : (
         <p className="mt-1.5 text-[11px] text-ink-soft">Identifier fee rule yang terdaftar: {lists.paymentMethods.join(', ')}</p>
       )}
+      <p className="mt-1.5 text-[11px] text-ink-soft">
+        Export Meta hanya memuat order <strong>Paid</strong>; baris tanpa email &amp; No HP dilewati.
+        {metaAllowed ? null : ' Filter Status saat ini bukan Paid, jadi tombol Export Meta dinonaktifkan.'}
+      </p>
 
       {error === null ? null : (
         <div className="mt-4">
@@ -179,6 +220,7 @@ export function OrderPage() {
                 const rows = await collectPages(page => fetchOrdersPage(state.applied, { sort: sort.key, direction: sort.direction, page, pageSize: 100, exporting: true }))
                 return rows.map(row => ({ ...row }))
               } }}
+              extraExports={[{ label: 'Export Meta (Paid)', config: metaExport, columns: META_CONVERSION_COLUMNS }]}
               columns={COLUMNS}
               sort={{ key: sort.key, direction: sort.direction }}
               onSortChange={toggleSort}

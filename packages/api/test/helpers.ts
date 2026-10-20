@@ -382,23 +382,26 @@ export function createFakeDb(state: FakeState): Db {
           state.rolePermissions.some((row) => row.role_id === actor.role && row.permission_key === 'action.ots'))
         if (!granted) throw new DbError(FORBIDDEN, 'fake')
         const existingId = args['p_order_id'] as string | null
+        const quantity = Number(args['p_quantity'] ?? 1)
+        const unitPrice = args['p_unit_price'] === null || args['p_unit_price'] === undefined ? null : Number(args['p_unit_price'])
+        const gross = unitPrice === null ? Number(args['p_amount']) : Math.round(unitPrice * quantity * 100) / 100
         const fields = {
           name: args['p_name'], phone: args['p_phone'] ?? null, product_code: String(args['p_product_code']).toUpperCase(),
           batch: args['p_batch'] ?? null, session: args['p_session'] ?? null, city: args['p_city'] ?? null, event_type: args['p_event_type'],
-          gross_amount: args['p_amount'], net_amount: args['p_amount'], payment_method: args['p_method'],
+          quantity, gross_amount: gross, net_amount: gross, payment_method: args['p_method'],
         }
         if (existingId) {
           const order = state.orders.find((row) => row['order_id'] === existingId)
           if (order === undefined || order['source'] !== 'ots') throw new DbError('DF001', 'fake')
           Object.assign(order, fields)
-          return { order_id: existingId, action: 'updated', checked_in_at: null } as T
+          return { order_id: existingId, action: 'updated', quantity, gross_amount: gross, checked_in_at: null } as T
         }
         nextId += 1
         const orderId = 'OTS-' + String(nextId).padStart(6, '0')
-        state.orders.push({ order_id: orderId, source: 'ots', app_status: 'Paid', quantity: 1, product_parse_status: 'valid',
+        state.orders.push({ order_id: orderId, source: 'ots', app_status: 'Paid', product_parse_status: 'valid',
           ots_collected_by: actorId, created_at: new Date().toISOString(), ...fields })
         const created = insertAttendance(state, { order_id: orderId, attendance_type: 'seminar', source: 'seminar_ots', scanner_user_id: actorId })
-        return { order_id: orderId, action: 'created', checked_in_at: created['clicked_at'] } as T
+        return { order_id: orderId, action: 'created', quantity, gross_amount: gross, checked_in_at: created['clicked_at'] } as T
       }
 
       if (name === 'delete_ots_registration') {

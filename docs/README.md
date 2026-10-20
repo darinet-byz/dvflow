@@ -15,6 +15,9 @@ Urutan baca coding agent:
 9. `05-EDGE-CASES-AND-ACCEPTANCE-TESTS.md`
 10. `06-DEPLOYMENT-ENV-AND-BUILD-RUNBOOK.md`
 
+Referensi format tambahan:
+- `Reference-Meta-Conversion-Audience-Format.md` — kontrak CSV **Export Meta (Paid)** (A35).
+
 ## Kenapa dokumen ini dibutuhkan
 Dokumen sumber sudah sangat lengkap untuk product scope dan UI, tetapi sengaja menyisakan area engineering sebagai "belum ditentukan". Paket ini mengunci area tersebut agar vibe coding agent tidak menebak sendiri.
 
@@ -30,7 +33,7 @@ payload processing/complete/cancelled dan minimal satu payment method kedua ters
 ## Yang sengaja TIDAK ditambahkan
 - menu baru
 - user management page
-- export
+- menu export terpisah (tombol export tabel diatur A10/A35)
 - notification center
 - audit log UI
 - custom report baru
