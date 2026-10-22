@@ -9,3 +9,4 @@ build/
 .wrangler/
 supabase/signing_keys.json
 .local-backups/
+.serena/
