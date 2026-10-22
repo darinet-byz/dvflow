@@ -21,7 +21,7 @@ vi.mock('../src/lib/queries', async (importOriginal) => ({
 vi.mocked(authorizedRequest).mockImplementation(async (path) =>
   path === '/api/internal/users'
     ? { users: [{ id: '9', username: 'iklanzul', display_name: 'Iklan Zul', role: 'advertiser', active: true, has_all_product_access: false, allowed_product_codes: ['KM'], advertiser_id: 'adv-1' }] }
-    : path === '/api/roles' ? { roles: [{ id: 'pimpro', name: 'Pimpro' }, { id: 'advertiser', name: 'Advertiser' }, { id: 'staff', name: 'Staff (Legacy)' }] } : {},
+    : path === '/api/roles' ? { roles: [{ id: 'pimpro', name: 'Pimpro' }, { id: 'advertiser', name: 'Advertiser' }, { id: 'member', name: 'Member' }] } : {},
 )
 const { TeamPage } = await import('../src/pages/team/TeamPage')
 afterEach(cleanup)
@@ -29,9 +29,9 @@ afterEach(cleanup)
 describe('Add Team: role sama dengan Konfigurasi Role', () => {
   it('pilihan role memakai nama dari Konfigurasi Role, tanpa label "Team"', async () => {
     render(<TeamPage />)
-    await screen.findByRole('option', { name: 'Staff (Legacy)' })
+    await screen.findByRole('option', { name: 'Member' })
     const options = Array.from((screen.getByLabelText('Role') as HTMLSelectElement).options).map((o) => o.text)
-    expect(options).toEqual(['Pimpro', 'Advertiser', 'Staff (Legacy)'])
+    expect(options).toEqual(['Pimpro', 'Advertiser', 'Member'])
     expect(screen.queryByRole('option', { name: 'Team' })).toBeNull()
   })
 })

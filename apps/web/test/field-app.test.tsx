@@ -51,10 +51,10 @@ beforeEach(() => { phone = true; memory.clear() })
 afterEach(cleanup)
 
 describe('canUseFieldApp', () => {
-  it('hanya pimpro/staff/member yang izinnya dicentang', () => {
-    expect(canUseFieldApp(profile('staff', ['ui.field_app']))).toBe(true)
+  it('hanya pimpro/member yang izinnya dicentang', () => {
+    expect(canUseFieldApp(profile('member', ['ui.field_app']))).toBe(true)
     expect(canUseFieldApp(profile('pimpro', ['ui.field_app']))).toBe(true)
-    expect(canUseFieldApp(profile('staff', ['operasional.scan_qr']))).toBe(false)
+    expect(canUseFieldApp(profile('member', ['operasional.scan_qr']))).toBe(false)
     expect(canUseFieldApp(profile('admin', ['ui.field_app']))).toBe(false)
     // Master otomatis punya semua izin, tetapi tetap tampilan web.
     expect(canUseFieldApp(profile('developer', ['ui.field_app']))).toBe(false)
@@ -63,7 +63,7 @@ describe('canUseFieldApp', () => {
 
 describe('AppShell memilih kerangka', () => {
   it('staff berizin di HP -> tab bawah Presensi · OTS · Scan · Cari · Akun, Scan di tengah', () => {
-    session.profile = profile('staff', FIELD_PERMS)
+    session.profile = profile('member', FIELD_PERMS)
     renderShell()
     const nav = screen.getByRole('navigation', { name: 'Navigasi lapangan' })
     expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Presensi', 'OTS', 'Scan', 'Cari', 'Akun'])
@@ -78,15 +78,15 @@ describe('AppShell memilih kerangka', () => {
   })
 
   it('halaman di luar tab (mis. Dashboard) diarahkan ke Scan', () => {
-    session.profile = profile('staff', FIELD_PERMS)
+    session.profile = profile('member', FIELD_PERMS)
     renderShell('/')
     expect(screen.getByText('Scan Tiket')).toBeDefined()
   })
 
   it.each([
     ['admin di HP', () => { session.profile = profile('admin', FIELD_PERMS) }],
-    ['staff di desktop', () => { session.profile = profile('staff', FIELD_PERMS); phone = false }],
-    ['staff tanpa izin', () => { session.profile = profile('staff', ['operasional.scan_qr']) }],
+    ['staff di desktop', () => { session.profile = profile('member', FIELD_PERMS); phone = false }],
+    ['staff tanpa izin', () => { session.profile = profile('member', ['operasional.scan_qr']) }],
   ])('%s -> tampilan web biasa', (_name, arrange) => {
     arrange()
     renderShell()
@@ -94,7 +94,7 @@ describe('AppShell memilih kerangka', () => {
   })
 
   it('"tampilan web lengkap" disimpan per perangkat dan bisa kembali', () => {
-    session.profile = profile('staff', FIELD_PERMS)
+    session.profile = profile('member', FIELD_PERMS)
     memory.set('dvflow.preferWebLayout', '1')
     renderShell()
     expect(screen.queryByTestId('field-app-shell')).toBeNull()
@@ -105,7 +105,7 @@ describe('AppShell memilih kerangka', () => {
 
 describe('Presensi di mode lapangan', () => {
   it('kartu, bukan tabel; filter dilipat', async () => {
-    session.profile = profile('staff', FIELD_PERMS)
+    session.profile = profile('member', FIELD_PERMS)
     render(
       <MemoryRouter>
         <FieldAppContext.Provider value={true}>

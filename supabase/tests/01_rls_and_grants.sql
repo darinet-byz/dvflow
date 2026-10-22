@@ -19,7 +19,7 @@ insert into public.users (id, username, display_name, password_hash, role) value
   ('11111111-1111-1111-1111-111111111111', 'admin1', 'Admin Satu',
    extensions.crypt('rahasia123', extensions.gen_salt('bf', 4)), 'admin'),
   ('22222222-2222-2222-2222-222222222222', 'staff1', 'Staff Satu',
-   extensions.crypt('rahasia123', extensions.gen_salt('bf', 4)), 'staff');
+   extensions.crypt('rahasia123', extensions.gen_salt('bf', 4)), 'member');
 
 insert into public.orders (order_id, name, app_status, gross_amount, event_type)
 values ('900001', 'Peserta Satu', 'Paid', 300000, 'Seminar Offline');
@@ -60,7 +60,7 @@ reset role;
 -- ---------------------------------------------------------------------------
 set local role authenticated;
 set local request.jwt.claims =
-  '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated","app_user_id":"22222222-2222-2222-2222-222222222222","app_role":"staff"}';
+  '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated","app_user_id":"22222222-2222-2222-2222-222222222222","app_role":"member"}';
 
 select is((select count(*) from public.orders where order_id = '900001'), 1::bigint,
   'staff dapat membaca orders');
@@ -155,7 +155,7 @@ update public.users set active = false where id = '22222222-2222-2222-2222-22222
 
 set local role authenticated;
 set local request.jwt.claims =
-  '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated","app_user_id":"22222222-2222-2222-2222-222222222222","app_role":"staff"}';
+  '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated","app_user_id":"22222222-2222-2222-2222-222222222222","app_role":"member"}';
 
 select is((select count(*) from public.users), 0::bigint,
   'user nonaktif tidak dapat membaca barisnya sendiri');

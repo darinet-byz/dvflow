@@ -13,7 +13,7 @@ import {
 /**
  * Penulisan konfigurasi (03 §12, 01 §8, 04 §1, 05 §B02–§B05, §D07).
  *
- * Aturan yang diuji: hanya admin/master_admin, `Delete` = nonaktifkan (bukan
+ * Aturan yang diuji: hanya admin/owner, `Delete` = nonaktifkan (bukan
  * hapus), dan kode yang membuat kombinasi produk ambigu ditolak di titik tulis.
  */
 
@@ -24,8 +24,8 @@ async function setup() {
   const state = createFakeState({
     users: [
       fakeUser({ id: 'user-admin', username: 'admin1', role: 'admin' }),
-      fakeUser({ id: 'user-staff', username: 'staff1', role: 'staff' }),
-      fakeUser({ id: 'user-boss', username: 'bos', role: 'master_admin' }),
+      fakeUser({ id: 'user-staff', username: 'staff1', role: 'member' }),
+      fakeUser({ id: 'user-boss', username: 'bos', role: 'owner' }),
     ],
     config: sampleConfig(),
   })
@@ -80,7 +80,7 @@ describe('batas peran (03 §12, B02–B05)', () => {
     expect(ctx.state.config.products.some((row) => row['code'] === 'XX')).toBe(false)
   })
 
-  it('admin dan master_admin dapat menulis', async () => {
+  it('admin dan owner dapat menulis', async () => {
     const ctx = await setup()
 
     const byAdmin = await write(ctx, ctx.admin, {

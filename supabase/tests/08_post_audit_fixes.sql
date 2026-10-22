@@ -16,7 +16,7 @@ select is((select count(*) from public.master_setting_parts('webinar_destination
 
 insert into public.users(id,username,display_name,password_hash,role,has_all_product_access) values
  ('d0000000-0000-0000-0000-000000000001','pa_dev','Dev','test','developer',true),
- ('d0000000-0000-0000-0000-000000000002','pa_master','Master','test','master_admin',true),
+ ('d0000000-0000-0000-0000-000000000002','pa_master','Master','test','owner',true),
  ('d0000000-0000-0000-0000-000000000003','pa_member','Member','test','member',false),
  ('d0000000-0000-0000-0000-000000000004','pa_owner','Owner','test','owner',true);
 insert into public.advertisers(id,name,code) values ('a0000000-0000-0000-0000-000000000077','Iklan 77','77');
@@ -48,11 +48,11 @@ select is((select canonical_target from public.product_aliases where alias_name_
 
 -- Hapus user: role penuh hanya oleh Developer, tidak boleh diri sendiri.
 select throws_ok($$select public.admin_delete_user('d0000000-0000-0000-0000-000000000002','d0000000-0000-0000-0000-000000000004')$$,
-  'DF006','FORBIDDEN','master_admin tidak dapat menghapus owner');
+  'DF006','FORBIDDEN','owner tidak dapat menghapus owner');
 select throws_ok($$select public.admin_delete_user('d0000000-0000-0000-0000-000000000002','d0000000-0000-0000-0000-000000000002')$$,
   'DF006','FORBIDDEN','tidak dapat menghapus diri sendiri');
 select lives_ok($$select public.admin_delete_user('d0000000-0000-0000-0000-000000000002','d0000000-0000-0000-0000-000000000003')$$,
-  'master_admin dapat menghapus member');
+  'owner dapat menghapus member');
 select lives_ok($$select public.admin_delete_user('d0000000-0000-0000-0000-000000000001','d0000000-0000-0000-0000-000000000004')$$,
   'developer dapat menghapus owner');
 select is((select count(*) from public.users where id in ('d0000000-0000-0000-0000-000000000003','d0000000-0000-0000-0000-000000000004')), 0::bigint, 'user terhapus');

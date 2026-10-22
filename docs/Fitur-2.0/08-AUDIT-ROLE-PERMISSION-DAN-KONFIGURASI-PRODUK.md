@@ -6,7 +6,7 @@ Tanggal: 14 Oktober 2026. Cakupan: repository, database pengujian terpisah, brow
 
 | Temuan awal | Implementasi |
 |---|---|
-| Developer ditolak `requireConfigWriter`, karena hanya admin/master_admin diterima | Guard bersama membaca user aktif dan role terkini dari database; Developer/Owner/master_admin mempunyai semua permission dan produk |
+| Developer ditolak `requireConfigWriter`, karena hanya admin/master_admin diterima | Guard bersama membaca user aktif dan role terkini dari database; Developer/Owner mempunyai semua permission dan produk (master_admin legacy dihapus, A36) |
 | Checklist permission tidak konsisten dengan backend | Guard permission untuk konfigurasi, tax, alias, integrasi, Zoom/tiket, scanner, remap, dan perubahan profil/password |
 | JWT hanya menerima nama role lama | Role kustom dengan slug valid diterima; claim role tidak menentukan hak akses |
 | Sidebar/route kembali ke fallback role saat permission kosong | Permission kosong menutup semua fitur; logout dan pemulihan profil sesi tetap tersedia |
@@ -28,12 +28,10 @@ Implementasi utama: `packages/api/src/permissions.ts`, `apps/web/src/lib/roles.t
 |---|---|---|---|---|---|
 | developer | Semua fitur | Selalu penuh | Semua, mengabaikan flag terbatas | Ya | Ya |
 | owner | Semua selain Reset Data | Selalu penuh | Semua | Ya | Tidak |
-| master_admin (legacy) | Semua selain Reset Data | Selalu penuh | Semua | Ya | Tidak |
 | manajer | Tidak ada fitur | P menentukan akses | S wajib | Tidak | Tidak |
 | admin | Tidak ada fitur | P menentukan akses | S wajib | Tidak | Tidak |
 | pimpro | Tidak ada fitur | P menentukan akses | S wajib | Tidak | Tidak |
 | member | Tidak ada fitur | P menentukan akses | S wajib | Tidak | Tidak |
-| staff (legacy) | Tidak ada fitur | P menentukan akses | S wajib | Tidak | Tidak |
 | role kustom | Tidak ada fitur | P menentukan akses | S wajib | Tidak | Tidak |
 
 Semua baris di atas mensyaratkan user aktif. Role dan assignment terkini dibaca ulang oleh backend/RLS pada request berikutnya. JWT lama dengan claim Developer tidak menaikkan user yang sudah diturunkan. Pemberian `team.manage` atau `config.roles` kepada role biasa tidak mendelegasikan pengelolaan tim/role.

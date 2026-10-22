@@ -8,7 +8,7 @@ import { TicketConfigPage } from '../src/pages/config/TicketConfigPage'
 import { Sidebar } from '../src/layout/Sidebar'
 import { authorizedRequest } from '../src/lib/session'
 
-const state = vi.hoisted(() => ({ role: 'master_admin', show: vi.fn() }))
+const state = vi.hoisted(() => ({ role: 'owner', show: vi.fn() }))
 vi.mock('../src/lib/session', () => ({ authorizedRequest: vi.fn() }))
 vi.mock('../src/lib/useSession', () => ({
   useSession: () => ({
@@ -20,13 +20,13 @@ vi.mock('../src/ui/Toast', () => ({ useToast: () => ({ show: state.show }) }))
 
 beforeEach(() => {
   vi.clearAllMocks()
-  state.role = 'master_admin'
+  state.role = 'owner'
   vi.mocked(authorizedRequest).mockImplementation(async (path) =>
     path === '/api/internal/users'
       ? {
           users: [
-            { id: '1', username: 'hizul', display_name: 'Hizul', role: 'master_admin', active: true },
-            { id: '2', username: 'staff1', display_name: 'Staff Satu', role: 'staff', active: true },
+            { id: '1', username: 'hizul', display_name: 'Hizul', role: 'owner', active: true },
+            { id: '2', username: 'staff1', display_name: 'Staff Satu', role: 'member', active: true },
           ],
         }
       : {
@@ -137,7 +137,7 @@ describe('requested team, Zoom, and Barcode Ticket screens', () => {
   })
 
   it('Team sees restricted menus omitted completely (Fitur 2.0 strict hiding), while operational links remain available', () => {
-    state.role = 'staff'
+    state.role = 'member'
     render(
       <MemoryRouter>
         <Sidebar />
@@ -151,6 +151,6 @@ describe('requested team, Zoom, and Barcode Ticket screens', () => {
     expect(screen.getByRole('link', { name: 'Konfigurasi Barcode / Tiket' })).toBeDefined()
     expect(screen.getByRole('link', { name: 'Product Name Generator' })).toBeDefined()
     expect(screen.getByRole('link', { name: 'Order' })).toBeDefined()
-    expect(screen.getByText('Staff (Legacy)')).toBeDefined()
+    expect(screen.getByText('Member')).toBeDefined()
   })
 })

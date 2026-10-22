@@ -137,7 +137,7 @@ run('integrasi P5/P6 terhadap Supabase lokal', () => {
     await db().query(
       `insert into public.users (username, display_name, password_hash, password_algo, role)
        values
-         ($1, 'E2E Operator', extensions.crypt('rahasia123', extensions.gen_salt('bf', 4)), 'bcrypt', 'staff'),
+         ($1, 'E2E Operator', extensions.crypt('rahasia123', extensions.gen_salt('bf', 4)), 'bcrypt', 'member'),
          ($2, 'E2E Admin',    extensions.crypt('rahasia123', extensions.gen_salt('bf', 4)), 'bcrypt', 'developer')`,
       [operatorUsername, adminUsername],
     )
@@ -159,7 +159,7 @@ run('integrasi P5/P6 terhadap Supabase lokal', () => {
     }
 
     operatorToken = await loginAs(operatorUsername)
-    // Konfigurasi hanya boleh ditulis admin/master_admin (03 §12).
+    // Konfigurasi hanya boleh ditulis admin/owner (03 §12).
     adminToken = await loginAs(adminUsername)
 
     // Order seminar Paid, dan order webinar Paid.

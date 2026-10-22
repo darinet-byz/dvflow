@@ -14,8 +14,6 @@ export type StandardAppRole =
   | 'pimpro'
   | 'advertiser'
   | 'member'
-  | 'master_admin'
-  | 'staff'
 
 export type AppRole = StandardAppRole | string
 
@@ -27,19 +25,18 @@ export const APP_ROLES: readonly string[] = [
   'pimpro',
   'advertiser',
   'member',
-  'master_admin',
-  'staff',
 ]
 
 /**
  * A30: "Tampilan Apps Lapangan" — hanya role ini yang boleh memegang izin `ui.field_app`
- * (ditegakkan juga di `save_role_permissions`, 0042).
+ * (ditegakkan juga di `save_role_permissions`, 0042/0047).
  */
 export const FIELD_APP_PERMISSION = 'ui.field_app'
-export const FIELD_APP_ROLES: readonly string[] = ['pimpro', 'staff', 'member']
+export const FIELD_APP_ROLES: readonly string[] = ['pimpro', 'member']
 
 export function isMasterAdminRole(role: string | null | undefined): boolean {
-  return role === 'master_admin' || role === 'developer' || role === 'owner'
+  // A36: role legacy master_admin dihapus (user-nya dipindah ke owner).
+  return role === 'developer' || role === 'owner'
 }
 
 export type AppPermissionKey =

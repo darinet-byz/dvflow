@@ -68,7 +68,7 @@ describe('OrderOnline connections', () => {
   })
   it('denies Team and inactive users across settings operations', async () => {
     const { context, user } = setup()
-    user.role = 'staff'
+    user.role = 'member'
     for (const fn of [listConnections, saveConnection, connectionWebhookUrl, testConnection, deleteConnection]) await expect(fn(context)).rejects.toMatchObject({ code: 'FORBIDDEN' })
     user.role = 'admin'; user.active = false
     await expect(listConnections(context)).rejects.toMatchObject({ code: 'USER_DISABLED' })

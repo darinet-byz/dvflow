@@ -25,7 +25,7 @@ export type Env = {
    * hanya untuk pengembangan. Default `false` (05 §F08).
    */
   ALLOW_INSECURE_WEBINAR_DESTINATION?: string
-  /** `"true"` untuk mengizinkan master_admin membuat master_admin (default false). */
+  /** `"true"` untuk mengizinkan Master Admin (developer/owner) membuat role setingkat (default false). */
   ALLOW_MASTER_ADMIN_CREATE_MASTER?: string
   /** Daftar origin tambahan yang diizinkan, dipisah koma (opsional). */
   APP_ALLOWED_ORIGINS?: string

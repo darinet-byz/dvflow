@@ -157,9 +157,10 @@ try {
 
   try {
     // crypt() + gen_salt('bf', 12) — parameter sama dengan verify_login (A1).
+    // A36: tingkat Master Admin = role owner (role legacy master_admin sudah dihapus).
     const { rows } = await client.query(
       `insert into public.users (username, display_name, password_hash, password_algo, role)
-       values ($1, $2, extensions.crypt($3, extensions.gen_salt('bf', 12)), 'bcrypt', 'master_admin')
+       values ($1, $2, extensions.crypt($3, extensions.gen_salt('bf', 12)), 'bcrypt', 'owner')
        returning id, username, display_name, role, active, created_at`,
       [username, displayName, password],
     )

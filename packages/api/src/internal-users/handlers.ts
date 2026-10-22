@@ -62,7 +62,7 @@ export type ListedUser = {
 /**
  * POST /api/internal/users (03 §14, Fitur 2.0).
  *
- * Provisioning melalui Add Team oleh Master Admin tier (developer, owner, master_admin).
+ * Provisioning melalui Add Team oleh Master Admin tier (developer, owner).
  */
 export async function createUser(context: RouteContext): Promise<Response> {
 

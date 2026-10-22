@@ -19,7 +19,7 @@ import { paymentMethodLabel } from '../../lib/access-link'
 /**
  * Report Tax (PRD §84–§86, §165, 03 §12).
  *
- * Menu ini khusus finance/reporting: **staff tidak boleh membukanya** (04 §1).
+ * Menu ini khusus finance/reporting: **role tanpa izin `config.report_tax` tidak boleh membukanya** (04 §1).
  * Pagarnya ada di dalam RPC `tax_report` (03 §12, A4) — RLS tidak dapat menolak
  * satu halaman saja. Karena itu halaman ini tidak menyembunyikan tombolnya, ia
  * menampilkan penolakan server apa adanya; menyembunyikan menu hanya akan

@@ -13,12 +13,12 @@ async function setup(role: AppRole) {
 }
 
 describe('Add Team access & CRUD', () => {
-  it.each(['admin', 'staff'] as const)('%s cannot list team members', async role => {
+  it.each(['admin', 'member'] as const)('%s cannot list team members', async role => {
     const { api, headers } = await setup(role)
     expect((await api(makeRequest({ method: 'GET', path: '/api/internal/users', headers }))).status).toBe(403)
   })
   it('only returns safe columns to Admin Master', async () => {
-    const { api, headers } = await setup('master_admin')
+    const { api, headers } = await setup('owner')
     const r = await api(makeRequest({ method: 'GET', path: '/api/internal/users', headers }))
     expect(r.status).toBe(200)
     const text = await r.text()
@@ -27,17 +27,17 @@ describe('Add Team access & CRUD', () => {
     expect(text).not.toContain('rahasia123')
   })
   it('rejects disabled users with an otherwise valid token', async () => {
-    const { api, headers, state } = await setup('master_admin')
+    const { api, headers, state } = await setup('owner')
     state.users[0]!.active = false
     expect((await api(makeRequest({ method: 'GET', path: '/api/internal/users', headers }))).status).toBe(401)
   })
   it('allows Admin Master to edit and delete other members, while preventing self-delete or self-deactivation', async () => {
-    const { api, headers, state } = await setup('master_admin')
+    const { api, headers, state } = await setup('owner')
     const createRes = await api(makeRequest({
       method: 'POST',
       path: '/api/internal/users',
       headers,
-      body: { username: 'staff2', display_name: 'Staff Dua', initial_password: 'password123', role: 'staff' },
+      body: { username: 'staff2', display_name: 'Staff Dua', initial_password: 'password123', role: 'member' },
     }))
     expect(createRes.status).toBe(201)
     const createdId = (await readBody<{ data: { user: { user_id: string } } }>(createRes)).data.user.user_id
@@ -66,7 +66,7 @@ describe('Add Team access & CRUD', () => {
 
 describe('Zoom mapping (scoped & exact) and participant access', () => {
   it('allows active Team to save, list, update, delete and redirect a paid webinar order', async () => {
-    const { api, headers, state } = await setup('staff')
+    const { api, headers, state } = await setup('member')
     const product = 'KM01WO392 - S1 - Solo'
     for (const url of ['https://us02web.zoom.us/j/123', 'https://zoom.us/j/456?pwd=test']) {
       const r = await api(makeRequest({ method: 'POST', path: '/api/webinar-destinations', headers, body: { product_raw: product, destination: url } }))
@@ -88,7 +88,7 @@ describe('Zoom mapping (scoped & exact) and participant access', () => {
   })
 
   it('resolves scoped Zoom rules by specificity (global -> session -> product -> product+session)', async () => {
-    const { api, headers, state } = await setup('staff')
+    const { api, headers, state } = await setup('member')
     state.orders.push(fakeOrder({
       order_id: '777001',
       product_raw: 'KM01WO392 - S1 - Solo',
@@ -148,7 +148,7 @@ describe('Zoom mapping (scoped & exact) and participant access', () => {
 
 describe('Seminar Ticket / Barcode configuration and participant ticket rendering', () => {
   it('saves scoped ticket metadata and renders only notes on participant QR ticket page (A19)', async () => {
-    const { api, headers, state } = await setup('staff')
+    const { api, headers, state } = await setup('member')
     state.orders.push(fakeOrder({
       order_id: '888001',
       product_raw: 'KM01SO392 - S1 - Solo',

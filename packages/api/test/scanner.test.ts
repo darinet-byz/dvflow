@@ -23,7 +23,7 @@ type FailureBody = { ok: false; error: { code: string } }
 async function setup(seed: Partial<Parameters<typeof createFakeState>[0]> = {}) {
   const state = createFakeState({
     users: [
-      fakeUser({ id: 'user-staff', username: 'staff1', display_name: 'Operator Satu', role: 'staff' }),
+      fakeUser({ id: 'user-staff', username: 'staff1', display_name: 'Operator Satu', role: 'member' }),
       fakeUser({ id: 'user-admin', username: 'admin1', display_name: 'Admin Satu', role: 'admin' }),
     ],
     orders: [

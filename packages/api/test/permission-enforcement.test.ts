@@ -16,7 +16,7 @@ async function setup(role: string, permissions: string[] = [], all = true) {
 }
 
 describe('database role + dynamic permission enforcement', () => {
-  it.each(['developer', 'owner', 'master_admin'])('%s has full master access even without permission rows', async role => {
+  it.each(['developer', 'owner'])('%s has full master access even without permission rows', async role => {
     const { request } = await setup(role, [], false)
     for (const [resource, body] of [
       ['products', { name: 'Baru', code: ' abcd ' }],
@@ -33,7 +33,7 @@ describe('database role + dynamic permission enforcement', () => {
     }
   })
 
-  it.each(['manajer', 'admin', 'pimpro', 'member', 'staff', 'custom_gate'])('%s follows grants and revocation on the next request', async role => {
+  it.each(['manajer', 'admin', 'pimpro', 'member', 'custom_gate'])('%s follows grants and revocation on the next request', async role => {
     const { state, request } = await setup(role)
     const write = () => request('POST', '/api/config/products', { name: 'Baru', code: 'TEST' })
     expect((await write()).status).toBe(403)
@@ -48,7 +48,7 @@ describe('database role + dynamic permission enforcement', () => {
     expect((await request('GET', '/api/roles')).status).toBe(403)
   })
 
-  it.each(['manajer', 'admin', 'pimpro', 'member', 'staff', 'custom_gate'])('%s uses the same module guards across configuration and operational endpoints', async role => {
+  it.each(['manajer', 'admin', 'pimpro', 'member', 'custom_gate'])('%s uses the same module guards across configuration and operational endpoints', async role => {
     const { state, request } = await setup(role)
     const routes = [
       ['config.integrasi', '/api/integrations/orderonline'],

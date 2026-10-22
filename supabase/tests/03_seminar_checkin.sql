@@ -19,7 +19,7 @@ select no_plan();
 -- ---------------------------------------------------------------------------
 insert into public.users (id, username, display_name, password_hash, role) values
   ('33333333-3333-3333-3333-333333333333', 'operator1', 'Operator Satu',
-   extensions.crypt('rahasia123', extensions.gen_salt('bf', 4)), 'staff');
+   extensions.crypt('rahasia123', extensions.gen_salt('bf', 4)), 'member');
 
 insert into public.orders (order_id, name, app_status, event_type, gross_amount) values
   ('200001', 'Peserta Seminar', 'Paid',      'Seminar Offline', 100000),

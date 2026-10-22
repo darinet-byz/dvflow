@@ -59,8 +59,6 @@ export const DEFAULT_ROLES = [
   { id: 'admin', name: 'Admin', description: 'Administrasi harian acara', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
   { id: 'pimpro', name: 'Pimpro', description: 'Pimpinan proyek produk', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
   { id: 'member', name: 'Member', description: 'Operator registrasi', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
-  { id: 'master_admin', name: 'Admin Master (Legacy)', description: 'Role legacy setara Owner/Developer', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
-  { id: 'staff', name: 'Staff (Legacy)', description: 'Role legacy setara Member', is_system: true, created_at: '2026-10-13T08:00:00Z', updated_at: '2026-10-13T08:00:00Z' },
   { id: 'advertiser', name: 'Advertiser', description: 'Pengiklan', is_system: true, created_at: '2026-10-16T08:00:00Z', updated_at: '2026-10-16T08:00:00Z' },
 ]
 
@@ -89,7 +87,6 @@ export const DEFAULT_ROLE_PERMISSIONS: Array<{ role_id: string; permission_key: 
   ...DEFAULT_PERMISSIONS.flatMap((p) => [
     { role_id: 'developer', permission_key: p.key },
     { role_id: 'owner', permission_key: p.key },
-    { role_id: 'master_admin', permission_key: p.key },
   ]),
   ...[
     'operasional.scan_qr', 'operasional.dashboard', 'operasional.order', 'operasional.presensi', 'operasional.generator',
@@ -107,10 +104,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Array<{ role_id: string; permission_key: 
   ].map((key) => ({ role_id: 'pimpro', permission_key: key })),
   ...[
     'operasional.scan_qr', 'operasional.presensi', 'account.profile', 'action.manual_checkin'
-  ].flatMap((key) => [
-    { role_id: 'member', permission_key: key },
-    { role_id: 'staff', permission_key: key },
-  ]),
+  ].map((key) => ({ role_id: 'member', permission_key: key })),
 ]
 
 export type FakeState = {
@@ -271,8 +265,8 @@ export function createFakeDb(state: FakeState): Db {
         return undefined as T
       }
       if (name === 'admin_delete_user') {
-        // Meniru 0029: role penuh hanya dapat dihapus Developer; sesi ikut terhapus.
-        const full = ['developer', 'owner', 'master_admin']
+        // Meniru 0029/0047: role penuh hanya dapat dihapus Developer; sesi ikut terhapus.
+        const full = ['developer', 'owner']
         const actor = state.users.find((u) => u.id === args['p_actor'])
         const target = state.users.find((u) => u.id === args['p_target'])
         if (!actor || !full.includes(actor.role) || actor.id === args['p_target']) throw new DbError('DF006', 'FORBIDDEN')

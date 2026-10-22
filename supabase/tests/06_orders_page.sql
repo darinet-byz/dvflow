@@ -13,8 +13,8 @@ select no_plan();
 -- RPCs now resolve a real active actor, not a role-only claim.
 insert into public.users(id,username,display_name,password_hash,role) values
  ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','rpcadmin','RPC admin','test','admin'),
- ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','rpcstaff','RPC staff','test','staff'),
- ('cccccccc-cccc-cccc-cccc-cccccccccccc','rpcmaster','RPC master','test','master_admin');
+ ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','rpcstaff','RPC staff','test','member'),
+ ('cccccccc-cccc-cccc-cccc-cccccccccccc','rpcmaster','RPC master','test','owner');
 insert into public.app_role_permissions(role_id,permission_key) values ('admin','config.report_tax') on conflict do nothing;
 set local request.jwt.claims = '{"sub":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa","app_role":"admin"}';
 

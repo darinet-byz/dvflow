@@ -28,7 +28,7 @@ describe('access JWT (01 §2, 04 §4, A3)', () => {
   it('header memuat alg/kid yang benar dan payload memuat seluruh claim wajib', async () => {
     const env = await createTestEnv()
     const signer = await createJwtSigner(env)
-    const token = await signer.mint({ userId: 'user-1', appRole: 'staff', now: NOW })
+    const token = await signer.mint({ userId: 'user-1', appRole: 'member', now: NOW })
 
     const [headerPart, payloadPart] = token.split('.') as [string, string]
     expect(decodePart(headerPart)).toEqual({ alg: 'ES256', typ: 'JWT', kid: env.APP_JWT_KEY_ID })
@@ -38,7 +38,7 @@ describe('access JWT (01 §2, 04 §4, A3)', () => {
       sub: 'user-1',
       role: 'authenticated',
       app_user_id: 'user-1',
-      app_role: 'staff',
+      app_role: 'member',
       iss: 'https://project.supabase.co/auth/v1',
       aud: 'authenticated',
       iat: Math.floor(NOW.getTime() / 1000),
@@ -61,12 +61,12 @@ describe('access JWT (01 §2, 04 §4, A3)', () => {
   it('payload yang diubah membuat tanda tangan tidak sah', async () => {
     const env = await createTestEnv()
     const signer = await createJwtSigner(env)
-    const token = await signer.mint({ userId: 'user-1', appRole: 'staff', now: NOW })
+    const token = await signer.mint({ userId: 'user-1', appRole: 'member', now: NOW })
 
     const tampered = replacePart(
       token,
       1,
-      btoa(JSON.stringify({ sub: 'user-1', app_role: 'master_admin', iss: 'https://project.supabase.co/auth/v1', aud: 'authenticated', role: 'authenticated', exp: Math.floor(NOW.getTime() / 1000) + 1800 }))
+      btoa(JSON.stringify({ sub: 'user-1', app_role: 'owner', iss: 'https://project.supabase.co/auth/v1', aud: 'authenticated', role: 'authenticated', exp: Math.floor(NOW.getTime() / 1000) + 1800 }))
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=+$/, ''),
@@ -78,7 +78,7 @@ describe('access JWT (01 §2, 04 §4, A3)', () => {
   it('`alg: none` ditolak', async () => {
     const env = await createTestEnv()
     const signer = await createJwtSigner(env)
-    const token = await signer.mint({ userId: 'user-1', appRole: 'staff', now: NOW })
+    const token = await signer.mint({ userId: 'user-1', appRole: 'member', now: NOW })
 
     const header = btoa(JSON.stringify({ alg: 'none', typ: 'JWT' }))
       .replace(/\+/g, '-')
@@ -94,7 +94,7 @@ describe('access JWT (01 §2, 04 §4, A3)', () => {
     const signerA = await createJwtSigner(envA)
     const signerB = await createJwtSigner(envB)
 
-    const tokenFromB = await signerB.mint({ userId: 'user-1', appRole: 'staff', now: NOW })
+    const tokenFromB = await signerB.mint({ userId: 'user-1', appRole: 'member', now: NOW })
     await expectRejected(signerA, tokenFromB)
   })
 
@@ -105,14 +105,14 @@ describe('access JWT (01 §2, 04 §4, A3)', () => {
     const signerA = await createJwtSigner(envA)
     const signerB = await createJwtSigner(envB)
 
-    const tokenFromB = await signerB.mint({ userId: 'user-1', appRole: 'staff', now: NOW })
+    const tokenFromB = await signerB.mint({ userId: 'user-1', appRole: 'member', now: NOW })
     await expectRejected(signerA, tokenFromB)
   })
 
   it('token kedaluwarsa ditolak', async () => {
     const env = await createTestEnv()
     const signer = await createJwtSigner(env)
-    const token = await signer.mint({ userId: 'user-1', appRole: 'staff', now: NOW })
+    const token = await signer.mint({ userId: 'user-1', appRole: 'member', now: NOW })
 
     await expect(signer.verify(token, new Date(NOW.getTime() + 29 * 60 * 1000))).resolves.toBeTruthy()
     await expectRejected(signer, token, new Date(NOW.getTime() + 31 * 60 * 1000))
@@ -125,7 +125,7 @@ describe('access JWT (01 §2, 04 §4, A3)', () => {
     // Kunci dan `kid` SENGAJA sama, hanya `iss` yang berbeda — supaya yang
     // diuji benar-benar pemeriksaan issuer, bukan pemeriksaan tanda tangan.
     const otherProjectSigner = await createJwtSigner({ ...env, SUPABASE_URL: 'https://project-lain.supabase.co' })
-    const token = await otherProjectSigner.mint({ userId: 'user-1', appRole: 'staff', now: NOW })
+    const token = await otherProjectSigner.mint({ userId: 'user-1', appRole: 'member', now: NOW })
 
     await expectRejected(signer, token)
   })

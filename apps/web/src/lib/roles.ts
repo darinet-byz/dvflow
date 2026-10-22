@@ -12,8 +12,6 @@ export const ROLE_LABELS: Record<string, string> = {
   pimpro: 'Pimpro',
   advertiser: 'Advertiser',
   member: 'Member',
-  master_admin: 'Admin Master (Legacy)',
-  staff: 'Staff (Legacy)',
 }
 
 export const PATH_PERMISSION_MAP: Record<string, string> = {

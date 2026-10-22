@@ -13,7 +13,7 @@ describe('Fitur 2.0: Roles & Permissions API', () => {
     const state = createFakeState({
       users: [
         fakeUser({ id: 'user-dev', username: 'dev', role: 'developer' }),
-        fakeUser({ id: 'user-staff', username: 'staff1', role: 'staff' }),
+        fakeUser({ id: 'user-staff', username: 'staff1', role: 'member' }),
       ],
     })
     const { api } = await createTestApi(state)

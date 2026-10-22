@@ -878,3 +878,20 @@ Order/Presensi menampilkan badge OTS. Detail order OTS tidak menampilkan link ti
 
 **Keamanan.** File contoh asli berisi PII dan sudah dihapus dari repo setelah formatnya dicatat di dokumen referensi. File export tidak boleh di-commit.
 
+
+## A36 — Role legacy Admin Master & Staff dihapus (22 Oktober 2026)
+
+**Keputusan pengguna.** Role `master_admin` ("Admin Master (Legacy)") dan `staff` ("Staff (Legacy)") dihapus. Keduanya sisa role MVP yang di-seed ulang di 0024 hanya untuk kompatibilitas. User-nya dipindah ke role yang setara.
+
+**Pemetaan (migrasi 0047).**
+- `master_admin` → `owner`. Aksesnya identik: penuh, semua produk, kelola Role & Tim, tanpa Reset Data.
+- `staff` → `member`. User eks-Staff **ikut checklist izin Member yang sekarang**. Izin tidak digabung; perbedaannya dicatat di `RAISE NOTICE` migrasi.
+- Penugasan produk per-user (`user_product_access`, `has_all_product_access`) tidak berubah. Sesi tetap berlaku karena role dibaca ulang dari database pada request berikutnya (0027).
+
+**Keamanan.** ID `master_admin` dihapus dari semua daftar role penuh yang di-hardcode (`actor_has_permission`, `actor_can_product`, `save_role_permissions`, `admin_*_user`, `isMasterAdminRole`). Tanpa itu, role kustom baru ber-ID `master_admin` akan otomatis mendapat akses penuh.
+
+**Lain-lain.**
+- Tingkat "Master Admin" sekarang = `developer` atau `owner`. `scripts/create-master-admin.mjs` membuat akun `owner`.
+- `ui.field_app` (A30) hanya untuk `pimpro` dan `member`.
+- Klaim JWT `app_role = master_admin | admin | staff` di dokumen MVP (CLAUDE.md §8, 01/04) sudah digantikan role dinamis Fitur 2.0. Klaim itu hanya informasi; otorisasi selalu dari database.
+- Deploy tertahan oleh `check-schema-version` sampai 0047 diterapkan di database produksi.

@@ -51,7 +51,7 @@ export async function handleRoleConfig(context: RouteContext): Promise<Response>
 
 ## 2. Kontrak Endpoint Baru: Manajemen Role & Hak Akses
 
-Semua endpoint role di bawah ini diproteksi oleh izin `config.roles` (khusus Developer, Owner & master_admin legacy).
+Semua endpoint role di bawah ini diproteksi oleh izin `config.roles` (khusus Developer & Owner; role legacy master_admin dihapus di A36).
 
 ### 1. `GET /api/roles`
 Mengambil daftar seluruh role beserta ringkasan statusnya.

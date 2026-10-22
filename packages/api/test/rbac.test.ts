@@ -35,12 +35,12 @@ const VALID_NEW_USER = {
   username: 'staff2',
   display_name: 'Staff Dua',
   initial_password: 'rahasia123',
-  role: 'staff',
+  role: 'member',
 }
 
 describe('B. RBAC di batas HTTP', () => {
   it('B01 staff dapat membaca profilnya sendiri', async () => {
-    const state = createFakeState({ users: [fakeUser({ username: 'staff1', role: 'staff' })] })
+    const state = createFakeState({ users: [fakeUser({ username: 'staff1', role: 'member' })] })
     const { api, accessToken } = await loginAs('staff1', 'rahasia123', state)
 
     const response = await api(
@@ -48,7 +48,7 @@ describe('B. RBAC di batas HTTP', () => {
     )
     expect(response.status).toBe(200)
     const body = await readBody<{ ok: true; data: { profile: { role: string } } }>(response)
-    expect(body.data.profile.role).toBe('staff')
+    expect(body.data.profile.role).toBe('member')
   })
 
   it('B07 admin (bukan master) tidak dapat memanggil provisioning user', async () => {
@@ -62,15 +62,15 @@ describe('B. RBAC di batas HTTP', () => {
   })
 
   it('staff tidak dapat memanggil provisioning user', async () => {
-    const state = createFakeState({ users: [fakeUser({ username: 'staff1', role: 'staff' })] })
+    const state = createFakeState({ users: [fakeUser({ username: 'staff1', role: 'member' })] })
     const { api, accessToken } = await loginAs('staff1', 'rahasia123', state)
 
     const response = await api(provisionRequest(accessToken, VALID_NEW_USER))
     expect(response.status).toBe(403)
   })
 
-  it('B06 master_admin dapat membuat admin dan staff', async () => {
-    const state = createFakeState({ users: [fakeUser({ username: 'bos', role: 'master_admin' })] })
+  it('B06 owner dapat membuat admin dan staff', async () => {
+    const state = createFakeState({ users: [fakeUser({ username: 'bos', role: 'owner' })] })
     const { api, accessToken } = await loginAs('bos', 'rahasia123', state)
 
     const response = await api(provisionRequest(accessToken, VALID_NEW_USER))
@@ -80,21 +80,21 @@ describe('B. RBAC di batas HTTP', () => {
       response,
     )
     expect(body.data.user.username).toBe('staff2')
-    expect(body.data.user.role).toBe('staff')
+    expect(body.data.user.role).toBe('member')
     expect(body.data.user.active).toBe(true)
   })
 
-  it('master_admin TIDAK dapat membuat master_admin selama environment melarangnya (O3)', async () => {
-    const state = createFakeState({ users: [fakeUser({ username: 'bos', role: 'master_admin' })] })
+  it('owner TIDAK dapat membuat owner selama environment melarangnya (O3)', async () => {
+    const state = createFakeState({ users: [fakeUser({ username: 'bos', role: 'owner' })] })
     const { api, accessToken } = await loginAs('bos', 'rahasia123', state)
 
-    const response = await api(provisionRequest(accessToken, { ...VALID_NEW_USER, role: 'master_admin' }))
+    const response = await api(provisionRequest(accessToken, { ...VALID_NEW_USER, role: 'owner' }))
     expect(response.status).toBe(403)
     expect((await readBody<FailureBody>(response)).error.code).toBe('MASTER_ADMIN_CREATE_FORBIDDEN')
   })
 
-  it('master_admin dapat membuat master_admin bila environment mengizinkan', async () => {
-    const state = createFakeState({ users: [fakeUser({ username: 'bos', role: 'master_admin' })] })
+  it('owner dapat membuat owner bila environment mengizinkan', async () => {
+    const state = createFakeState({ users: [fakeUser({ username: 'bos', role: 'owner' })] })
     const env = await createTestEnv({ ALLOW_MASTER_ADMIN_CREATE_MASTER: 'true' })
     const api = createApiWithEnv(env, state)
 
@@ -103,12 +103,12 @@ describe('B. RBAC di batas HTTP', () => {
     )
     const accessToken = (await readBody<{ data: LoginData }>(loginResponse)).data.access_token
 
-    const response = await api(provisionRequest(accessToken, { ...VALID_NEW_USER, role: 'master_admin' }))
+    const response = await api(provisionRequest(accessToken, { ...VALID_NEW_USER, role: 'owner' }))
     expect(response.status).toBe(201)
   })
 
   it('role di luar daftar ditolak sebelum menyentuh database', async () => {
-    const state = createFakeState({ users: [fakeUser({ username: 'bos', role: 'master_admin' })] })
+    const state = createFakeState({ users: [fakeUser({ username: 'bos', role: 'owner' })] })
     const { api, accessToken } = await loginAs('bos', 'rahasia123', state)
 
     const response = await api(provisionRequest(accessToken, { ...VALID_NEW_USER, role: 'superuser' }))
@@ -118,7 +118,7 @@ describe('B. RBAC di batas HTTP', () => {
 
   it('username duplikat -> 409 USERNAME_TAKEN', async () => {
     const state = createFakeState({
-      users: [fakeUser({ username: 'bos', role: 'master_admin' }), fakeUser({ id: 'user-x', username: 'staff2' })],
+      users: [fakeUser({ username: 'bos', role: 'owner' }), fakeUser({ id: 'user-x', username: 'staff2' })],
     })
     const { api, accessToken } = await loginAs('bos', 'rahasia123', state)
 
@@ -128,7 +128,7 @@ describe('B. RBAC di batas HTTP', () => {
   })
 
   it('password awal terlalu pendek -> 400 WEAK_PASSWORD (aturan database, bukan handler)', async () => {
-    const state = createFakeState({ users: [fakeUser({ username: 'bos', role: 'master_admin' })] })
+    const state = createFakeState({ users: [fakeUser({ username: 'bos', role: 'owner' })] })
     const { api, accessToken } = await loginAs('bos', 'rahasia123', state)
 
     const response = await api(provisionRequest(accessToken, { ...VALID_NEW_USER, initial_password: 'pendek' }))
@@ -137,7 +137,7 @@ describe('B. RBAC di batas HTTP', () => {
   })
 
   it('provisioning tanpa field wajib -> 400 INVALID_PAYLOAD', async () => {
-    const state = createFakeState({ users: [fakeUser({ username: 'bos', role: 'master_admin' })] })
+    const state = createFakeState({ users: [fakeUser({ username: 'bos', role: 'owner' })] })
     const { api, accessToken } = await loginAs('bos', 'rahasia123', state)
 
     for (const body of [{}, { username: 'x' }, { ...VALID_NEW_USER, username: '  ' }, { ...VALID_NEW_USER, username: 'ada spasi' }]) {
@@ -148,15 +148,15 @@ describe('B. RBAC di batas HTTP', () => {
 
   it('claim app_role yang berbohong tetap ditolak database (defense in depth)', async () => {
     // Skenario: token SAH (ditandatangani kunci kita sendiri, `kid` cocok) yang
-    // mengaku master_admin, padahal baris user di database adalah staff.
+    // mengaku owner, padahal baris user di database adalah staff.
     // Handler mempercayai claim; database TIDAK — dan permintaan tetap gagal
     // (04 §5: permission ditegakkan server-side, bukan oleh handler saja).
-    const state = createFakeState({ users: [fakeUser({ id: 'user-staff', username: 'staff1', role: 'staff' })] })
+    const state = createFakeState({ users: [fakeUser({ id: 'user-staff', username: 'staff1', role: 'member' })] })
     const env = await createTestEnv()
     const signer = await createJwtSigner(env)
     const liedToken = await signer.mint({
       userId: 'user-staff',
-      appRole: 'master_admin' as AppRole,
+      appRole: 'owner' as AppRole,
       now: new Date('2026-10-13T08:00:00.000Z'),
     })
 
@@ -179,7 +179,7 @@ describe('profil', () => {
         method: 'PATCH',
         path: '/api/profile',
         headers: { authorization: `Bearer ${accessToken}` },
-        body: { display_name: '  Admin Baru  ', avatar_emoji: '🙂', username: 'diganti', role: 'master_admin' },
+        body: { display_name: '  Admin Baru  ', avatar_emoji: '🙂', username: 'diganti', role: 'owner' },
       }),
     )
 

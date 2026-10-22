@@ -69,7 +69,7 @@ run('integrasi auth terhadap Supabase lokal', () => {
       `insert into public.users (username, display_name, password_hash, password_algo, role)
        values
          ($1, 'E2E Admin', extensions.crypt('rahasia123', extensions.gen_salt('bf', 4)), 'bcrypt', 'admin'),
-         ($2, 'E2E Boss',  extensions.crypt('rahasia123', extensions.gen_salt('bf', 4)), 'bcrypt', 'master_admin')`,
+         ($2, 'E2E Boss',  extensions.crypt('rahasia123', extensions.gen_salt('bf', 4)), 'bcrypt', 'owner')`,
       [adminUsername, bossUsername],
     )
 
@@ -201,7 +201,7 @@ run('integrasi auth terhadap Supabase lokal', () => {
     expect((await login(adminUsername, 'rahasia123')).status).toBe(401)
   })
 
-  it('B06/B07 provisioning lewat RPC: master_admin berhasil, admin ditolak', async () => {
+  it('B06/B07 provisioning lewat RPC: owner berhasil, admin ditolak', async () => {
     const bossLogin = await login(bossUsername, 'rahasia123')
     const bossToken = (await readBody<{ data: LoginData }>(bossLogin)).data.access_token
 
@@ -212,7 +212,7 @@ run('integrasi auth terhadap Supabase lokal', () => {
       username: createdUsername,
       display_name: 'E2E Dibuat',
       initial_password: 'rahasia123',
-      role: 'staff',
+      role: 'member',
     }
 
     const byAdmin = await api(
@@ -239,7 +239,7 @@ run('integrasi auth terhadap Supabase lokal', () => {
     expect((await login(createdUsername, 'rahasia123')).status).toBe(200)
   })
 
-  it('master_admin tidak dapat membuat master_admin tanpa flag environment (O3)', async () => {
+  it('owner tidak dapat membuat owner tanpa flag environment (O3)', async () => {
     const bossLogin = await login(bossUsername, 'rahasia123')
     const bossToken = (await readBody<{ data: LoginData }>(bossLogin)).data.access_token
 
@@ -252,7 +252,7 @@ run('integrasi auth terhadap Supabase lokal', () => {
           username: `e2e_ma_${suffix}`,
           display_name: 'E2E MA',
           initial_password: 'rahasia123',
-          role: 'master_admin',
+          role: 'owner',
         },
       }),
     )

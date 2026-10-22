@@ -76,7 +76,7 @@ ACCOUNT
 ## 2. Menu Baru: Konfigurasi Role & Permission (`/konfigurasi-role`)
 
 ### A. Hak Akses Masuk
-- Hanya dapat dibuka oleh akun dengan role **Developer**, **Owner**, atau **master_admin** legacy (`config.roles` tetap khusus tingkat Master Admin).
+- Hanya dapat dibuka oleh akun dengan role **Developer** atau **Owner** (role legacy master_admin dihapus di A36; `config.roles` tetap khusus tingkat Master Admin).
 - Role lain yang mencoba membuka URL langsung akan otomatis diarahkan kembali ke `/` dengan toast merah: *"Akses ditolak: Menu ini khusus Master Admin"*.
 
 ### B. Tampilan Halaman Utama (`RoleConfigPage`)

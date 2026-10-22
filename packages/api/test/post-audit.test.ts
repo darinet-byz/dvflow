@@ -68,10 +68,10 @@ describe('perbaikan pasca-audit', () => {
     expect(keys).not.toContain('webinar_destination::__scope__::BM:*:*')
   })
 
-  it('master_admin tidak dapat menghapus developer; developer dapat', async () => {
+  it('owner tidak dapat menghapus developer; developer dapat', async () => {
     const state = createFakeState({
       users: [
-        fakeUser({ id: 'u-master', username: 'master', role: 'master_admin' }),
+        fakeUser({ id: 'u-master', username: 'master', role: 'owner' }),
         fakeUser({ id: 'u-dev', username: 'dev', role: 'developer' }),
         fakeUser({ id: 'u-member', username: 'member', role: 'member' }),
       ],
