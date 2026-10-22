@@ -21,6 +21,7 @@ export const PATH_PERMISSION_MAP: Record<string, string> = {
   '/order-unmapped': 'operasional.order_unmapped',
   '/presensi': 'operasional.presensi',
   '/generator': 'operasional.generator',
+  '/report-spend': 'operasional.report_spend',
   '/konfigurasi-produk': 'config.produk',
   '/konfigurasi-tax': 'config.tax',
   '/report-tax': 'config.report_tax',

@@ -19,6 +19,8 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
       'Order Unmapped',
       'Presensi Acara',
       'Product Name Generator',
+      // A37: Report Spend Iklan.
+      'Report Spend Iklan',
       'Konfigurasi Produk',
       'Konfigurasi Tax',
       'Report Tax',

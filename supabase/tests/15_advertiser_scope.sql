@@ -6,7 +6,9 @@ select no_plan();
 
 select ok(public.schema_version() >= 37, 'schema_version mencakup 0037');
 select ok(exists(select 1 from public.app_roles where id = 'advertiser'), 'role advertiser ada');
-select is((select array_agg(permission_key order by permission_key) from public.app_role_permissions where role_id = 'advertiser'),
+select is((select array_agg(permission_key order by permission_key) from public.app_role_permissions where role_id = 'advertiser'
+    -- A37 (0048) menambah izin Report Spend Iklan khusus advertiser.
+    and permission_key not in ('operasional.report_spend', 'action.input_spend')),
   -- A30: ui.field_app khusus pimpro/member, tidak untuk advertiser.
   (select array_agg(permission_key order by permission_key) from public.app_role_permissions where role_id = 'pimpro' and permission_key <> 'ui.field_app'),
   'izin awal advertiser = izin pimpro (tanpa Tampilan Apps Lapangan)');

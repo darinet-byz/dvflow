@@ -895,3 +895,40 @@ Order/Presensi menampilkan badge OTS. Detail order OTS tidak menampilkan link ti
 - `ui.field_app` (A30) hanya untuk `pimpro` dan `member`.
 - Klaim JWT `app_role = master_admin | admin | staff` di dokumen MVP (CLAUDE.md §8, 01/04) sudah digantikan role dinamis Fitur 2.0. Klaim itu hanya informasi; otorisasi selalu dari database.
 - Deploy tertahan oleh `check-schema-version` sampai 0047 diterapkan di database produksi.
+
+## A37 — Report Spend Iklan (22 Oktober 2026)
+
+**Kebutuhan pengguna.**
+- Pengiklan melaporkan biaya iklan per **batch**, lalu apps menghitung performanya dari order realtime.
+- Satu batch mencakup semua sesi (seminar maupun webinar) dengan produk + kode pengiklan + batch yang sama.
+- Diakses oleh akun Advertiser (hanya pengiklannya sendiri, A20) dan role managerial.
+
+**Keputusan pengguna.**
+- **Input:** pilih produk, isi batch, rentang tanggal (default kemarin s/d kemarin, karena yang dilaporkan H-1; bisa diubah dan dirapel beberapa hari), dan biaya iklan.
+- **Pajak Iklan (PPN):** PPN tiap akun iklan berbeda, jadi pengiklan mengisinya per report dalam persen (mis. 11; 0 bila tanpa PPN). Spend yang diinput adalah angka **sebelum PPN**. Pajak = Spend × PPN%, Total Spend = Spend + Pajak. Form mengisi otomatis PPN dari report terakhir pengiklan itu.
+- **Siapa:** input hanya role Advertiser. Role lain hanya melihat; role yang boleh melihat dipilih lewat checklist Konfigurasi Role. Checkbox "Input Biaya Iklan" hanya muncul untuk role Advertiser.
+- **Order yang dihitung:** tanggal order (WIB, A24) di dalam rentang report.
+  - Leads = jumlah Order ID (semua status).
+  - Paid = order di rentang itu yang statusnya Paid **sekarang** (live; ikut naik bila order Pending dibayar belakangan).
+  - Omzet = gross order Paid.
+- **Turunan:** Profit/Boncos = Omzet − Total Spend (spend + PPN). Persentase = Profit ÷ Total Spend × 100 (total spend 0 → "-").
+- **Data kosong:** tidak ada order = **0**, tidak pernah "tidak valid".
+- **Rentang bertumpuk** (produk + batch + pengiklan sama): muncul notif "Tanggal, produk, dan batch sudah ada" dengan tombol **Cek Report** (tampilkan report yang ada) dan **Tambahkan Data Ini** (tetap simpan).
+- **Total:** spend, PPN, dan Total Spend dijumlahkan; setiap order dihitung **sekali** walau tercakup beberapa report.
+- **Koreksi:** Advertiser bisa edit dan hapus report miliknya sendiri.
+- **Belum termasuk:** dashboard level produk + batch + semua pengiklan. Tata letaknya dibahas terpisah.
+
+**Implementasi (0048).**
+- Tabel baru `ad_spend_reports` (Data Dictionary §12a). Batch disimpan ternormalisasi (A33). Produk/pengiklan yang punya report dianggap dipakai (`master_is_used`).
+- Izin baru:
+  - `operasional.report_spend` "Report Spend Iklan".
+  - `action.input_spend` "Input Biaya Iklan", dibatasi ke role `advertiser` di `save_role_permissions` (seperti `ui.field_app`) dan tidak ikut diberikan otomatis ke developer/owner.
+  - Keduanya diberikan bawaan ke role `advertiser`.
+- RPC `save_ad_spend_report` / `delete_ad_spend_report` (service_role, lewat Worker) mewajibkan akun memegang pengiklan. Cek tumpang tindih memakai advisory lock per (pengiklan, produk, batch).
+- RPC baca `ad_spend_report` (security definer): scope produk + pengiklan diterapkan ulang persis seperti RLS, karena role yang hanya punya izin report ini tidak lolos RLS `orders`.
+- `can_read_configuration()` ditambah `operasional.report_spend` supaya dropdown produk terbaca.
+- Worker: `POST/PATCH/DELETE /api/ad-spend-reports` (API Contract §12a), error `AD_SPEND_OVERLAP` (409) dan `AD_SPEND_NOT_FOUND` (404).
+
+**Menu baru.** "Report Spend Iklan" di seksi OPERASIONAL, setelah Product Name Generator (perubahan sidebar atas permintaan pengguna).
+
+**Catatan deploy.** Deploy tertahan oleh `check-schema-version` sampai 0048 diterapkan di database produksi.

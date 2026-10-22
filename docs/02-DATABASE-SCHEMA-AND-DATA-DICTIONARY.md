@@ -231,6 +231,26 @@ Jangan menambah key lain tanpa requirement.
 Retention 7 hari.
 Jangan simpan credential/secret header.
 
+## 12a. ad_spend_reports (A37, 0048)
+Laporan biaya iklan pengiklan per batch untuk satu rentang tanggal. Leads/Paid/Omzet TIDAK disimpan;
+dihitung live oleh RPC `ad_spend_report` dari `orders`.
+PPN = round(spend × tax_percent / 100, 2); Total Spend = spend + PPN (juga dihitung di RPC, tidak disimpan).
+- id UUID PK
+- advertiser_id UUID NOT NULL FK advertisers(id) ON DELETE RESTRICT  -- selalu pengiklan akun penginput
+- product_id UUID NOT NULL FK products(id) ON DELETE RESTRICT
+- batch TEXT NOT NULL CHECK (batch = normalize_batch(batch), tidak kosong)  -- A33
+- date_from DATE NOT NULL
+- date_to DATE NOT NULL CHECK (date_to >= date_from)
+- spend NUMERIC(14,2) NOT NULL CHECK (spend >= 0)  -- SEBELUM PPN
+- tax_percent NUMERIC(5,2) NOT NULL DEFAULT 0 CHECK (0..100)  -- PPN iklan per akun iklan, 11 = 11%
+- created_by / updated_by UUID NULL FK users(id) ON DELETE SET NULL
+- created_at / updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+
+Tidak ada unique constraint: rentang bertumpuk untuk produk + batch + pengiklan yang sama ditolak oleh
+`save_ad_spend_report` kecuali pengiklan mengonfirmasi ("Tambahkan Data Ini").
+RLS: baca dengan izin `operasional.report_spend` + scope produk + (akun Advertiser) pengiklan sendiri.
+Tulis hanya lewat Worker (service_role). Hard delete hanya oleh pengiklan pemilik.
+
 ## 13. Minimum indexes
 orders:
 - unique(order_id)

@@ -1,4 +1,4 @@
-import { FIELD_APP_PERMISSION, FIELD_APP_ROLES } from '@dvflow/shared'
+import { permissionAllowedForRole } from '@dvflow/shared'
 import { useState } from 'react'
 import { isMasterAdminRole, type AppPermissionModuleGroup, type AppRoleItem } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
@@ -57,11 +57,11 @@ export function RoleConfigPage() {
   const modules = permsData?.modules ?? []
   const allRoles = rolesData?.roles ?? []
 
-  // A30: "Tampilan Apps Lapangan" hanya bisa diatur untuk Pimpro, Staff, Member (server juga menolak role lain).
+  // A30/A37: "Tampilan Apps Lapangan" (Pimpro, Member) dan "Input Biaya Iklan" (Advertiser) hanya tampil
+  // untuk role yang boleh memegangnya (server juga menolak role lain).
   function modulesFor(roleId: string | null) {
-    const eligible = roleId !== null && FIELD_APP_ROLES.includes(roleId)
     return modules
-      .map((m) => ({ ...m, permissions: m.permissions.filter((p) => p.key !== FIELD_APP_PERMISSION || eligible) }))
+      .map((m) => ({ ...m, permissions: m.permissions.filter((p) => permissionAllowedForRole(p.key, roleId)) }))
       .filter((m) => m.permissions.length > 0)
   }
 

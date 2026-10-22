@@ -25,6 +25,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Order Unmapped', path: '/order-unmapped', icon: 'alert-circle' },
       { label: 'Presensi Acara', path: '/presensi', icon: 'user-check' },
       { label: 'Product Name Generator', path: '/generator', icon: 'wand' },
+      { label: 'Report Spend Iklan', path: '/report-spend', icon: 'megaphone' },
     ],
   },
   {

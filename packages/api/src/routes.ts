@@ -16,6 +16,7 @@ import { accessOrder, checkinByQr, checkinInfoPage } from './participant/handler
 import { getProfile, updateProfile } from './profile/handlers'
 import { scannerManualCheckin, scannerSearch } from './scanner/handlers'
 import { deleteOts, listOts, listOtsEvents, saveOts } from './ots/handlers'
+import { createAdSpend, deleteAdSpend, updateAdSpend } from './ad-spend/handlers'
 import { orderOnlineWebhook } from './webhooks/handlers'
 import { batchRemapOrders, deleteAlias, listAliases, listUnmappedOrders, saveAlias } from './aliases/handlers'
 import { getDataSummary, purgeExpiredUnmapped, resetData } from './developer/handlers'
@@ -108,6 +109,10 @@ export const ROUTES: Route[] = [
   { method: 'GET', path: '/api/ots', handler: listOts, auth: 'access' },
   { method: 'POST', path: '/api/ots', handler: saveOts, auth: 'access' },
   { method: 'DELETE', path: '/api/ots/:orderId', handler: deleteOts, auth: 'access' },
+  // A37: Report Spend Iklan (tulis; laporan dibaca lewat RPC ad_spend_report).
+  { method: 'POST', path: '/api/ad-spend-reports', handler: createAdSpend, auth: 'access' },
+  { method: 'PATCH', path: '/api/ad-spend-reports/:id', handler: updateAdSpend, auth: 'access' },
+  { method: 'DELETE', path: '/api/ad-spend-reports/:id', handler: deleteAdSpend, auth: 'access' },
 
   // Konfigurasi (tulis saja; baca langsung lewat RLS).
   // Rute statis sebelum :resource (A15).

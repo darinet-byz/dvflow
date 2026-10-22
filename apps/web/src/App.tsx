@@ -20,6 +20,7 @@ import { KonfigurasiTaxPage } from './pages/config/KonfigurasiTaxPage'
 import { GeneratorPage } from './pages/generator/GeneratorPage'
 import { ProfilePage } from './pages/profile/ProfilePage'
 import { ReportTaxPage } from './pages/report-tax/ReportTaxPage'
+import { ReportSpendPage } from './pages/report-spend/ReportSpendPage'
 import { ScanQrPage } from './pages/scanner/ScanQrPage'
 import { OrderPage } from './pages/order/OrderPage'
 import { OrderUnmappedPage } from './pages/order/OrderUnmappedPage'
@@ -84,6 +85,7 @@ export function App() {
           <Route path="/konfigurasi-produk" element={<RoleGuard path="/konfigurasi-produk"><KonfigurasiProdukPage /></RoleGuard>} />
           <Route path="/konfigurasi-tax" element={<RoleGuard path="/konfigurasi-tax"><KonfigurasiTaxPage /></RoleGuard>} />
           <Route path="/report-tax" element={<RoleGuard path="/report-tax"><ReportTaxPage /></RoleGuard>} />
+          <Route path="/report-spend" element={<RoleGuard path="/report-spend"><ReportSpendPage /></RoleGuard>} />
           <Route path="/generator" element={<GeneratorPage />} />
           <Route path="/add-team" element={<RoleGuard path="/add-team"><TeamPage /></RoleGuard>} />
           <Route path="/konfigurasi-zoom" element={<ZoomPage />} />

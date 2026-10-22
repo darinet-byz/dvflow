@@ -234,6 +234,27 @@ POST/PATCH/DELETE(deactivate): master_admin/admin only.
 Delete semantics = `active=false`.
 No hard delete endpoint.
 
+## 12a. Report Spend Iklan (A37)
+Tulis saja; laporan dibaca browser lewat RPC `ad_spend_report(p_date_from, p_date_to, p_product_code, p_advertiser_code, p_batch)`.
+Semua rute butuh izin `action.input_spend` DAN akun yang memegang pengiklan (role advertiser).
+Pengiklan selalu diambil dari akun, tidak pernah dari body.
+`spend` = biaya iklan SEBELUM PPN; `tax_percent` = PPN iklan dalam persen (0–100, wajib; 0 bila tanpa PPN).
+
+- `POST /api/ad-spend-reports` → 201
+- `PATCH /api/ad-spend-reports/:id` → 200 (hanya report pengiklan sendiri)
+- `DELETE /api/ad-spend-reports/:id` → 200 (hard delete, hanya report pengiklan sendiri)
+
+Body POST/PATCH:
+```json
+{ "product_code": "KULI", "batch": "122", "date_from": "2026-10-21", "date_to": "2026-10-21", "spend": 6000000, "tax_percent": 11, "confirm_overlap": false }
+```
+
+Error:
+- `AD_SPEND_OVERLAP` 409 "Tanggal, produk, dan batch sudah ada." — rentang beririsan dengan report produk + batch +
+  pengiklan yang sama. Kirim ulang dengan `confirm_overlap: true` untuk tetap menyimpan.
+- `AD_SPEND_NOT_FOUND` 404 — id tidak ada atau milik pengiklan lain.
+- `FORBIDDEN` 403, `INVALID_ARGUMENT` 400.
+
 ## 13. Profile endpoints
 GET /api/profile
 PATCH /api/profile

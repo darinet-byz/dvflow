@@ -34,6 +34,25 @@ export const APP_ROLES: readonly string[] = [
 export const FIELD_APP_PERMISSION = 'ui.field_app'
 export const FIELD_APP_ROLES: readonly string[] = ['pimpro', 'member']
 
+/**
+ * A37: "Input Biaya Iklan" — hanya akun yang memegang pengiklan (role advertiser) yang bisa
+ * menginput spend (ditegakkan juga di `save_role_permissions` dan `save_ad_spend_report`, 0048).
+ */
+export const AD_SPEND_VIEW_PERMISSION = 'operasional.report_spend'
+export const AD_SPEND_INPUT_PERMISSION = 'action.input_spend'
+export const AD_SPEND_INPUT_ROLES: readonly string[] = ['advertiser']
+
+/** Izin yang hanya boleh dipegang role tertentu; role penuh (developer/owner) pun tidak. */
+const ROLE_RESTRICTED_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
+  [FIELD_APP_PERMISSION]: FIELD_APP_ROLES,
+  [AD_SPEND_INPUT_PERMISSION]: AD_SPEND_INPUT_ROLES,
+}
+
+export function permissionAllowedForRole(permission: string, roleId: string | null | undefined): boolean {
+  const roles = ROLE_RESTRICTED_PERMISSIONS[permission]
+  return roles === undefined || (!!roleId && roles.includes(roleId))
+}
+
 export function isMasterAdminRole(role: string | null | undefined): boolean {
   // A36: role legacy master_admin dihapus (user-nya dipindah ke owner).
   return role === 'developer' || role === 'owner'
@@ -45,6 +64,7 @@ export type AppPermissionKey =
   | 'operasional.order'
   | 'operasional.presensi'
   | 'operasional.generator'
+  | 'operasional.report_spend'
   | 'config.produk'
   | 'config.tax'
   | 'config.report_tax'
@@ -57,6 +77,7 @@ export type AppPermissionKey =
   | 'action.export_data'
   | 'action.manual_checkin'
   | 'action.ots'
+  | 'action.input_spend'
   | 'ui.field_app'
   | 'action.delete_master'
 

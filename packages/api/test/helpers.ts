@@ -398,6 +398,21 @@ export function createFakeDb(state: FakeState): Db {
         return { order_id: orderId, action: 'created', quantity, gross_amount: gross, checked_in_at: created['clicked_at'] } as T
       }
 
+      // A37: tiruan save/delete_ad_spend_report (aturan lengkap diuji pgTAP 24_ad_spend_reports.sql).
+      // Tumpang tindih disederhanakan: produk + batch yang sama pernah disimpan sebelumnya.
+      if (name === 'save_ad_spend_report' || name === 'delete_ad_spend_report') {
+        const actor = state.users.find((candidate) => candidate.id === String(args['p_actor'] ?? ''))
+        if (actor === undefined || actor.role !== 'advertiser') throw new DbError(FORBIDDEN, 'fake')
+        if (name === 'delete_ad_spend_report') return { id: args['p_id'], deleted: true } as T
+        const earlier = state.rpcCalls.slice(0, -1).some((call) => call.name === name &&
+          call.args['p_product_code'] === args['p_product_code'] && call.args['p_batch'] === args['p_batch'])
+        if (earlier && args['p_confirm_overlap'] !== true) throw new DbError('DF016', 'fake')
+        nextId += 1
+        return { id: `00000000-0000-4000-8000-${String(nextId).padStart(12, '0')}`, action: args['p_id'] ? 'updated' : 'created',
+          product_code: args['p_product_code'], batch: args['p_batch'], date_from: args['p_date_from'], date_to: args['p_date_to'],
+          spend: String(args['p_spend']), tax_percent: String(args['p_tax_percent']) } as T
+      }
+
       if (name === 'delete_ots_registration') {
         const actor = state.users.find((candidate) => candidate.id === String(args['p_actor'] ?? ''))
         if (actor === undefined || !isMasterAdminRole(actor.role)) throw new DbError(FORBIDDEN, 'fake')

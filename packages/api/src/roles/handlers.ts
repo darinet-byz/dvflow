@@ -1,4 +1,4 @@
-import { FIELD_APP_PERMISSION, FIELD_APP_ROLES, isMasterAdminRole, type AppPermissionItem, type AppPermissionModuleGroup, type AppRoleItem } from '@dvflow/shared'
+import { AD_SPEND_INPUT_PERMISSION, FIELD_APP_PERMISSION, isMasterAdminRole, permissionAllowedForRole, type AppPermissionItem, type AppPermissionModuleGroup, type AppRoleItem } from '@dvflow/shared'
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
 import type { RouteContext } from '../router'
@@ -134,7 +134,7 @@ export async function getRole(context: RouteContext): Promise<Response> {
     name: role.name,
     description: role.description,
     is_system: role.is_system,
-    permissions: isMasterAdminRole(roleId) ? (await context.db.selectRows<{ key: string }>('app_permissions', {}, 'key')).map(p => p.key) : rolePerms.map((rp) => rp.permission_key),
+    permissions: isMasterAdminRole(roleId) ? (await context.db.selectRows<{ key: string }>('app_permissions', {}, 'key')).map(p => p.key).filter((key) => permissionAllowedForRole(key, roleId)) : rolePerms.map((rp) => rp.permission_key),
   })
 }
 
@@ -243,8 +243,11 @@ export async function listPermissions(context: RouteContext): Promise<Response> 
 async function validatedPermissions(context: RouteContext, value: unknown, roleId: string): Promise<string[]> {
   if (!Array.isArray(value) || value.some((p) => typeof p !== 'string')) throw new ApiFailure('INVALID_PAYLOAD')
   const keys = [...new Set((value as string[]).map((p) => p.trim()))]
-  if (keys.includes(FIELD_APP_PERMISSION) && !FIELD_APP_ROLES.includes(roleId)) {
+  if (keys.includes(FIELD_APP_PERMISSION) && !permissionAllowedForRole(FIELD_APP_PERMISSION, roleId)) {
     throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Tampilan Apps Lapangan hanya untuk role Pimpro, Staff, dan Member.')
+  }
+  if (keys.includes(AD_SPEND_INPUT_PERMISSION) && !permissionAllowedForRole(AD_SPEND_INPUT_PERMISSION, roleId)) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Input Biaya Iklan hanya untuk role Advertiser.')
   }
   const catalog = await context.db.selectRows<{ key: string }>('app_permissions', {}, 'key')
   if (keys.some((key) => !catalog.some((p) => p.key === key))) throw new ApiFailure('INVALID_ARGUMENT')
