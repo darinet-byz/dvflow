@@ -290,7 +290,7 @@ export function ReportSpendPage() {
     <>
       <PageHeader
         title="Report Spend Iklan"
-        action={canInput ? <Button onClick={() => openForm(emptyForm(lastTaxPercent))}>+ Input Biaya Iklan</Button> : undefined}
+        action={canInput ? <Button variant="primary" onClick={() => openForm(emptyForm(lastTaxPercent))}>+ Input Biaya Iklan</Button> : undefined}
       />
 
       <div className="filter-bar flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-card p-3.5">
@@ -414,7 +414,7 @@ export function ReportSpendPage() {
         footer={overlap ? undefined : (
           <>
             <Button variant="secondary" onClick={closeForm} disabled={saving}>Batal</Button>
-            <Button onClick={() => void submit(false)} loading={saving}>Simpan</Button>
+            <Button variant="primary" onClick={() => void submit(false)} loading={saving}>Simpan</Button>
           </>
         )}
       >
