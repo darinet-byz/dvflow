@@ -22,7 +22,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
       </div>
 
       <div className="flex flex-1 flex-col gap-4 overflow-y-auto">
-        {NAV_SECTIONS.map((section) => {
+        {NAV_SECTIONS.map((section, index) => {
           const visibleItems = section.items.filter((item) => {
             if (!session.profile) return false
             return canAccessPath(session.profile, item.path)
@@ -31,8 +31,10 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           if (visibleItems.length === 0) return null
 
           return (
-            <div key={section.title}>
-              <p className="px-3 pb-1.5 text-[10px] font-semibold tracking-[0.12em] text-ink-muted">{section.title}</p>
+            <div key={section.title ?? index}>
+              {section.title ? (
+                <p className="px-3 pb-1.5 text-[10px] font-semibold tracking-[0.12em] text-ink-muted">{section.title}</p>
+              ) : null}
               <ul className="flex flex-col gap-1">
                 {visibleItems.map((item) => (
                   <li key={item.path}>

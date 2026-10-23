@@ -10,25 +10,33 @@ import { flattenNavigation, NAV_SECTIONS } from '../src/layout/navigation'
  */
 describe('sidebar MVP (CLAUDE.md §5)', () => {
   it('K02: nama, urutan, dan pengelompokan menu persis seperti dokumen', () => {
-    expect(NAV_SECTIONS.map((section) => section.title)).toEqual(['OPERASIONAL', 'KONFIGURASI', 'ACCOUNT'])
+    // A38: dikelompokkan per alur kerja; Dashboard berdiri sendiri tanpa judul.
+    expect(NAV_SECTIONS.map((section) => section.title)).toEqual([
+      undefined,
+      'ACARA',
+      'ORDER',
+      'LAPORAN & PAJAK',
+      'PRODUK & ACARA',
+      'SISTEM',
+      'AKUN',
+    ])
 
     expect(flattenNavigation().map((item) => item.label)).toEqual([
-      'Scan QR',
       'Dashboard Resume',
+      'Scan QR',
+      'Presensi Acara',
       'Order',
       'Order Unmapped',
-      'Presensi Acara',
-      'Product Name Generator',
-      // A37: Report Spend Iklan.
       'Report Spend Iklan',
-      'Konfigurasi Produk',
-      'Konfigurasi Tax',
       'Report Tax',
+      'Konfigurasi Tax',
+      'Konfigurasi Produk',
+      'Product Name Generator',
       'Konfigurasi Zoom',
       'Konfigurasi Barcode / Tiket',
-      'API & Webhook',
-      'Konfigurasi Role',
       'Add Team',
+      'Konfigurasi Role',
+      'API & Webhook',
       'Reset Data',
       'Profil',
       'Logout',

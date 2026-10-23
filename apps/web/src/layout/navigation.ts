@@ -1,4 +1,4 @@
-/** Sidebar: original navigation plus user-requested Zoom and Add Team (AMENDMENTS A10). */
+/** Sidebar: menu dikelompokkan per alur kerja atas permintaan pengguna (AMENDMENTS A10, A38). */
 export type NavItem = {
   label: string
   path: string
@@ -7,7 +7,8 @@ export type NavItem = {
 }
 
 export type NavSection = {
-  title: string
+  /** Kosong = seksi tanpa judul (Dashboard di paling atas). */
+  title?: string
   items: NavItem[]
 }
 
@@ -16,35 +17,53 @@ export const DASHBOARD_PATH = '/'
 export const LOGIN_PATH = '/login'
 
 export const NAV_SECTIONS: NavSection[] = [
+  // A38: Dashboard berdiri sendiri di paling atas, tanpa judul seksi.
   {
-    title: 'OPERASIONAL',
+    items: [{ label: 'Dashboard Resume', path: DASHBOARD_PATH, icon: 'layout-dashboard' }],
+  },
+  {
+    title: 'ACARA',
     items: [
       { label: 'Scan QR', path: OPERASIONAL_PATH, icon: 'scan-line' },
-      { label: 'Dashboard Resume', path: DASHBOARD_PATH, icon: 'layout-dashboard' },
+      { label: 'Presensi Acara', path: '/presensi', icon: 'user-check' },
+    ],
+  },
+  {
+    title: 'ORDER',
+    items: [
       { label: 'Order', path: '/order', icon: 'receipt' },
       { label: 'Order Unmapped', path: '/order-unmapped', icon: 'alert-circle' },
-      { label: 'Presensi Acara', path: '/presensi', icon: 'user-check' },
-      { label: 'Product Name Generator', path: '/generator', icon: 'wand' },
-      { label: 'Report Spend Iklan', path: '/report-spend', icon: 'megaphone' },
     ],
   },
   {
-    title: 'KONFIGURASI',
+    title: 'LAPORAN & PAJAK',
+    items: [
+      { label: 'Report Spend Iklan', path: '/report-spend', icon: 'megaphone' },
+      { label: 'Report Tax', path: '/report-tax', icon: 'file-text' },
+      { label: 'Konfigurasi Tax', path: '/konfigurasi-tax', icon: 'percent' },
+    ],
+  },
+  {
+    title: 'PRODUK & ACARA',
     items: [
       { label: 'Konfigurasi Produk', path: '/konfigurasi-produk', icon: 'package' },
-      { label: 'Konfigurasi Tax', path: '/konfigurasi-tax', icon: 'percent' },
-      { label: 'Report Tax', path: '/report-tax', icon: 'file-text' },
+      { label: 'Product Name Generator', path: '/generator', icon: 'wand' },
       { label: 'Konfigurasi Zoom', path: '/konfigurasi-zoom', icon: 'video' },
       { label: 'Konfigurasi Barcode / Tiket', path: '/konfigurasi-tiket', icon: 'qr-code' },
-      { label: 'API & Webhook', path: '/integrasi', icon: 'plug' },
-      { label: 'Konfigurasi Role', path: '/konfigurasi-role', icon: 'shield' },
     ],
   },
   {
-    title: 'ACCOUNT',
+    title: 'SISTEM',
     items: [
       { label: 'Add Team', path: '/add-team', icon: 'users' },
+      { label: 'Konfigurasi Role', path: '/konfigurasi-role', icon: 'shield' },
+      { label: 'API & Webhook', path: '/integrasi', icon: 'plug' },
       { label: 'Reset Data', path: '/reset-data', icon: 'trash-2' },
+    ],
+  },
+  {
+    title: 'AKUN',
+    items: [
       { label: 'Profil', path: '/profil', icon: 'user' },
       { label: 'Logout', path: '/logout', icon: 'log-out' },
     ],

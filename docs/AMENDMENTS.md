@@ -932,3 +932,22 @@ Order/Presensi menampilkan badge OTS. Detail order OTS tidak menampilkan link ti
 **Menu baru.** "Report Spend Iklan" di seksi OPERASIONAL, setelah Product Name Generator (perubahan sidebar atas permintaan pengguna).
 
 **Catatan deploy.** Deploy tertahan oleh `check-schema-version` sampai 0048 diterapkan di database produksi.
+
+## A38 — Pengelompokan menu sidebar (23 Oktober 2026)
+
+**Permintaan pengguna.** Menu sudah banyak (18 item untuk Owner/Developer), jadi sidebar dikelompokkan ulang per
+alur kerja. Ini menggantikan urutan/seksi sidebar di CLAUDE.md §5 dan 05 §K02. Route, izin, dan halaman **tidak**
+berubah; hanya urutan dan judul seksi. Gaya: judul seksi saja (tanpa accordion), semua menu langsung terlihat.
+
+| Seksi | Item |
+|---|---|
+| (tanpa judul) | Dashboard Resume |
+| ACARA | Scan QR, Presensi Acara |
+| ORDER | Order, Order Unmapped |
+| LAPORAN & PAJAK | Report Spend Iklan, Report Tax, Konfigurasi Tax |
+| PRODUK & ACARA | Konfigurasi Produk, Product Name Generator, Konfigurasi Zoom, Konfigurasi Barcode / Tiket |
+| SISTEM | Add Team, Konfigurasi Role, API & Webhook, Reset Data |
+| AKUN | Profil, Logout |
+
+Seksi yang semua itemnya tidak boleh diakses role tersebut tetap disembunyikan (mis. Manajer/Admin bawaan tidak
+melihat LAPORAN & PAJAK dan SISTEM).
