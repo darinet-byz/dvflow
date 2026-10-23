@@ -14,8 +14,8 @@ import { coFormOrder, storefrontOrder } from '../fixtures/orderonline'
  *   3. `webhook_logs` benar-benar tertulis lewat service key;
  *   4. urutan status (`pending` -> `processing`) tidak menggeser `paid_at`.
  *
- * Konfigurasi yang dipakai berasal dari `supabase/seed.sql` (produk KULI, pengiklan
- * 01, event type SO/WO, sesi S1/ST, dan dua fee rule). Bila seed berubah, test ini
+ * Konfigurasi yang dipakai berasal dari `supabase/seed.sql` (produk TEST, pengiklan
+ * 99, event type SO/WO, sesi S1/ST, dan dua fee rule). Bila seed berubah, test ini
  * akan gagal — dan itu memang tujuannya: fixture dan seed harus sejalan.
  */
 
@@ -96,7 +96,7 @@ run('integrasi webhook terhadap Supabase lokal', () => {
     const response = await post(
       coFormOrder({
         order_id: orderId,
-        product_data: { name: 'KULI01SO392 - S1 - Solo' },
+        product_data: { name: 'TEST99SO392 - S1 - Solo' },
         status: 'pending',
         total_price: 22000,
         payment: { method: 'bank_transfer', data: [], channels: [], status: 'unpaid' },
@@ -112,10 +112,10 @@ run('integrasi webhook terhadap Supabase lokal', () => {
     const row = await orderRow(orderId)
     expect(row['app_status']).toBe('Pending')
     expect(row['raw_status']).toBe('pending')
-    expect(row['product_raw']).toBe('KULI01SO392 - S1 - Solo')
+    expect(row['product_raw']).toBe('TEST99SO392 - S1 - Solo')
     expect(row['product_parse_status']).toBe('valid')
-    expect(row['product_code']).toBe('KULI')
-    expect(row['advertiser_code']).toBe('01')
+    expect(row['product_code']).toBe('TEST')
+    expect(row['advertiser_code']).toBe('99')
     expect(row['event_type']).toBe('Seminar Offline')
     expect(row['batch']).toBe('392')
     expect(row['session']).toBe('S1')
@@ -134,7 +134,7 @@ run('integrasi webhook terhadap Supabase lokal', () => {
   it('C02/M01: sepuluh webhook berulang dan dua webhook BERSAMAAN tetap satu baris', async () => {
     for (let attempt = 0; attempt < 5; attempt += 1) {
       const response = await post(
-        coFormOrder({ order_id: orderId, product_data: { name: 'KULI01SO392 - S1 - Solo' }, total_price: 22000 }),
+        coFormOrder({ order_id: orderId, product_data: { name: 'TEST99SO392 - S1 - Solo' }, total_price: 22000 }),
       )
       expect(response.status).toBe(200)
       expect((await readBody<{ data: { action: string } }>(response)).data.action).toBe('updated')
@@ -143,8 +143,8 @@ run('integrasi webhook terhadap Supabase lokal', () => {
     // Dua permintaan identik dikirim bersamaan: yang kalah harus menunggu
     // transaksi pemenang lalu tidak melakukan apa pun (ON CONFLICT DO NOTHING).
     const concurrent = await Promise.all([
-      post(coFormOrder({ order_id: concurrentOrderId, product_data: { name: 'KULI01SO392 - S1 - Solo' } })),
-      post(coFormOrder({ order_id: concurrentOrderId, product_data: { name: 'KULI01SO392 - S1 - Solo' } })),
+      post(coFormOrder({ order_id: concurrentOrderId, product_data: { name: 'TEST99SO392 - S1 - Solo' } })),
+      post(coFormOrder({ order_id: concurrentOrderId, product_data: { name: 'TEST99SO392 - S1 - Solo' } })),
     ])
     expect(concurrent.map((response) => response.status)).toEqual([200, 200])
 
@@ -158,7 +158,7 @@ run('integrasi webhook terhadap Supabase lokal', () => {
   it('C13: transisi ke Paid mengisi paid_at sekali saja', async () => {
     const paid = coFormOrder({
       order_id: orderId,
-      product_data: { name: 'KULI01SO392 - S1 - Solo' },
+      product_data: { name: 'TEST99SO392 - S1 - Solo' },
       status: 'processing',
       total_price: 22000,
     })
@@ -178,7 +178,7 @@ run('integrasi webhook terhadap Supabase lokal', () => {
 
   it('C06: cancelled -> Cancelled, dan tax snapshot tetap utuh', async () => {
     const response = await post(
-      coFormOrder({ order_id: cancelledOrderId, product_data: { name: 'KULI01SO392 - S1 - Solo' }, status: 'cancelled' }),
+      coFormOrder({ order_id: cancelledOrderId, product_data: { name: 'TEST99SO392 - S1 - Solo' }, status: 'cancelled' }),
     )
     expect(response.status).toBe(200)
 
@@ -229,7 +229,7 @@ run('integrasi webhook terhadap Supabase lokal', () => {
     const response = await post(
       coFormOrder({
         order_id: qrisOrderId,
-        product_data: { name: 'KULI01SO392 - S1 - Solo' },
+        product_data: { name: 'TEST99SO392 - S1 - Solo' },
         total_price: 22000,
         payment: { method: 'GOPAY', data: [], channels: [], status: 'unpaid' },
       }),

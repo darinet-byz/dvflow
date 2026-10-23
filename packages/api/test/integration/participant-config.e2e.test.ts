@@ -38,7 +38,7 @@ run('integrasi P5/P6 terhadap Supabase lokal', () => {
   const orphanWebinarId = `e2e${suffix}x`
   const operatorUsername = `e2e_op_${suffix}`
   const adminUsername = `e2e_adm_${suffix}`
-  const productCode = 'TEST'
+  const productCode = 'ETOE'
   const ambiguousProductCode = 'K'
 
   let client: Client | undefined
@@ -92,10 +92,10 @@ run('integrasi P5/P6 terhadap Supabase lokal', () => {
       overrides.eventType === 'Seminar Offline'
         ? {
             status: 'valid',
-            productCode: 'KULI',
-            productName: 'Kuliner Masteri',
-            advertiserCode: '01',
-            advertiserName: 'Zul',
+            productCode: 'TEST',
+            productName: 'Product Test',
+            advertiserCode: '99',
+            advertiserName: 'Agent Test',
             eventType: 'Seminar Offline',
             batch: '392',
             session: 'S1',
@@ -164,17 +164,17 @@ run('integrasi P5/P6 terhadap Supabase lokal', () => {
 
     // Order seminar Paid, dan order webinar Paid.
     await seedOrder(seminarOrderId, {
-      productRaw: 'KULI01SO392 - S1 - Solo',
+      productRaw: 'TEST99SO392 - S1 - Solo',
       eventType: 'Seminar Offline',
       status: 'processing',
     })
     await seedOrder(webinarOrderId, {
-      productRaw: 'KULI01SO392 - S1 - Solo',
+      productRaw: 'TEST99SO392 - S1 - Solo',
       eventType: 'Seminar Offline',
       status: 'processing',
     })
     await seedOrder(orphanWebinarId, {
-      productRaw: 'KULI01SO392 - S1 - Solo',
+      productRaw: 'TEST99SO392 - S1 - Solo',
       eventType: 'Seminar Offline',
       status: 'processing',
     })
@@ -182,18 +182,18 @@ run('integrasi P5/P6 terhadap Supabase lokal', () => {
     // Jadikan dua order terakhir sebagai Webinar langsung di database: webhook
     // hanya memetakan produk, sedangkan jenis acara ditentukan konfigurasi.
     await db().query(
-      `update public.orders set event_type = 'Webinar Online', product_raw = 'KULI01WO392 - S1 - Solo'
+      `update public.orders set event_type = 'Webinar Online', product_raw = 'TEST99WO392 - S1 - Solo'
         where order_id in ($1, $2)`,
       [webinarOrderId, orphanWebinarId],
     )
 
-    // Destination webinar: satu terkonfigurasi (KULI01WO392 - S1 - Solo), satu tidak.
+    // Destination webinar: satu terkonfigurasi (TEST99WO392 - S1 - Solo), satu tidak.
     await db().query(
       `insert into public.app_settings (key, value_text) values ($1, $2)
        on conflict (key) do update set value_text = excluded.value_text`,
-      ['webinar_destination::KULI01WO392 - S1 - Solo', 'https://zoom.example.com/j/e2e'],
+      ['webinar_destination::TEST99WO392 - S1 - Solo', 'https://zoom.example.com/j/e2e'],
     )
-    await db().query(`update public.orders set product_raw = 'KULI01WO362 - S1 - Bandung' where order_id = $1`, [
+    await db().query(`update public.orders set product_raw = 'TEST99WO362 - S1 - Bandung' where order_id = $1`, [
       orphanWebinarId,
     ])
   })
@@ -208,7 +208,7 @@ run('integrasi P5/P6 terhadap Supabase lokal', () => {
 
     await db().query(`delete from public.attendance_events where order_id like 'e2e%'`)
     await db().query(`delete from public.orders where order_id like 'e2e%'`)
-    await db().query(`delete from public.app_settings where key like 'webinar_destination::KULI01WO392%'`)
+    await db().query(`delete from public.app_settings where key like 'webinar_destination::TEST99WO392%'`)
     await db().query(`delete from public.webhook_logs where order_id like 'e2e%'`)
     await db().query(`delete from public.users where username like 'e2e\\_%' escape '\\'`)
     await client.end()
@@ -221,7 +221,7 @@ run('integrasi P5/P6 terhadap Supabase lokal', () => {
       expect(response.status).toBe(200)
       const html = await response.text()
       expect(html).toContain(seminarOrderId)
-      expect(html).toContain('Kuliner Masteri')
+      expect(html).toContain('Product Test')
       expect(html).toContain(`/checkin/${seminarOrderId}`)
       // A19 sengaja menghapus label jenis acara dari halaman tiket.
     })
@@ -313,7 +313,7 @@ run('integrasi P5/P6 terhadap Supabase lokal', () => {
 
     it('H04: order Pending tidak dapat check-in', async () => {
       const pendingId = `e2e${suffix}p`
-      await seedOrder(pendingId, { productRaw: 'KULI01SO392 - S1 - Solo', eventType: 'Seminar Offline', status: 'pending' })
+      await seedOrder(pendingId, { productRaw: 'TEST99SO392 - S1 - Solo', eventType: 'Seminar Offline', status: 'pending' })
 
       const response = await authed(`/checkin/${pendingId}`, { method: 'POST' })
       expect(response.status).toBe(403)
@@ -379,9 +379,9 @@ run('integrasi P5/P6 terhadap Supabase lokal', () => {
     })
 
     it('D07: kode yang membuat kombinasi ambigu ditolak', async () => {
-      // Dengan produk KULI + pengiklan 01 + type SO yang sudah ada, kode produk
-      // "K" tidak ambigu sendiri. Ambiguitas dibuat lewat pengiklan: tambah
-      // pengiklan "M01" sehingga K+M01+SO akan sama dengan KULI+01+SO.
+      // Dengan produk TEST + pengiklan 99 + type SO dari seed, kode produk
+      // "K" tidak ambigu sendiri. Ambiguitas dicoba lewat pengiklan "M01"; keduanya
+      // juga melanggar format kode (4 huruf / 2 angka), jadi harus ditolak.
       const advertiser = await authedAdmin('/api/config/advertisers', {
         method: 'POST',
         body: { name: 'Pengiklan E2E', code: 'M01' },

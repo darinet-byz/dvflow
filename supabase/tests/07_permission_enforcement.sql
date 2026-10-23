@@ -101,7 +101,8 @@ select throws_ok($$select public.delete_config_master('dddddddd-dddd-dddd-dddd-d
  'DF015','MASTER_IN_USE','used product cannot be permanently deleted');
 select throws_ok($$select public.reset_product_configuration('dddddddd-dddd-dddd-dddd-dddddddddddd')$$,
  'DF015','TRANSACTIONS_DEPEND_ON_CONFIGURATION','cleanup refuses existing transactions');
-select is((select count(*) from public.products),2::bigint,'failed cleanup keeps master rows');
+-- Hanya fixture test ini; produk dari seed.sql tidak ikut dihitung.
+select is((select count(*) from public.products where code in ('AAAA','BBBB')),2::bigint,'failed cleanup keeps master rows');
 select is((select count(*) from public.orders),2::bigint,'failed cleanup keeps orders');
 
 -- Empty disposable fixtures only: prove the narrow reset and rollback.
@@ -115,6 +116,6 @@ select is((select count(*) from public.event_types where code in ('SO','WO')),2:
 select is((select count(*) from public.payment_fee_rules where identifier='keep'),1::bigint,'tax preserved');
 select is((select has_all_product_access from public.users where id='eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'),false,'scoped user not elevated');
 rollback to before_reset;
-select is((select count(*) from public.products),2::bigint,'rollback restores configuration');
+select is((select count(*) from public.products where code in ('AAAA','BBBB')),2::bigint,'rollback restores configuration');
 select * from finish();
 rollback;

@@ -17,17 +17,18 @@
 -- event_types (SO/WO) dan sessions_config (S1/S2/ST) tidak diulang di sini:
 -- keduanya seed canonical yang sudah ada di migrasi 0006/0007.
 
--- Produk & pengiklan contoh (pola kode dari PRD §67: KM / Kuliner Masteri).
+-- Produk & pengiklan contoh. Sengaja bernama/berkode "test" supaya tidak tertukar dengan data
+-- bisnis nyata dan tidak bentrok dengan fixture test (yang memakai 01/02, AAAA/BBBB, dst.).
 insert into public.products (name, code)
 values
-  ('Kuliner Masteri', 'KULI'),
-  ('Bisnis Masteri', 'BOMM')
+  ('Product Test', 'TEST'),
+  ('Product Test 2', 'TESB')
 on conflict (code_normalized) do nothing;
 
 insert into public.advertisers (name, code)
 values
-  ('Zul', '01'),
-  ('Rahman', '02')
+  ('Agent Test', '99'),
+  ('Agent Test 2', '98')
 on conflict (code_normalized) do nothing;
 
 -- Fee rule contoh yang sekaligus mencerminkan angka acceptance test:

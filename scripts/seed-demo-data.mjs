@@ -49,20 +49,20 @@ const webhookSecret = readDevVars()
 const username = argValue('--user')
 const password = argValue('--password')
 
-/** Konfigurasi yang ada di seed.sql: KM/Kuliner Masteri, BM/Bisnis Masteri, 01/Zul, 02/Rahman, S1/S2/ST. */
+/** Konfigurasi yang ada di seed.sql: TEST/Product Test, TESB/Product Test 2, 99/Agent Test, 98/Agent Test 2, S1/S2/ST. */
 const DEMO_ORDERS = [
-  { product: 'KM01SO392 - S1 - Solo', status: 'processing', pay: 'bank_transfer', price: 385000, name: 'Ahmad Fauzi', phone: '+6281200111222', city: 'Solo' },
-  { product: 'KM01SO392 - S1 - Solo', status: 'processing', pay: 'qris', price: 385000, name: 'Bella Safira', phone: '+6281200222333', city: 'Solo' },
-  { product: 'KM01SO392 - S1 - Bandung', status: 'complete', pay: 'bank_transfer', price: 385000, name: 'Candra Wijaya', phone: '+6281200333444', city: 'Bandung' },
-  { product: 'KM02WO205 - S2 - Jakarta', status: 'processing', pay: 'qris', price: 250000, name: 'Dewi Lestari', phone: '+6281200444555', city: 'Jakarta' },
-  { product: 'KM02WO205 - S2 - Jakarta', status: 'pending', pay: 'bank_transfer', price: 250000, name: 'Eko Prasetyo', phone: '+6281200555666', city: 'Jakarta' },
-  { product: 'BM01SO001 - ST - Surabaya', status: 'processing', pay: 'bank_transfer', price: 150000, name: 'Fitri Handayani', phone: '+6281200666777', city: 'Surabaya' },
-  { product: 'BM01SO001 - ST - Surabaya', status: 'cancelled', pay: 'bank_transfer', price: 150000, name: 'Gilang Ramadhan', phone: '+6281200777888', city: 'Surabaya' },
-  { product: 'BM02WO392 - S1 - Medan', status: 'processing', pay: 'qris', price: 420000, name: 'Hana Permata', phone: '+6281200888999', city: 'Medan' },
-  { product: 'KM01SO392 - S1 - Solo', status: 'processing', pay: 'metode_tidak_dikenal', price: 385000, name: 'Irfan Maulana', phone: '+6281200999000', city: 'Solo' },
+  { product: 'TEST99SO392 - S1 - Solo', status: 'processing', pay: 'bank_transfer', price: 385000, name: 'Ahmad Fauzi', phone: '+6281200111222', city: 'Solo' },
+  { product: 'TEST99SO392 - S1 - Solo', status: 'processing', pay: 'qris', price: 385000, name: 'Bella Safira', phone: '+6281200222333', city: 'Solo' },
+  { product: 'TEST99SO392 - S1 - Bandung', status: 'complete', pay: 'bank_transfer', price: 385000, name: 'Candra Wijaya', phone: '+6281200333444', city: 'Bandung' },
+  { product: 'TEST98WO205 - S2 - Jakarta', status: 'processing', pay: 'qris', price: 250000, name: 'Dewi Lestari', phone: '+6281200444555', city: 'Jakarta' },
+  { product: 'TEST98WO205 - S2 - Jakarta', status: 'pending', pay: 'bank_transfer', price: 250000, name: 'Eko Prasetyo', phone: '+6281200555666', city: 'Jakarta' },
+  { product: 'TESB99SO001 - ST - Surabaya', status: 'processing', pay: 'bank_transfer', price: 150000, name: 'Fitri Handayani', phone: '+6281200666777', city: 'Surabaya' },
+  { product: 'TESB99SO001 - ST - Surabaya', status: 'cancelled', pay: 'bank_transfer', price: 150000, name: 'Gilang Ramadhan', phone: '+6281200777888', city: 'Surabaya' },
+  { product: 'TESB98WO392 - S1 - Medan', status: 'processing', pay: 'qris', price: 420000, name: 'Hana Permata', phone: '+6281200888999', city: 'Medan' },
+  { product: 'TEST99SO392 - S1 - Solo', status: 'processing', pay: 'metode_tidak_dikenal', price: 385000, name: 'Irfan Maulana', phone: '+6281200999000', city: 'Solo' },
   { product: 'Nama Produk Tidak Sesuai Format', status: 'pending', pay: 'bank_transfer', price: 100000, name: 'Joko Susilo', phone: '+6281201111222', city: 'Yogyakarta' },
-  { product: 'KM01SO392 - S1 - Solo', status: 'processing', pay: 'bank_transfer', price: 770000, name: 'Kartika Sari', phone: '+6281201222333', city: 'Solo' },
-  { product: 'BM01WO205 - S2 - Semarang', status: 'processing', pay: 'qris', price: 300000, name: 'Lukman Hakim', phone: '+6281201333444', city: 'Semarang' },
+  { product: 'TEST99SO392 - S1 - Solo', status: 'processing', pay: 'bank_transfer', price: 770000, name: 'Kartika Sari', phone: '+6281201222333', city: 'Solo' },
+  { product: 'TESB99WO205 - S2 - Semarang', status: 'processing', pay: 'qris', price: 300000, name: 'Lukman Hakim', phone: '+6281201333444', city: 'Semarang' },
 ]
 
 async function post(path, body, token) {

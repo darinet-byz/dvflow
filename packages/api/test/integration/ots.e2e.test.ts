@@ -81,7 +81,7 @@ run('integrasi OTS (A34) terhadap Supabase lokal', () => {
     const response = await authed('/api/ots', {
       name: 'Budi Integrasi',
       phone: '081234567890',
-      product_code: 'KULI',
+      product_code: 'TEST',
       batch: '392',
       session: 'S1',
       city: 'Solo',
@@ -117,7 +117,7 @@ run('integrasi OTS (A34) terhadap Supabase lokal', () => {
       order_id: orderId,
       name: 'Budi Integrasi Edit',
       phone: '0813',
-      product_code: 'KULI',
+      product_code: 'TEST',
       batch: '058',
       session: 's2',
       city: 'Bandung',

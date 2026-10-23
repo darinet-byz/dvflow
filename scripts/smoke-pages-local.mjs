@@ -118,7 +118,7 @@ const orderPayload = {
   action: 'create',
   payload: {
     order_id: orderId,
-    product_data: { name: 'KULI01SO392 - S1 - Solo' },
+    product_data: { name: 'TEST99SO392 - S1 - Solo' },
     customer_data: { name: 'Peserta Smoke', phone: '+628000', email: 'smoke@example.com' },
     payment: { method: 'bank_transfer', data: [], channels: [], status: 'unpaid' },
     status: 'processing',

@@ -44,10 +44,10 @@ export async function runBrowser(db, env) {
       ('browserlimited','Browser Limited',extensions.crypt('DisposablePassword123!',extensions.gen_salt('bf',4)),'browser_custom',false);
       insert into public.app_role_permissions(role_id,permission_key) values
         ('browser_custom','operasional.order'),('browser_custom','account.profile');
-      insert into public.user_product_access(user_id,product_code) select id,'KULI' from public.users where username='browserlimited';
+      insert into public.user_product_access(user_id,product_code) select id,'TEST' from public.users where username='browserlimited';
       insert into public.orders(order_id,name,product_code,product_raw,event_type,app_status,gross_amount) values
-        ('browser-order-a','Browser Participant A','KULI','KULI01SO1 - S1 - Solo','Seminar Offline','Paid',100),
-        ('browser-order-b','Browser Participant B','BOMM','BOMM01SO1 - S1 - Solo','Seminar Offline','Paid',200);`)
+        ('browser-order-a','Browser Participant A','TEST','TEST99SO1 - S1 - Solo','Seminar Offline','Paid',100),
+        ('browser-order-b','Browser Participant B','TESB','TESB99SO1 - S1 - Solo','Seminar Offline','Paid',200);`)
     browser = await chromium.launch({ headless: true, ...(process.env.RBAC_BROWSER_CHANNEL ? { channel: process.env.RBAC_BROWSER_CHANNEL } : {}) })
     const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } })
     await context.route('**/*', route => {
