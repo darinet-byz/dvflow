@@ -951,3 +951,8 @@ berubah; hanya urutan dan judul seksi. Gaya: judul seksi saja (tanpa accordion),
 
 Seksi yang semua itemnya tidak boleh diakses role tersebut tetap disembunyikan (mis. Manajer/Admin bawaan tidak
 melihat LAPORAN & PAJAK dan SISTEM).
+
+**Catatan operasional (23 Oktober 2026).** Run GitHub Actions lama milik `b630774` (A36, dulu gagal di cek skema)
+di-re-run setelah deploy `2d19aef`, sehingga production kembali ke kode A36 (tanpa Report Spend Iklan dan sidebar
+A38). `deploy.yml` kini menolak deploy bila commit yang dibangun bukan ujung `main` saat itu. Bila deploy tertahan
+cek skema, terapkan migrasi lalu picu deploy baru (push/`workflow_dispatch`), **jangan** re-run run lama.

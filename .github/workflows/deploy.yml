@@ -39,6 +39,15 @@ jobs:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_API_BASE_URL: ''
+      # Kejadian 23 Okt 2026: re-run run lama (b630774) men-deploy kode lama dan menimpa production.
+      # Hanya ujung main saat ini yang boleh di-deploy.
+      - name: Ensure commit is the latest main
+        run: |
+          git fetch --no-tags --depth=1 origin main
+          if [ "$(git rev-parse FETCH_HEAD)" != "$GITHUB_SHA" ]; then
+            echo "Commit $GITHUB_SHA bukan ujung main — run lama tidak boleh menimpa production."
+            exit 1
+          fi
       - name: Deploy production
         run: npx --no-install wrangler pages deploy apps/web/dist --project-name=dvflow --branch=main
         env:
