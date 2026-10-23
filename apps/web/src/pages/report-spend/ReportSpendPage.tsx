@@ -139,10 +139,15 @@ function describeDates(from: string, to: string): string {
   return from === to ? formatDate(from) : `${formatDate(from)} – ${formatDate(to)}`
 }
 
-function profitClass(value: number): string {
-  if (value > 0) return 'font-semibold text-success'
-  if (value < 0) return 'font-semibold text-danger'
+function profitTone(value: number): string {
+  if (value > 0) return 'text-success'
+  if (value < 0) return 'text-danger'
   return ''
+}
+
+function profitClass(value: number): string {
+  const tone = profitTone(value)
+  return tone === '' ? '' : `font-semibold ${tone}`
 }
 
 /** PPN tiap akun iklan biasanya tetap, jadi form baru memakai PPN report terakhir pengiklan ini. */
@@ -321,18 +326,35 @@ export function ReportSpendPage() {
       )}
 
       {summary === undefined ? null : (
-        <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-6">
-          <KpiCard
-            label="Total Spend"
-            value={formatMoney(summary.total_spend)}
-            hint={`Spend ${formatMoney(summary.spend)} + PPN ${formatMoney(summary.tax_amount)}`}
-            highlight
-          />
-          <KpiCard label="Leads" value={formatCount(summary.leads)} />
-          <KpiCard label="Paid" value={formatCount(summary.paid)} />
-          <KpiCard label="Total Omzet" value={formatMoney(summary.omzet)} hint="Gross order Paid" />
-          <KpiCard label={totalProfit < 0 ? 'Boncos' : 'Profit'} value={formatMoney(totalProfit)} hint="Omzet − Total Spend" />
-          <KpiCard label="% Profit / Boncos" value={formatSpendRoi(summary.omzet, summary.total_spend)} hint="Terhadap total spend" />
+        <div className="mt-4">
+          {/* Fokus utama: Spend dan Profit/Boncos besar di atas, angka pendukung di bawah. */}
+          <div className="grid gap-3 md:grid-cols-2">
+            <KpiCard
+              size="lg"
+              label="Total Spend"
+              value={formatMoney(summary.total_spend)}
+              hint={`Spend ${formatMoney(summary.spend)} + PPN ${formatMoney(summary.tax_amount)}`}
+              highlight
+            />
+            <KpiCard
+              size="lg"
+              label={totalProfit < 0 ? 'Boncos' : 'Profit'}
+              value={formatMoney(totalProfit)}
+              valueClassName={profitTone(totalProfit)}
+              hint="Omzet − Total Spend"
+            />
+          </div>
+          <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <KpiCard label="Leads" value={formatCount(summary.leads)} />
+            <KpiCard label="Paid" value={formatCount(summary.paid)} />
+            <KpiCard label="Total Omzet" value={formatMoney(summary.omzet)} hint="Gross order Paid" />
+            <KpiCard
+              label="% Profit / Boncos"
+              value={formatSpendRoi(summary.omzet, summary.total_spend)}
+              valueClassName={profitTone(totalProfit)}
+              hint="Terhadap total spend"
+            />
+          </div>
         </div>
       )}
 

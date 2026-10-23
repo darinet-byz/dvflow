@@ -64,6 +64,7 @@ export function KpiCard({
   highlight = false,
   size = 'md',
   className,
+  valueClassName,
 }: {
   label: string
   value: string
@@ -72,6 +73,8 @@ export function KpiCard({
   /** `lg` untuk angka utama (mis. Gross/Net) yang perlu lebih menonjol. */
   size?: 'md' | 'lg'
   className?: string
+  /** Warna angka (mis. `text-success` / `text-danger`); menggantikan `text-ink`. */
+  valueClassName?: string
 }) {
   return (
     <div
@@ -85,7 +88,7 @@ export function KpiCard({
       <p className={cn('text-[11px] font-semibold uppercase tracking-wide', highlight ? 'text-primary' : 'text-ink-soft')}>
         {label}
       </p>
-      <p className={cn('mt-1 break-words font-bold text-ink', size === 'lg' ? 'text-[28px]' : 'text-[20px]')}>{value}</p>
+      <p className={cn('mt-1 break-words font-bold', valueClassName || 'text-ink', size === 'lg' ? 'text-[28px]' : 'text-[20px]')}>{value}</p>
       {hint === undefined ? null : <p className="text-[11px] text-ink-soft">{hint}</p>}
     </div>
   )
