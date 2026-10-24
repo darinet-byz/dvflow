@@ -178,8 +178,8 @@ select ok(
   'kedua job retensi terjadwal di pg_cron');
 
 select ok(
-  (select command like '%interval ''60 days''%' from cron.job where jobname = 'dvflow_attendance_retention'),
-  'job attendance memakai retensi 60 hari');
+  (select command like '%interval ''30 days''%' from cron.job where jobname = 'dvflow_attendance_retention'),
+  'job attendance memakai retensi 30 hari (0052)');
 
 select ok(
   (select command like '%interval ''7 days''%' from cron.job where jobname = 'dvflow_webhook_logs_retention'),

@@ -1010,3 +1010,10 @@ dihapus beserta presensinya. Dicek di produksi 24 Okt 2026: aktif, run terakhir 
 **Implementasi (0051).** RPC `delete_unmapped_orders(p_actor_id, p_order_ids)` (service_role saja; baris dikunci
 `for update` supaya remap/webhook bersamaan tidak memetakan order di tengah penghapusan). Endpoint
 `POST /api/orders/unmapped/delete` (API Contract §12b).
+
+## A41 — Retensi presensi kembali 30 hari (24 Oktober 2026)
+
+Atas permintaan pengguna, retensi `attendance_events` kembali ke **30 hari** sesuai CLAUDE.md §4. Ini menggantikan
+60 hari dari A10 (migrasi 0021). Migrasi 0052 memperbarui job `dvflow_attendance_retention` (tetap 03:17 UTC).
+- Master Order tidak terhapus; hanya baris presensi yang lebih tua dari 30 hari.
+- Saat diterapkan (24 Okt 2026) tidak ada presensi produksi yang berumur lebih dari 30 hari, jadi tidak ada data yang hilang.
