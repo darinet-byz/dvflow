@@ -251,6 +251,11 @@ Tidak ada unique constraint: rentang bertumpuk untuk produk + batch + pengiklan 
 RLS: baca dengan izin `operasional.report_spend` + scope produk + (akun Advertiser) pengiklan sendiri.
 Tulis hanya lewat Worker (service_role). Hard delete hanya oleh pengiklan pemilik.
 
+### 12b. RPC batch_session_summary (A39, 0049)
+Resume Batch: tiket Paid (`sum(quantity)`, order `app_status = Paid`, `product_parse_status = valid`) per (sesi, kota,
+jenis acara) untuk satu produk + batch (`normalize_batch`), dengan rincian per pengiklan (+ OTS). Tidak ada tabel baru.
+Izin `operasional.resume_batch`; scope produk + pengiklan diterapkan ulang lewat `actor_can_order`.
+
 ## 13. Minimum indexes
 orders:
 - unique(order_id)

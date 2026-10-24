@@ -26,6 +26,8 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Scan QR', path: OPERASIONAL_PATH, icon: 'scan-line' },
       { label: 'Presensi Acara', path: '/presensi', icon: 'user-check' },
+      // A39: jumlah tiket Paid per sesi dalam satu batch, gabungan semua pengiklan.
+      { label: 'Resume Batch', path: '/resume-batch', icon: 'layers' },
     ],
   },
   {

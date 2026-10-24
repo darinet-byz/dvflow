@@ -25,6 +25,7 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
       'Dashboard Resume',
       'Scan QR',
       'Presensi Acara',
+      'Resume Batch',
       'Order',
       'Order Unmapped',
       'Report Spend Iklan',

@@ -22,6 +22,7 @@ export const PATH_PERMISSION_MAP: Record<string, string> = {
   '/presensi': 'operasional.presensi',
   '/generator': 'operasional.generator',
   '/report-spend': 'operasional.report_spend',
+  '/resume-batch': 'operasional.resume_batch',
   '/konfigurasi-produk': 'config.produk',
   '/konfigurasi-tax': 'config.tax',
   '/report-tax': 'config.report_tax',

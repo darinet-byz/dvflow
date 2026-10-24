@@ -65,6 +65,7 @@ export type AppPermissionKey =
   | 'operasional.presensi'
   | 'operasional.generator'
   | 'operasional.report_spend'
+  | 'operasional.resume_batch'
   | 'config.produk'
   | 'config.tax'
   | 'config.report_tax'

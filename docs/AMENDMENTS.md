@@ -956,3 +956,30 @@ melihat LAPORAN & PAJAK dan SISTEM).
 di-re-run setelah deploy `2d19aef`, sehingga production kembali ke kode A36 (tanpa Report Spend Iklan dan sidebar
 A38). `deploy.yml` kini menolak deploy bila commit yang dibangun bukan ujung `main` saat itu. Bila deploy tertahan
 cek skema, terapkan migrasi lalu picu deploy baru (push/`workflow_dispatch`), **jangan** re-run run lama.
+
+## A39 — Resume Batch: tiket Paid per sesi (24 Oktober 2026)
+
+**Kebutuhan pengguna.** Satu batch berisi beberapa sesi: seminar (mis. 4 kota → 6 sesi) atau webinar (mis. 4 sesi).
+Dibutuhkan resume jumlah peserta tiap sesi dari **semua pengiklan**. Ini mengisi catatan A37 "dashboard level
+produk + batch + semua pengiklan".
+
+**Keputusan pengguna.**
+- **Metrik:** hanya **tiket Paid** = `sum(orders.quantity)` order Paid (definisi sama dengan Jumlah Tiket, A25).
+- **Tampilan:** tabel total per sesi + kota (semua pengiklan + OTS); klik sesi → drawer rincian per pengiklan.
+- **Menu baru:** "Resume Batch" di seksi ACARA setelah Presensi Acara (perubahan sidebar atas permintaan pengguna).
+
+**Perilaku.**
+- Filter wajib Produk + Batch (batch ternormalisasi, A33); opsional Jenis acara. Tanpa filter tanggal.
+- Baris = (sesi, kota, jenis acara); kota tidak membedakan huruf (A31). Urut S1, S2, …, S10 lalu kota.
+- Hanya order `product_parse_status = 'valid'`. Sesi tanpa tiket Paid tidak tampil (tidak ada daftar jadwal sesi di konfigurasi).
+- Order OTS tampil sebagai baris "OTS" di rincian (tidak punya pengiklan, A29).
+- Scope: produk per akun; akun Advertiser hanya melihat ordernya sendiri (A20), jadi angkanya bukan total semua pengiklan.
+
+**Implementasi (0049).**
+- Izin `operasional.resume_batch` "Resume Batch", bawaan untuk Manajer dan Admin; role lain lewat Konfigurasi Role.
+- RPC baca `batch_session_summary(p_product_code, p_batch, p_event_type)` (security definer): scope diterapkan ulang
+  lewat `actor_can_order`, karena role yang hanya punya izin ini tidak lolos RLS `orders`. Produk/batch kosong → `INVALID_ARGUMENT`.
+- `can_read_configuration()` ditambah `operasional.resume_batch` supaya dropdown produk terbaca.
+- Tidak ada tabel/kolom baru dan tidak ada endpoint Worker baru (baca langsung lewat RPC).
+
+**Catatan deploy.** Deploy tertahan `check-schema-version` sampai 0049 diterapkan di database produksi.
