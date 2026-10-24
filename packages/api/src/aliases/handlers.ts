@@ -3,7 +3,7 @@ import { buildIlikeOrFilter, sanitizeSearchTerm } from '../http/postgrest-filter
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
 import type { RouteContext } from '../router'
-import { requirePermission, productAccess, assertProductAccess, allowsProduct } from '../permissions'
+import { requirePermission, requirePermissions, productAccess, assertProductAccess, allowsProduct } from '../permissions'
 import { loadProductConfig } from '../webhooks/handlers'
 
 async function requireConfigPermission(context: RouteContext) {
@@ -198,3 +198,26 @@ export async function batchRemapOrders(context: RouteContext): Promise<Response>
   return ok(result)
 }
 
+
+/**
+ * POST /api/orders/unmapped/delete
+ * A40: hapus massal order yang MASIH unmapped (beserta presensinya). Order yang sudah ter-mapping
+ * dilewati oleh RPC; order bisa muncul lagi bila OrderOnline mengirim webhook baru untuknya.
+ */
+export async function deleteUnmappedOrders(context: RouteContext): Promise<Response> {
+  const actor = await requirePermissions(context, ['operasional.order_unmapped', 'action.delete_master'])
+  const access = await productAccess(context, actor)
+  if (!access.all) throw new ApiFailure('FORBIDDEN')
+
+  const body = await readJsonObject(context.request)
+  const orderIds = Array.isArray(body['orderIds']) ? (body['orderIds'] as unknown[]).filter((x): x is string => typeof x === 'string') : []
+  if (orderIds.length === 0 || orderIds.length > 1000) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Daftar orderId minimal 1 dan maksimal 1000')
+  }
+
+  const result = await context.db.rpc<{ deleted_count: number; skipped_count: number }>(
+    'delete_unmapped_orders',
+    { p_actor_id: actor.id, p_order_ids: orderIds },
+  )
+  return ok(result)
+}

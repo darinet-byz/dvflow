@@ -986,3 +986,27 @@ produk + batch + semua pengiklan".
 
 **Revisi urutan (0050, 24 Oktober 2026).** Atas permintaan pengguna, baris dikelompokkan per **kota** (abjad), lalu
 sesi S1, S2, …, S10 di dalam kota; kolom Kota dipindah ke paling kiri. Hanya urutan yang berubah.
+
+## A40 — Hapus massal Order Unmapped (24 Oktober 2026)
+
+**Permintaan pengguna.** Order Unmapped bisa dipilih lewat checklist lalu dihapus sekaligus. Penghapusan otomatis
+90 hari tetap dipakai.
+
+**Perilaku.**
+- Tombol **Hapus (n)** muncul di samping "Petakan Terpilih" saat ada order dicentang, hanya bagi pemegang izin
+  `action.delete_master`. Ada modal konfirmasi sebelum menghapus.
+- Hanya order yang **masih** unmapped (`product_parse_status = 'invalid'`) yang dihapus, beserta presensi dan sumber
+  tokonya. Order yang sudah ter-mapping di antara memilih dan menekan Hapus dilewati (`skipped_count`).
+- Order yang dihapus bisa muncul lagi bila OrderOnline mengirim webhook baru untuk order itu.
+- **Pengecualian aturan "No Master Order delete"** ini hanya berlaku untuk order unmapped. Order ter-mapping tetap
+  tidak bisa dihapus.
+
+**Izin.** `operasional.order_unmapped` + `action.delete_master` + akses semua produk; dicek di Worker dan diulang di RPC.
+
+**Retensi otomatis 90 hari: tidak berubah.** Cron `dvflow_unmapped_orders_retention` (0026, setiap hari 03:45 UTC)
+menjalankan `purge_expired_unmapped_orders(90)`: order unmapped yang diterima lebih dari 90 hari lalu (`created_at`)
+dihapus beserta presensinya. Dicek di produksi 24 Okt 2026: aktif, run terakhir `succeeded`.
+
+**Implementasi (0051).** RPC `delete_unmapped_orders(p_actor_id, p_order_ids)` (service_role saja; baris dikunci
+`for update` supaya remap/webhook bersamaan tidak memetakan order di tengah penghapusan). Endpoint
+`POST /api/orders/unmapped/delete` (API Contract §12b).

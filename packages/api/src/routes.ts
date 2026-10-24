@@ -18,7 +18,7 @@ import { scannerManualCheckin, scannerSearch } from './scanner/handlers'
 import { deleteOts, listOts, listOtsEvents, saveOts } from './ots/handlers'
 import { createAdSpend, deleteAdSpend, updateAdSpend } from './ad-spend/handlers'
 import { orderOnlineWebhook } from './webhooks/handlers'
-import { batchRemapOrders, deleteAlias, listAliases, listUnmappedOrders, saveAlias } from './aliases/handlers'
+import { batchRemapOrders, deleteAlias, deleteUnmappedOrders, listAliases, listUnmappedOrders, saveAlias } from './aliases/handlers'
 import { getDataSummary, purgeExpiredUnmapped, resetData } from './developer/handlers'
 
 /**
@@ -99,6 +99,7 @@ export const ROUTES: Route[] = [
   { method: 'DELETE', path: '/api/product-aliases/:id', handler: deleteAlias, auth: 'access' },
   { method: 'GET', path: '/api/orders/unmapped', handler: listUnmappedOrders, auth: 'access' },
   { method: 'POST', path: '/api/orders/batch-remap', handler: batchRemapOrders, auth: 'access' },
+  { method: 'POST', path: '/api/orders/unmapped/delete', handler: deleteUnmappedOrders, auth: 'access' },
 
   // Scanner (operator terautentikasi).
   { method: 'POST', path: '/checkin/:orderId', handler: checkinByQr, auth: 'access' },

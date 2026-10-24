@@ -31,6 +31,9 @@ const columns = [
 export function OrderUnmappedPage() {
   const { profile } = useSession()
   const canManageAliases = hasPermission(profile, 'config.alias_produk')
+  // A40: hapus massal hanya untuk order yang masih unmapped.
+  const canDelete = hasPermission(profile, 'action.delete_master')
+  const [deleteOpen, setDeleteOpen] = useState(false)
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebouncedValue(search.trim())
   const [page, setPage] = useState(1)
@@ -158,6 +161,27 @@ export function OrderUnmappedPage() {
     }
   }
 
+  async function handleBatchDelete() {
+    setBusy(true)
+    try {
+      const result = await authorizedRequest<{ deleted_count: number; skipped_count: number }>(
+        '/api/orders/unmapped/delete',
+        { method: 'POST', body: { orderIds: Array.from(selectedIds) } },
+      )
+      toast.show(
+        `${result.deleted_count} order dihapus.${result.skipped_count > 0 ? ` ${result.skipped_count} dilewati karena sudah terpetakan.` : ''}`,
+        'success',
+      )
+      setSelectedIds(new Set())
+      setDeleteOpen(false)
+      reload()
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'Gagal menghapus order.', 'danger')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   return (
     <>
       <PageHeader
@@ -185,6 +209,11 @@ export function OrderUnmappedPage() {
                 <Button variant="primary" onClick={openRemapModal}>
                   🔗 Petakan Terpilih ({selectedIds.size})
                 </Button>
+                {canDelete ? (
+                  <Button variant="danger" onClick={() => setDeleteOpen(true)}>
+                    Hapus ({selectedIds.size})
+                  </Button>
+                ) : null}
               </div>
             ) : null}
           </div>
@@ -452,6 +481,27 @@ export function OrderUnmappedPage() {
             ) : null}
           </div> : null}
         </div>
+      </Modal>
+
+      <Modal
+        open={deleteOpen}
+        title={`Hapus ${selectedIds.size} Order Unmapped`}
+        onClose={() => (busy ? undefined : setDeleteOpen(false))}
+        footer={
+          <>
+            <Button onClick={() => setDeleteOpen(false)} disabled={busy}>
+              Batal
+            </Button>
+            <Button variant="danger" loading={busy} onClick={() => void handleBatchDelete()}>
+              Hapus
+            </Button>
+          </>
+        }
+      >
+        <p>
+          Hapus {selectedIds.size} order unmapped yang dipilih? Presensinya ikut terhapus. Order bisa muncul lagi bila
+          OrderOnline mengirim webhook baru untuk order itu.
+        </p>
       </Modal>
     </>
   )

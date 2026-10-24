@@ -71,3 +71,24 @@ it('menampilkan halaman Order Unmapped, checklist order, dan modal batch remappi
   expect(screen.getByText(/Petakan 1 Order Terpilih/)).toBeDefined()
   expect(screen.getByLabelText(/Nama Alias di OrderOnline/)).toBeDefined()
 })
+
+it('A40: hapus order terpilih lewat modal konfirmasi', async () => {
+  vi.mocked(authorizedRequest).mockImplementation(async (path) => {
+    if (path === '/api/orders/unmapped/delete') return { deleted_count: 1, skipped_count: 0 }
+    if (typeof path === 'string' && path.includes('/api/orders/unmapped')) {
+      return { rows: [{ id: 'ord-9', order_id: 'SOLO-9', name: 'Budi', phone: null, email: null, product_raw: 'Produk Lama', gross_amount: 100000, app_status: 'Pending', created_at: new Date().toISOString() }] }
+    }
+    return { rows: [] }
+  })
+
+  render(<OrderUnmappedPage />)
+  fireEvent.click(await screen.findByLabelText('Pilih order SOLO-9'))
+  fireEvent.click(await screen.findByRole('button', { name: 'Hapus (1)' }))
+  expect(screen.getByText('Hapus 1 Order Unmapped')).toBeDefined()
+  fireEvent.click(screen.getByRole('button', { name: 'Hapus' }))
+
+  await vi.waitFor(() => expect(authorizedRequest).toHaveBeenCalledWith('/api/orders/unmapped/delete', {
+    method: 'POST',
+    body: { orderIds: ['SOLO-9'] },
+  }))
+})

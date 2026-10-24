@@ -485,3 +485,4 @@ sering terlanggar:
 | 2026-10-20 | - | Gate: typecheck PASS; unit test 611 lulus (271 api + 133 shared + 207 web); pgTAP 498 PASS (reset --no-seed); integration 37 PASS (termasuk OTS e2e baru); build PASS; verifikasi artefak QR PASS |
 | 2026-10-20 | - | Tiga ekspektasi test integrasi lama diselaraskan dengan perilaku/seed saat ini: label jenis acara di halaman tiket (memang dihapus A19), nama fee rule `Bank Transfer` (katalog 0032), dan E02 memakai `GoPay` (satu-satunya rule persentase yang aktif di seed) |
 | 2026-10-24 | F2.0 | A39 (0049): menu Resume Batch - tiket Paid per sesi + kota dalam satu produk + batch, gabungan semua pengiklan + OTS, drawer rincian per pengiklan; izin operasional.resume_batch; RPC batch_session_summary |
+| 2026-10-24 | F2.0 | A39 revisi (0050): Resume Batch diurutkan per kota lalu sesi. A40 (0051): hapus massal Order Unmapped lewat checklist (izin action.delete_master), RPC delete_unmapped_orders; retensi otomatis 90 hari tetap |

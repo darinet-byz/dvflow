@@ -255,6 +255,15 @@ Error:
 - `AD_SPEND_NOT_FOUND` 404 — id tidak ada atau milik pengiklan lain.
 - `FORBIDDEN` 403, `INVALID_ARGUMENT` 400.
 
+## 12b. Hapus Order Unmapped (A40)
+`POST /api/orders/unmapped/delete` → 200. Butuh izin `operasional.order_unmapped` + `action.delete_master` + akses
+semua produk. Hanya order yang masih `product_parse_status = 'invalid'` yang dihapus (beserta presensi dan sumber
+tokonya); order ter-mapping atau tidak dikenal dilewati.
+
+Body: `{ "orderIds": ["SOLO-1001", "SOLO-1002"] }` (1–1000 id). Response: `{ "deleted_count": 2, "skipped_count": 0 }`.
+
+Error: `FORBIDDEN` 403, `INVALID_ARGUMENT` 400.
+
 ## 13. Profile endpoints
 GET /api/profile
 PATCH /api/profile
