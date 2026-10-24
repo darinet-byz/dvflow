@@ -43,8 +43,9 @@ type BatchSummary = {
 }
 
 const COLUMNS: readonly TableColumn[] = [
-  { key: 'session', header: 'Sesi', minWidth: 90 },
+  // Dikelompokkan per kota (abjad), lalu sesi — urutan dari RPC.
   { key: 'city', header: 'Kota', minWidth: 140 },
+  { key: 'session', header: 'Sesi', minWidth: 90 },
   { key: 'event_type', header: 'Jenis', minWidth: 130 },
   { key: 'advertisers', header: 'Pengiklan', align: 'right', minWidth: 100 },
   { key: 'tickets', header: 'Tiket Paid', align: 'right', minWidth: 110 },
@@ -142,12 +143,12 @@ export function ResumeBatchPage() {
                 <DataTable columns={COLUMNS}>
                   {rows.map((row) => (
                     <TableRow key={`${row.session ?? ''}|${row.city ?? ''}|${row.event_type ?? ''}`}>
+                      <TableCell>{formatText(row.city)}</TableCell>
                       <TableCell>
                         <button type="button" onClick={() => setSelected(row)} className="font-semibold text-primary hover:underline">
                           {row.session ?? 'Tanpa sesi'}
                         </button>
                       </TableCell>
-                      <TableCell>{formatText(row.city)}</TableCell>
                       <TableCell>
                         {row.event_type === null ? '-' : <Badge tone={eventTypeTone(row.event_type)}>{row.event_type}</Badge>}
                       </TableCell>

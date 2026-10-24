@@ -983,3 +983,6 @@ produk + batch + semua pengiklan".
 - Tidak ada tabel/kolom baru dan tidak ada endpoint Worker baru (baca langsung lewat RPC).
 
 **Catatan deploy.** Deploy tertahan `check-schema-version` sampai 0049 diterapkan di database produksi.
+
+**Revisi urutan (0050, 24 Oktober 2026).** Atas permintaan pengguna, baris dikelompokkan per **kota** (abjad), lalu
+sesi S1, S2, …, S10 di dalam kota; kolom Kota dipindah ke paling kiri. Hanya urutan yang berubah.

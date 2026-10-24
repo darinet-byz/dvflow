@@ -4,7 +4,7 @@ begin;
 set local search_path = public, extensions, pg_catalog;
 select no_plan();
 
-select ok(public.schema_version() >= 49, 'schema_version mencakup 0049');
+select ok(public.schema_version() >= 50, 'schema_version mencakup 0050');
 select ok(exists(select 1 from public.app_role_permissions where role_id = 'manajer' and permission_key = 'operasional.resume_batch'),
   'manajer punya izin Resume Batch bawaan');
 
@@ -44,8 +44,8 @@ set local role authenticated;
 set local request.jwt.claims = '{"sub":"f9000000-0000-0000-0000-0000000000c1","app_role":"batch_viewer"}';
 create temp table r on commit drop as select public.batch_session_summary('aaaa','0058') as v;
 select is((select v->'summary' from r), '{"tickets":12,"sessions":3}'::jsonb, 'total tiket Paid & jumlah sesi');
-select is((select jsonb_agg(x->>'session') from r, jsonb_array_elements(v->'rows') x), '["S1","S2","S10"]'::jsonb,
-  'urut S1, S2, S10');
+select is((select jsonb_agg(concat_ws(' ', lower(x->>'city'), x->>'session')) from r, jsonb_array_elements(v->'rows') x),
+  '["semarang S2","solo S1","solo S10"]'::jsonb, 'urut per kota (abjad), lalu S1, S2, S10 (0050)');
 select is((select (x->>'tickets')::int from r, jsonb_array_elements(v->'rows') x where x->>'session' = 'S1'), 8,
   'S1 Solo: sum quantity, kota tidak membedakan huruf');
 select is((select x->'advertisers' from r, jsonb_array_elements(v->'rows') x where x->>'session' = 'S1'),
