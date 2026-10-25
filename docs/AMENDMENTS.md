@@ -1017,3 +1017,27 @@ Atas permintaan pengguna, retensi `attendance_events` kembali ke **30 hari** ses
 60 hari dari A10 (migrasi 0021). Migrasi 0052 memperbarui job `dvflow_attendance_retention` (tetap 03:17 UTC).
 - Master Order tidak terhapus; hanya baris presensi yang lebih tua dari 30 hari.
 - Saat diterapkan (24 Okt 2026) tidak ada presensi produksi yang berumur lebih dari 30 hari, jadi tidak ada data yang hilang.
+
+## A42 — Produk webinar: label "Kota / Live Zoom" + halaman tunggu link Zoom (25 Oktober 2026)
+
+**Konfigurasi produk webinar: tidak berubah.** Pola `KODE - SESI - KOTA` tetap wajib untuk webinar:
+- **Sesi** memakai kode yang terdaftar: S1, S2, … untuk webinar multi-sesi, atau mis. `ST` (Sesi Tunggal). Sesi tetap
+  dipakai untuk memilih link Zoom (aturan cakupan produk+batch+sesi) dan untuk Resume Batch.
+- **Kota** adalah teks bebas dan tidak dipakai untuk mencari link Zoom. Untuk webinar, isi dengan teks yang konsisten,
+  mis. `Live Zoom`.
+
+Input kota pada Product Name Generator, Alias Produk, dan Remap Order Unmapped kini berlabel **"Kota / Live Zoom"**.
+Label lain tidak berubah (OTS seminar, kolom tabel, drawer).
+
+**Halaman tunggu webinar.** Order Webinar Online yang Paid dan produknya valid, tetapi link Zoom-nya belum dikonfigurasi,
+kini mendapat halaman yang menenangkan, bukan halaman error. Isinya:
+- maskot DVFLOW dari halaman login, tanpa logo Meta Ads;
+- nama peserta;
+- Order ID;
+- teks "Halo, Link Zoom akan bisa diakses mendekati jadwal pelaksanaan webinar. Jadi tenang saja yaa 😊".
+
+Perilaku 01 §15 tetap: status 503 (kode `WEBINAR_DESTINATION_NOT_CONFIGURED`), tidak ada presensi, tidak ada
+redirect. Halaman ini memakai CSP tanpa skrip dan hanya memuat nama + Order ID (04 §12).
+
+Order yang tidak dikenal, belum Paid, atau produknya invalid tetap mendapat halaman error lama. Apps tidak menyimpan
+jadwal acara, jadi halaman tidak menyebut tanggal/jam.

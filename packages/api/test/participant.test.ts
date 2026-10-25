@@ -240,7 +240,25 @@ describe('akses peserta webinar (PRD §90–§92, §F01–§F08)', () => {
     expect(response.status).toBe(503)
     expect(response.headers.get('location')).toBeNull()
     expect(state.attendanceEvents).toHaveLength(0)
-    expect(await response.text()).toContain('Tautan acara belum siap')
+
+    // Halaman tunggu: nama + Order ID menandakan tiket sah, maskot tanpa logo Meta Ads.
+    const html = await response.text()
+    expect(html).toContain('Link Zoom akan bisa diakses mendekati jadwal pelaksanaan webinar')
+    expect(html).toContain('Ahmad')
+    expect(html).toContain('<strong>555</strong>')
+    expect(html).toContain('<svg')
+    expect(html).not.toContain('meta-ads')
+    expect(html).not.toContain('<script')
+    expect(response.headers.get('content-security-policy')).not.toContain('script-src')
+  })
+
+  it('F07: nama peserta di halaman tunggu webinar di-escape', async () => {
+    const { api } = await setup({ orders: [{ ...webinarOrder, name: '<script>alert(1)</script>' }] })
+
+    const html = await (await access(api, '555')).text()
+
+    expect(html).not.toContain('<script>alert')
+    expect(html).toContain('&lt;script&gt;')
   })
 
   it('destination harus exact: product_raw yang berbeda tidak cocok', async () => {

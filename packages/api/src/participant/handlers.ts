@@ -12,7 +12,7 @@ import {
   TICKET_PREFIX,
   WEBINAR_PREFIX,
 } from '../webinar/handlers'
-import { renderErrorPage, renderTicketPage, type TicketData } from './pages'
+import { renderErrorPage, renderTicketPage, renderWebinarPendingPage, type TicketData } from './pages'
 
 /**
  * Rute peserta (03 §8–§9, PRD §87–§93).
@@ -204,7 +204,7 @@ async function findWebinarDestination(context: RouteContext, order: OrderRow): P
 async function redirectToWebinar(context: RouteContext, order: OrderRow): Promise<Response> {
   const destination = await findWebinarDestination(context, order)
   if (destination === null) {
-    return renderErrorPage('WEBINAR_DESTINATION_NOT_CONFIGURED', order.order_id)
+    return renderWebinarPendingPage({ orderId: order.order_id, participantName: order.name })
   }
 
   // Setiap klik valid = satu baris presensi baru (PRD §91 — sengaja TIDAK

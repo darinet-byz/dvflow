@@ -145,6 +145,93 @@ ${data.zoomPath ? `
   return htmlResponse(200, 'Tiket Peserta', body, TICKET_CSP)
 }
 
+const WEBINAR_PENDING_MESSAGE =
+  'Halo, Link Zoom akan bisa diakses mendekati jadwal pelaksanaan webinar. Jadi tenang saja yaa 😊'
+
+/**
+ * Maskot DVFLOW dari halaman login (`apps/web/src/ui/LoginMascot.tsx`), tanpa logo
+ * Meta Ads dan partikel di sekitarnya. Murni SVG + animasi CSS: lolos `ERROR_CSP`
+ * karena tidak memuat skrip maupun gambar eksternal.
+ */
+const MASCOT_SVG = `<svg class="mascot" viewBox="26 10 128 120" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <defs>
+    <linearGradient id="mascotBody" x1="40" y1="40" x2="130" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FFFFFF"/><stop offset="100%" stop-color="#EEF2F9"/>
+    </linearGradient>
+    <linearGradient id="mascotAccent" x1="50" y1="30" x2="110" y2="100" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#6366F1"/><stop offset="100%" stop-color="#4F46F5"/>
+    </linearGradient>
+    <filter id="mascotShadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="3" stdDeviation="3" flood-color="#1e293b" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+  <ellipse cx="85" cy="122" rx="38" ry="5" fill="#cbd5e1" opacity="0.35"/>
+  <g class="m-float">
+    <path d="M58 48 C50 30, 60 18, 72 32 Z" fill="url(#mascotAccent)" stroke="#4338CA" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M62 44 C56 32, 63 25, 70 34 Z" fill="#F472B6" opacity="0.8"/>
+    <path d="M112 48 C120 30, 110 18, 98 32 Z" fill="url(#mascotAccent)" stroke="#4338CA" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M108 44 C114 32, 107 25, 100 34 Z" fill="#F472B6" opacity="0.8"/>
+    <line x1="85" y1="35" x2="85" y2="22" stroke="#4F46F5" stroke-width="2.5" stroke-linecap="round"/>
+    <circle cx="85" cy="19" r="4.5" fill="#38BDF8" class="m-sparkle"/>
+    <circle cx="85" cy="19" r="2.5" fill="#FFFFFF"/>
+    <rect x="48" y="36" width="74" height="70" rx="30" fill="url(#mascotBody)" stroke="#CBD5E1" stroke-width="2.5" filter="url(#mascotShadow)"/>
+    <rect x="63" y="76" width="44" height="23" rx="10" fill="#F1F5F9" stroke="#E2E8F0" stroke-width="1.5"/>
+    <path d="M85 83 C82 80, 77 82, 78 86 C79 89, 85 92, 85 92 C85 92, 91 89, 92 86 C93 82, 88 80, 85 83 Z" fill="#4F46F5"/>
+    <ellipse cx="61" cy="65" rx="5" ry="3" fill="#FDA4AF" opacity="0.85"/>
+    <ellipse cx="109" cy="65" rx="5" ry="3" fill="#FDA4AF" opacity="0.85"/>
+    <g class="m-blink">
+      <ellipse cx="71" cy="58" rx="5" ry="6.5" fill="#1E293B"/>
+      <circle cx="69" cy="56" r="2" fill="#FFFFFF"/><circle cx="73" cy="61" r="0.8" fill="#FFFFFF"/>
+      <ellipse cx="99" cy="58" rx="5" ry="6.5" fill="#1E293B"/>
+      <circle cx="97" cy="56" r="2" fill="#FFFFFF"/><circle cx="101" cy="61" r="0.8" fill="#FFFFFF"/>
+    </g>
+    <path d="M80 66 Q85 71 90 66" stroke="#1E293B" stroke-width="2" stroke-linecap="round" fill="none"/>
+    <g class="m-wave">
+      <path d="M48 80 C36 78, 30 68, 36 60 C40 56, 46 64, 49 72 Z" fill="url(#mascotBody)" stroke="#CBD5E1" stroke-width="2"/>
+    </g>
+    <path d="M120 78 C132 75, 142 66, 146 54 C148 50, 140 48, 134 56 C128 62, 122 70, 118 75 Z" fill="url(#mascotBody)" stroke="#CBD5E1" stroke-width="2"/>
+    <rect x="62" y="103" width="16" height="8" rx="4" fill="#E2E8F0"/>
+    <rect x="92" y="103" width="16" height="8" rx="4" fill="#E2E8F0"/>
+  </g>
+</svg>`
+
+const MASCOT_STYLE = `
+  .mascot { display: block; width: 128px; height: 120px; margin: 8px auto 4px; }
+  .mascot .m-float { animation: m-float 4.5s ease-in-out infinite; }
+  .mascot .m-blink { transform-box: fill-box; transform-origin: center; animation: m-blink 4s ease-in-out infinite; }
+  .mascot .m-wave { transform-box: fill-box; transform-origin: 100% 85%; animation: m-wave 2.8s ease-in-out infinite; }
+  .mascot .m-sparkle { transform-box: fill-box; transform-origin: center; animation: m-sparkle 2.2s ease-in-out infinite; }
+  @keyframes m-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+  @keyframes m-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(0.1); } }
+  @keyframes m-wave { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-14deg); } 75% { transform: rotate(14deg); } }
+  @keyframes m-sparkle { 0%, 100% { opacity: .2; transform: scale(.7); } 50% { opacity: 1; transform: scale(1.2); } }
+  @media (prefers-reduced-motion: reduce) { .mascot * { animation: none !important; } }
+  .pending { text-align: center; }
+  .pending .card p { margin: 0; font-size: 15px; }
+`
+
+/**
+ * Webinar Paid yang link Zoom-nya belum dikonfigurasi (kode `WEBINAR_DESTINATION_NOT_CONFIGURED`).
+ *
+ * Peserta sudah lolos cek order + Paid + produk valid, jadi halaman ini menenangkan,
+ * bukan menyalahkan: nama + Order ID menunjukkan tiketnya sah. Status tetap 503 dan
+ * pemanggil tidak mencatat presensi (01 §15).
+ */
+export function renderWebinarPendingPage(data: { orderId: string; participantName: string | null }): Response {
+  const body = `
+    <div class="pending">
+      ${MASCOT_SVG}
+      <h1 class="name">${escapeHtml(data.participantName ?? 'Peserta')}</h1>
+      <p class="order">Order ID <strong>${escapeHtml(data.orderId)}</strong></p>
+      <section class="card">
+        <p>${escapeHtml(WEBINAR_PENDING_MESSAGE)}</p>
+      </section>
+    </div>
+  `
+
+  return htmlResponse(503, 'Link Zoom belum dibuka', body, ERROR_CSP, MASCOT_STYLE)
+}
+
 /** Kode error halaman peserta (03 §15). */
 export type ParticipantErrorCode =
   | 'ORDER_NOT_FOUND'
@@ -171,8 +258,8 @@ const ERROR_PAGES: Record<ParticipantErrorCode, { status: number; title: string;
   },
   WEBINAR_DESTINATION_NOT_CONFIGURED: {
     status: 503,
-    title: 'Tautan acara belum siap',
-    message: 'Tautan acara ini belum dikonfigurasi. Hubungi panitia.',
+    title: 'Link Zoom belum dibuka',
+    message: WEBINAR_PENDING_MESSAGE,
   },
   GENERIC_ACCESS_ERROR: {
     status: 500,
@@ -204,7 +291,13 @@ export function renderErrorPage(code: ParticipantErrorCode, orderId: string | nu
   return htmlResponse(page.status, page.title, body, ERROR_CSP)
 }
 
-function htmlResponse(status: number, title: string, body: string, contentSecurityPolicy: string): Response {
+function htmlResponse(
+  status: number,
+  title: string,
+  body: string,
+  contentSecurityPolicy: string,
+  extraStyle = '',
+): Response {
   const html = `<!doctype html>
 <html lang="id">
 <head>
@@ -248,7 +341,7 @@ function htmlResponse(status: number, title: string, body: string, contentSecuri
   .quantity strong { font-size: 40px; margin-right: 4px; }
   .btn-zoom { display: block; margin-top: 16px; padding: 16px 20px; border-radius: 10px; background: #4f46f5; color: #fff; font-size: 16px; font-weight: 800; letter-spacing: .02em; text-align: center; text-decoration: none; }
   .btn-zoom:hover { background: #4338e8; }
-  footer { margin-top: 20px; font-size: 12px; color: #737786; text-align: center; }
+  footer { margin-top: 20px; font-size: 12px; color: #737786; text-align: center; }${extraStyle}
 </style>
 </head>
 <body>

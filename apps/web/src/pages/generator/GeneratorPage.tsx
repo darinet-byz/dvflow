@@ -132,9 +132,9 @@ export function GeneratorPage() {
             />
             <TextInput
               id="generator-kota"
-              label="Kota"
+              label="Kota / Live Zoom"
               value={city}
-              placeholder="mis. Solo"
+              placeholder="mis. Solo atau Live Zoom"
               onChange={setCity}
               error={errors['city'] ?? null}
             />

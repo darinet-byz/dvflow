@@ -269,10 +269,10 @@ export function ProductAliasSection({ configVersion = 0 }: { configVersion?: num
             />
             <TextInput
               id="alias-city"
-              label="Kota"
+              label="Kota / Live Zoom"
               value={city}
               onChange={setCity}
-              placeholder="Contoh: Solo"
+              placeholder="Contoh: Solo atau Live Zoom"
             />
           </div>
 

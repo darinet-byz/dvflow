@@ -113,7 +113,7 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
     choose('Seminar / Webinar', 'SO')
     choose('Sesi', 'S1')
     type('Batch', '392')
-    type('Kota', 'Solo')
+    type('Kota / Live Zoom', 'Solo')
     fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
     expect(await screen.findByText('KULI01SO392 - S1 - Solo')).toBeDefined()
@@ -128,7 +128,7 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
     choose('Seminar / Webinar', 'SO')
     choose('Sesi', 'S1')
     type('Batch', '058')
-    type('Kota', 'Solo')
+    type('Kota / Live Zoom', 'Solo')
     fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
     // A33: nol di depan batch diabaikan; kode pengiklan 01 tetap utuh.
@@ -144,7 +144,7 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
     choose('Seminar / Webinar', 'SO')
     choose('Sesi', 'S1')
     type('Batch', '392')
-    type('Kota', '   Solo   ')
+    type('Kota / Live Zoom', '   Solo   ')
     fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
     expect(await screen.findByText('KULI01SO392 - S1 - Solo')).toBeDefined()
@@ -172,7 +172,7 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
     choose('Seminar / Webinar', 'SO')
     choose('Sesi', 'S1')
     type('Batch', '392')
-    type('Kota', 'Solo')
+    type('Kota / Live Zoom', 'Solo')
 
     expect(screen.queryByText('KULI01SO392 - S1 - Solo')).toBeNull()
   })

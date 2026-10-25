@@ -419,10 +419,10 @@ export function OrderUnmappedPage() {
               />
               <TextInput
                 id="remap-city"
-                label="Kota Acara"
+                label="Kota / Live Zoom"
                 value={city}
                 onChange={setCity}
-                placeholder="Contoh: Solo"
+                placeholder="Contoh: Solo atau Live Zoom"
               />
             </div>
           ) : (
