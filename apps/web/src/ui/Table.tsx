@@ -67,7 +67,7 @@ export function DataTable({
       ) : null}
     <div className={cn('max-w-full overflow-x-auto rounded-md border border-line bg-card', className)}>
       <table className="w-full border-collapse text-[13px]">
-        <thead className={cn('bg-soft text-left', stickyHeader && 'sticky top-0 z-10')}>
+        <thead className={cn('bg-primary-soft text-left', stickyHeader && 'sticky top-0 z-10')}>
           <tr>
             {columns.map((column) => {
               const sortable = column.sortKey !== undefined && onSortChange !== undefined
@@ -80,7 +80,7 @@ export function DataTable({
                   aria-sort={active ? (sort?.direction === 'asc' ? 'ascending' : 'descending') : undefined}
                   style={column.minWidth === undefined ? undefined : { minWidth: column.minWidth }}
                   className={cn(
-                    'whitespace-nowrap border-b border-line px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-ink-soft',
+                    'whitespace-nowrap border-b border-line px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-primary',
                     column.align === 'right' && 'text-right',
                   )}
                 >
@@ -88,7 +88,7 @@ export function DataTable({
                     <button
                       type="button"
                       onClick={() => onSortChange?.(column.sortKey as string)}
-                      className={cn('inline-flex items-center gap-1 hover:text-ink', active && 'text-ink')}
+                      className={cn('inline-flex items-center gap-1 hover:text-primary-hover', active && 'text-primary-hover')}
                     >
                       {column.header}
                       <span aria-hidden="true" className="text-[10px]">
