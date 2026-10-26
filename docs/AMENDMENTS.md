@@ -1062,3 +1062,35 @@ jadwal acara, jadi halaman tidak menyebut tanggal/jam.
 (`tickets`, `advertisers[]`, `rows[]`). `summary` dan `rows` tidak berubah. Tidak ada tabel/kolom/endpoint baru.
 
 **Catatan deploy.** Deploy tertahan `check-schema-version` sampai 0053 diterapkan di database produksi.
+
+## A44 — Akun Advertiser: produk dikontrol bersama (26 Oktober 2026)
+
+**Permintaan pengguna.** Satu produk/event bisa punya beberapa pengiklan dan dikontrol bersama. Setiap pengiklan
+di produk yang sama boleh saling melihat hasil iklan produk itu, tetapi tidak melihat produk yang tidak ia pegang.
+Contoh: pengiklan 1 memegang A+B, pengiklan 2 memegang A+C. Di A keduanya saling lihat; di B hanya pengiklan 1 yang
+melihat, di C hanya pengiklan 2.
+
+**Keputusan pengguna.**
+- Berlaku di **semua menu** (Order, Presensi, Dashboard, Resume Batch, Report Spend, Scanner/check-in, export).
+- "Memegang produk" = produk yang dicentang di Add Team (akses produk akun yang sudah ada).
+- Akun Advertiser **Semua Produk** melihat semua pengiklan di semua produk.
+
+Ini **menggantikan** aturan A20 "hanya order dengan kode pengiklan miliknya" untuk membaca data. Scope baca akun
+Advertiser kini level produk, sama seperti Pimpro. Catatan A39 "angkanya bukan total semua pengiklan" tidak berlaku
+lagi.
+
+**Tetap.**
+- 1 akun = 1 pengiklan (`users.advertiser_id`).
+- Input, edit, dan hapus Report Spend hanya untuk pengiklan akun sendiri. Report pengiklan lain terlihat tanpa tombol Edit/Hapus.
+- Product Name Generator hanya menawarkan pengiklan akun sendiri.
+- Order Unmapped dan alias produk tetap tertutup bagi akun Advertiser.
+
+**Implementasi (0054).**
+- `actor_can_order` = `actor_can_product` (signature tetap). RLS `orders`/presensi, `checkin_seminar`, dan
+  `batch_session_summary` ikut otomatis.
+- RLS `advertisers` dan `ad_spend_reports` tidak lagi dibatasi pengiklan akun.
+- `ad_spend_report` tanpa batas pengiklan akun; flag `own` tetap ada.
+- Worker: `allowsOrder`/`productFilter` hanya memeriksa produk.
+- Report Spend menampilkan filter Pengiklan juga untuk akun Advertiser.
+
+**Catatan deploy.** Deploy tertahan `check-schema-version` sampai 0054 diterapkan di database produksi.

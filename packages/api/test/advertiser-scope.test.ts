@@ -2,8 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { createFakeState, createTestApi, fakeOrder, fakeUser, loginAndGetToken, makeRequest, sampleConfig } from './helpers'
 
 /**
- * A20: role Advertiser = produk yang ditugaskan DAN hanya order berkode pengiklannya.
- * Pimpro tetap level produk. DB (RLS + RPC 0037) adalah penegak utama; ini jalur Worker.
+ * A20 + A44: role Advertiser = produk yang ditugaskan; sejak A44 semua pengiklan di produk itu terlihat
+ * (produk dikontrol bersama), produk lain tidak.
+ * DB (RLS + RPC 0054) adalah penegak utama; ini jalur Worker.
  */
 const ZUL = '33333333-3333-3333-3333-333333333333' // sampleConfig: pengiklan 01 (Zul)
 const RINA = '00000000-0000-4000-8000-0000000000f2'
@@ -18,6 +19,7 @@ async function setup(role: string, extra: Partial<Parameters<typeof fakeUser>[0]
     orders: [
       fakeOrder({ order_id: '900001', name: 'Order Zul', product_code: 'KM', advertiser_code: '01' }),
       fakeOrder({ order_id: '900002', name: 'Order Rina', product_code: 'KM', advertiser_code: '02' }),
+      fakeOrder({ order_id: '900003', name: 'Order Lain', product_code: 'WA', advertiser_code: '02' }),
     ],
   })
   state.userProductAccess.push({ user_id: state.users[0]!.id, product_code: 'KM' })
@@ -34,19 +36,19 @@ async function setup(role: string, extra: Partial<Parameters<typeof fakeUser>[0]
 const searchIds = async (response: Response) =>
   ((await response.json()) as { data: { candidates: { order_id: string }[] } }).data.candidates.map((c) => c.order_id).sort()
 
-describe('A20: scope Advertiser', () => {
-  it('scanner search hanya order kode pengiklannya; pimpro melihat semua pengiklan di produknya', async () => {
+describe('A20/A44: scope Advertiser', () => {
+  it('scanner search: semua pengiklan di produk yang ditugaskan, produk lain tidak (sama dengan pimpro)', async () => {
     const adv = await setup('advertiser', { advertiser_id: ZUL })
-    expect(await searchIds(await (await adv.as('admin1'))('GET', '/api/scanner/search?q=Order'))).toEqual(['900001'])
+    expect(await searchIds(await (await adv.as('admin1'))('GET', '/api/scanner/search?q=Order'))).toEqual(['900001', '900002'])
     const pim = await setup('pimpro')
     expect(await searchIds(await (await pim.as('admin1'))('GET', '/api/scanner/search?q=Order'))).toEqual(['900001', '900002'])
   })
 
-  it('check-in order pengiklan lain ditolak, miliknya diterima', async () => {
+  it('check-in order pengiklan lain di produk yang sama diterima, produk lain ditolak', async () => {
     const { as } = await setup('advertiser', { advertiser_id: ZUL })
     const request = await as('admin1')
-    expect((await request('POST', '/checkin/900002')).status).toBe(403)
-    expect((await request('POST', '/checkin/900001')).status).toBe(200)
+    expect((await request('POST', '/checkin/900003')).status).toBe(403)
+    expect((await request('POST', '/checkin/900002')).status).toBe(200)
   })
 
   it('Semua Produk + pengiklan tetap tidak boleh membuka order unmapped', async () => {

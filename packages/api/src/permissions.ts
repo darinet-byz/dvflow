@@ -31,9 +31,10 @@ export async function requirePermissions(context: RouteContext, permissions: str
 /**
  * Scope data order seorang aktor.
  *   * `all`/`codes` — produk (Pimpro, Member, …);
- *   * `advertiserCode` — A20: akun Advertiser hanya melihat order dengan kode pengiklannya,
- *     di dalam produk yang ditugaskan. `null` = tidak dibatasi pengiklan.
- * Cermin dari `actor_can_order` di DB (0037); RLS tetap penegak utama.
+ *   * `advertiserCode` — pengiklan akun Advertiser (`null` = bukan akun pengiklan). Sejak A44 tidak lagi
+ *     membatasi baca: produk dikontrol bersama, jadi akun Advertiser melihat semua pengiklan di produknya.
+ *     Masih dipakai untuk menolak tulis global (alias).
+ * Cermin dari `actor_can_order` di DB (0054); RLS tetap penegak utama.
  */
 export type ProductAccess = { all: boolean; codes: string[]; advertiserCode: string | null }
 
@@ -53,10 +54,9 @@ async function loadAdvertiserCode(context: RouteContext, actor: UserRow): Promis
   return rows[0]?.code ? normalizeCode(rows[0].code) : '__NO_ADVERTISER__'
 }
 
-/** Order (produk + pengiklan) boleh diakses aktor ini. */
+/** Order boleh diakses aktor ini: cukup produknya (A44, semua pengiklan di produk yang sama). */
 export function allowsOrder(access: ProductAccess, order: { product_code: string | null; advertiser_code: string | null }): boolean {
-  if (!allowsProduct(access, order.product_code)) return false
-  return access.advertiserCode === null || normalizeCode(order.advertiser_code ?? '') === access.advertiserCode
+  return allowsProduct(access, order.product_code)
 }
 
 export function assertOrderAccess(access: ProductAccess, order: { product_code: string | null; advertiser_code: string | null }): void {
@@ -76,8 +76,6 @@ export function assertProductAccess(access: ProductAccess, code: string | null |
 /** Values come from the master table, but are still quoted for PostgREST's filter grammar. */
 export function productFilter(access: ProductAccess): Record<string, string> {
   const quoteList = (values: string[]) => `in.(${values.map((c) => `"${c.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`).join(',')})`
-  // A20: akun Advertiser juga dibatasi kode pengiklannya.
-  const advertiser: Record<string, string> = access.advertiserCode === null ? {} : { advertiser_code: quoteList([access.advertiserCode]) }
-  if (access.all) return advertiser
-  return { ...advertiser, product_code: access.codes.length ? quoteList(access.codes) : 'eq.__NO_PRODUCT_ACCESS__' }
+  if (access.all) return {}
+  return { product_code: access.codes.length ? quoteList(access.codes) : 'eq.__NO_PRODUCT_ACCESS__' }
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { PRODUCT_SEGMENT_SEPARATOR, validateProductNameInput } from '@dvflow/shared'
 import { useConfigLists } from '../../lib/useConfigLists'
+import { useSession } from '../../lib/useSession'
 import { PageHeader } from '../../layout/PageHeader'
 import { Button } from '../../ui/Button'
 import { Card, CardHeader } from '../../ui/Card'
@@ -30,6 +31,10 @@ const TYPE_LABEL = 'Seminar / Webinar'
 export function GeneratorPage() {
   const { lists, error: listsError } = useConfigLists()
   const toast = useToast()
+  // A44: daftar pengiklan kini terbaca semua akun, tetapi akun Advertiser tetap hanya membuat nama
+  // produk untuk pengiklannya sendiri (perilaku A20).
+  const ownAdvertiser = useSession().profile?.advertiser_code ?? null
+  const advertiserOptions = (lists?.advertisers ?? []).filter((item) => ownAdvertiser === null || item.value === ownAdvertiser)
 
   const [productCode, setProductCode] = useState('')
   const [advertiserCode, setAdvertiserCode] = useState('')
@@ -103,7 +108,7 @@ export function GeneratorPage() {
               label="Pengiklan"
               value={advertiserCode}
               placeholder="Pilih pengiklan"
-              options={lists?.advertisers ?? []}
+              options={advertiserOptions}
               onChange={setAdvertiserCode}
             />
             <Select

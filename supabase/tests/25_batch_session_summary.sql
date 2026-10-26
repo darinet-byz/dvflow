@@ -57,9 +57,9 @@ select throws_ok($$select public.batch_session_summary('AAAA','')$$, 'DF011', 'I
 -- Viewer produk B saja: produk A tidak terlihat.
 set local request.jwt.claims = '{"sub":"f9000000-0000-0000-0000-0000000000c2","app_role":"batch_viewer"}';
 select is((public.batch_session_summary('AAAA','58')->'summary'->>'tickets')::int, 0, 'viewer produk B: produk A tidak terlihat');
--- Advertiser: hanya ordernya sendiri, tanpa OTS.
+-- A44: advertiser Semua Produk melihat semua pengiklan + OTS di produk itu (produk dikontrol bersama).
 set local request.jwt.claims = '{"sub":"f9000000-0000-0000-0000-0000000000a1","app_role":"advertiser"}';
-select is((public.batch_session_summary('AAAA','58')->'summary'), '{"tickets":6,"sessions":2}'::jsonb, 'advertiser: hanya order sendiri');
+select is((public.batch_session_summary('AAAA','58')->'summary'), '{"tickets":12,"sessions":3}'::jsonb, 'advertiser: semua pengiklan di produknya');
 -- Tanpa izin.
 set local request.jwt.claims = '{"sub":"f9000000-0000-0000-0000-0000000000e1","app_role":"member"}';
 select throws_ok($$select public.batch_session_summary('AAAA','58')$$, 'DF006', 'FORBIDDEN', 'tanpa izin ditolak');

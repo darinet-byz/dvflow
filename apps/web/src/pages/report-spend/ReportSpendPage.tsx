@@ -197,7 +197,7 @@ export function ReportSpendPage() {
   const session = useSession()
   const profile = session.profile
   const toast = useToast()
-  // Akun Advertiser sudah dibatasi ke pengiklannya sendiri; filter pengiklan tidak berguna baginya.
+  // A44: akun Advertiser melihat semua pengiklan di produknya; pengiklan akun hanya menentukan input/edit.
   const ownAdvertiser = profile?.advertiser_code ?? null
   const canInput = ownAdvertiser !== null && !!profile?.permissions?.includes(AD_SPEND_INPUT_PERMISSION)
 
@@ -214,7 +214,7 @@ export function ReportSpendPage() {
       p_date_from: args['p_date_from'],
       p_date_to: args['p_date_to'],
       p_product_code: args['p_product_code'],
-      p_advertiser_code: ownAdvertiser === null ? args['p_advertiser_code'] : null,
+      p_advertiser_code: args['p_advertiser_code'],
       p_batch: args['p_batch'],
     })
   }, [appliedKey, refresh])
@@ -316,7 +316,7 @@ export function ReportSpendPage() {
   }
 
   const controls = { filters: state.filters, lists, update: state.update }
-  const chips = activeCommonFilters(state.filters).filter((chip) => ownAdvertiser === null || chip.key !== 'advertiserCode')
+  const chips = activeCommonFilters(state.filters)
   const rows = data?.rows ?? []
   const columns = canInput ? [...COLUMNS, ACTION_COLUMN] : COLUMNS
   const summary = data?.summary
@@ -340,7 +340,7 @@ export function ReportSpendPage() {
         <div className="filter-row flex min-w-0 flex-wrap items-center gap-2.5">
           <DateRangeFilters {...controls} />
           <ProductFilter {...controls} />
-          {ownAdvertiser === null ? <AdvertiserFilter {...controls} /> : null}
+          <AdvertiserFilter {...controls} />
           <BatchFilter {...controls} />
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">

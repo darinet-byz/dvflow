@@ -1,5 +1,5 @@
--- 0037 (A20): role Advertiser = produk yang ditugaskan DAN hanya order berkode pengiklannya.
--- Pimpro tetap level produk (melihat semua pengiklan di produknya).
+-- 0037 (A20) + 0054 (A44): role Advertiser = produk yang ditugaskan. Sejak A44 produk dikontrol bersama:
+-- semua pengiklan di produk yang dicentang terlihat (sama seperti Pimpro), produk lain tidak.
 begin;
 set local search_path = public, extensions, pg_catalog;
 select no_plan();
@@ -37,22 +37,22 @@ insert into public.orders(order_id,product_code,advertiser_code,product_raw,name
 insert into public.attendance_events(order_id,attendance_type,source) values
  ('adv-a01','webinar','webinar_redirect'),('adv-a02','webinar','webinar_redirect'),('adv-b01','webinar','webinar_redirect');
 
--- Advertiser 01, produk A saja -> hanya adv-a01.
+-- Advertiser 01, produk A saja -> semua pengiklan di produk A, produk B tidak.
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"f5000000-0000-0000-0000-0000000000a1","app_role":"advertiser"}';
-select is((select array_agg(order_id order by order_id) from public.orders), array['adv-a01'], 'advertiser: tabel orders hanya miliknya');
-select is((public.orders_page()->>'total')::int, 1, 'advertiser: orders_page');
-select is((public.presensi_page()->>'total')::int, 1, 'advertiser: presensi_page');
-select is((public.dashboard_summary()->>'leads')::int, 1, 'advertiser: dashboard');
-select is((public.export_orders_page()->>'total')::int, 1, 'advertiser: export order');
-select is((public.export_presensi_page()->>'total')::int, 1, 'advertiser: export presensi');
-select is((select count(*) from public.attendance_events)::int, 1, 'advertiser: presensi mentah');
-select is((public.orders_page(p_advertiser_code => '02')->>'total')::int, 0, 'filter tidak bisa melebarkan scope pengiklan');
-select is((select array_agg(code) from public.advertisers), array['01'], 'advertiser: dropdown pengiklan hanya miliknya');
+select is((select array_agg(order_id order by order_id) from public.orders), array['adv-a01','adv-a02'], 'advertiser: semua pengiklan di produknya');
+select is((public.orders_page()->>'total')::int, 2, 'advertiser: orders_page');
+select is((public.presensi_page()->>'total')::int, 2, 'advertiser: presensi_page');
+select is((public.dashboard_summary()->>'leads')::int, 2, 'advertiser: dashboard');
+select is((public.export_orders_page()->>'total')::int, 2, 'advertiser: export order');
+select is((public.export_presensi_page()->>'total')::int, 2, 'advertiser: export presensi');
+select is((select count(*) from public.attendance_events)::int, 2, 'advertiser: presensi mentah');
+select is((public.orders_page(p_advertiser_code => '02')->>'total')::int, 1, 'advertiser: filter pengiklan lain di produk yang sama');
+select ok((select array_agg(code) from public.advertisers) @> array['01','02'], 'advertiser: dropdown semua pengiklan');
 
--- Advertiser 01 dengan Semua Produk -> semua order kode 01.
+-- Advertiser 01 dengan Semua Produk -> semua order semua pengiklan.
 set local request.jwt.claims = '{"sub":"f5000000-0000-0000-0000-0000000000a2","app_role":"advertiser"}';
-select is((select array_agg(order_id order by order_id) from public.orders), array['adv-a01','adv-b01'], 'advertiser semua produk: semua order kode 01');
+select is((select array_agg(order_id order by order_id) from public.orders), array['adv-a01','adv-a02','adv-b01'], 'advertiser semua produk: semua order');
 
 -- Pimpro produk A -> semua pengiklan di produk A.
 set local request.jwt.claims = '{"sub":"f5000000-0000-0000-0000-0000000000b1","app_role":"pimpro"}';
@@ -60,9 +60,11 @@ select is((select array_agg(order_id order by order_id) from public.orders), arr
 select is((select count(*) from public.advertisers)::int >= 2, true, 'pimpro: semua pengiklan tampil');
 reset role;
 
--- Check-in lintas pengiklan ditolak di DB.
-select throws_ok($$select public.checkin_seminar('adv-a02','seminar_qr','f5000000-0000-0000-0000-0000000000a1')$$,
-  'DF006', 'FORBIDDEN', 'advertiser tidak bisa check-in order pengiklan lain');
+-- Check-in: pengiklan lain di produk yang sama boleh, produk yang tidak dicentang ditolak.
+select throws_ok($$select public.checkin_seminar('adv-b01','seminar_qr','f5000000-0000-0000-0000-0000000000a1')$$,
+  'DF006', 'FORBIDDEN', 'advertiser tidak bisa check-in order produk lain');
+select lives_ok($$select public.checkin_seminar('adv-a02','seminar_qr','f5000000-0000-0000-0000-0000000000a1')$$,
+  'advertiser check-in order pengiklan lain di produk yang sama');
 select lives_ok($$select public.checkin_seminar('adv-a01','seminar_qr','f5000000-0000-0000-0000-0000000000a1')$$,
   'advertiser check-in order miliknya');
 

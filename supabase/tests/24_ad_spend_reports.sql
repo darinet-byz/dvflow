@@ -81,11 +81,12 @@ update public.orders set session = 'S1', city = 'Solo', quantity = 1 where order
 -- Baca sebagai Advertiser 01.
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"f8000000-0000-0000-0000-0000000000a1","app_role":"advertiser"}';
-select is((select count(*) from public.ad_spend_reports)::int, 3, 'advertiser: tabel hanya report miliknya');
-create temp table r on commit drop as select public.ad_spend_report('2026-10-20','2026-10-22') as v;
-select is((select jsonb_array_length(v->'rows') from r), 3, 'advertiser: 3 report miliknya');
+select is((select count(*) from public.ad_spend_reports)::int, 4, 'advertiser: tabel memuat report pengiklan lain di produk yang sama (A44)');
+-- Angka per pengiklan diuji lewat filter pengiklan 91; tanpa filter, report pengiklan 92 ikut (A44).
+create temp table r on commit drop as select public.ad_spend_report('2026-10-20','2026-10-22',p_advertiser_code => '91') as v;
+select is((select jsonb_array_length(v->'rows') from r), 3, 'filter pengiklan 91: 3 report');
 -- Report 20–21 Okt batch 122: sp-1 (Paid, 00:30 WIB 20 Okt), sp-2 (Pending), sp-3 (Paid), sp-4 (Cancelled).
--- sp-5 (pengiklan 02), sp-6 (batch 123), sp-7 (23:30 WIB 19 Okt) tidak ikut.
+-- sp-5 (pengiklan 92), sp-6 (batch 123), sp-7 (23:30 WIB 19 Okt) tidak ikut.
 select is((select x from r, jsonb_array_elements(v->'rows') x where x->>'date_from' = '2026-10-20' and x->>'batch' = '122')
   - 'id' - 'product_name' - 'advertiser_name' - 'date_from' - 'date_to' - 'product_code' - 'advertiser_code',
   '{"batch":"122","spend":6000000.00,"tax_percent":11.00,"tax_amount":660000.00,"total_spend":6660000.00,"leads":4,"paid":2,"omzet":450000.00,"own":true}'::jsonb,
@@ -100,12 +101,19 @@ select is((select v->'sessions' from r),
   '{"tickets":3,"advertisers":[{"advertiser_code":"91","advertiser_name":"Zul","tickets":3}],"rows":[
     {"session":"S1","city":"Solo","event_type":"Seminar Offline","tickets":2,"advertisers":[{"advertiser_code":"91","tickets":2}]},
     {"session":"S3","city":"SOLO","event_type":"Seminar Offline","tickets":1,"advertisers":[{"advertiser_code":"91","tickets":1}]}]}'::jsonb,
-  'sesi × pengiklan: tiket Paid = sum quantity, urut kota lalu sesi, advertiser hanya kolom sendiri');
-select is((public.ad_spend_report('2026-10-20','2026-10-22',p_advertiser_code => '92')->'summary'->>'reports')::int, 0,
-  'filter tidak bisa melebarkan scope pengiklan');
+  'sesi × pengiklan: tiket Paid = sum quantity, urut kota lalu sesi');
+-- A44: produk dikontrol bersama — report + order pengiklan 92 di produk AAAA ikut terlihat, tetapi bukan "milik sendiri".
+select is((public.ad_spend_report('2026-10-20','2026-10-22')->'summary'),
+  '{"reports":4,"spend":9500000.00,"tax_amount":970000.00,"total_spend":10470000.00,"leads":5,"paid":3,"omzet":1449000.00}'::jsonb,
+  'advertiser: total semua pengiklan di produknya');
+select is((select bool_or((x->>'own')::boolean) from jsonb_array_elements(public.ad_spend_report('2026-10-20','2026-10-22',p_advertiser_code => '92')->'rows') x),
+  false, 'advertiser: report pengiklan lain terlihat tetapi tidak bisa diedit');
+select is((public.ad_spend_report('2026-10-20','2026-10-22')->'sessions'->'advertisers'),
+  '[{"advertiser_code":"91","advertiser_name":"Zul","tickets":3},{"advertiser_code":"92","advertiser_name":"Rina","tickets":1}]'::jsonb,
+  'advertiser: kolom tiket per sesi memuat semua pengiklan di produknya');
 select is((public.ad_spend_report('2026-10-23','2026-10-30')->'summary'->>'reports')::int, 0, 'rentang tidak beririsan tidak tampil');
 select is((public.ad_spend_report('2026-10-22','2026-10-22')->'summary'->>'reports')::int, 1, 'report beririsan dengan filter tampil');
-select is((public.ad_spend_report(p_batch => '0122')->'summary'->>'reports')::int, 2, 'filter batch 0122 = 122');
+select is((public.ad_spend_report(p_batch => '0122')->'summary'->>'reports')::int, 3, 'filter batch 0122 = 122');
 
 -- Role lihat saja (semua produk): semua pengiklan.
 set local request.jwt.claims = '{"sub":"f8000000-0000-0000-0000-0000000000c1","app_role":"spend_viewer"}';
