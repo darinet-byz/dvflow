@@ -3,13 +3,14 @@ import { AD_SPEND_INPUT_PERMISSION } from '@dvflow/shared'
 import { ApiError } from '../../lib/api'
 import { presetRange } from '../../lib/date-range'
 import { activeCommonFilters, EMPTY_COMMON_FILTERS, toFilterArgs, type CommonFilters } from '../../lib/filters'
-import { formatCount, formatDate, formatMoney } from '../../lib/format'
+import { formatCount, formatDate, formatMoney, formatText } from '../../lib/format'
 import { authorizedRequest } from '../../lib/session'
 import { supabaseRpc } from '../../lib/supabase-rest'
 import { useAsyncData } from '../../lib/useAsyncData'
 import { useConfigLists } from '../../lib/useConfigLists'
 import { useSession } from '../../lib/useSession'
 import { PageHeader } from '../../layout/PageHeader'
+import { Badge, eventTypeTone } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card, KpiCard } from '../../ui/Card'
 import { Combobox } from '../../ui/Combobox'
@@ -64,6 +65,22 @@ type SpendReport = {
     omzet: number | string
   }
   rows: SpendRow[]
+  sessions: SessionMatrix
+}
+
+/** Tiket Paid per sesi × pengiklan (A43), dari order yang sama dengan card. */
+export type SessionMatrixRow = {
+  session: string | null
+  city: string | null
+  event_type: string | null
+  tickets: number
+  advertisers: { advertiser_code: string | null; tickets: number }[]
+}
+
+type SessionMatrix = {
+  tickets: number
+  advertisers: { advertiser_code: string | null; advertiser_name: string | null; tickets: number }[]
+  rows: SessionMatrixRow[]
 }
 
 type FormState = {
@@ -91,6 +108,26 @@ const COLUMNS: readonly TableColumn[] = [
   { key: 'roi', header: '%', align: 'right', minWidth: 80 },
 ]
 const ACTION_COLUMN: TableColumn = { key: 'actions', header: 'Aksi', minWidth: 130 }
+
+/** Tiket pengiklan di satu sesi; pengiklan tanpa order Paid di sesi itu = 0. */
+export function sessionMatrixCell(row: SessionMatrixRow, advertiserCode: string | null): number {
+  return row.advertisers.find((item) => item.advertiser_code === advertiserCode)?.tickets ?? 0
+}
+
+function matrixColumns(matrix: SessionMatrix): TableColumn[] {
+  return [
+    { key: 'city', header: 'Kota', minWidth: 130 },
+    { key: 'session', header: 'Sesi', minWidth: 80 },
+    { key: 'event_type', header: 'Jenis', minWidth: 130 },
+    ...matrix.advertisers.map((item): TableColumn => ({
+      key: `adv-${item.advertiser_code ?? ''}`,
+      header: item.advertiser_name ? `${item.advertiser_name} (${item.advertiser_code ?? '-'})` : (item.advertiser_code ?? 'Tanpa pengiklan'),
+      align: 'right',
+      minWidth: 110,
+    })),
+    { key: 'tickets', header: 'Total', align: 'right', minWidth: 90 },
+  ]
+}
 
 /** Report spend umumnya untuk H-1 (keputusan pengguna A37). */
 function yesterday() {
@@ -283,6 +320,7 @@ export function ReportSpendPage() {
   const rows = data?.rows ?? []
   const columns = canInput ? [...COLUMNS, ACTION_COLUMN] : COLUMNS
   const summary = data?.summary
+  const matrix = data?.sessions
   const totalProfit = summary ? spendProfit(summary.omzet, summary.total_spend) : 0
   const productOptions = (lists?.products ?? []).map((item) => ({ value: item.value, label: item.label }))
   const formSpend = form === null ? null : parseSpendInput(form.spend)
@@ -355,6 +393,46 @@ export function ReportSpendPage() {
               hint="Terhadap total spend"
             />
           </div>
+        </div>
+      )}
+
+      {matrix === undefined ? null : (
+        <div className="mt-4">
+          <Card padding="none">
+            <h2 className="px-3.5 pb-2 pt-3 text-[14px] font-semibold text-ink">Tiket Paid per Sesi</h2>
+            {matrix.rows.length === 0 ? (
+              <p className="border-t border-line px-3 py-6 text-center text-ink-soft">Belum ada tiket Paid pada report ini.</p>
+            ) : (
+              <DataTable columns={matrixColumns(matrix)} stickyHeader={false}>
+                {matrix.rows.map((row) => (
+                  <TableRow key={`${row.session ?? ''}|${row.city ?? ''}|${row.event_type ?? ''}`}>
+                    <TableCell>{formatText(row.city)}</TableCell>
+                    <TableCell>{row.session ?? 'Tanpa sesi'}</TableCell>
+                    <TableCell>
+                      {row.event_type === null ? '-' : <Badge tone={eventTypeTone(row.event_type)}>{row.event_type}</Badge>}
+                    </TableCell>
+                    {matrix.advertisers.map((item) => (
+                      <TableCell key={item.advertiser_code ?? ''} align="right">
+                        {formatCount(sessionMatrixCell(row, item.advertiser_code))}
+                      </TableCell>
+                    ))}
+                    <TableCell align="right" className="font-semibold">{formatCount(row.tickets)}</TableCell>
+                  </TableRow>
+                ))}
+                <TableRow>
+                  <TableCell className="font-semibold">Total</TableCell>
+                  <TableCell>{''}</TableCell>
+                  <TableCell>{''}</TableCell>
+                  {matrix.advertisers.map((item) => (
+                    <TableCell key={item.advertiser_code ?? ''} align="right" className="font-semibold">
+                      {formatCount(item.tickets)}
+                    </TableCell>
+                  ))}
+                  <TableCell align="right" className="font-semibold">{formatCount(matrix.tickets)}</TableCell>
+                </TableRow>
+              </DataTable>
+            )}
+          </Card>
         </div>
       )}
 

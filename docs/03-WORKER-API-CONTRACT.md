@@ -236,6 +236,7 @@ No hard delete endpoint.
 
 ## 12a. Report Spend Iklan (A37)
 Tulis saja; laporan dibaca browser lewat RPC `ad_spend_report(p_date_from, p_date_to, p_product_code, p_advertiser_code, p_batch)`.
+Hasil RPC: `summary`, `rows` (per report), dan `sessions` (A43: tiket Paid per sesi × pengiklan dari order yang sama).
 Semua rute butuh izin `action.input_spend` DAN akun yang memegang pengiklan (role advertiser).
 Pengiklan selalu diambil dari akun, tidak pernah dari body.
 `spend` = biaya iklan SEBELUM PPN; `tax_percent` = PPN iklan dalam persen (0–100, wajib; 0 bila tanpa PPN).

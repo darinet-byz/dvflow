@@ -1041,3 +1041,24 @@ redirect. Halaman ini memakai CSP tanpa skrip dan hanya memuat nama + Order ID (
 
 Order yang tidak dikenal, belum Paid, atau produknya invalid tetap mendapat halaman error lama. Apps tidak menyimpan
 jadwal acara, jadi halaman tidak menyebut tanggal/jam.
+
+## A43 — Report Spend Iklan: tiket Paid per sesi × pengiklan (26 Oktober 2026)
+
+**Permintaan pengguna.** Di bawah card Report Spend Iklan ditampilkan tabel jumlah peserta tiap sesi dan tiap pengiklan.
+
+**Keputusan pengguna.**
+- **Bentuk:** matriks. Baris = Kota + Sesi + Jenis acara, kolom = tiap pengiklan + Total, baris Total di bawah.
+- **Metrik:** tiket Paid = `sum(orders.quantity)` order Paid (definisi A25, sama dengan Resume Batch A39).
+- **Cakupan:** order yang sama dengan card: order yang tercakup report spend sesuai filter (produk + pengiklan +
+  batch + tanggal order WIB dalam rentang report). Tiap order dihitung sekali walau tercakup beberapa report.
+
+**Perilaku.**
+- Urutan baris: kota (abjad, tidak membedakan huruf A31), lalu S1, S2, …, S10 (sama dengan 0050).
+- Sesi tanpa tiket Paid tidak tampil; pengiklan tanpa tiket di satu sesi tampil 0.
+- Akun Advertiser hanya melihat kolom pengiklannya sendiri (A20); scope produk per akun tetap berlaku.
+- Tabel list report spend tetap di bawahnya, tidak berubah.
+
+**Implementasi (0053).** RPC `ad_spend_report` (signature sama) mendapat kunci baru `sessions`
+(`tickets`, `advertisers[]`, `rows[]`). `summary` dan `rows` tidak berubah. Tidak ada tabel/kolom/endpoint baru.
+
+**Catatan deploy.** Deploy tertahan `check-schema-version` sampai 0053 diterapkan di database produksi.

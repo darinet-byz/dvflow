@@ -73,6 +73,11 @@ select throws_ok(format($$select public.delete_ad_spend_report('f8000000-0000-00
 select throws_ok(format($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a2','%s','AAAA','999','2026-10-20','2026-10-20',1,0)$$,
   (select id from public.ad_spend_reports where batch = '999')), 'DF017', 'AD_SPEND_NOT_FOUND', 'tidak bisa edit report pengiklan lain');
 
+-- A43: sesi/kota/quantity untuk tabel tiket Paid per sesi × pengiklan.
+update public.orders set session = 'S1', city = 'Solo', quantity = 2 where order_id = 'sp-1';
+update public.orders set session = 'S3', city = 'SOLO', quantity = 1 where order_id = 'sp-3';
+update public.orders set session = 'S1', city = 'Solo', quantity = 1 where order_id in ('sp-2','sp-4','sp-5');
+
 -- Baca sebagai Advertiser 01.
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"f8000000-0000-0000-0000-0000000000a1","app_role":"advertiser"}';
@@ -90,6 +95,12 @@ select is((select x->>'omzet' from r, jsonb_array_elements(v->'rows') x where x-
 -- Total: spend 6jt + 1jt + 500rb, PPN 660rb + 110rb + 0 (11%, 11%, 0%); order sp-3/sp-4 tercakup dua report tetapi dihitung sekali.
 select is((select v->'summary' from r), '{"reports":3,"spend":7500000.00,"tax_amount":770000.00,"total_spend":8270000.00,"leads":4,"paid":2,"omzet":450000.00}'::jsonb,
   'total: spend dijumlah, order tidak dihitung dua kali');
+-- A43: hanya order Paid (sp-2 Pending, sp-4 Cancelled tidak dihitung); sp-3 tercakup dua report dihitung sekali.
+select is((select v->'sessions' from r),
+  '{"tickets":3,"advertisers":[{"advertiser_code":"91","advertiser_name":"Zul","tickets":3}],"rows":[
+    {"session":"S1","city":"Solo","event_type":"Seminar Offline","tickets":2,"advertisers":[{"advertiser_code":"91","tickets":2}]},
+    {"session":"S3","city":"SOLO","event_type":"Seminar Offline","tickets":1,"advertisers":[{"advertiser_code":"91","tickets":1}]}]}'::jsonb,
+  'sesi × pengiklan: tiket Paid = sum quantity, urut kota lalu sesi, advertiser hanya kolom sendiri');
 select is((public.ad_spend_report('2026-10-20','2026-10-22',p_advertiser_code => '92')->'summary'->>'reports')::int, 0,
   'filter tidak bisa melebarkan scope pengiklan');
 select is((public.ad_spend_report('2026-10-23','2026-10-30')->'summary'->>'reports')::int, 0, 'rentang tidak beririsan tidak tampil');
@@ -101,6 +112,10 @@ set local request.jwt.claims = '{"sub":"f8000000-0000-0000-0000-0000000000c1","a
 select is((public.ad_spend_report('2026-10-20','2026-10-22')->'summary'->>'reports')::int, 4, 'viewer: semua pengiklan');
 select is((select bool_or((x->>'own')::boolean) from jsonb_array_elements(public.ad_spend_report('2026-10-20','2026-10-22')->'rows') x), false,
   'viewer: tidak ada report "milik sendiri"');
+select is((select jsonb_agg(x->'advertisers' order by x->>'session')
+             from jsonb_array_elements(public.ad_spend_report('2026-10-20','2026-10-22')->'sessions'->'rows') x),
+  '[[{"advertiser_code":"91","tickets":2},{"advertiser_code":"92","tickets":1}],[{"advertiser_code":"91","tickets":1}]]'::jsonb,
+  'viewer: sel per pengiklan dari semua pengiklan');
 select ok((select count(*) from public.products) > 0, 'viewer: dropdown produk terbaca');
 -- Viewer produk B saja: report produk A tidak terlihat.
 set local request.jwt.claims = '{"sub":"f8000000-0000-0000-0000-0000000000c2","app_role":"spend_viewer"}';

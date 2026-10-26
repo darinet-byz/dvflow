@@ -2,7 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { authorizedRequest } from '../src/lib/session'
-import { formatSpendRoi, parseSpendInput, parseTaxPercent, spendProfit, spendTax } from '../src/pages/report-spend/ReportSpendPage'
+import { formatSpendRoi, parseSpendInput, parseTaxPercent, sessionMatrixCell, spendProfit, spendTax } from '../src/pages/report-spend/ReportSpendPage'
 
 /** A37: checkbox "Input Biaya Iklan" hanya untuk role Advertiser. */
 vi.mock('../src/lib/session', () => ({ authorizedRequest: vi.fn() }))
@@ -71,5 +71,15 @@ describe('Report Spend Iklan: PPN iklan', () => {
     expect(parseTaxPercent('101')).toBeNull()
     expect(parseTaxPercent('-1')).toBeNull()
     expect(parseTaxPercent('sebelas')).toBeNull()
+  })
+})
+
+describe('Report Spend Iklan: tiket per sesi × pengiklan (A43)', () => {
+  const row = { session: 'S1', city: 'Solo', event_type: 'Seminar Offline', tickets: 5, advertisers: [{ advertiser_code: '01', tickets: 3 }, { advertiser_code: '02', tickets: 2 }] }
+
+  it('sel = tiket pengiklan di sesi itu; pengiklan tanpa tiket = 0', () => {
+    expect(sessionMatrixCell(row, '01')).toBe(3)
+    expect(sessionMatrixCell(row, '02')).toBe(2)
+    expect(sessionMatrixCell(row, '03')).toBe(0)
   })
 })
