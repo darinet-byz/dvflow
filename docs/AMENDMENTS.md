@@ -1094,3 +1094,23 @@ lagi.
 - Report Spend menampilkan filter Pengiklan juga untuk akun Advertiser.
 
 **Catatan deploy.** Deploy tertahan `check-schema-version` sampai 0054 diterapkan di database produksi.
+
+## A45 — Report Spend Iklan: Jumlah Tiket di kartu & kolom Total Tiket (27 Oktober 2026)
+
+**Permintaan pengguna.** Kartu "Paid" diganti "Jumlah Tiket". Angka Paid (jumlah Order ID) memang bisa berbeda dari
+tabel sesi (jumlah tiket = `sum(quantity)`) — mis. 8 order Paid berisi 9 tiket karena satu order berisi 2 tiket.
+
+**Keputusan pengguna.**
+- Kartu: Total Spend, Profit/Boncos, Leads, **Jumlah Tiket**, Total Omzet, % Profit/Boncos. Kartu Paid dihapus.
+- Tabel tiket per sesi tidak berubah: Kota, Sesi, Jenis, per pengiklan, Total (jumlah tiket).
+- Tabel list report menambah kolom **Total Tiket** setelah Paid.
+
+**Perilaku.**
+- Kartu Jumlah Tiket = `sessions.tickets`: `sum(quantity)` order Paid, tiap order dihitung sekali walau tercakup
+  beberapa report (A25/A43). Nilainya selalu sama dengan baris Total tabel sesi.
+- Total Tiket per report = `sum(quantity)` order Paid report itu, baris-level seperti Leads/Paid/Omzet per report.
+- Tidak ada tabel/kolom database baru; `summary` dan `sessions` RPC tidak berubah.
+
+**Implementasi (0055).** `ad_spend_report` menambah kunci `tickets` di tiap baris `rows`; `schema_version()` = 55.
+
+**Catatan deploy.** Deploy tertahan `check-schema-version` sampai 0055 diterapkan di database produksi.

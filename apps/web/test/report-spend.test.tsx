@@ -2,7 +2,26 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { authorizedRequest } from '../src/lib/session'
-import { formatSpendRoi, parseSpendInput, parseTaxPercent, sessionMatrixCell, spendProfit, spendTax } from '../src/pages/report-spend/ReportSpendPage'
+import { formatSpendRoi, parseSpendInput, parseTaxPercent, ReportSpendPage, sessionMatrixCell, spendProfit, spendTax } from '../src/pages/report-spend/ReportSpendPage'
+
+/** A45: kartu Jumlah Tiket memakai tiket (sum quantity), bukan jumlah Order ID seperti `paid`. */
+const spendFixture = vi.hoisted(() => ({
+  summary: { reports: 1, spend: 6000000, tax_amount: 660000, total_spend: 6660000, leads: 9, paid: 8, omzet: 9000000 },
+  rows: [{
+    id: 'r1', date_from: '2026-10-18', date_to: '2026-10-26', product_code: 'AAAA', product_name: 'Produk A',
+    advertiser_code: '91', advertiser_name: 'Zul', batch: '122', spend: 6000000, tax_percent: 11,
+    tax_amount: 660000, total_spend: 6660000, leads: 9, paid: 8, tickets: 9, omzet: 9000000, own: true,
+  }],
+  sessions: {
+    tickets: 9,
+    advertisers: [{ advertiser_code: '91', advertiser_name: 'Zul', tickets: 9 }],
+    rows: [{ session: 'S1', city: 'Solo', event_type: 'Seminar Offline', tickets: 9, advertisers: [{ advertiser_code: '91', tickets: 9 }] }],
+  },
+}))
+vi.mock('../src/lib/supabase-rest', () => ({
+  supabaseRpc: vi.fn(async () => spendFixture),
+  supabaseSelect: vi.fn(async () => []),
+}))
 
 /** A37: checkbox "Input Biaya Iklan" hanya untuk role Advertiser. */
 vi.mock('../src/lib/session', () => ({ authorizedRequest: vi.fn() }))
@@ -81,5 +100,22 @@ describe('Report Spend Iklan: tiket per sesi × pengiklan (A43)', () => {
     expect(sessionMatrixCell(row, '01')).toBe(3)
     expect(sessionMatrixCell(row, '02')).toBe(2)
     expect(sessionMatrixCell(row, '03')).toBe(0)
+  })
+})
+
+describe('Report Spend Iklan: kartu Jumlah Tiket & kolom Total Tiket (A45)', () => {
+  it('kartu memakai jumlah tiket (9) walau order Paid 8; tabel report memuat Paid dan Total Tiket', async () => {
+    render(<ReportSpendPage />)
+
+    // Timeout lebih longgar: suite paralel di mesin lambat bisa melewati batas default 1 dtk.
+    const label = await screen.findByText('Jumlah Tiket', {}, { timeout: 5000 })
+    const card = label.parentElement as HTMLElement
+    expect(card.querySelectorAll('p')[1]?.textContent).toBe('9')
+    expect(card.textContent).toContain('Total tiket dari order Paid')
+
+    // Kartu "Paid" sudah diganti; "Paid" hanya tersisa sebagai kolom tabel report.
+    expect(screen.getByText('Paid').tagName).toBe('TH')
+    expect(screen.getByRole('columnheader', { name: 'Total Tiket' })).toBeTruthy()
+    expect(screen.getByText('Jumlah tiket (quantity) per sesi, bukan jumlah Order ID.')).toBeTruthy()
   })
 })

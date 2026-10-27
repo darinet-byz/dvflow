@@ -232,9 +232,10 @@ Retention 7 hari.
 Jangan simpan credential/secret header.
 
 ## 12a. ad_spend_reports (A37, 0048)
-Laporan biaya iklan pengiklan per batch untuk satu rentang tanggal. Leads/Paid/Omzet TIDAK disimpan;
+Laporan biaya iklan pengiklan per batch untuk satu rentang tanggal. Leads/Paid/Tiket/Omzet TIDAK disimpan;
 dihitung live oleh RPC `ad_spend_report` dari `orders`.
 PPN = round(spend × tax_percent / 100, 2); Total Spend = spend + PPN (juga dihitung di RPC, tidak disimpan).
+`rows` per report memuat `leads`, `paid` (jumlah Order ID Paid), `tickets` (`sum(quantity)` order Paid, A45), dan `omzet` live.
 - id UUID PK
 - advertiser_id UUID NOT NULL FK advertisers(id) ON DELETE RESTRICT  -- selalu pengiklan akun penginput
 - product_id UUID NOT NULL FK products(id) ON DELETE RESTRICT

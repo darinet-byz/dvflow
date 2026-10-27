@@ -50,6 +50,8 @@ type SpendRow = {
   total_spend: number | string
   leads: number
   paid: number
+  /** Tiket Paid report ini = sum(quantity), metrik yang sama dengan tabel sesi (A45). */
+  tickets: number
   omzet: number | string
   own: boolean
 }
@@ -103,6 +105,7 @@ const COLUMNS: readonly TableColumn[] = [
   { key: 'total_spend', header: 'Total Spend', align: 'right', minWidth: 140 },
   { key: 'leads', header: 'Leads', align: 'right', minWidth: 80 },
   { key: 'paid', header: 'Paid', align: 'right', minWidth: 80 },
+  { key: 'tickets', header: 'Total Tiket', align: 'right', minWidth: 110 },
   { key: 'omzet', header: 'Omzet', align: 'right', minWidth: 130 },
   { key: 'profit', header: 'Profit / Boncos', align: 'right', minWidth: 140 },
   { key: 'roi', header: '%', align: 'right', minWidth: 80 },
@@ -322,6 +325,8 @@ export function ReportSpendPage() {
   const summary = data?.summary
   const matrix = data?.sessions
   const totalProfit = summary ? spendProfit(summary.omzet, summary.total_spend) : 0
+  // Jumlah Tiket = metrik A25; sama dengan baris Total tabel sesi, bukan jumlah Order ID seperti `paid`.
+  const totalTickets = matrix?.tickets ?? summary?.paid ?? 0
   const productOptions = (lists?.products ?? []).map((item) => ({ value: item.value, label: item.label }))
   const formSpend = form === null ? null : parseSpendInput(form.spend)
   const formTaxPercent = form === null ? null : parseTaxPercent(form.taxPercent)
@@ -384,7 +389,7 @@ export function ReportSpendPage() {
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <KpiCard label="Leads" value={formatCount(summary.leads)} />
-            <KpiCard label="Paid" value={formatCount(summary.paid)} />
+            <KpiCard label="Jumlah Tiket" value={formatCount(totalTickets)} hint="Total tiket dari order Paid" />
             <KpiCard label="Total Omzet" value={formatMoney(summary.omzet)} hint="Gross order Paid" />
             <KpiCard
               label="% Profit / Boncos"
@@ -399,7 +404,10 @@ export function ReportSpendPage() {
       {matrix === undefined ? null : (
         <div className="mt-4">
           <Card padding="none">
-            <h2 className="px-3.5 pb-2 pt-3 text-[14px] font-semibold text-ink">Tiket Paid per Sesi</h2>
+            <div className="px-3.5 pb-2 pt-3">
+              <h2 className="text-[14px] font-semibold text-ink">Tiket Paid per Sesi</h2>
+              <p className="mt-0.5 text-[12px] text-ink-soft">Jumlah tiket (quantity) per sesi, bukan jumlah Order ID.</p>
+            </div>
             {matrix.rows.length === 0 ? (
               <p className="border-t border-line px-3 py-6 text-center text-ink-soft">Belum ada tiket Paid pada report ini.</p>
             ) : (
@@ -460,6 +468,7 @@ export function ReportSpendPage() {
                     <TableCell align="right">{formatMoney(row.total_spend)}</TableCell>
                     <TableCell align="right">{formatCount(row.leads)}</TableCell>
                     <TableCell align="right">{formatCount(row.paid)}</TableCell>
+                    <TableCell align="right">{formatCount(row.tickets)}</TableCell>
                     <TableCell align="right">{formatMoney(row.omzet)}</TableCell>
                     <TableCell align="right">
                       <span className={profitClass(profit)}>{formatMoney(profit)}</span>

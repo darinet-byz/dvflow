@@ -89,8 +89,8 @@ select is((select jsonb_array_length(v->'rows') from r), 3, 'filter pengiklan 91
 -- sp-5 (pengiklan 92), sp-6 (batch 123), sp-7 (23:30 WIB 19 Okt) tidak ikut.
 select is((select x from r, jsonb_array_elements(v->'rows') x where x->>'date_from' = '2026-10-20' and x->>'batch' = '122')
   - 'id' - 'product_name' - 'advertiser_name' - 'date_from' - 'date_to' - 'product_code' - 'advertiser_code',
-  '{"batch":"122","spend":6000000.00,"tax_percent":11.00,"tax_amount":660000.00,"total_spend":6660000.00,"leads":4,"paid":2,"omzet":450000.00,"own":true}'::jsonb,
-  'leads = semua order, paid = status Paid, omzet = gross Paid, batas hari WIB');
+  '{"batch":"122","spend":6000000.00,"tax_percent":11.00,"tax_amount":660000.00,"total_spend":6660000.00,"leads":4,"paid":2,"tickets":3,"omzet":450000.00,"own":true}'::jsonb,
+  'leads = semua order, paid = jumlah Order ID Paid, tickets = sum quantity Paid (A45), omzet = gross Paid, batas hari WIB');
 select is((select x->>'leads' from r, jsonb_array_elements(v->'rows') x where x->>'batch' = '999'), '0', 'tanpa order: leads 0, bukan error');
 select is((select x->>'omzet' from r, jsonb_array_elements(v->'rows') x where x->>'batch' = '999'), '0.00', 'tanpa order: omzet 0');
 -- Total: spend 6jt + 1jt + 500rb, PPN 660rb + 110rb + 0 (11%, 11%, 0%); order sp-3/sp-4 tercakup dua report tetapi dihitung sekali.
