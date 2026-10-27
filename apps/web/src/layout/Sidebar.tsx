@@ -119,7 +119,23 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 )}
               >
                 <span>{title}</span>
-                <span aria-hidden="true" className="text-[10px] text-ink-muted">{isOpen ? '▾' : '▸'}</span>
+                <svg
+                  aria-hidden="true"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  className={cn(
+                    'h-4 w-4 shrink-0 text-ink-muted transition-transform duration-150',
+                    isOpen && 'rotate-90',
+                  )}
+                >
+                  <path
+                    d="M7.5 5l5 5-5 5"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </button>
               {isOpen ? (
                 <ul id={id} className="mt-1 flex flex-col gap-1">
