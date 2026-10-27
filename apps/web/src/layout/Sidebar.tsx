@@ -1,18 +1,66 @@
-import { NavLink } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { NavLink, useLocation } from 'react-router-dom'
 import { cn } from '../ui/cn'
 import { useSession } from '../lib/useSession'
 import { ROLE_LABELS, canAccessPath } from '../lib/roles'
-import { NAV_SECTIONS } from './navigation'
+import { NAV_SECTIONS, type NavSection } from './navigation'
+
+const OPEN_SECTION_KEY = 'dvflow.sidebar.open'
+
+function sectionId(title: string): string {
+  return `nav-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`
+}
+
+function readOpenSection(): string | null {
+  try {
+    return window.localStorage.getItem(OPEN_SECTION_KEY)
+  } catch {
+    return null
+  }
+}
+
+function activeSectionTitle(pathname: string): string | null {
+  const active = NAV_SECTIONS.find(
+    (section) => section.title !== undefined && section.items.some((item) => item.path === pathname),
+  )
+  return active?.title ?? null
+}
 
 /**
  * Sidebar (guideline §7, CLAUDE.md §5).
  *
- * Lebar 230px, item 44px, radius 11px, dan state aktif memakai primary. Isinya
- * berasal dari `navigation.ts` — komponen ini tidak boleh punya daftar menu
- * sendiri, supaya urutan yang dipaku dokumen tetap satu sumber.
+ * A47: menu dikelompokkan dan bisa dilipat. Grup dari halaman aktif otomatis terbuka;
+ * status grup yang sedang dibuka disimpan di localStorage. Route, izin, dan urutan item
+ * tidak berubah — hanya presentasinya.
  */
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const session = useSession()
+  const location = useLocation()
+  const [openTitle, setOpenTitle] = useState<string | null>(() => readOpenSection())
+  const activeTitle = activeSectionTitle(location.pathname)
+
+  // Halaman aktif selalu terlihat, termasuk saat pengguna membuka menu dari HP.
+  useEffect(() => {
+    if (activeTitle !== null) setOpenTitle(activeTitle)
+  }, [activeTitle])
+
+  useEffect(() => {
+    try {
+      if (openTitle === null) window.localStorage.removeItem(OPEN_SECTION_KEY)
+      else window.localStorage.setItem(OPEN_SECTION_KEY, openTitle)
+    } catch {
+      // localStorage bisa diblokir (mode privat); sidebar tetap bekerja tanpa simpanan.
+    }
+  }, [openTitle])
+
+  function visibleItems(section: NavSection) {
+    if (!session.profile) return []
+    return section.items.filter((item) => canAccessPath(session.profile, item.path))
+  }
+
+  function toggle(title: string): void {
+    setOpenTitle((current) => (current === title ? null : title))
+  }
 
   return (
     <nav aria-label="Menu utama" className="flex h-full w-[230px] min-w-[230px] flex-col gap-4 bg-sidebar p-4">
@@ -21,42 +69,67 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <p className="text-[11px] text-ink-muted">Operasional event</p>
       </div>
 
-      <div className="flex flex-1 flex-col gap-4 overflow-y-auto">
+      <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
         {NAV_SECTIONS.map((section, index) => {
-          const visibleItems = section.items.filter((item) => {
-            if (!session.profile) return false
-            return canAccessPath(session.profile, item.path)
-          })
+          const items = visibleItems(section)
+          if (items.length === 0) return null
 
-          if (visibleItems.length === 0) return null
-
-          return (
-            <div key={section.title ?? index}>
-              {section.title ? (
-                <p className="px-3 pb-1.5 text-[10px] font-semibold tracking-[0.12em] text-ink-muted">{section.title}</p>
-              ) : null}
-              <ul className="flex flex-col gap-1">
-                {visibleItems.map((item) => (
+          const title = section.title
+          // Dashboard (tanpa judul) tetap langsung terlihat.
+          if (title === undefined) {
+            return (
+              <ul key={index} className="flex flex-col gap-1">
+                {items.map((item) => (
                   <li key={item.path}>
-                    <NavLink
-                      to={item.path}
-                      onClick={onNavigate}
-                      end={item.path === '/'}
-                      className={({ isActive }) =>
-                        cn(
-                          'flex h-11 items-center rounded-[11px] px-3 text-[13px] font-medium transition-colors',
-                          isActive
-                            ? // Guideline §7 memakai gradien primary untuk item aktif.
-                              'bg-[linear-gradient(135deg,#564cff,#424bf4)] text-white shadow-card'
-                            : 'text-ink-soft hover:bg-soft hover:text-ink',
-                        )
-                      }
-                    >
-                      {item.label}
-                    </NavLink>
+                    <NavItemLink item={item} onNavigate={onNavigate} />
                   </li>
                 ))}
               </ul>
+            )
+          }
+
+          if (section.collapsible !== true) {
+            return (
+              <div key={title}>
+                <p className="px-3 pb-1.5 text-[10px] font-semibold tracking-[0.12em] text-ink-muted">{title}</p>
+                <ul className="flex flex-col gap-1">
+                  {items.map((item) => (
+                    <li key={item.path}>
+                      <NavItemLink item={item} onNavigate={onNavigate} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )
+          }
+
+          const id = sectionId(title)
+          const isOpen = openTitle === title
+          return (
+            <div key={title}>
+              <button
+                type="button"
+                aria-expanded={isOpen}
+                aria-controls={id}
+                onClick={() => toggle(title)}
+                className={cn(
+                  'flex min-h-8 w-full items-center justify-between gap-2 rounded-[11px] px-3 py-1.5 text-[10px] font-semibold tracking-[0.12em] text-ink-muted transition-colors',
+                  'hover:bg-soft hover:text-ink',
+                  isOpen && 'text-ink',
+                )}
+              >
+                <span>{title}</span>
+                <span aria-hidden="true" className="text-[10px] text-ink-muted">{isOpen ? '▾' : '▸'}</span>
+              </button>
+              {isOpen ? (
+                <ul id={id} className="mt-1 flex flex-col gap-1">
+                  {items.map((item) => (
+                    <li key={item.path}>
+                      <NavItemLink item={item} onNavigate={onNavigate} />
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           )
         })}
@@ -74,5 +147,32 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       )}
     </nav>
+  )
+}
+
+function NavItemLink({
+  item,
+  onNavigate,
+}: {
+  item: NavSection['items'][number]
+  onNavigate?: () => void
+}) {
+  return (
+    <NavLink
+      to={item.path}
+      onClick={onNavigate}
+      end={item.path === '/'}
+      className={({ isActive }) =>
+        cn(
+          'flex h-11 items-center rounded-[11px] px-3 text-[13px] font-medium transition-colors',
+          isActive
+            ? // Guideline §7 memakai gradien primary untuk item aktif.
+              'bg-[linear-gradient(135deg,#564cff,#424bf4)] text-white shadow-card'
+            : 'text-ink-soft hover:bg-soft hover:text-ink',
+        )
+      }
+    >
+      {item.label}
+    </NavLink>
   )
 }

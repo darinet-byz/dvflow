@@ -17,10 +17,30 @@ const spendFixture = vi.hoisted(() => ({
     advertisers: [{ advertiser_code: '91', advertiser_name: 'Zul', tickets: 9 }],
     rows: [{ session: 'S1', city: 'Solo', event_type: 'Seminar Offline', tickets: 9, advertisers: [{ advertiser_code: '91', tickets: 9 }] }],
   },
+  comparison: {
+    totals: { spend: 6000000, tax_amount: 660000, total_spend: 6660000, leads: 9, paid: 8, tickets: 9, omzet: 9000000 },
+    rows: [
+      { product_code: 'AAAA', product_name: 'Produk A', batch: '122', advertiser_code: '91', advertiser_name: 'Zul', spend: 4000000, tax_amount: 440000, total_spend: 4440000, leads: 5, paid: 5, tickets: 6, omzet: 6000000 },
+      { product_code: 'AAAA', product_name: 'Produk A', batch: '122', advertiser_code: '92', advertiser_name: 'Rina', spend: 2000000, tax_amount: 220000, total_spend: 2220000, leads: 4, paid: 3, tickets: 3, omzet: 3000000 },
+    ],
+  },
 }))
 vi.mock('../src/lib/supabase-rest', () => ({
   supabaseRpc: vi.fn(async () => spendFixture),
   supabaseSelect: vi.fn(async () => []),
+}))
+vi.mock('../src/lib/useConfigLists', () => ({
+  useConfigLists: () => ({
+    lists: {
+      products: [{ value: 'AAAA', label: 'AAAA - Produk A' }],
+      advertisers: [{ value: '91', label: '91 - Zul' }, { value: '92', label: '92 - Rina' }],
+      eventTypes: [],
+      eventTypeNames: [],
+      sessions: [],
+      paymentMethods: [],
+    },
+    error: null,
+  }),
 }))
 
 /** A37: checkbox "Input Biaya Iklan" hanya untuk role Advertiser. */
@@ -100,6 +120,24 @@ describe('Report Spend Iklan: tiket per sesi × pengiklan (A43)', () => {
     expect(sessionMatrixCell(row, '01')).toBe(3)
     expect(sessionMatrixCell(row, '02')).toBe(2)
     expect(sessionMatrixCell(row, '03')).toBe(0)
+  })
+})
+
+describe('Report Spend Iklan: perbandingan pengiklan (A46)', () => {
+  it('kartu perbandingan muncul saat produk + batch dipilih', async () => {
+    render(<ReportSpendPage />)
+    await screen.findByText('Jumlah Tiket', {}, { timeout: 5000 })
+
+    fireEvent.change(screen.getByLabelText('Filter produk'), { target: { value: 'AAAA' } })
+    fireEvent.change(screen.getByLabelText('Filter batch'), { target: { value: '122' } })
+
+    expect(await screen.findByText('Perbandingan Pengiklan')).toBeTruthy()
+    expect(screen.getByText('Tertinggi')).toBeTruthy()
+    expect(screen.getByRole('columnheader', { name: 'Share Tiket' })).toBeTruthy()
+    expect(screen.getAllByText('Zul').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Rina').length).toBeGreaterThan(0)
+    // Total baris perbandingan = summary report: 9 tiket.
+    expect(screen.getAllByText('Total').length).toBeGreaterThan(0)
   })
 })
 

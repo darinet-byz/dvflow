@@ -236,7 +236,7 @@ No hard delete endpoint.
 
 ## 12a. Report Spend Iklan (A37)
 Tulis saja; laporan dibaca browser lewat RPC `ad_spend_report(p_date_from, p_date_to, p_product_code, p_advertiser_code, p_batch)`.
-Hasil RPC: `summary`, `rows` (per report, termasuk `tickets` = sum quantity order Paid — A45), dan `sessions` (A43: tiket Paid per sesi × pengiklan dari order yang sama).
+Hasil RPC: `summary`, `rows` (per report, termasuk `tickets` = sum quantity order Paid - A45), `sessions` (A43: tiket Paid per sesi x pengiklan dari order yang sama), dan `comparison` (A46: roll-up per produk + batch + pengiklan dengan `totals` dan `rows[]`; angka order memakai himpunan distinct yang sama dengan `summary`).
 Semua rute butuh izin `action.input_spend` DAN akun yang memegang pengiklan (role advertiser).
 Pengiklan selalu diambil dari akun, tidak pernah dari body.
 `spend` = biaya iklan SEBELUM PPN; `tax_percent` = PPN iklan dalam persen (0–100, wajib; 0 bila tanpa PPN).
@@ -264,6 +264,20 @@ tokonya); order ter-mapping atau tidak dikenal dilewati.
 Body: `{ "orderIds": ["SOLO-1001", "SOLO-1002"] }` (1–1000 id). Response: `{ "deleted_count": 2, "skipped_count": 0 }`.
 
 Error: `FORBIDDEN` 403, `INVALID_ARGUMENT` 400.
+
+## 12c. Performa / Analitik (A46)
+Baca langsung browser ke RPC `advertiser_performance(p_advertiser_code, p_product_code, p_batch, p_date_from, p_date_to, p_granularity)`.
+Tidak ada endpoint Worker baru.
+
+- Tanpa `p_advertiser_code`: mode dashboard, hasil `{ advertisers: [...] }` — satu baris per pengiklan dengan
+  `spend`, `tax_amount`, `total_spend`, `leads`, `paid`, `tickets`, `omzet`, `profit`, `closing_rate`, `roas`,
+  `coverage`, dan `top_products[]`.
+- Dengan `p_advertiser_code`: mode detail, hasil `{ summary, rows[], products[], batches[], top_products[] }`.
+  `rows[]` berisi bucket `day|month|year`; bucket tidak penuh punya `is_partial = true` dan `prev`/`yoy` null.
+- Spend diprorata harian; tiket/omzet hanya order Paid. Ini berbeda dari `ad_spend_report` yang memakai nilai report
+  penuh saat beririsan dengan filter (lihat A46).
+- Izin `operasional.analytics`; scope produk lewat `actor_can_product` (A44). Error: `FORBIDDEN` 403,
+  `INVALID_ARGUMENT` 400.
 
 ## 13. Profile endpoints
 GET /api/profile

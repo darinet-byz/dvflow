@@ -7,7 +7,7 @@
 > Dokumen yang mengikat tetap `CLAUDE.md` + `docs/`. File ini hanya mencatat **sejauh mana**
 > pekerjaan sudah berjalan, bukan aturan baru.
 
-Terakhir diperbarui: 2026-10-20
+Terakhir diperbarui: 2026-10-27
 Repo: `C:\Users\MyBook Z Series\dvflow` (git `main`, **sudah di-commit lokal** — belum di-push)
 Rencana lengkap: `~/.claude/plans/baca-file-claude-md-dan-glowing-pike.md`
 Nama aplikasi: **dvflow** (`OrderOnline` tetap nama provider, bukan nama aplikasi)
@@ -41,17 +41,17 @@ Supabase belum dikonfigurasi di project nyata, dan belum ada deployment.
 # Tidak butuh Docker
 npm install
 npm run typecheck          # → PASS (shared, api, worker, functions, web)
-npm test                   # → 611 test lulus (271 api + 133 shared + 207 web)
+npm test                   # -> 643 test lulus (277 api + 133 shared + 233 web)
 npm run build              # → aplikasi web + assets/ticket-qr.js
 npm run verify:ticket-qr   # → membuktikan artefak QR dapat dijalankan & dipindai
 npm audit                  # → 0 vulnerabilities
 
 # Database lokal (BUTUH Docker Desktop menyala)
 npm run db:start                      # supabase start
-npm run db:reset                      # migrasi 0001–0046 + seed.sql (untuk integration)
+npm run db:reset                      # migrasi 0001-0056 + seed.sql (untuk integration)
 npm run test:integration              # 37 test (butuh SUPABASE_URL/SECRET_KEY/DB_URL; skip bila kosong)
 npx supabase db reset --no-seed       # pgTAP mengasumsikan DB tanpa seed
-npm run test:db                       # pgTAP → 498 test lulus / 22 berkas
+npm run test:db                       # pgTAP -> 639 test lulus / 27 berkas
 
 # Tooling developer (butuh database hidup)
 npm run create-master-admin
@@ -488,3 +488,6 @@ sering terlanggar:
 | 2026-10-24 | F2.0 | A39 revisi (0050): Resume Batch diurutkan per kota lalu sesi. A40 (0051): hapus massal Order Unmapped lewat checklist (izin action.delete_master), RPC delete_unmapped_orders; retensi otomatis 90 hari tetap |
 | 2026-10-24 | F2.0 | A41 (0052): retensi attendance_events kembali 30 hari (sebelumnya 60 hari, A10) |
 | 2026-10-27 | F2.0 | A45 (0055): Report Spend Iklan — kartu Paid diganti Jumlah Tiket (sum quantity, sama dengan tabel sesi) dan tabel report menambah kolom Total Tiket per report; `summary`/`sessions` RPC tidak berubah |
+| 2026-10-27 | F2.0 | A46 (0056): menu Performa / Analitik - dashboard semua pengiklan (kartu/tabel) + detail track record per pengiklan; spend prorata harian, tiket/omzet Paid, closing rate tiket/leads, ROAS omzet/(spend+PPN), top 2 produk by tiket; Report Spend menambah kartu Perbandingan Pengiklan. Izin operasional.analytics (default Manajer + Admin) |
+| 2026-10-27 | F2.0 | A47: sidebar accordion - hanya satu grup terbuka, grup halaman aktif otomatis terbuka, status disimpan di localStorage; route/izin/urutan menu tidak berubah |
+| 2026-10-27 | - | Gate A46/A47: typecheck PASS; unit test 643 lulus (277 api + 133 shared + 233 web); pgTAP 639 PASS (27 berkas); build PASS |

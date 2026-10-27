@@ -29,6 +29,7 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
       'Order',
       'Order Unmapped',
       'Report Spend Iklan',
+      'Performa / Analitik',
       'Report Tax',
       'Konfigurasi Tax',
       'Konfigurasi Produk',
@@ -42,6 +43,12 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
       'Profil',
       'Logout',
     ])
+  })
+
+  it('A47: semua seksi berjudul bisa dilipat; Dashboard tetap langsung terlihat', () => {
+    const dashboard = NAV_SECTIONS.find((section) => section.title === undefined)
+    expect(dashboard?.collapsible).toBeUndefined()
+    expect(NAV_SECTIONS.filter((section) => section.title !== undefined).every((section) => section.collapsible === true)).toBe(true)
   })
 
   it('setiap item punya path unik dan absolut', () => {

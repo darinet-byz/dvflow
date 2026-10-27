@@ -249,13 +249,43 @@ PPN = round(spend × tax_percent / 100, 2); Total Spend = spend + PPN (juga dihi
 
 Tidak ada unique constraint: rentang bertumpuk untuk produk + batch + pengiklan yang sama ditolak oleh
 `save_ad_spend_report` kecuali pengiklan mengonfirmasi ("Tambahkan Data Ini").
-RLS: baca dengan izin `operasional.report_spend` + scope produk + (akun Advertiser) pengiklan sendiri.
-Tulis hanya lewat Worker (service_role). Hard delete hanya oleh pengiklan pemilik.
+RLS: baca dengan izin `operasional.report_spend` + scope produk (A44). Flag `own` menandai report milik akun
+Advertiser untuk edit/hapus. Tulis hanya lewat Worker (service_role). Hard delete hanya oleh pengiklan pemilik.
+
+**A46 — `comparison`.** `ad_spend_report` juga mengembalikan `comparison: { totals, rows[] }`: roll-up per
+(produk, batch, pengiklan) berisi `spend`, `tax_amount`, `total_spend`, `leads`, `paid`, `tickets`, `omzet`.
+Angka order memakai himpunan `distinct order_id` yang sama dengan `summary`; report bertumpuk tetap dijumlahkan.
+Tidak ada tabel/kolom baru.
 
 ### 12b. RPC batch_session_summary (A39, 0049)
 Resume Batch: tiket Paid (`sum(quantity)`, order `app_status = Paid`, `product_parse_status = valid`) per (sesi, kota,
 jenis acara) untuk satu produk + batch (`normalize_batch`), dengan rincian per pengiklan (+ OTS). Tidak ada tabel baru.
 Izin `operasional.resume_batch`; scope produk + pengiklan diterapkan ulang lewat `actor_can_order`.
+
+### 12c. RPC advertiser_performance (A46, 0056)
+Track record iklan per pengiklan. Tidak ada tabel baru.
+
+```text
+advertiser_performance(
+  p_advertiser_code text, p_product_code text, p_batch text,
+  p_date_from date, p_date_to date, p_granularity text  -- day | month | year
+)
+```
+
+- Tanpa `p_advertiser_code` (mode dashboard): `advertisers[]`, satu baris per pengiklan yang punya order/report
+  pada periode. Tiap baris: `spend`, `tax_amount`, `total_spend`, `leads`, `paid`, `tickets`, `omzet`, `profit`,
+  `closing_rate` (tiket/leads), `roas` (omzet/(spend+PPN)), `coverage` (tiket tercakup report / total tiket),
+  dan `top_products[]` (maks. 2, urut tiket Paid).
+- Dengan `p_advertiser_code` (mode detail): `summary`, `rows[]` per bucket (`period_start`, `period_end`,
+  `is_partial`, metrik, `prev`, `yoy`), `products[]`, `batches[]`, `top_products[]`.
+- **Spend diprorata harian.** Report 28 Agu–3 Sep dibagi 7 hari; porsi 1–3 Sep masuk September. Ini berbeda dari
+  `ad_spend_report` yang menampilkan nilai report penuh bila beririsan dengan filter.
+- Tiket/omzet hanya order `Paid`; leads semua status. Order OTS (tanpa pengiklan) tidak masuk.
+- Granularitas `day|month|year`; bucket pertama/terakhir yang tidak penuh diberi `is_partial = true` dan
+  `prev`/`yoy` null.
+- Izin `operasional.analytics`; scope produk lewat `actor_can_product` (A44).
+- **Tidak ada index baru di 0056** karena `orders` adalah tabel produksi aktif. Bila perlu, index khusus dibuat
+  terpisah dengan `CREATE INDEX CONCURRENTLY`.
 
 ## 13. Minimum indexes
 orders:

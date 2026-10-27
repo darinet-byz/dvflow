@@ -15,6 +15,7 @@ export { FilterBar, FilterChip } from './Filters'
 export { Drawer, Modal } from './Overlay'
 export { Pagination } from './Pagination'
 export { DataTable, TableCell, TableRow, type TableColumn, type TableSort } from './Table'
+export { TrendChart, TrendLegend, type TrendSeries } from './TrendChart'
 export {
   Badge,
   appStatusTone,

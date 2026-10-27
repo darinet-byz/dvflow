@@ -15,7 +15,7 @@ import { Button } from '../../ui/Button'
 import { Card, KpiCard } from '../../ui/Card'
 import { Combobox } from '../../ui/Combobox'
 import { ErrorState, SkeletonRows } from '../../ui/Feedback'
-import { TextInput } from '../../ui/Field'
+import { Select, TextInput } from '../../ui/Field'
 import { FilterChip } from '../../ui/Filters'
 import { Modal } from '../../ui/Overlay'
 import { DataTable, TableCell, TableRow, type TableColumn } from '../../ui/Table'
@@ -68,6 +68,7 @@ type SpendReport = {
   }
   rows: SpendRow[]
   sessions: SessionMatrix
+  comparison?: SpendComparison
 }
 
 /** Tiket Paid per sesi × pengiklan (A43), dari order yang sama dengan card. */
@@ -84,6 +85,37 @@ type SessionMatrix = {
   advertisers: { advertiser_code: string | null; advertiser_name: string | null; tickets: number }[]
   rows: SessionMatrixRow[]
 }
+
+/** A46: roll-up per produk + batch + pengiklan, dari report dan order yang sama dengan summary. */
+export type ComparisonRow = {
+  product_code: string
+  product_name: string
+  batch: string
+  advertiser_code: string
+  advertiser_name: string
+  spend: number | string
+  tax_amount: number | string
+  total_spend: number | string
+  leads: number
+  paid: number
+  tickets: number
+  omzet: number | string
+}
+
+export type SpendComparison = {
+  totals: {
+    spend: number | string
+    tax_amount: number | string
+    total_spend: number | string
+    leads: number
+    paid: number
+    tickets: number
+    omzet: number | string
+  }
+  rows: ComparisonRow[]
+}
+
+type ComparisonSort = 'tickets' | 'omzet' | 'profit' | 'roi' | 'spend'
 
 type FormState = {
   id: string | null
@@ -111,6 +143,20 @@ const COLUMNS: readonly TableColumn[] = [
   { key: 'roi', header: '%', align: 'right', minWidth: 80 },
 ]
 const ACTION_COLUMN: TableColumn = { key: 'actions', header: 'Aksi', minWidth: 130 }
+
+const COMPARISON_COLUMNS: readonly TableColumn[] = [
+  { key: 'advertiser', header: 'Pengiklan', minWidth: 160 },
+  { key: 'spend', header: 'Spend', align: 'right', minWidth: 140 },
+  { key: 'total_spend', header: 'Total Spend', align: 'right', minWidth: 140 },
+  { key: 'leads', header: 'Leads', align: 'right', minWidth: 80 },
+  { key: 'paid', header: 'Paid', align: 'right', minWidth: 80 },
+  { key: 'tickets', header: 'Tiket', align: 'right', minWidth: 90 },
+  { key: 'omzet', header: 'Omzet', align: 'right', minWidth: 130 },
+  { key: 'profit', header: 'Profit / Boncos', align: 'right', minWidth: 140 },
+  { key: 'roi', header: '%', align: 'right', minWidth: 80 },
+  { key: 'cost_ticket', header: 'Cost/Tiket', align: 'right', minWidth: 110 },
+  { key: 'share', header: 'Share Tiket', align: 'right', minWidth: 100 },
+]
 
 /** Tiket pengiklan di satu sesi; pengiklan tanpa order Paid di sesi itu = 0. */
 export function sessionMatrixCell(row: SessionMatrixRow, advertiserCode: string | null): number {
@@ -227,6 +273,7 @@ export function ReportSpendPage() {
   const [overlap, setOverlap] = useState(false)
   const [saving, setSaving] = useState(false)
   const [deleting, setDeleting] = useState<SpendRow | null>(null)
+  const [comparisonSort, setComparisonSort] = useState<ComparisonSort>('tickets')
 
   function openForm(next: FormState): void {
     setForm(next)
@@ -324,6 +371,10 @@ export function ReportSpendPage() {
   const columns = canInput ? [...COLUMNS, ACTION_COLUMN] : COLUMNS
   const summary = data?.summary
   const matrix = data?.sessions
+  const comparison = data?.comparison
+  // Perbandingan hanya bermakna untuk satu produk + batch; filter lain tetap boleh aktif.
+  const showComparison = state.applied.productCode !== '' && state.applied.batch.trim() !== ''
+  const comparisonProduct = (lists?.products ?? []).find((item) => item.value === state.applied.productCode)?.label ?? state.applied.productCode
   const totalProfit = summary ? spendProfit(summary.omzet, summary.total_spend) : 0
   // Jumlah Tiket = metrik A25; sama dengan baris Total tabel sesi, bukan jumlah Order ID seperti `paid`.
   const totalTickets = matrix?.tickets ?? summary?.paid ?? 0
@@ -400,6 +451,18 @@ export function ReportSpendPage() {
           </div>
         </div>
       )}
+
+      {showComparison ? (
+        <div className="mt-4">
+          <AdvertiserComparison
+            comparison={comparison}
+            productLabel={comparisonProduct}
+            batch={state.applied.batch.trim()}
+            sort={comparisonSort}
+            onSort={setComparisonSort}
+          />
+        </div>
+      ) : null}
 
       {matrix === undefined ? null : (
         <div className="mt-4">
@@ -615,6 +678,133 @@ export function ReportSpendPage() {
         )}
       </Modal>
     </>
+  )
+}
+
+const COMPARISON_SORT_OPTIONS: ReadonlyArray<{ value: ComparisonSort; label: string }> = [
+  { value: 'tickets', label: 'Urut: Tiket' },
+  { value: 'omzet', label: 'Urut: Omzet' },
+  { value: 'profit', label: 'Urut: Profit' },
+  { value: 'roi', label: 'Urut: ROI' },
+  { value: 'spend', label: 'Urut: Spend' },
+]
+
+function comparisonValue(row: ComparisonRow, sort: ComparisonSort): number {
+  if (sort === 'tickets') return row.tickets
+  if (sort === 'omzet') return Number(row.omzet)
+  if (sort === 'profit') return spendProfit(row.omzet, row.total_spend)
+  if (sort === 'spend') return Number(row.spend)
+  const base = Number(row.total_spend)
+  return base > 0 ? spendProfit(row.omzet, row.total_spend) / base : Number.NEGATIVE_INFINITY
+}
+
+/**
+ * A46: perbandingan performa antar pengiklan untuk satu produk + batch.
+ *
+ * Angka memakai report/order yang sama dengan KPI di atas, jadi total baris selalu
+ * cocok dengan summary. Read-only; edit/hapus tetap di tabel report.
+ */
+export function AdvertiserComparison({
+  comparison,
+  productLabel,
+  batch,
+  sort,
+  onSort,
+}: {
+  comparison: SpendComparison | undefined
+  productLabel: string
+  batch: string
+  sort: ComparisonSort
+  onSort: (value: ComparisonSort) => void
+}) {
+  const rows = comparison?.rows ?? []
+  const totals = comparison?.totals
+  const sorted = [...rows].sort((left, right) => {
+    const diff = comparisonValue(right, sort) - comparisonValue(left, sort)
+    if (diff !== 0) return diff
+    return left.advertiser_name.localeCompare(right.advertiser_name, 'id')
+  })
+  const totalTickets = totals?.tickets ?? rows.reduce((sum, row) => sum + row.tickets, 0)
+  const totalProfit = totals === undefined ? 0 : spendProfit(totals.omzet, totals.total_spend)
+  const totalCost = totals === undefined || totals.tickets <= 0 ? null : Number(totals.total_spend) / totals.tickets
+
+  return (
+    <Card padding="none">
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3 px-3.5 pb-2 pt-3">
+        <div className="min-w-0">
+          <h2 className="text-[14px] font-semibold text-ink">Perbandingan Pengiklan</h2>
+          <p className="mt-0.5 text-[12px] text-ink-soft">
+            {productLabel} · Batch {batch} · metrik sama dengan kartu di atas.
+          </p>
+        </div>
+        <Select
+          id="comparison-sort"
+          ariaLabel="Urutkan perbandingan pengiklan"
+          className="w-[170px]"
+          value={sort}
+          options={COMPARISON_SORT_OPTIONS}
+          onChange={(value) => onSort(value as ComparisonSort)}
+        />
+      </div>
+
+      {rows.length === 0 ? (
+        <p className="border-t border-line px-3 py-6 text-center text-ink-soft">
+          Belum ada report spend untuk produk dan batch ini pada rentang tanggal yang dipilih.
+        </p>
+      ) : (
+        <DataTable columns={COMPARISON_COLUMNS} stickyHeader={false}>
+          {sorted.map((row, index) => {
+            const profit = spendProfit(row.omzet, row.total_spend)
+            const cost = row.tickets > 0 ? Number(row.total_spend) / row.tickets : null
+            const share = totalTickets > 0 ? (row.tickets / totalTickets) * 100 : 0
+            return (
+              <TableRow key={`${row.advertiser_code}|${row.product_code}|${row.batch}`}>
+                <TableCell>
+                  <span className="font-medium text-ink">{row.advertiser_name}</span>
+                  {index === 0 && sorted.length > 1 ? <Badge tone="success" className="ml-1.5">Tertinggi</Badge> : null}
+                </TableCell>
+                <TableCell align="right">
+                  {formatMoney(row.spend)}
+                  <span className="block text-[10px] text-ink-soft">PPN {formatMoney(row.tax_amount)}</span>
+                </TableCell>
+                <TableCell align="right">{formatMoney(row.total_spend)}</TableCell>
+                <TableCell align="right">{formatCount(row.leads)}</TableCell>
+                <TableCell align="right">{formatCount(row.paid)}</TableCell>
+                <TableCell align="right">{formatCount(row.tickets)}</TableCell>
+                <TableCell align="right">{formatMoney(row.omzet)}</TableCell>
+                <TableCell align="right">
+                  <span className={profitClass(profit)}>{formatMoney(profit)}</span>
+                </TableCell>
+                <TableCell align="right">
+                  <span className={profitClass(profit)}>{formatSpendRoi(row.omzet, row.total_spend)}</span>
+                </TableCell>
+                <TableCell align="right">{cost === null ? '-' : formatMoney(cost)}</TableCell>
+                <TableCell align="right">{formatPercent(share)}</TableCell>
+              </TableRow>
+            )
+          })}
+          <TableRow>
+            <TableCell className="font-semibold">Total</TableCell>
+            <TableCell align="right" className="font-semibold">{totals === undefined ? '-' : formatMoney(totals.spend)}</TableCell>
+            <TableCell align="right" className="font-semibold">{totals === undefined ? '-' : formatMoney(totals.total_spend)}</TableCell>
+            <TableCell align="right" className="font-semibold">{totals === undefined ? '-' : formatCount(totals.leads)}</TableCell>
+            <TableCell align="right" className="font-semibold">{totals === undefined ? '-' : formatCount(totals.paid)}</TableCell>
+            <TableCell align="right" className="font-semibold">{formatCount(totalTickets)}</TableCell>
+            <TableCell align="right" className="font-semibold">{totals === undefined ? '-' : formatMoney(totals.omzet)}</TableCell>
+            <TableCell align="right">
+              <span className={`font-semibold ${profitClass(totalProfit)}`}>{totals === undefined ? '-' : formatMoney(totalProfit)}</span>
+            </TableCell>
+            <TableCell align="right">
+              <span className={`font-semibold ${profitClass(totalProfit)}`}>
+                {totals === undefined ? '-' : formatSpendRoi(totals.omzet, totals.total_spend)}
+              </span>
+            </TableCell>
+            <TableCell align="right" className="font-semibold">{totalCost === null ? '-' : formatMoney(totalCost)}</TableCell>
+            <TableCell align="right" className="font-semibold">{formatPercent(100)}</TableCell>
+          </TableRow>
+        </DataTable>
+      )}
+    </Card>
   )
 }
 

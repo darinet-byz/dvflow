@@ -10,6 +10,11 @@ export type NavSection = {
   /** Kosong = seksi tanpa judul (Dashboard di paling atas). */
   title?: string
   items: NavItem[]
+  /**
+   * A47: grup yang bisa dilipat di sidebar. Dashboard tetap langsung terlihat;
+   * seksi lain hanya menampilkan judul sampai diklik.
+   */
+  collapsible?: boolean
 }
 
 export const OPERASIONAL_PATH = '/scan-qr'
@@ -23,6 +28,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'ACARA',
+    collapsible: true,
     items: [
       { label: 'Scan QR', path: OPERASIONAL_PATH, icon: 'scan-line' },
       { label: 'Presensi Acara', path: '/presensi', icon: 'user-check' },
@@ -32,6 +38,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'ORDER',
+    collapsible: true,
     items: [
       { label: 'Order', path: '/order', icon: 'receipt' },
       { label: 'Order Unmapped', path: '/order-unmapped', icon: 'alert-circle' },
@@ -39,14 +46,18 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'LAPORAN & PAJAK',
+    collapsible: true,
     items: [
       { label: 'Report Spend Iklan', path: '/report-spend', icon: 'megaphone' },
+      // A46: performa per pengiklan (track record + perbandingan).
+      { label: 'Performa / Analitik', path: '/performa', icon: 'trending-up' },
       { label: 'Report Tax', path: '/report-tax', icon: 'file-text' },
       { label: 'Konfigurasi Tax', path: '/konfigurasi-tax', icon: 'percent' },
     ],
   },
   {
     title: 'PRODUK & ACARA',
+    collapsible: true,
     items: [
       { label: 'Konfigurasi Produk', path: '/konfigurasi-produk', icon: 'package' },
       { label: 'Product Name Generator', path: '/generator', icon: 'wand' },
@@ -56,6 +67,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'SISTEM',
+    collapsible: true,
     items: [
       { label: 'Add Team', path: '/add-team', icon: 'users' },
       { label: 'Konfigurasi Role', path: '/konfigurasi-role', icon: 'shield' },
@@ -65,6 +77,7 @@ export const NAV_SECTIONS: NavSection[] = [
   },
   {
     title: 'AKUN',
+    collapsible: true,
     items: [
       { label: 'Profil', path: '/profil', icon: 'user' },
       { label: 'Logout', path: '/logout', icon: 'log-out' },

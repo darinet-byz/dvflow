@@ -42,6 +42,12 @@ export const AD_SPEND_VIEW_PERMISSION = 'operasional.report_spend'
 export const AD_SPEND_INPUT_PERMISSION = 'action.input_spend'
 export const AD_SPEND_INPUT_ROLES: readonly string[] = ['advertiser']
 
+/**
+ * A46: "Performa / Analitik" — halaman track record pengiklan. Izin terpisah supaya bisa
+ * diberikan/dicabut per role di Konfigurasi Role. Default migrasi: Manajer + Admin.
+ */
+export const ANALYTICS_PERMISSION = 'operasional.analytics'
+
 /** Izin yang hanya boleh dipegang role tertentu; role penuh (developer/owner) pun tidak. */
 const ROLE_RESTRICTED_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
   [FIELD_APP_PERMISSION]: FIELD_APP_ROLES,
@@ -65,6 +71,7 @@ export type AppPermissionKey =
   | 'operasional.presensi'
   | 'operasional.generator'
   | 'operasional.report_spend'
+  | 'operasional.analytics'
   | 'operasional.resume_batch'
   | 'config.produk'
   | 'config.tax'

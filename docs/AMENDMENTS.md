@@ -1114,3 +1114,78 @@ tabel sesi (jumlah tiket = `sum(quantity)`) — mis. 8 order Paid berisi 9 tiket
 **Implementasi (0055).** `ad_spend_report` menambah kunci `tickets` di tiap baris `rows`; `schema_version()` = 55.
 
 **Catatan deploy.** Deploy tertahan `check-schema-version` sampai 0055 diterapkan di database produksi.
+
+## A46 — Performa / Analitik + perbandingan pengiklan (27 Oktober 2026)
+
+**Permintaan pengguna.** Dua kebutuhan baru:
+1. Di Report Spend Iklan, saat filter Produk + Batch dipilih, tampilkan **perbandingan performa antar pengiklan**
+   untuk produk dan batch tersebut.
+2. Menu baru **Performa / Analitik** yang menampilkan **setiap pengiklan secara individual** (bukan total gabungan
+   semua pengiklan), dengan kartu metrik, grafik garis harian/bulanan/tahunan, dan track record bulan ke bulan
+   serta tahun ke tahun.
+
+**Keputusan pengguna.**
+- **Report Spend:** kartu “Perbandingan Pengiklan” muncul saat Produk + Batch dipilih. Isinya satu baris per
+  pengiklan dengan spend, PPN, total spend, leads, paid, tiket, omzet, profit, ROI, cost/tiket, dan share tiket.
+  Angka memakai report/order yang sama dengan KPI di atasnya, sehingga total baris = summary.
+- **Level 1 Performa:** area berisi **semua pengiklan** (toggle Kartu/Tabel), bukan KPI agregat semua pengiklan.
+  Setiap kartu menampilkan 7 metrik: Spend, Omzet, Profit/Boncos, Closing Rate, Tiket Terjual, ROAS, dan Top 2
+  Produk. Klik kartu/baris → detail pengiklan.
+- **Level 2 Performa:** 7 kartu metrik, **dua grafik garis kecil** (Uang: Spend vs Omzet; Volume: Tiket vs Leads),
+  tabel periode dengan Δ vs periode sebelumnya dan Δ vs tahun lalu, Top 2 Produk, breakdown produk dan batch.
+- **Metrik:** Spend diprorata harian; Omzet = `sum(gross_amount)` order Paid; Profit = Omzet − (Spend + PPN);
+  **Closing Rate = Tiket ÷ Leads** (boleh >100% bila satu order berisi beberapa tiket); **ROAS = Omzet ÷
+  (Spend + PPN)**; **Top 2 Produk berdasarkan tiket terjual** (`sum(quantity)` Paid), omzet sebagai info pendukung.
+  Tiket/omzet hanya order Paid; leads semua status. Tiket/omzet memakai **semua order Paid** pengiklan, dengan
+  indikator coverage berapa tiket yang tercakup report spend.
+- **Periode default:** Bulan Berjalan. Granularitas otomatis: ≤31 hari Harian, 32 hari–24 bulan Bulanan, >24 bulan
+  Tahunan; bisa dioverride.
+- **Izin:** `operasional.analytics`, default Manajer + Admin; role lain dapat dicentang di Konfigurasi Role.
+  Owner/Developer otomatis. Advertiser, Pimpro, Staff, dan Member tidak mendapat default.
+- **Tanpa library chart baru:** grafik memakai SVG native. Tabel tetap menjadi fallback aksesibilitas.
+
+**Catatan konsistensi angka.**
+- Report Spend tetap menampilkan **nilai report penuh** bila rentangnya beririsan dengan filter (perilaku A37).
+  Halaman Performa memakai **porsi harian di dalam rentang** yang dipilih. Contoh: report 28 Agu–3 Sep, filter
+  September → Report Spend Rp 7.000.000, Performa Rp 3.000.000 (3/7).
+- Report yang bertumpuk tetap dijumlahkan seperti summary Report Spend.
+- Data spend historis baru ada sejak A37 (22 Okt 2026); bulan sebelumnya menampilkan tiket/omzet dengan spend “—”
+  dan indikator coverage, bukan nol yang menyesatkan.
+- Bucket bulan/tahun yang belum penuh (mis. bulan berjalan) ditandai “sebagian”; Δ dan YoY-nya ditampilkan “—”
+  agar tidak membandingkan periode parsial dengan periode penuh.
+
+**Implementasi (0056).**
+- Izin `operasional.analytics` + seed Manajer/Admin; `can_read_configuration()` ditambah izin ini agar dropdown
+  produk/pengiklan terbaca.
+- `ad_spend_report` menambah kunci `comparison` (`totals`, `rows[]`); `summary`, `rows`, `sessions` tidak berubah.
+- RPC baru `advertiser_performance(p_advertiser_code, p_product_code, p_batch, p_date_from, p_date_to, p_granularity)`:
+  mode dashboard (tanpa advertiser) mengembalikan `advertisers[]` + `top_products`; mode detail mengembalikan
+  `summary`, `rows[]` (dengan `prev`/`yoy`), `products[]`, `batches[]`, `top_products[]`.
+- Scope produk lewat `actor_can_product` (A44); order OTS (tanpa pengiklan) tidak masuk analitik pengiklan.
+- **Tidak ada index baru di migrasi ini.** `orders` adalah tabel produksi yang aktif ditulis; index khusus analitik
+  dibuat terpisah dengan `CREATE INDEX CONCURRENTLY` bila volume data menuntut. Query memakai index yang sudah ada.
+- `schema_version()` = 56.
+
+**Catatan deploy.** Deploy tertahan `check-schema-version` sampai 0056 diterapkan di database produksi. Migrasi
+bersifat aditif: tidak ada DROP, DELETE, atau perubahan data.
+
+## A47 — Sidebar accordion (27 Oktober 2026)
+
+**Permintaan pengguna.** Daftar menu sidebar semakin panjang (19 item). Menu dikelompokkan dan **anak menu baru
+muncul setelah judul grup diklik**.
+
+**Keputusan pengguna.** Accordion grup dulu; konsolidasi halaman menjadi tab tidak dilakukan sekarang.
+
+**Perilaku.**
+- Dashboard Resume tetap langsung terlihat. Seksi berjudul (ACARA, ORDER, LAPORAN & PAJAK, PRODUK & ACARA, SISTEM,
+  AKUN) menjadi tombol grup.
+- Hanya **satu grup terbuka** pada satu waktu; klik judul menutup/membuka.
+- Grup dari halaman aktif otomatis terbuka saat halaman dimuat atau berpindah.
+- Status grup yang terbuka disimpan di `localStorage` (`dvflow.sidebar.open`); bila penyimpanan diblokir, sidebar
+  tetap bekerja.
+- Tombol memakai `aria-expanded`/`aria-controls`; tetap bekerja di drawer HP.
+- Route, izin, label item, dan urutan item **tidak berubah**. Ini menggantikan gaya A38 “judul seksi saja tanpa
+  accordion”.
+
+**Implementasi.** `navigation.ts` menambah `collapsible`; `Sidebar.tsx` merender grup; test navigasi dan sidebar
+diperbarui. Tidak ada perubahan database.
