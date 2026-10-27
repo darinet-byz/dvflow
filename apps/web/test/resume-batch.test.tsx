@@ -69,7 +69,9 @@ describe('Resume Batch: halaman', () => {
     fireEvent.change(screen.getByLabelText('Filter produk'), { target: { value: 'KM' } })
     fireEvent.change(screen.getByLabelText('Filter batch'), { target: { value: '392' } })
 
-    fireEvent.click(await screen.findByRole('button', { name: 'S1' }))
+    // Timeout lebih longgar: saat seluruh suite berjalan paralel, debounce filter bisa melewati
+    // batas default 1 dtk di mesin lambat.
+    fireEvent.click(await screen.findByRole('button', { name: 'S1' }, { timeout: 5000 }))
     expect(supabaseRpc).toHaveBeenCalledWith('batch_session_summary', { p_product_code: 'KM', p_batch: '392', p_event_type: null })
     const drawer = screen.getByRole('dialog', { name: 'Sesi S1 · Solo' })
     expect(within(drawer).getByText('Zul (01)')).toBeTruthy()
