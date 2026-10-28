@@ -76,7 +76,13 @@ describe('Sidebar accordion (A47)', () => {
     expect(activeClasses).toContain('text-[14px]')
     expect(activeClasses).toContain('text-white')
 
-    fireEvent.click(screen.getByRole('button', { name: 'ACARA' }))
+    const accordion = screen.getByRole('button', { name: 'ACARA' })
+    const accordionClasses = accordion.className.split(/\s+/)
+    expect(accordionClasses).toContain('text-[14px]')
+    expect(accordionClasses).toContain('text-ink')
+    expect(accordionClasses).not.toContain('text-ink-soft')
+
+    fireEvent.click(accordion)
     const inactive = screen.getByText('Scan QR').closest('a')
     expect(inactive).not.toBeNull()
     const inactiveClasses = inactive!.className.split(/\s+/)

@@ -1246,9 +1246,10 @@ diperbarui. Tidak ada perubahan database.
   tersedia di modal Edit Member. Maksimal 4 badge produk ditampilkan; sisanya menjadi badge netral
   `+N produk` dengan daftar lengkap di `title`. Akun “Semua Produk” tetap satu badge. Export CSV tetap memuat
   seluruh kode produk.
-- **Sidebar:** item menu 13px → 14px; header grup 10px → 11px; teks tidak aktif `ink-soft` → `ink`; hover item
-  `primary` 30%; hover header grup `primary` 15%; item aktif tetap gradien indigo + teks putih. Lebar sidebar
-  tetap 230px; padding item dan tracking tipis disesuaikan agar label terpanjang tetap satu baris.
+- **Sidebar:** item menu 13px → 14px; header grup 10px → 14px dengan `text-ink` dan tracking 0.06em; semua teks
+  menu/accordion memakai `ink`; hover item `primary` 30%; hover header grup `primary` 15%; item aktif tetap
+  gradien indigo + teks putih. Lebar sidebar tetap 230px; padding item dan tracking tipis disesuaikan agar label
+  terpanjang tetap satu baris.
 
 **Implementasi.**
 - `apps/web/src/ui/Table.tsx` (`TableTotalRow`), `ReportSpendPage.tsx`, `ResumeBatchPage.tsx`,

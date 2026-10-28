@@ -91,7 +91,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           if (section.collapsible !== true) {
             return (
               <div key={title}>
-                <p className="px-3 pb-1.5 text-[11px] font-semibold tracking-[0.12em] text-ink-soft">{title}</p>
+                <p className="px-3 pb-1.5 text-[14px] font-semibold tracking-[0.06em] text-ink">{title}</p>
                 <ul className="flex flex-col gap-1">
                   {items.map((item) => (
                     <li key={item.path}>
@@ -113,9 +113,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 aria-controls={id}
                 onClick={() => toggle(title)}
                 className={cn(
-                  'flex min-h-8 w-full items-center justify-between gap-2 rounded-[11px] px-3 py-1.5 text-[11px] font-semibold tracking-[0.12em] text-ink-soft transition-colors',
+                  'flex min-h-8 w-full items-center justify-between gap-2 rounded-[11px] px-3 py-1.5 text-[14px] font-semibold tracking-[0.06em] text-ink transition-colors',
                   'hover:bg-primary/15 hover:text-ink',
-                  isOpen && 'text-ink',
                 )}
               >
                 <span>{title}</span>
@@ -124,7 +123,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                   viewBox="0 0 20 20"
                   fill="none"
                   className={cn(
-                    'h-4 w-4 shrink-0 text-ink-soft transition-transform duration-150',
+                    'h-4 w-4 shrink-0 text-ink transition-transform duration-150',
                     isOpen && 'rotate-90',
                   )}
                 >
