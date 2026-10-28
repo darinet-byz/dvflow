@@ -73,12 +73,12 @@ describe('Sidebar accordion (A47)', () => {
     const active = screen.getByText('Dashboard Resume').closest('a')
     expect(active).not.toBeNull()
     const activeClasses = active!.className.split(/\s+/)
-    expect(activeClasses).toContain('text-[14px]')
+    expect(activeClasses).toContain('text-[12px]')
     expect(activeClasses).toContain('text-white')
 
     const accordion = screen.getByRole('button', { name: 'ACARA' })
     const accordionClasses = accordion.className.split(/\s+/)
-    expect(accordionClasses).toContain('text-[14px]')
+    expect(accordionClasses).toContain('text-[12px]')
     expect(accordionClasses).toContain('text-ink')
     expect(accordionClasses).not.toContain('text-ink-soft')
 
@@ -86,7 +86,7 @@ describe('Sidebar accordion (A47)', () => {
     const inactive = screen.getByText('Scan QR').closest('a')
     expect(inactive).not.toBeNull()
     const inactiveClasses = inactive!.className.split(/\s+/)
-    expect(inactiveClasses).toContain('text-[14px]')
+    expect(inactiveClasses).toContain('text-[12px]')
     expect(inactiveClasses).toContain('text-ink')
     expect(inactiveClasses).toContain('hover:bg-primary/30')
   })
