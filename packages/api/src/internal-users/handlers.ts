@@ -1,6 +1,8 @@
-import { APP_ROLES, isMasterAdminRole, type AppRole } from '@dvflow/shared'
+import { APP_ROLES, isMasterAdminRole, normalizeCode, type AppRole } from '@dvflow/shared'
+import { DbError } from '../db/types'
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
+import { allowsProduct, productAccess, requirePermission } from '../permissions'
 import type { RouteContext } from '../router'
 import { requireActiveUser, USER_COLUMNS, type UserRow } from '../users'
 import { AVATAR_EMOJI_MAX_LENGTH, DISPLAY_NAME_MAX_LENGTH, USERNAME_MAX_LENGTH } from '../users'
@@ -36,6 +38,51 @@ async function resolveAdvertiserId(
   return row.id
 }
 
+const BLOCKED_ASSIGN_ROLES = new Set(['developer', 'owner', 'manajer', 'admin'])
+const ROLE_INTRINSIC_PERMISSIONS = new Set(['ui.field_app', 'action.input_spend'])
+
+/**
+ * A50: pemegang team.manage hanya boleh memberikan role yang tidak lebih tinggi
+ * dari dirinya. Role master/Admin/Manajer diblokir; role kustom harus subset.
+ */
+async function canAssignRole(
+  context: RouteContext,
+  actor: UserRow,
+  roleId: string,
+): Promise<boolean> {
+  if (isMasterAdminRole(actor.role)) return true
+  if (BLOCKED_ASSIGN_ROLES.has(roleId)) return false
+  const [actorRows, roleRows] = await Promise.all([
+    context.db.selectRows<{ permission_key: string }>(
+      'app_role_permissions',
+      { role_id: `eq.${actor.role}` },
+      'permission_key',
+    ),
+    context.db.selectRows<{ permission_key: string }>(
+      'app_role_permissions',
+      { role_id: `eq.${roleId}` },
+      'permission_key',
+    ),
+  ])
+  const actorPerms = new Set(actorRows.map((row) => row.permission_key))
+  const targetPerms = roleRows.map((row) => row.permission_key)
+  if (targetPerms.some((key) => key === 'config.roles' || key === 'team.manage')) return false
+  return targetPerms.every((key) => ROLE_INTRINSIC_PERMISSIONS.has(key) || actorPerms.has(key))
+}
+
+function assertCanAssignProducts(
+  access: Awaited<ReturnType<typeof productAccess>>,
+  hasAll: boolean,
+  codes: string[],
+): void {
+  if (hasAll && !access.all) {
+    throw new ApiFailure('FORBIDDEN', undefined, 'Anda hanya dapat memberikan produk yang Anda pegang.')
+  }
+  if (!hasAll && codes.some((code) => !allowsProduct(access, code))) {
+    throw new ApiFailure('FORBIDDEN', undefined, 'Anda hanya dapat memberikan produk yang Anda pegang.')
+  }
+}
+
 type CreatedUser = {
   user_id: string
   username: string
@@ -66,8 +113,7 @@ export type ListedUser = {
  */
 export async function createUser(context: RouteContext): Promise<Response> {
 
-  const actor = await requireActiveUser(context)
-  if (!isMasterAdminRole(actor.role)) throw new ApiFailure('FORBIDDEN', 'Master Admin diperlukan')
+  const actor = await requirePermission(context, 'team.manage')
 
   const body = await readJsonObject(context.request)
   const username = readString(body, 'username')
@@ -122,20 +168,38 @@ export async function createUser(context: RouteContext): Promise<Response> {
 
   const isMasterRole = isMasterAdminRole(trimmedRole)
   const allowMaster = context.env.ALLOW_MASTER_ADMIN_CREATE_MASTER === 'true'
+
+  if (!isMasterAdminRole(actor.role)) {
+    const roleAllowed = await canAssignRole(context, actor, trimmedRole)
+    if (!roleAllowed) {
+      throw new ApiFailure('FORBIDDEN', undefined, 'Role ini tidak dapat Anda berikan.')
+    }
+    assertCanAssignProducts(await productAccess(context, actor), hasAllProductAccess, productCodes)
+  }
+
   const advertiserId = await resolveAdvertiserId(context, trimmedRole, body)
 
-  const created = await context.db.rpc<CreatedUser>('admin_create_user', {
-    p_actor_user_id: actor.id,
-    p_username: trimmedUsername,
-    p_display_name: trimmedDisplayName,
-    p_initial_password: initialPassword,
-    p_role: trimmedRole,
-    p_avatar_emoji: avatarEmoji === null || avatarEmoji.trim() === '' ? null : avatarEmoji.trim(),
-    p_allow_master: isMasterRole ? allowMaster : false,
-    p_has_all_product_access: hasAllProductAccess,
-    p_product_codes: productCodes,
-    p_advertiser_id: advertiserId,
-  })
+  let created: CreatedUser
+  try {
+    created = await context.db.rpc<CreatedUser>('admin_create_user', {
+      p_actor_user_id: actor.id,
+      p_username: trimmedUsername,
+      p_display_name: trimmedDisplayName,
+      p_initial_password: initialPassword,
+      p_role: trimmedRole,
+      p_avatar_emoji: avatarEmoji === null || avatarEmoji.trim() === '' ? null : avatarEmoji.trim(),
+      p_allow_master: isMasterRole ? allowMaster : false,
+      p_has_all_product_access: hasAllProductAccess,
+      p_product_codes: productCodes,
+      p_advertiser_id: advertiserId,
+    })
+  } catch (error) {
+    // Race dua request dengan username sama: unique constraint tetap menang.
+    if (error instanceof DbError && error.sqlState === '23505') {
+      throw new ApiFailure('USERNAME_TAKEN')
+    }
+    throw error
+  }
 
   return ok(
     {
@@ -151,8 +215,8 @@ export async function createUser(context: RouteContext): Promise<Response> {
 
 /** Add Team lists safe profile columns only, plus product scope for Fitur 2.0. */
 export async function listUsers(context: RouteContext): Promise<Response> {
-  const actor = await requireActiveUser(context)
-  if (!isMasterAdminRole(actor.role)) throw new ApiFailure('FORBIDDEN', 'Master Admin diperlukan')
+  const actor = await requirePermission(context, 'team.manage')
+  const access = await productAccess(context, actor)
 
   const accessRows = await context.db.selectRows<{ user_id: string; product_code: string }>(
     'user_product_access',
@@ -189,7 +253,19 @@ export async function listUsers(context: RouteContext): Promise<Response> {
     )
     if (rows.length < 500) break
   }
-  return ok({ users })
+  if (isMasterAdminRole(actor.role)) return ok({ users })
+
+  // Pemegang team.manage tidak melihat akun master, dan hanya melihat produk
+  // yang juga ia pegang. Ini batas tampilan; penegak utama tetap create.
+  const visible = users
+    .filter((user) => !isMasterAdminRole(user.role))
+    .map((user) => ({
+      ...user,
+      allowed_product_codes: access.all
+        ? user.allowed_product_codes
+        : user.allowed_product_codes.filter((code) => access.codes.includes(normalizeCode(code) ?? '')),
+    }))
+  return ok({ users: visible })
 }
 
 export async function updateUser(context: RouteContext): Promise<Response> {

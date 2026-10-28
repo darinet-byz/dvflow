@@ -61,6 +61,8 @@ export type ConfigSpec = {
   order?: readonly string[]
   /** Status aktif ditampilkan sebagai toggle on/off di baris, bukan tombol Nonaktifkan/Aktifkan. */
   activeToggle?: boolean
+  /** Status dikelola di halaman Status Produk/Pengiklan; sembunyikan tombol aktif/nonaktif di sini. */
+  statusManaged?: boolean
   /** Nilai form dari baris tersimpan, untuk field form yang tidak sama dengan kolom (mis. persen/flat terpisah). */
   fromRow?: (row: ConfigRow) => Record<string, string>
   /** Ubah body hasil form menjadi body API (kolom asli). */
@@ -245,7 +247,7 @@ export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged
                     <Button size="sm" variant="ghost" onClick={() => setEditing(row)}>
                       Edit
                     </Button>
-                    {spec.activeToggle ? (
+                    {spec.statusManaged ? null : spec.activeToggle ? (
                       <label className="mr-1 inline-flex cursor-pointer items-center gap-1.5 text-[12px] text-ink-soft">
                         <input
                           type="checkbox"

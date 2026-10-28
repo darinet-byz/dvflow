@@ -10,8 +10,6 @@ import {
   PERIOD_PRESETS,
   advertiserLabel,
   costPerTicket,
-  deltaClass,
-  formatDeltaPercent,
   formatRoas,
   metricNumber,
   periodPresetRange,
@@ -26,7 +24,6 @@ import {
   type PerformanceDashboard,
   type PerformanceDetail,
   type PerformanceMetrics,
-  type PerformancePeriodRow,
   type PeriodPresetKey,
   type TopProduct,
 } from '../../lib/performance'
@@ -606,8 +603,7 @@ function PerformanceDetailView({
   const labels = detail.rows.map((row) => formatPeriodLabel(row.period_start, granularity))
   const spendValues = detail.rows.map((row) => metricNumber(row.spend))
   const omzetValues = detail.rows.map((row) => metricNumber(row.omzet))
-  const ticketValues = detail.rows.map((row) => row.tickets)
-  const leadValues = detail.rows.map((row) => row.leads)
+  const profitValues = detail.rows.map((row) => metricNumber(row.profit))
   const profit = metricNumber(summary.profit)
   const title = advertiserName.trim() === '' ? 'Detail Pengiklan' : advertiserName
 
@@ -673,109 +669,53 @@ function PerformanceDetailView({
         )}
       </Card>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <Card>
-          <CardHeader title="Uang" description="Spend sebelum PPN vs Omzet pada periode yang dipilih." />
+          <CardHeader title="Spend x Waktu" description="Spend sebelum PPN pada periode yang dipilih." />
           {detail.rows.length === 0 ? <p className="text-[13px] text-ink-soft">Belum ada data.</p> : (
             <TrendChart
               labels={labels}
-              series={[
-                { key: 'spend', label: 'Spend', color: '#4f46f5', values: spendValues },
-                { key: 'omzet', label: 'Omzet', color: '#35c96c', values: omzetValues },
-              ]}
+              series={[{ key: 'spend', label: 'Spend', color: '#4f46f5', values: spendValues }]}
               formatValue={formatMoney}
               formatAxis={formatAxisMoney}
-              ariaLabel="Grafik garis spend dan omzet"
+              ariaLabel="Grafik garis spend"
+              soft
             />
           )}
         </Card>
         <Card>
-          <CardHeader title="Volume" description="Tiket vs Leads pada periode yang dipilih." />
+          <CardHeader title="Omzet x Waktu" description="Gross order Paid pada periode yang dipilih." />
           {detail.rows.length === 0 ? <p className="text-[13px] text-ink-soft">Belum ada data.</p> : (
             <TrendChart
               labels={labels}
-              series={[
-                { key: 'tickets', label: 'Tiket', color: '#4f46f5', values: ticketValues },
-                { key: 'leads', label: 'Leads', color: '#f5b94c', values: leadValues },
-              ]}
-              formatValue={formatCount}
-              ariaLabel="Grafik garis tiket dan leads"
+              series={[{ key: 'omzet', label: 'Omzet', color: '#35c96c', values: omzetValues }]}
+              formatValue={formatMoney}
+              formatAxis={formatAxisMoney}
+              ariaLabel="Grafik garis omzet"
+              soft
+            />
+          )}
+        </Card>
+        <Card>
+          <CardHeader title="Profit x Waktu" description="Omzet − Total Spend; nilai negatif berarti boncos." />
+          {detail.rows.length === 0 ? <p className="text-[13px] text-ink-soft">Belum ada data.</p> : (
+            <TrendChart
+              labels={labels}
+              series={[{ key: 'profit', label: 'Profit', color: '#f5b94c', values: profitValues }]}
+              formatValue={formatMoney}
+              formatAxis={formatAxisMoney}
+              ariaLabel="Grafik garis profit"
+              soft
             />
           )}
         </Card>
       </div>
-
-      <PeriodTable rows={detail.rows} granularity={granularity} />
 
       <div className="mt-4 grid gap-4 lg:grid-cols-2">
         <ProductTable products={detail.products} />
         <BatchTable batches={detail.batches} />
       </div>
     </div>
-  )
-}
-
-const PERIOD_COLUMNS: readonly TableColumn[] = [
-  { key: 'period', header: 'Periode', minWidth: 120 },
-  { key: 'spend', header: 'Total Spend', align: 'right', minWidth: 130 },
-  { key: 'omzet', header: 'Omzet', align: 'right', minWidth: 130 },
-  { key: 'profit', header: 'Profit / Boncos', align: 'right', minWidth: 130 },
-  { key: 'tickets', header: 'Tiket', align: 'right', minWidth: 80 },
-  { key: 'closing', header: 'Closing', align: 'right', minWidth: 90 },
-  { key: 'roas', header: 'ROAS', align: 'right', minWidth: 80 },
-  { key: 'mom_tickets', header: 'Δ Tiket', align: 'right', minWidth: 90 },
-  { key: 'mom_omzet', header: 'Δ Omzet', align: 'right', minWidth: 100 },
-  { key: 'yoy_tickets', header: 'YoY Tiket', align: 'right', minWidth: 100 },
-  { key: 'yoy_omzet', header: 'YoY Omzet', align: 'right', minWidth: 110 },
-]
-
-function PeriodTable({ rows, granularity }: { rows: PerformancePeriodRow[]; granularity: Granularity }) {
-  return (
-    <Card className="mt-4" padding="none">
-      <div className="px-3.5 pb-2 pt-3">
-        <h2 className="text-[14px] font-semibold text-ink">Periode</h2>
-        <p className="mt-0.5 text-[12px] text-ink-soft">
-          Δ membandingkan periode sebelumnya; YoY membandingkan periode yang sama tahun lalu. Bucket yang belum penuh ditandai “sebagian” dan tidak dihitung deltanya.
-        </p>
-      </div>
-      {rows.length === 0 ? (
-        <p className="border-t border-line px-3 py-6 text-center text-ink-soft">Belum ada data pada rentang ini.</p>
-      ) : (
-        <DataTable columns={PERIOD_COLUMNS} stickyHeader={false}>
-          {rows.map((row) => (
-            <TableRow key={row.period_start}>
-              <TableCell>
-                <span className="font-medium text-ink">{formatPeriodLabel(row.period_start, granularity)}</span>
-                {row.is_partial ? <Badge tone="neutral" className="ml-1.5">sebagian</Badge> : null}
-              </TableCell>
-              <TableCell align="right">{formatMoney(row.total_spend)}</TableCell>
-              <TableCell align="right">{formatMoney(row.omzet)}</TableCell>
-              <TableCell align="right">
-                <span className={profitClass(row.profit)}>{formatMoney(row.profit)}</span>
-              </TableCell>
-              <TableCell align="right">{formatCount(row.tickets)}</TableCell>
-              <TableCell align="right">
-                {formatRate(row.closing_rate)}
-                <span className="block text-[10px] text-ink-soft">{formatCount(row.tickets)} / {formatCount(row.leads)}</span>
-              </TableCell>
-              <TableCell align="right">{formatRoas(row.roas)}</TableCell>
-              <TableCell align="right">
-                <span className={deltaClass(row.tickets, row.prev?.tickets)}>{row.is_partial ? '-' : formatDeltaPercent(row.tickets, row.prev?.tickets)}</span>
-              </TableCell>
-              <TableCell align="right">
-                <span className={deltaClass(row.omzet, row.prev?.omzet)}>{row.is_partial ? '-' : formatDeltaPercent(row.omzet, row.prev?.omzet)}</span>
-              </TableCell>
-              <TableCell align="right">
-                <span className={deltaClass(row.tickets, row.yoy?.tickets)}>{row.is_partial ? '-' : formatDeltaPercent(row.tickets, row.yoy?.tickets)}</span>
-              </TableCell>
-              <TableCell align="right">
-                <span className={deltaClass(row.omzet, row.yoy?.omzet)}>{row.is_partial ? '-' : formatDeltaPercent(row.omzet, row.yoy?.omzet)}</span>
-              </TableCell>
-            </TableRow>
-          ))}
-        </DataTable>
-      )}
-    </Card>
   )
 }
 

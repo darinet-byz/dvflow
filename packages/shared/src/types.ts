@@ -52,6 +52,8 @@ export const ANALYTICS_PERMISSION = 'operasional.analytics'
 const ROLE_RESTRICTED_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
   [FIELD_APP_PERMISSION]: FIELD_APP_ROLES,
   [AD_SPEND_INPUT_PERMISSION]: AD_SPEND_INPUT_ROLES,
+  // A50: Konfigurasi Role tetap khusus Developer/Owner. `team.manage` boleh didelegasikan.
+  'config.roles': ['developer', 'owner'],
 }
 
 export function permissionAllowedForRole(permission: string, roleId: string | null | undefined): boolean {

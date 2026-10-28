@@ -29,6 +29,8 @@ export type TrendChartProps = {
   height?: number
   /** Tampilkan titik pada setiap data; otomatis dimatikan bila titik terlalu banyak. */
   showDots?: boolean
+  /** Garis tipis dan transparan (dipakai grafik Performa). */
+  soft?: boolean
 }
 
 const WIDTH = 640
@@ -42,20 +44,25 @@ export function TrendChart({
   ariaLabel,
   height = 200,
   showDots,
+  soft = false,
 }: TrendChartProps) {
   const axisFormatter = formatAxis ?? formatValue
   const innerWidth = WIDTH - PADDING.left - PADDING.right
   const innerHeight = height - PADDING.top - PADDING.bottom
   const allValues = series.flatMap((item) => item.values).filter((value): value is number => value !== null && Number.isFinite(value))
+  const rawMin = allValues.length === 0 ? 0 : Math.min(...allValues)
   const rawMax = allValues.length === 0 ? 0 : Math.max(...allValues)
-  const max = rawMax <= 0 ? 1 : rawMax
+  const min = Math.min(rawMin, 0)
+  const max = Math.max(rawMax, 0)
+  const span = max - min || 1
   const x = (index: number) => {
     if (labels.length <= 1) return PADDING.left + innerWidth / 2
     return PADDING.left + (index / (labels.length - 1)) * innerWidth
   }
-  const y = (value: number) => PADDING.top + innerHeight - (Math.max(value, 0) / max) * innerHeight
+  const y = (value: number) => PADDING.top + innerHeight - ((value - min) / span) * innerHeight
   const dots = showDots ?? labels.length <= 31
   const labelStep = Math.max(1, Math.ceil(labels.length / 6))
+  const ticks = [0, 0.25, 0.5, 0.75, 1]
 
   return (
     <div className="min-w-0">
@@ -74,8 +81,9 @@ export function TrendChart({
         aria-label={ariaLabel}
         preserveAspectRatio="xMidYMid meet"
       >
-        {[0, 0.5, 1].map((ratio) => {
-          const lineY = PADDING.top + innerHeight - ratio * innerHeight
+        {ticks.map((ratio) => {
+          const value = min + span * ratio
+          const lineY = y(value)
           return (
             <g key={ratio}>
               <line
@@ -87,11 +95,23 @@ export function TrendChart({
                 strokeWidth={1}
               />
               <text x={PADDING.left - 8} y={lineY + 3} textAnchor="end" className="fill-ink-muted text-[10px]">
-                {axisFormatter(max * ratio)}
+                {axisFormatter(value)}
               </text>
             </g>
           )
         })}
+
+        {min < 0 ? (
+          <line
+            x1={PADDING.left}
+            x2={WIDTH - PADDING.right}
+            y1={y(0)}
+            y2={y(0)}
+            stroke="#c9ccd8"
+            strokeWidth={1}
+            strokeDasharray="4 4"
+          />
+        ) : null}
 
         {labels.map((label, index) => {
           if (index % labelStep !== 0) return null
@@ -119,7 +139,8 @@ export function TrendChart({
                 points={points.join(' ')}
                 fill="none"
                 stroke={item.color}
-                strokeWidth={2.25}
+                strokeWidth={soft ? 1.5 : 2.25}
+                strokeOpacity={soft ? 0.7 : 1}
                 strokeLinejoin="round"
                 strokeLinecap="round"
                 vectorEffect="non-scaling-stroke"
@@ -128,7 +149,7 @@ export function TrendChart({
                 ? item.values.map((value, index) => {
                     if (value === null || !Number.isFinite(value)) return null
                     return (
-                      <circle key={`${item.key}-${index}`} cx={x(index)} cy={y(value)} r={2.5} fill={item.color}>
+                      <circle key={`${item.key}-${index}`} cx={x(index)} cy={y(value)} r={soft ? 2 : 2.5} fill={item.color} fillOpacity={soft ? 0.7 : 1}>
                         <title>{`${item.label} · ${labels[index] ?? ''}: ${formatValue(value)}`}</title>
                       </circle>
                     )

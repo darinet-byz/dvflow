@@ -218,8 +218,10 @@ describe('Performa / Analitik: halaman', () => {
 
     expect(await screen.findByRole('heading', { name: '01 - Zul' })).toBeTruthy()
     expect(screen.getByText('Top 2 Produk')).toBeTruthy()
-    expect(screen.getByRole('img', { name: 'Grafik garis spend dan omzet' })).toBeTruthy()
-    expect(screen.getByRole('img', { name: 'Grafik garis tiket dan leads' })).toBeTruthy()
+    expect(screen.queryByText('Periode')).toBeNull()
+    expect(screen.getByRole('img', { name: 'Grafik garis spend' })).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'Grafik garis omzet' })).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'Grafik garis profit' })).toBeTruthy()
     expect(screen.getByText('Breakdown Batch')).toBeTruthy()
     expect(supabaseRpc).toHaveBeenLastCalledWith(
       'advertiser_performance',

@@ -19,8 +19,16 @@ const MODULE_NAMES: Record<string, string> = {
  */
 export async function listRoles(context: RouteContext): Promise<Response> {
   const actor = await requireActiveUser(context)
-  if (!isMasterAdminRole(actor.role)) {
-    throw new ApiFailure('FORBIDDEN', 'Akses ditolak: Master Admin diperlukan')
+  const master = isMasterAdminRole(actor.role)
+  if (!master) {
+    const own = await context.db.selectRows<{ permission_key: string }>(
+      'app_role_permissions',
+      { role_id: `eq.${actor.role}`, permission_key: 'eq.team.manage' },
+      'permission_key',
+    )
+    if (own.length === 0) {
+      throw new ApiFailure('FORBIDDEN', 'Akses ditolak: Manajemen Tim diperlukan')
+    }
   }
 
   const roles = await context.db.selectRows<AppRoleItem>(
@@ -35,18 +43,37 @@ export async function listRoles(context: RouteContext): Promise<Response> {
     userCounts[u.role] = (userCounts[u.role] ?? 0) + 1
   }
 
-  const rolePerms = await context.db.selectRows<{ role_id: string }>(
+  const rolePerms = await context.db.selectRows<{ role_id: string; permission_key: string }>(
     'app_role_permissions',
     {},
-    'role_id',
+    'role_id,permission_key',
   )
   const permCounts: Record<string, number> = {}
+  const permsByRole = new Map<string, Set<string>>()
   for (const rp of rolePerms) {
     permCounts[rp.role_id] = (permCounts[rp.role_id] ?? 0) + 1
+    const set = permsByRole.get(rp.role_id) ?? new Set<string>()
+    set.add(rp.permission_key)
+    permsByRole.set(rp.role_id, set)
+  }
+
+  // Pemegang team.manage hanya melihat role yang boleh ia berikan.
+  // Ini juga mencegah form Add Team menawarkan Owner/Developer/Manajer/Admin.
+  let visibleRoles = roles
+  if (!master) {
+    const actorPerms = permsByRole.get(actor.role) ?? new Set<string>()
+    const blocked = new Set(['developer', 'owner', 'manajer', 'admin'])
+    const roleRestricted = new Set([FIELD_APP_PERMISSION, AD_SPEND_INPUT_PERMISSION])
+    visibleRoles = roles.filter((role) => {
+      if (blocked.has(role.id)) return false
+      const targetPerms = permsByRole.get(role.id) ?? new Set<string>()
+      if (targetPerms.has('config.roles') || targetPerms.has('team.manage')) return false
+      return [...targetPerms].every((key) => roleRestricted.has(key) || actorPerms.has(key))
+    })
   }
 
   const catalog = await context.db.selectRows<{ key: string }>('app_permissions', {}, 'key')
-  const items = roles.map((r) => ({
+  const items = visibleRoles.map((r) => ({
     ...r,
     user_count: userCounts[r.id] ?? 0,
     permission_count: isMasterAdminRole(r.id) ? catalog.length : (permCounts[r.id] ?? 0),
@@ -248,6 +275,9 @@ async function validatedPermissions(context: RouteContext, value: unknown, roleI
   }
   if (keys.includes(AD_SPEND_INPUT_PERMISSION) && !permissionAllowedForRole(AD_SPEND_INPUT_PERMISSION, roleId)) {
     throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Input Biaya Iklan hanya untuk role Advertiser.')
+  }
+  if (keys.includes('config.roles') && !permissionAllowedForRole('config.roles', roleId)) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Konfigurasi Role hanya untuk Developer/Owner.')
   }
   const catalog = await context.db.selectRows<{ key: string }>('app_permissions', {}, 'key')
   if (keys.some((key) => !catalog.some((p) => p.key === key))) throw new ApiFailure('INVALID_ARGUMENT')

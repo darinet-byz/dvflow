@@ -74,6 +74,14 @@ export async function updateConfig(context: RouteContext): Promise<Response> {
   if (Object.keys(body).length === 0) return ok({ resource: resource.urlName, item: existing })
   const values = validateConfigBody(resource, body, { partial: true })
 
+  // Status produk/advertiser dikelola di halaman Status, bukan lewat toggle config.
+  if (resource.urlName === 'products' && typeof values['active'] === 'boolean') {
+    values['status'] = values['active'] ? 'Active' : 'In-Active'
+  }
+  if (resource.urlName === 'advertisers' && typeof values['active'] === 'boolean') {
+    values['status'] = values['active'] ? 'In-House' : 'Resign'
+  }
+
   // Re-activating a fee rule must respect the active-only unique identifier too.
   await assertIdentityAvailable(context.db, resource, {
     ignoringId: id,
@@ -94,6 +102,10 @@ export async function updateConfig(context: RouteContext): Promise<Response> {
   }
 
   await context.db.updateRows(resource.table, { id: `eq.${id}` }, values)
+  // Toggle config advertiser tetap sinkron dengan akses login (Resign/aktif).
+  if (resource.urlName === 'advertisers' && typeof values['active'] === 'boolean') {
+    await context.db.updateRows('users', { advertiser_id: `eq.${id}` }, { active: values['active'] })
+  }
 
   const updated = await loadRow(context.db, resource, id)
   return ok({ resource: resource.urlName, item: updated })
@@ -122,7 +134,14 @@ export async function deactivateConfig(context: RouteContext): Promise<Response>
     return ok({ resource: resource.urlName, deleted: id })
   }
 
-  await context.db.updateRows(resource.table, { id: `eq.${id}` }, { active: false })
+  const deactivateValues: Record<string, unknown> = { active: false }
+  if (resource.urlName === 'products') deactivateValues['status'] = 'In-Active'
+  if (resource.urlName === 'advertisers') deactivateValues['status'] = 'Resign'
+  await context.db.updateRows(resource.table, { id: `eq.${id}` }, deactivateValues)
+  // Resign dari halaman konfigurasi tetap menutup akses akun login.
+  if (resource.urlName === 'advertisers') {
+    await context.db.updateRows('users', { advertiser_id: `eq.${id}` }, { active: false })
+  }
 
   const updated = await loadRow(context.db, resource, id)
   return ok({ resource: resource.urlName, item: updated })

@@ -58,6 +58,14 @@ beforeEach(() => {
             module_name: 'Konfigurasi',
             permissions: [
               { key: 'config.produk', name: 'Konfigurasi Produk', description: 'Kelola produk' },
+              { key: 'config.roles', name: 'Konfigurasi Role & Permission', description: 'Khusus Developer/Owner' },
+            ],
+          },
+          {
+            module: 'team',
+            module_name: 'Manajemen Tim',
+            permissions: [
+              { key: 'team.manage', name: 'Manajemen Tim', description: 'Kelola anggota' },
             ],
           },
         ],
@@ -116,6 +124,9 @@ describe('Fitur 2.0: RoleConfigPage', () => {
     expect(await screen.findByText('Operasional')).toBeDefined()
     expect(await screen.findByText('Konfigurasi')).toBeDefined()
     expect(await screen.findByText('Scan QR Tiket')).toBeDefined()
+    // A50: config.roles tetap master-only; team.manage dapat didelegasikan.
+    expect(screen.queryByText('Konfigurasi Role & Permission')).toBeNull()
+    expect(screen.getAllByText('Manajemen Tim').length).toBeGreaterThan(0)
   })
 
   it('membuka modal Tambah Role Baru dan dapat mengisi form', async () => {

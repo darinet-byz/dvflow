@@ -53,6 +53,7 @@ Tidak ada UI menu khusus.
 - code TEXT NOT NULL
 - code_normalized TEXT NOT NULL UNIQUE
 - active BOOLEAN NOT NULL DEFAULT TRUE
+- status TEXT NOT NULL DEFAULT 'Active' CHECK (status IN ('Active','In-Active','On-Hold','Upcoming'))
 - created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 - updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 
@@ -62,8 +63,16 @@ Tidak ada UI menu khusus.
 - code TEXT NOT NULL
 - code_normalized TEXT NOT NULL UNIQUE
 - active BOOLEAN NOT NULL DEFAULT TRUE
+- status TEXT NOT NULL DEFAULT 'In-House' CHECK (status IN ('In-House','Freelance','Intern','Resign'))
 - created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 - updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+
+## 5b. product_advertisers (A52, label only)
+- product_id UUID FK products
+- advertiser_id UUID FK advertisers
+- created_at / created_by / updated_by
+- PK (product_id, advertiser_id)
+- Tidak mempengaruhi akses/order/report; hanya label di halaman Status.
 
 ## 6. event_types
 Purpose: mapping Seminar Offline / Webinar Online.

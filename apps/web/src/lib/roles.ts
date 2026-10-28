@@ -24,6 +24,8 @@ export const PATH_PERMISSION_MAP: Record<string, string> = {
   '/report-spend': 'operasional.report_spend',
   '/performa': 'operasional.analytics',
   '/resume-batch': 'operasional.resume_batch',
+  '/status-produk': 'operasional.product_status',
+  '/status-advertiser': 'operasional.advertiser_status',
   '/konfigurasi-produk': 'config.produk',
   '/konfigurasi-tax': 'config.tax',
   '/report-tax': 'config.report_tax',
@@ -57,7 +59,7 @@ export function canAccessPath(user: ProfileOrRole, path: string): boolean {
   if (isMasterAdminRole(role)) return true
 
   if (path === '/logout') return true
-  if (path === '/add-team' || path === '/konfigurasi-role') return false
+  if (path === '/konfigurasi-role') return false
   if (path === '/order-unmapped' && (typeof user === 'string' || !hasAllProductAccess(user))) return false
   if (path === '/konfigurasi-produk') return !!permissions?.some((p) => p === 'config.produk' || p === 'config.alias_produk')
   const required = PATH_PERMISSION_MAP[path]
@@ -68,6 +70,6 @@ export function hasPermission(user: ProfileOrRole, permission: string): boolean 
   if (!user) return false
   const role = typeof user === 'string' ? user : user.role
   if (isMasterAdminRole(role)) return true
-  if (permission === 'config.roles' || permission === 'team.manage') return false
+  if (permission === 'config.roles') return false
   return typeof user === 'object' && !!user.permissions?.includes(permission)
 }

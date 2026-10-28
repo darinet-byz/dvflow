@@ -18,6 +18,24 @@ function ActiveBadge(row: ConfigRow) {
   return row['active'] === true ? <Badge tone="success">Aktif</Badge> : <Badge tone="neutral">Nonaktif</Badge>
 }
 
+function ProductStatusBadge(row: ConfigRow) {
+  const status = String(row['status'] ?? '-')
+  const tone: 'success' | 'warning' | 'primary' | 'neutral' = status === 'Active' ? 'success'
+    : status === 'On-Hold' ? 'warning'
+    : status === 'Upcoming' ? 'primary'
+    : 'neutral'
+  return <Badge tone={tone}>{status}</Badge>
+}
+
+function AdvertiserStatusBadge(row: ConfigRow) {
+  const status = String(row['status'] ?? '-')
+  const tone: 'success' | 'primary' | 'warning' | 'danger' = status === 'In-House' ? 'success'
+    : status === 'Freelance' ? 'primary'
+    : status === 'Intern' ? 'warning'
+    : 'danger'
+  return <Badge tone={tone}>{status}</Badge>
+}
+
 function CodeCell(row: ConfigRow, key: string) {
   return <span className="font-mono">{String(row[key] ?? '-')}</span>
 }
@@ -50,8 +68,9 @@ export const PRODUCT_SPEC: ConfigSpec = {
   resource: 'products',
   title: 'Produk',
   tableName: 'products',
-  readColumns: 'id,name,code,active',
+  readColumns: 'id,name,code,active,status',
   identityKey: 'code',
+  statusManaged: true,
   fields: [
     { key: 'name', label: 'Nama', maxLength: 200, type: 'text' as const, initial: '', placeholder: 'mis. Kuliner Masteri' },
     {
@@ -65,16 +84,17 @@ export const PRODUCT_SPEC: ConfigSpec = {
       help: 'Tepat 4 huruf kapital (mis. BOMM, KULI).',
     },
   ],
-  columns: CODE_COLUMNS,
-  render: CODE_RENDER,
+  columns: [...CODE_COLUMNS.filter((column) => column.key !== 'active'), { key: 'status', header: 'Status', minWidth: 120 }],
+  render: { ...CODE_RENDER, status: ProductStatusBadge },
 }
 
 export const ADVERTISER_SPEC: ConfigSpec = {
   resource: 'advertisers',
   title: 'Pengiklan',
   tableName: 'advertisers',
-  readColumns: 'id,name,code,active',
+  readColumns: 'id,name,code,active,status',
   identityKey: 'code',
+  statusManaged: true,
   fields: [
     { key: 'name', label: 'Nama', maxLength: 200, type: 'text' as const, initial: '', placeholder: 'mis. Zul' },
     {
@@ -88,8 +108,8 @@ export const ADVERTISER_SPEC: ConfigSpec = {
       help: 'Tepat 2 digit angka numerik (mis. 01, 02, 99).',
     },
   ],
-  columns: CODE_COLUMNS,
-  render: CODE_RENDER,
+  columns: [...CODE_COLUMNS.filter((column) => column.key !== 'active'), { key: 'status', header: 'Status', minWidth: 120 }],
+  render: { ...CODE_RENDER, status: AdvertiserStatusBadge },
 }
 
 const KIND_LABELS = {

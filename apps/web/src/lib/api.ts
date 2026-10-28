@@ -34,6 +34,7 @@ export type ApiErrorCode =
   | 'AD_SPEND_NOT_FOUND'
   | 'ROLE_IN_USE'
   | 'SYSTEM_ROLE_CANNOT_BE_DELETED'
+  | 'USER_HAS_DATA'
   | 'SCHEMA_OUT_OF_DATE'
   | 'NOT_FOUND'
   | 'INTERNAL_ERROR'

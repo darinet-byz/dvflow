@@ -303,7 +303,8 @@ export function RoleConfigPage() {
         }
       >
         <p className="mb-3 text-[12px] text-ink-muted">
-          Buat role kustom baru dan pilih hak akses modul yang diperbolehkan.
+          Buat role kustom baru dan pilih hak akses modul yang diperbolehkan. Konfigurasi Role hanya untuk
+          Developer/Owner; Manajemen Tim dapat didelegasikan.
         </p>
         <div className="flex flex-col gap-4">
           {failure && (
@@ -413,7 +414,8 @@ export function RoleConfigPage() {
         }
       >
         <p className="mb-3 text-[12px] text-ink-muted">
-          Ubah centang checklist perizinan modul untuk role ini.
+          Ubah centang checklist perizinan modul untuk role ini. Konfigurasi Role hanya untuk Developer/Owner;
+          Manajemen Tim dapat didelegasikan.
         </p>
         <div className="flex flex-col gap-4">
           {failure && (

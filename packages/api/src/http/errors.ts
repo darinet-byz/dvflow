@@ -28,6 +28,7 @@ export type ApiErrorCode =
   | 'NOT_FOUND'
   | 'ROLE_IN_USE'
   | 'SYSTEM_ROLE_CANNOT_BE_DELETED'
+  | 'USER_HAS_DATA'
   | 'FORBIDDEN_PRODUCT_ACCESS'
   | 'AD_SPEND_OVERLAP'
   | 'AD_SPEND_NOT_FOUND'
@@ -65,6 +66,10 @@ export const ERROR_CATALOG: Record<ApiErrorCode, { status: number; message: stri
   // Fitur 2.0 (05 §2–§4).
   ROLE_IN_USE: { status: 400, message: 'Role masih digunakan oleh pengguna aktif.' },
   SYSTEM_ROLE_CANNOT_BE_DELETED: { status: 400, message: 'Role sistem tidak dapat dihapus.' },
+  USER_HAS_DATA: {
+    status: 409,
+    message: 'User memiliki data historis dan tidak dapat dihapus. Gunakan Non-Aktifkan agar data tetap utuh.',
+  },
   FORBIDDEN_PRODUCT_ACCESS: { status: 403, message: 'Anda tidak memiliki akses ke produk ini.' },
   // A37: Report Spend Iklan.
   AD_SPEND_OVERLAP: { status: 409, message: 'Tanggal, produk, dan batch sudah ada.' },
@@ -114,6 +119,7 @@ export const DB_SQLSTATE_TO_API_CODE: Record<string, ApiErrorCode> = {
   DF015: 'MASTER_IN_USE',
   DF016: 'AD_SPEND_OVERLAP',
   DF017: 'AD_SPEND_NOT_FOUND',
+  DF018: 'USER_HAS_DATA',
   '23514': 'INVALID_ARGUMENT',
   // Masih direferensikan baris lain (FK RESTRICT).
   '23503': 'MASTER_IN_USE',

@@ -23,6 +23,8 @@ import { ReportTaxPage } from './pages/report-tax/ReportTaxPage'
 import { ReportSpendPage } from './pages/report-spend/ReportSpendPage'
 import { PerformancePage } from './pages/performance/PerformancePage'
 import { ResumeBatchPage } from './pages/resume-batch/ResumeBatchPage'
+import { ProductStatusPage } from './pages/status/ProductStatusPage'
+import { AdvertiserStatusPage } from './pages/status/AdvertiserStatusPage'
 import { ScanQrPage } from './pages/scanner/ScanQrPage'
 import { OrderPage } from './pages/order/OrderPage'
 import { OrderUnmappedPage } from './pages/order/OrderUnmappedPage'
@@ -90,6 +92,8 @@ export function App() {
           <Route path="/report-spend" element={<RoleGuard path="/report-spend"><ReportSpendPage /></RoleGuard>} />
           <Route path="/performa" element={<RoleGuard path="/performa"><PerformancePage /></RoleGuard>} />
           <Route path="/resume-batch" element={<RoleGuard path="/resume-batch"><ResumeBatchPage /></RoleGuard>} />
+          <Route path="/status-produk" element={<RoleGuard path="/status-produk"><ProductStatusPage /></RoleGuard>} />
+          <Route path="/status-advertiser" element={<RoleGuard path="/status-advertiser"><AdvertiserStatusPage /></RoleGuard>} />
           <Route path="/generator" element={<GeneratorPage />} />
           <Route path="/add-team" element={<RoleGuard path="/add-team"><TeamPage /></RoleGuard>} />
           <Route path="/konfigurasi-zoom" element={<ZoomPage />} />

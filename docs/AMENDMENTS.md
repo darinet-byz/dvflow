@@ -1256,3 +1256,66 @@ diperbarui. Tidak ada perubahan database.
   `TeamPage.tsx`, `Sidebar.tsx`.
 - Test: `report-spend.test.tsx`, `team-advertiser.test.tsx`, `sidebar-accordion.test.tsx`.
 - Tidak ada perubahan database/API.
+
+## A50 — Delegasi Manajemen Tim (28 Oktober 2026)
+
+**Permintaan pengguna.** Manajer tim boleh menambah anggota baru dan mengatur akses produk anggota tersebut.
+
+**Keputusan.**
+- Pemegang `team.manage` dapat membuka Add Team, melihat daftar tim, dan menambah anggota.
+- Role yang boleh diberikan: `Member`, `Pimpro`, `Advertiser`, dan role kustom yang permission-nya subset dari pemberi. `Owner`, `Developer`, `Manajer`, dan `Admin` diblokir.
+- Produk yang boleh diberikan: hanya produk yang juga dipegang pemberi. “Semua Produk” hanya untuk akun dengan akses semua produk.
+- Edit/hapus akun dan Konfigurasi Role tetap Developer/Owner.
+- Username tetap unik case-insensitive untuk semua akun, termasuk yang nonaktif.
+
+**Implementasi (0058).** `actor_has_permission` tidak lagi mengecualikan `team.manage`; `config.roles` tetap master-only. Helper `actor_can_assign_role` + `actor_can_assign_products`; `admin_create_user` mendukung `team.manage` dengan batas di atas. `save_role_permissions` menolak `config.roles` untuk non-master. API menyesuaikan `GET/POST /api/internal/users` dan `GET /api/roles`; Test API + pgTAP.
+
+**Catatan deploy.** Deploy tertahan `check-schema-version` sampai 0058 diterapkan.
+
+## A51 — Performa / Analitik: tiga grafik soft line (28 Oktober 2026)
+
+**Permintaan pengguna.** Hapus tabel periode di bawah grafik; ganti dengan grafik garis soft: Spend x Waktu, Omzet x Waktu, Profit x Waktu.
+
+**Perilaku.**
+- Tabel “Periode” dihapus dari halaman detail.
+- Tiga grafik memakai bucket waktu yang sama dengan filter (harian/bulanan/tahunan).
+- Garis tipis/transparan (`soft`), bukan garis solid tebal.
+- Profit negatif didukung; garis nol ditampilkan.
+- Grafik lama Uang dan Volume digantikan.
+
+**Implementasi.** `PerformancePage.tsx` menghapus `PeriodTable`; `TrendChart` mendukung domain negatif + prop `soft`. Test halaman diperbarui. Tidak ada perubahan database.
+
+## A52 — Halaman Status Produk dan Status Pengiklan (28 Oktober 2026)
+
+**Permintaan pengguna.**
+- Menu **Status Produk**: semua produk + pengiklan yang memegang + status `Active`, `In-Active`, `On-Hold`, `Upcoming`.
+- Menu **Status Pengiklan**: semua pengiklan + produk yang dipegang + status `In-House`, `Freelance`, `Intern`, `Resign`.
+- Mapping produk-pengiklan hanya label, tidak mempengaruhi akses/order/report.
+- Resign menutup akses akun login; status aktif kembali membuka akses.
+
+**Implementasi (0059).**
+- Kolom `products.status` dan `advertisers.status` dengan CHECK.
+- `products.status` mengendalikan `active` (`Active` = tersedia).
+- Tabel `product_advertisers` (label only) + seed dari histori order/report.
+- Permission `operasional.product_status` + `operasional.advertiser_status` (default Manajer + Admin).
+- RPC `product_status_list`, `advertiser_status_list`, `set_product_status`, `set_advertiser_status`, `set_product_advertisers`, `set_advertiser_products`.
+- `set_advertiser_status('Resign')` menonaktifkan semua user terkait dan mencabut sesi; status aktif kembali mengaktifkan user terkait.
+- Halaman baru memakai section sidebar **STATUS**; mapping dapat diubah lewat modal Atur Pengiklan/Atur Produk.
+- `can_read_configuration()` ditambah izin status agar dropdown mapping terbaca.
+
+**Catatan deploy.** Deploy tertahan sampai 0059 diterapkan.
+
+## A53 — Sidebar uppercase (28 Oktober 2026)
+
+- Semua label menu dan header accordion memakai `uppercase`.
+- Font tetap 12px; label panjang boleh dua baris (`min-h-11`, `leading-tight`).
+- Warna, hover, dan item aktif tidak berubah.
+
+## A54 — Kebijakan hapus team (28 Oktober 2026)
+
+- **Hapus permanen** hanya untuk user tanpa data historis.
+- Data yang menghalangi: `users.advertiser_id`, `ad_spend_reports`, `attendance_events`, `product_aliases`, `orders.ots_collected_by`, `app_settings`.
+- Jika ada data, API mengembalikan `USER_HAS_DATA` (409); UI menampilkan alert dan tombol **Non-Aktifkan**.
+- Non-Aktifkan = `active=false` + seluruh refresh session dicabut; baris user dan data tetap ada.
+- Deaktivasi user juga mencabut sesi lewat trigger `users_revoke_sessions_on_disable`.
+- Implementasi: `0060_team_delete_policy.sql`, katalog error API, dan Add Team UI.

@@ -91,7 +91,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           if (section.collapsible !== true) {
             return (
               <div key={title}>
-                <p className="px-3 pb-1.5 text-[12px] font-semibold tracking-[0.06em] text-ink">{title}</p>
+                <p className="px-3 pb-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-ink">{title}</p>
                 <ul className="flex flex-col gap-1">
                   {items.map((item) => (
                     <li key={item.path}>
@@ -113,11 +113,11 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                 aria-controls={id}
                 onClick={() => toggle(title)}
                 className={cn(
-                  'flex min-h-8 w-full items-center justify-between gap-2 rounded-[11px] px-3 py-1.5 text-[12px] font-semibold tracking-[0.06em] text-ink transition-colors',
+                  'flex min-h-8 w-full items-center justify-between gap-2 rounded-[11px] px-3 py-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-ink transition-colors',
                   'hover:bg-primary/15 hover:text-ink',
                 )}
               >
-                <span>{title}</span>
+                <span className="uppercase">{title}</span>
                 <svg
                   aria-hidden="true"
                   viewBox="0 0 20 20"
@@ -179,7 +179,7 @@ function NavItemLink({
       end={item.path === '/'}
       className={({ isActive }) =>
         cn(
-          'flex h-11 items-center rounded-[11px] px-2.5 text-[12px] font-medium tracking-[-0.01em] transition-colors',
+          'flex min-h-11 items-center rounded-[11px] px-2.5 py-2 text-[12px] font-medium uppercase leading-tight tracking-[-0.01em] transition-colors',
           isActive
             ? // Guideline §7 memakai gradien primary untuk item aktif.
               'bg-[linear-gradient(135deg,#564cff,#424bf4)] text-white shadow-card'

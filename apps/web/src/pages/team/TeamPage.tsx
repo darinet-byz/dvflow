@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import type { AppRole } from '@dvflow/shared'
+import { isMasterAdminRole, type AppRole } from '@dvflow/shared'
+import { ApiError } from '../../lib/api'
 import { authorizedRequest } from '../../lib/session'
-import { ROLE_LABELS } from '../../lib/roles'
+import { ROLE_LABELS, hasAllProductAccess } from '../../lib/roles'
 import { fetchAdvertiserChoices, fetchConfigLists } from '../../lib/queries'
 import { useAsyncData } from '../../lib/useAsyncData'
 import { useSession } from '../../lib/useSession'
@@ -66,16 +67,21 @@ const columns = [
 
 export function TeamPage() {
   const session = useSession()
+  const profile = session.profile
+  const master = isMasterAdminRole(profile?.role ?? '')
+  const canAssignAllProducts = hasAllProductAccess(profile)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<AppRole>('member')
-  const [hasAllProducts, setHasAllProducts] = useState(true)
+  const [hasAllProducts, setHasAllProducts] = useState(canAssignAllProducts)
   const [selectedProductCodes, setSelectedProductCodes] = useState<string[]>([])
   const [advertiserId, setAdvertiserId] = useState('')
 
   const [search, setSearch] = useState('')
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
+  const [usernameError, setUsernameError] = useState<string | null>(null)
+  const [blockedUser, setBlockedUser] = useState<Member | null>(null)
 
   const [editing, setEditing] = useState<Member | null>(null)
   const [editDisplayName, setEditDisplayName] = useState('')
@@ -119,6 +125,8 @@ export function TeamPage() {
       value.toLowerCase().includes(term),
     ),
   )
+  // Manajer tim hanya boleh menambah anggota; edit/hapus tetap Developer/Owner.
+  const visibleColumns = master ? columns : columns.filter((column) => column.key !== 'actions')
 
   const currentUserId = session.profile && 'user_id' in session.profile ? session.profile.user_id : null
   const currentUsername = session.profile && 'username' in session.profile ? session.profile.username : null
@@ -131,8 +139,15 @@ export function TeamPage() {
 
   async function submit() {
     if (busy) return
+    setUsernameError(null)
     if (!username.trim() || /\s/.test(username.trim()) || password.length < 8) {
       setFailure('Username wajib diisi tanpa spasi. Password minimal 8 karakter.')
+      return
+    }
+    const normalizedUsername = username.trim().toLowerCase()
+    if ((data?.users ?? []).some((row) => row.username.trim().toLowerCase() === normalizedUsername)) {
+      setUsernameError('Username sudah dipakai.')
+      setFailure(null)
       return
     }
     if (!hasAllProducts && selectedProductCodes.length === 0) {
@@ -164,12 +179,17 @@ export function TeamPage() {
       setUsername('')
       setPassword('')
       setRole('member')
-      setHasAllProducts(true)
+      setHasAllProducts(canAssignAllProducts)
       setSelectedProductCodes([])
       setAdvertiserId('')
       reload()
       toast.show('Member berhasil ditambahkan.', 'success')
     } catch (e) {
+      if (e instanceof ApiError && e.code === 'USERNAME_TAKEN') {
+        setUsernameError('Username sudah dipakai.')
+        setFailure(null)
+        return
+      }
       setFailure(e instanceof Error ? e.message : 'Member gagal ditambahkan.')
     } finally {
       setBusy(false)
@@ -239,7 +259,30 @@ export function TeamPage() {
       reload()
       toast.show('Member berhasil dihapus.', 'success')
     } catch (e) {
+      if (e instanceof ApiError && e.code === 'USER_HAS_DATA') {
+        setDeleting(null)
+        setBlockedUser(row)
+        return
+      }
       toast.show(e instanceof Error ? e.message : 'Member gagal dihapus.', 'danger')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function deactivateUser(row: Member) {
+    if (busy) return
+    setBusy(true)
+    try {
+      await authorizedRequest(`/api/internal/users/${row.id}`, {
+        method: 'PATCH',
+        body: { active: false },
+      })
+      setBlockedUser(null)
+      reload()
+      toast.show('User berhasil dinonaktifkan.', 'success')
+    } catch (e) {
+      toast.show(e instanceof Error ? e.message : 'User gagal dinonaktifkan.', 'danger')
     } finally {
       setBusy(false)
     }
@@ -247,7 +290,9 @@ export function TeamPage() {
 
   const roleOptions = roleList?.roles?.length
     ? roleList.roles.map((item) => ({ value: item.id, label: item.name }))
-    : Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }))
+    : Object.entries(ROLE_LABELS)
+        .filter(([value]) => master || !['developer', 'owner', 'manajer', 'admin'].includes(value))
+        .map(([value, label]) => ({ value, label }))
 
   return (
     <>
@@ -267,9 +312,14 @@ export function TeamPage() {
               id="team-username"
               label="Username"
               value={username}
-              onChange={setUsername}
+              onChange={(value) => {
+                setUsername(value)
+                setUsernameError(null)
+                setFailure(null)
+              }}
               disabled={busy}
               autoComplete="off"
+              error={usernameError}
             />
             <TextInput
               id="team-password"
@@ -312,11 +362,12 @@ export function TeamPage() {
           <div className="rounded-lg border border-line bg-page p-3 flex flex-col gap-2">
             <span className="text-[12px] font-semibold text-ink">Akses Produk:</span>
             <div className="flex flex-wrap gap-4 text-[13px]">
-              <label className="flex items-center gap-2 cursor-pointer font-medium text-ink">
+              <label className={`flex items-center gap-2 font-medium ${canAssignAllProducts ? 'cursor-pointer text-ink' : 'cursor-not-allowed text-ink-muted'}`}>
                 <input
                   type="radio"
                   name="team-create-scope"
                   checked={hasAllProducts}
+                  disabled={!canAssignAllProducts || busy}
                   onChange={() => setHasAllProducts(true)}
                   className="text-primary focus:ring-primary"
                 />
@@ -327,12 +378,18 @@ export function TeamPage() {
                   type="radio"
                   name="team-create-scope"
                   checked={!hasAllProducts}
+                  disabled={busy}
                   onChange={() => setHasAllProducts(false)}
                   className="text-primary focus:ring-primary"
                 />
                 Produk Tertentu (Specific Products)
               </label>
             </div>
+            {canAssignAllProducts ? null : (
+              <p className="text-[11px] text-ink-muted">
+                Anda hanya dapat memberikan produk yang Anda pegang.
+              </p>
+            )}
 
             {!hasAllProducts && (
               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 max-h-48 overflow-y-auto p-1">
@@ -381,11 +438,11 @@ export function TeamPage() {
             <SkeletonRows rows={3} />
           ) : (
             <DataTable
-              columns={columns}
+              columns={visibleColumns}
               exportConfig={{
                 filename: 'team',
                 disabled: loading || error !== null,
-                columns: columns.filter((c) => c.key !== 'actions'),
+                columns: visibleColumns.filter((c) => c.key !== 'actions'),
                 loadRows: () =>
                   rows.map((row) => ({
                     username: row.username,
@@ -413,22 +470,24 @@ export function TeamPage() {
                         {row.active ? 'Aktif' : 'Nonaktif'}
                       </Badge>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-1.5">
-                        <Button size="sm" disabled={busy} onClick={() => startEdit(row)}>
-                          Edit
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="danger"
-                          disabled={busy || self}
-                          title={self ? 'Tidak dapat menghapus akun sendiri' : undefined}
-                          onClick={() => setDeleting(row)}
-                        >
-                          Hapus
-                        </Button>
-                      </div>
-                    </TableCell>
+                    {master ? (
+                      <TableCell>
+                        <div className="flex flex-wrap gap-1.5">
+                          <Button size="sm" disabled={busy} onClick={() => startEdit(row)}>
+                            Edit
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            disabled={busy || self}
+                            title={self ? 'Tidak dapat menghapus akun sendiri' : undefined}
+                            onClick={() => setDeleting(row)}
+                          >
+                            Hapus
+                          </Button>
+                        </div>
+                      </TableCell>
+                    ) : null}
                   </TableRow>
                 )
               })}
@@ -579,6 +638,25 @@ export function TeamPage() {
           Apakah Anda yakin ingin menghapus member{' '}
           <strong>{deleting ? `${deleting.display_name} (${deleting.username})` : ''}</strong> secara permanen? Seluruh
           sesi aktif pengguna ini juga akan dihentikan.
+        </p>
+      </Modal>
+
+      <Modal
+        open={blockedUser !== null}
+        title="Tidak Bisa Menghapus"
+        onClose={() => setBlockedUser(null)}
+        footer={
+          <>
+            <Button onClick={() => setBlockedUser(null)} disabled={busy}>Batal</Button>
+            <Button variant="primary" loading={busy} onClick={() => blockedUser !== null && void deactivateUser(blockedUser)}>
+              Non-Aktifkan
+            </Button>
+          </>
+        }
+      >
+        <p>
+          User <strong>{blockedUser ? `${blockedUser.display_name} (${blockedUser.username})` : ''}</strong> memiliki
+          data historis (report/order/presensi) dan tidak dapat dihapus. Nonaktifkan saja agar data tetap utuh.
         </p>
       </Modal>
     </>

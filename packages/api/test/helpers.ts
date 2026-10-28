@@ -272,6 +272,11 @@ export function createFakeDb(state: FakeState): Db {
         if (!actor || !full.includes(actor.role) || actor.id === args['p_target']) throw new DbError('DF006', 'FORBIDDEN')
         if (!target) throw new DbError('DF005', 'USER_NOT_FOUND')
         if (full.includes(target.role) && actor.role !== 'developer') throw new DbError('DF006', 'FORBIDDEN')
+        const hasData = target.advertiser_id != null
+          || state.attendanceEvents.some((row) => row['scanner_user_id'] === target.id)
+          || state.productAliases.some((row) => row['created_by'] === target.id)
+          || state.appSettings.some((row) => row['updated_by'] === target.id)
+        if (hasData) throw new DbError('DF018', 'USER_HAS_DATA')
         state.users.splice(state.users.indexOf(target), 1)
         for (let i = state.sessions.length - 1; i >= 0; i--) if (state.sessions[i]?.user_id === target.id) state.sessions.splice(i, 1)
         return undefined as T
@@ -486,11 +491,41 @@ export function createFakeDb(state: FakeState): Db {
       if (name === 'admin_create_user') {
         const actorId = String(args['p_actor_user_id'] ?? '')
         const actor = state.users.find((candidate) => candidate.id === actorId)
-        if (actor === undefined || !actor.active || !isMasterAdminRole(actor.role)) {
-          throw new DbError(FORBIDDEN, 'fake')
-        }
+        if (actor === undefined || !actor.active) throw new DbError(FORBIDDEN, 'fake')
+
+        const actorPerms = new Set(
+          state.rolePermissions
+            .filter((row) => row['role_id'] === actor.role)
+            .map((row) => String(row['permission_key'])),
+        )
+        const master = isMasterAdminRole(actor.role)
+        if (!master && !actorPerms.has('team.manage')) throw new DbError(FORBIDDEN, 'fake')
 
         const role = String(args['p_role'] ?? '')
+        if (!master) {
+          if (['developer', 'owner', 'manajer', 'admin'].includes(role)) throw new DbError(FORBIDDEN, 'fake')
+          const targetPerms = state.rolePermissions
+            .filter((row) => row['role_id'] === role)
+            .map((row) => String(row['permission_key']))
+          if (targetPerms.some((key) => key === 'config.roles' || key === 'team.manage')) {
+            throw new DbError(FORBIDDEN, 'fake')
+          }
+          if (targetPerms.some((key) => !['ui.field_app', 'action.input_spend'].includes(key) && !actorPerms.has(key))) {
+            throw new DbError(FORBIDDEN, 'fake')
+          }
+          const hasAll = args['p_has_all_product_access'] !== false
+          if (hasAll && actor.has_all_product_access !== true) throw new DbError(FORBIDDEN, 'fake')
+          const codes = Array.isArray(args['p_product_codes'])
+            ? (args['p_product_codes'] as unknown[]).map((code) => String(code))
+            : []
+          const access = new Set(
+            state.userProductAccess
+              .filter((row) => row['user_id'] === actor.id)
+              .map((row) => String(row['product_code'])),
+          )
+          if (!hasAll && codes.some((code) => !access.has(code))) throw new DbError(FORBIDDEN, 'fake')
+        }
+
         if (isMasterAdminRole(role) && args['p_allow_master'] !== true) {
           throw new DbError(MASTER_ADMIN_CREATE_FORBIDDEN, 'fake')
         }

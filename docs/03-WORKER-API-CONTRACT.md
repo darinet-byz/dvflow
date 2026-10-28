@@ -237,6 +237,14 @@ No hard delete endpoint.
 ## 12a. Report Spend Iklan (A37)
 Tulis saja; laporan dibaca browser lewat RPC `ad_spend_report(p_date_from, p_date_to, p_product_code, p_advertiser_code, p_batch)`.
 Hasil RPC: `summary`, `rows` (per report, termasuk `tickets` = sum quantity order Paid - A45), `sessions` (A43: tiket Paid per sesi x pengiklan dari order yang sama), dan `comparison` (A46: roll-up per produk + batch + pengiklan dengan `totals` dan `rows[]`; angka order memakai himpunan distinct yang sama dengan `summary`).
+
+### Status Produk & Pengiklan (A52)
+- `product_status_list()` → array produk `{id,code,name,status,active,advertisers[]}`.
+- `advertiser_status_list()` → array pengiklan `{id,code,name,status,active,products[]}`.
+- `set_product_status(p_product_id, p_status)` dan `set_advertiser_status(p_advertiser_id, p_status)`.
+- `set_product_advertisers(p_product_id, p_advertiser_ids[])` dan `set_advertiser_products(p_advertiser_id, p_product_ids[])`.
+- Semua RPC memakai izin `operasional.product_status` / `operasional.advertiser_status`; mapping hanya label (tabel `product_advertisers`).
+- `set_advertiser_status('Resign')` menonaktifkan user terkait + sesi; status aktif kembali mengaktifkan user terkait.
 Semua rute butuh izin `action.input_spend` DAN akun yang memegang pengiklan (role advertiser).
 Pengiklan selalu diambil dari akun, tidak pernah dari body.
 `spend` = biaya iklan SEBELUM PPN; `tax_percent` = PPN iklan dalam persen (0–100, wajib; 0 bila tanpa PPN).

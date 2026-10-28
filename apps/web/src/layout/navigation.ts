@@ -45,6 +45,14 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    title: 'STATUS',
+    collapsible: true,
+    items: [
+      { label: 'Status Produk', path: '/status-produk', icon: 'package-check' },
+      { label: 'Status Pengiklan', path: '/status-advertiser', icon: 'badge-check' },
+    ],
+  },
+  {
     title: 'LAPORAN & PAJAK',
     collapsible: true,
     items: [

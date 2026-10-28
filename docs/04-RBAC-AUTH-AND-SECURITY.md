@@ -24,6 +24,14 @@ Versi: 1.0
 | Create admin/staff via internal endpoint | Yes | No | No |
 | Create master admin | Disabled by default | No | No |
 
+### Dynamic roles (A50/A52)
+- `team.manage` dapat didelegasikan ke role non-master (mis. Manajer) untuk **menambah** anggota
+  dan mengatur produk yang ia pegang. Edit/hapus akun tetap Developer/Owner.
+- `config.roles` tetap khusus Developer/Owner.
+- `operasional.product_status` dan `operasional.advertiser_status` default Manajer + Admin.
+- `set_advertiser_status('Resign')` menutup akses user terkait; status aktif kembali membuka akses.
+- Hapus user hanya untuk akun tanpa data historis; selain itu `USER_HAS_DATA` dan gunakan Non-Aktifkan.
+
 ## 2. No Supabase Auth UI
 Tidak ada:
 - Sign Up

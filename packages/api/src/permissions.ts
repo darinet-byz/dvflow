@@ -7,7 +7,7 @@ import { requireActiveUser, type UserRow } from './users'
 export async function requirePermission(context: RouteContext, permission: string): Promise<UserRow> {
   const actor = await requireActiveUser(context)
   if (isMasterAdminRole(actor.role)) return actor
-  if (permission === 'config.roles' || permission === 'team.manage') throw new ApiFailure('FORBIDDEN')
+  if (permission === 'config.roles') throw new ApiFailure('FORBIDDEN')
   const rows = await context.db.selectRows<{ permission_key: string }>(
     'app_role_permissions', { role_id: `eq.${actor.role}`, permission_key: `eq.${permission}` }, 'permission_key',
   )
@@ -19,7 +19,7 @@ export async function requirePermission(context: RouteContext, permission: strin
 export async function requirePermissions(context: RouteContext, permissions: string[]): Promise<UserRow> {
   const actor = await requireActiveUser(context)
   if (isMasterAdminRole(actor.role)) return actor
-  if (permissions.some((permission) => permission === 'config.roles' || permission === 'team.manage')) throw new ApiFailure('FORBIDDEN')
+  if (permissions.some((permission) => permission === 'config.roles')) throw new ApiFailure('FORBIDDEN')
   const rows = await context.db.selectRows<{ permission_key: string }>(
     'app_role_permissions', { role_id: `eq.${actor.role}` }, 'permission_key',
   )

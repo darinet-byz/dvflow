@@ -74,6 +74,7 @@ describe('Sidebar accordion (A47)', () => {
     expect(active).not.toBeNull()
     const activeClasses = active!.className.split(/\s+/)
     expect(activeClasses).toContain('text-[12px]')
+    expect(activeClasses).toContain('uppercase')
     expect(activeClasses).toContain('text-white')
 
     const accordion = screen.getByRole('button', { name: 'ACARA' })

@@ -497,3 +497,9 @@ sering terlanggar:
 | 2026-10-28 | F2.0 | A49: revisi tampilan - badge "Tertinggi" dihapus; baris Total tabel lebih tinggi (padding 14px vs 8px), bold, latar indigo lembut, dipakai di Report Spend + Resume Batch; Add Team tidak lagi menampilkan pengiklan di kolom Akses Produk dan membatasi 4 badge produk + ringkasan; sidebar item & header accordion 12px, teks ink, hover indigo 30%, item aktif tetap |
 | 2026-10-28 | - | Gate A49: typecheck PASS; unit test 647 lulus (277 api + 133 shared + 237 web); pgTAP 660 PASS (28 berkas); build PASS |
 | 2026-10-28 | - | Deploy production: commit `dda949e` di-push ke `origin/main`; GitHub Actions **Deploy to Cloudflare Pages** sukses; migrasi `0057` diterapkan ke Supabase produksi (`schema_version` = 57); https://dvflow.pages.dev live |
+| 2026-10-28 | F2.0 | A50 (0058): delegasi `team.manage` - Manajer dapat menambah anggota dan assign produk yang ia pegang; role Admin/Manajer/Owner/Developer diblokir; edit/hapus dan Konfigurasi Role tetap master |
+| 2026-10-28 | F2.0 | A51: Performa/Analitik - tabel periode dihapus, diganti tiga grafik soft line (Spend, Omzet, Profit x waktu); profit negatif didukung |
+| 2026-10-28 | F2.0 | A52 (0059): halaman Status Produk + Status Pengiklan; kolom status, mapping label `product_advertisers`, Resign menutup akses dan status aktif kembali membuka akses |
+| 2026-10-28 | F2.0 | A53: seluruh label menu/accordion sidebar uppercase, font tetap 12px, label panjang boleh 2 baris |
+| 2026-10-28 | F2.0 | A54 (0060): hapus user hanya jika tanpa data; user berdata mendapat `USER_HAS_DATA` dan opsi Non-Aktifkan; deaktivasi mencabut sesi |
+| 2026-10-28 | - | Gate A50-A54: typecheck PASS; unit test 658 lulus (283 api + 133 shared + 242 web); pgTAP 697 PASS (29 berkas); build PASS |
