@@ -77,28 +77,14 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
           const title = section.title
           // Dashboard (tanpa judul) tetap langsung terlihat.
           if (title === undefined) {
-            return (
-              <ul key={index} className="flex flex-col gap-1">
-                {items.map((item) => (
-                  <li key={item.path}>
-                    <NavItemLink item={item} onNavigate={onNavigate} />
-                  </li>
-                ))}
-              </ul>
-            )
+            return <NavItemList key={index} items={items} onNavigate={onNavigate} />
           }
 
           if (section.collapsible !== true) {
             return (
               <div key={title}>
                 <p className="px-3 pb-1.5 text-[12px] font-semibold uppercase tracking-[0.06em] text-ink">{title}</p>
-                <ul className="flex flex-col gap-1">
-                  {items.map((item) => (
-                    <li key={item.path}>
-                      <NavItemLink item={item} onNavigate={onNavigate} />
-                    </li>
-                  ))}
-                </ul>
+                <NavItemList items={items} onNavigate={onNavigate} indented />
               </div>
             )
           }
@@ -136,15 +122,7 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
                   />
                 </svg>
               </button>
-              {isOpen ? (
-                <ul id={id} className="mt-1 flex flex-col gap-1">
-                  {items.map((item) => (
-                    <li key={item.path}>
-                      <NavItemLink item={item} onNavigate={onNavigate} />
-                    </li>
-                  ))}
-                </ul>
-              ) : null}
+              {isOpen ? <NavItemList id={id} items={items} onNavigate={onNavigate} indented /> : null}
             </div>
           )
         })}
@@ -162,6 +140,38 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         </div>
       )}
     </nav>
+  )
+}
+
+/**
+ * A55: anak menu milik judul seksi menjorok sedikit ke dalam dengan garis pemandu tipis,
+ * supaya terlihat berasal dari accordion di atasnya. Dashboard tetap rata kiri.
+ */
+function NavItemList({
+  items,
+  onNavigate,
+  id,
+  indented = false,
+}: {
+  items: NavSection['items']
+  onNavigate?: () => void
+  id?: string
+  indented?: boolean
+}) {
+  return (
+    <ul
+      id={id}
+      className={cn(
+        'flex flex-col gap-1',
+        indented && 'mt-1 ml-2 border-l border-primary/20 pl-2',
+      )}
+    >
+      {items.map((item) => (
+        <li key={item.path}>
+          <NavItemLink item={item} onNavigate={onNavigate} />
+        </li>
+      ))}
+    </ul>
   )
 }
 

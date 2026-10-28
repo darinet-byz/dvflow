@@ -1319,3 +1319,17 @@ diperbarui. Tidak ada perubahan database.
 - Non-Aktifkan = `active=false` + seluruh refresh session dicabut; baris user dan data tetap ada.
 - Deaktivasi user juga mencabut sesi lewat trigger `users_revoke_sessions_on_disable`.
 - Implementasi: `0060_team_delete_policy.sql`, katalog error API, dan Add Team UI.
+
+## A55 — Sidebar: inden anak menu accordion (28 Oktober 2026)
+
+**Permintaan pengguna.** Batas antara header accordion dan daftar menu di bawahnya kurang terlihat; anak menu
+perlu sedikit menjorok ke dalam sebagai petunjuk visual bahwa item berasal dari accordion tersebut.
+
+**Perilaku.**
+- Daftar item milik judul seksi (accordion terbuka dan seksi berjudul non-collapsible) menjorok `ml-2` + `pl-2`
+  dengan garis pemandu kiri tipis `border-primary/20`.
+- Dashboard Resume (tanpa judul) tetap rata kiri.
+- Lebar sidebar 230px, font 12px, padding item, warna hover, dan item aktif tidak berubah.
+
+**Implementasi.** `Sidebar.tsx` memakai komponen lokal `NavItemList` dengan prop `indented`; test di
+`sidebar-accordion.test.tsx`. Tidak ada perubahan route, izin, API, atau database.

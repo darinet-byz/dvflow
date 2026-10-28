@@ -505,3 +505,4 @@ sering terlanggar:
 | 2026-10-28 | - | Gate A50-A54: typecheck PASS; unit test 658 lulus (283 api + 133 shared + 242 web); pgTAP 697 PASS (29 berkas); build PASS |
 | 2026-10-28 | - | Deploy production A50-A54: migrasi `0058`-`0060` diterapkan (`schema_version` = 60); commit `255b795` di-push; GitHub Actions **Deploy to Cloudflare Pages** sukses; https://dvflow.pages.dev live |
 | 2026-10-28 | F2.0 | Report Spend: tabel Perbandingan Pengiklan dipindah ke bawah tabel Tiket Paid per Sesi |
+| 2026-10-28 | F2.0 | A55: anak menu accordion sidebar menjorok `ml-2`/`pl-2` dengan garis pemandu `border-primary/20`; Dashboard tetap rata kiri; route/izin/urutan tidak berubah |

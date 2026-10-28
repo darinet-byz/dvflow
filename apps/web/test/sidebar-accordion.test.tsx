@@ -67,6 +67,21 @@ describe('Sidebar accordion (A47)', () => {
     expect(screen.getByRole('button', { name: /LAPORAN & PAJAK/ }).getAttribute('aria-expanded')).toBe('true')
   })
 
+  it('A55: anak menu accordion menjorok dengan garis pemandu, Dashboard tetap rata', () => {
+    render(<MemoryRouter initialEntries={['/']}><Sidebar /></MemoryRouter>)
+
+    const dashboardList = screen.getByText('Dashboard Resume').closest('li')!.parentElement!
+    expect(dashboardList.className.split(/\s+/)).not.toContain('ml-2')
+
+    fireEvent.click(screen.getByRole('button', { name: 'ACARA' }))
+    const childList = screen.getByText('Scan QR').closest('li')!.parentElement!
+    const childClasses = childList.className.split(/\s+/)
+    expect(childClasses).toContain('ml-2')
+    expect(childClasses).toContain('pl-2')
+    expect(childClasses).toContain('border-l')
+    expect(childClasses).toContain('border-primary/20')
+  })
+
   it('A49: item nonaktif lebih besar dan gelap; item aktif tetap putih', () => {
     render(<MemoryRouter initialEntries={['/']}><Sidebar /></MemoryRouter>)
 
