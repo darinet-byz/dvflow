@@ -8,7 +8,7 @@
 > pekerjaan sudah berjalan, bukan aturan baru.
 
 Terakhir diperbarui: 2026-10-28
-Repo: `C:\Users\MyBook Z Series\dvflow` (git `main`, **sudah di-commit lokal** — belum di-push)
+Repo: `C:\Users\MyBook Z Series\dvflow` (git `main`, sudah di-push ke `origin/main`; production live di https://dvflow.pages.dev)
 Rencana lengkap: `~/.claude/plans/baca-file-claude-md-dan-glowing-pike.md`
 Nama aplikasi: **dvflow** (`OrderOnline` tetap nama provider, bukan nama aplikasi)
 
@@ -28,10 +28,11 @@ Nama aplikasi: **dvflow** (`OrderOnline` tetap nama provider, bukan nama aplikas
 | **P7** | Frontend: design system + shell + auth + halaman tiket peserta (QR) | ✅ **PASS** |
 | **P8** | Dashboard, Order, Presensi | ✅ **PASS** |
 | **P9** | Scanner, Generator, Report Tax, Profil, Konfigurasi Produk & Tax | ✅ **PASS** |
-| **P10** | Cron, deploy, hardening | 🟡 **Sebagian** — konfigurasi & verifikasi jalur deploy selesai; deploy ke Cloudflare belum (butuh akun + kredensial) |
+| **P10** | Cron, deploy, hardening | ✅ **PASS** — live di Cloudflare Pages (https://dvflow.pages.dev); deploy via GitHub Actions; migrasi 0057 sudah diterapkan di Supabase produksi |
 
-**Tidak ada satu pun klaim production-ready.** Webhook belum terpetakan penuh, custom JWT
-Supabase belum dikonfigurasi di project nyata, dan belum ada deployment.
+**Tidak ada satu pun klaim production-ready.** Webhook belum terpetakan penuh dan custom JWT
+Supabase belum dapat diverifikasi penuh; deployment sudah berjalan, tetapi kesiapan produksi
+tetap mengikuti blocker di dokumen Acceptance Tests/Runbook.
 
 ---
 
@@ -495,3 +496,4 @@ sering terlanggar:
 | 2026-10-28 | - | Gate A48: typecheck PASS; unit test 645 lulus (277 api + 133 shared + 235 web); pgTAP 660 PASS (28 berkas); build PASS |
 | 2026-10-28 | F2.0 | A49: revisi tampilan - badge "Tertinggi" dihapus; baris Total tabel lebih tinggi (padding 14px vs 8px), bold, latar indigo lembut, dipakai di Report Spend + Resume Batch; Add Team tidak lagi menampilkan pengiklan di kolom Akses Produk dan membatasi 4 badge produk + ringkasan; sidebar item 14px, teks ink, hover indigo 30%, item aktif tetap |
 | 2026-10-28 | - | Gate A49: typecheck PASS; unit test 647 lulus (277 api + 133 shared + 237 web); pgTAP 660 PASS (28 berkas); build PASS |
+| 2026-10-28 | - | Deploy production: commit `dda949e` di-push ke `origin/main`; GitHub Actions **Deploy to Cloudflare Pages** sukses; migrasi `0057` diterapkan ke Supabase produksi (`schema_version` = 57); https://dvflow.pages.dev live |
