@@ -66,4 +66,22 @@ describe('Sidebar accordion (A47)', () => {
     expect(await screen.findByText('Performa / Analitik')).toBeTruthy()
     expect(screen.getByRole('button', { name: /LAPORAN & PAJAK/ }).getAttribute('aria-expanded')).toBe('true')
   })
+
+  it('A49: item nonaktif lebih besar dan gelap; item aktif tetap putih', () => {
+    render(<MemoryRouter initialEntries={['/']}><Sidebar /></MemoryRouter>)
+
+    const active = screen.getByText('Dashboard Resume').closest('a')
+    expect(active).not.toBeNull()
+    const activeClasses = active!.className.split(/\s+/)
+    expect(activeClasses).toContain('text-[14px]')
+    expect(activeClasses).toContain('text-white')
+
+    fireEvent.click(screen.getByRole('button', { name: 'ACARA' }))
+    const inactive = screen.getByText('Scan QR').closest('a')
+    expect(inactive).not.toBeNull()
+    const inactiveClasses = inactive!.className.split(/\s+/)
+    expect(inactiveClasses).toContain('text-[14px]')
+    expect(inactiveClasses).toContain('text-ink')
+    expect(inactiveClasses).toContain('hover:bg-primary/30')
+  })
 })

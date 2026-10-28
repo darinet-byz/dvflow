@@ -20,7 +20,13 @@ vi.mock('../src/lib/queries', async (importOriginal) => ({
 }))
 vi.mocked(authorizedRequest).mockImplementation(async (path) =>
   path === '/api/internal/users'
-    ? { users: [{ id: '9', username: 'iklanzul', display_name: 'Iklan Zul', role: 'advertiser', active: true, has_all_product_access: false, allowed_product_codes: ['KM'], advertiser_id: 'adv-1' }] }
+    ? {
+        users: [
+          { id: '9', username: 'iklanzul', display_name: 'Iklan Zul', role: 'advertiser', active: true, has_all_product_access: false, allowed_product_codes: ['KM'], advertiser_id: 'adv-1' },
+          { id: '10', username: 'semua', display_name: 'Anggota Semua', role: 'member', active: true, has_all_product_access: true },
+          { id: '11', username: 'banyak', display_name: 'Banyak Produk', role: 'pimpro', active: true, has_all_product_access: false, allowed_product_codes: ['KM', 'SO', 'WEB', 'EVT', 'X1'] },
+        ],
+      }
     : path === '/api/roles' ? { roles: [{ id: 'pimpro', name: 'Pimpro' }, { id: 'advertiser', name: 'Advertiser' }, { id: 'member', name: 'Member' }] } : {},
 )
 const { TeamPage } = await import('../src/pages/team/TeamPage')
@@ -39,7 +45,9 @@ describe('Add Team: role sama dengan Konfigurasi Role', () => {
 describe('Add Team: role Advertiser', () => {
   it('pilihan Pengiklan hanya untuk role Advertiser dan wajib diisi', async () => {
     render(<TeamPage />)
-    expect(await screen.findByText('Pengiklan: 01 — Zul')).toBeDefined()
+    expect(await screen.findByText('iklanzul')).toBeDefined()
+    // A49: info pengiklan tidak lagi ditampilkan di kolom Akses Produk.
+    expect(screen.queryByText(/Pengiklan:/)).toBeNull()
     await screen.findByRole('option', { name: 'Advertiser' })
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'iklanbaru' } })
     fireEvent.change(screen.getByLabelText('Password awal'), { target: { value: 'password123' } })
@@ -57,5 +65,17 @@ describe('Add Team: role Advertiser', () => {
       method: 'POST',
       body: { username: 'iklanbaru', display_name: 'iklanbaru', initial_password: 'password123', role: 'advertiser', advertiser_id: 'adv-1' },
     }))
+  })
+})
+
+describe('Add Team: akses produk proporsional (A49)', () => {
+  it('semua produk tampil satu badge; produk tertentu dibatasi empat badge + ringkasan', async () => {
+    render(<TeamPage />)
+
+    expect(await screen.findByText('semua')).toBeDefined()
+    expect(screen.getByText('Semua Produk')).toBeDefined()
+    expect(screen.getByText('+1 produk')).toBeDefined()
+    expect(screen.getByText('EVT')).toBeDefined()
+    expect(screen.queryByText('X1')).toBeNull()
   })
 })

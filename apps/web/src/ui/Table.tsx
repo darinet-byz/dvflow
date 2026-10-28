@@ -114,6 +114,21 @@ export function TableRow({ children }: { children: ReactNode }) {
   return <tr className="border-b border-line last:border-b-0 hover:bg-soft/60">{children}</tr>
 }
 
+/**
+ * Baris ringkasan di dasar tabel.
+ *
+ * Tinggi baris dinaikkan lewat padding vertikal sel (14px vs 8px pada baris data)
+ * tanpa mengubah ukuran font. Latar indigo sangat lembut dan garis atas lebih tegas
+ * membedakannya dari data biasa, sementara teks tetap bold.
+ */
+export function TableTotalRow({ children }: { children: ReactNode }) {
+  return (
+    <tr className="border-t-2 border-primary/20 bg-primary-soft/40 font-semibold [&>td]:py-3.5">
+      {children}
+    </tr>
+  )
+}
+
 export function TableCell({
   children,
   align = 'left',

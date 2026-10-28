@@ -18,7 +18,7 @@ import { ErrorState, SkeletonRows } from '../../ui/Feedback'
 import { Select, TextInput } from '../../ui/Field'
 import { FilterChip } from '../../ui/Filters'
 import { Modal } from '../../ui/Overlay'
-import { DataTable, TableCell, TableRow, type TableColumn } from '../../ui/Table'
+import { DataTable, TableCell, TableRow, TableTotalRow, type TableColumn } from '../../ui/Table'
 import { useToast } from '../../ui/Toast'
 import { DateRangeField } from '../shared/DateRangeField'
 import { AdvertiserFilter, BatchFilter, DateRangeFilters, ProductFilter } from '../shared/FilterControls'
@@ -490,17 +490,17 @@ export function ReportSpendPage() {
                     <TableCell align="right" className="font-semibold">{formatCount(row.tickets)}</TableCell>
                   </TableRow>
                 ))}
-                <TableRow>
-                  <TableCell className="font-semibold">Total</TableCell>
+                <TableTotalRow>
+                  <TableCell>Total</TableCell>
                   <TableCell>{''}</TableCell>
                   <TableCell>{''}</TableCell>
                   {matrix.advertisers.map((item) => (
-                    <TableCell key={item.advertiser_code ?? ''} align="right" className="font-semibold">
+                    <TableCell key={item.advertiser_code ?? ''} align="right">
                       {formatCount(item.tickets)}
                     </TableCell>
                   ))}
-                  <TableCell align="right" className="font-semibold">{formatCount(matrix.tickets)}</TableCell>
-                </TableRow>
+                  <TableCell align="right">{formatCount(matrix.tickets)}</TableCell>
+                </TableTotalRow>
               </DataTable>
             )}
           </Card>
@@ -753,7 +753,7 @@ export function AdvertiserComparison({
         </p>
       ) : (
         <DataTable columns={COMPARISON_COLUMNS} stickyHeader={false}>
-          {sorted.map((row, index) => {
+          {sorted.map((row) => {
             const profit = spendProfit(row.omzet, row.total_spend)
             const cost = row.tickets > 0 ? Number(row.total_spend) / row.tickets : null
             const share = totalTickets > 0 ? (row.tickets / totalTickets) * 100 : 0
@@ -761,7 +761,6 @@ export function AdvertiserComparison({
               <TableRow key={`${row.advertiser_code}|${row.product_code}|${row.batch}`}>
                 <TableCell>
                   <span className="font-medium text-ink">{row.advertiser_name}</span>
-                  {index === 0 && sorted.length > 1 ? <Badge tone="success" className="ml-1.5">Tertinggi</Badge> : null}
                 </TableCell>
                 <TableCell align="right">
                   {formatMoney(row.spend)}
@@ -783,25 +782,25 @@ export function AdvertiserComparison({
               </TableRow>
             )
           })}
-          <TableRow>
-            <TableCell className="font-semibold">Total</TableCell>
-            <TableCell align="right" className="font-semibold">{totals === undefined ? '-' : formatMoney(totals.spend)}</TableCell>
-            <TableCell align="right" className="font-semibold">{totals === undefined ? '-' : formatMoney(totals.total_spend)}</TableCell>
-            <TableCell align="right" className="font-semibold">{totals === undefined ? '-' : formatCount(totals.leads)}</TableCell>
-            <TableCell align="right" className="font-semibold">{totals === undefined ? '-' : formatCount(totals.paid)}</TableCell>
-            <TableCell align="right" className="font-semibold">{formatCount(totalTickets)}</TableCell>
-            <TableCell align="right" className="font-semibold">{totals === undefined ? '-' : formatMoney(totals.omzet)}</TableCell>
+          <TableTotalRow>
+            <TableCell>Total</TableCell>
+            <TableCell align="right">{totals === undefined ? '-' : formatMoney(totals.spend)}</TableCell>
+            <TableCell align="right">{totals === undefined ? '-' : formatMoney(totals.total_spend)}</TableCell>
+            <TableCell align="right">{totals === undefined ? '-' : formatCount(totals.leads)}</TableCell>
+            <TableCell align="right">{totals === undefined ? '-' : formatCount(totals.paid)}</TableCell>
+            <TableCell align="right">{formatCount(totalTickets)}</TableCell>
+            <TableCell align="right">{totals === undefined ? '-' : formatMoney(totals.omzet)}</TableCell>
             <TableCell align="right">
-              <span className={`font-semibold ${profitClass(totalProfit)}`}>{totals === undefined ? '-' : formatMoney(totalProfit)}</span>
+              <span className={profitClass(totalProfit)}>{totals === undefined ? '-' : formatMoney(totalProfit)}</span>
             </TableCell>
             <TableCell align="right">
-              <span className={`font-semibold ${profitClass(totalProfit)}`}>
+              <span className={profitClass(totalProfit)}>
                 {totals === undefined ? '-' : formatSpendRoi(totals.omzet, totals.total_spend)}
               </span>
             </TableCell>
-            <TableCell align="right" className="font-semibold">{totalCost === null ? '-' : formatMoney(totalCost)}</TableCell>
-            <TableCell align="right" className="font-semibold">{formatPercent(100)}</TableCell>
-          </TableRow>
+            <TableCell align="right">{totalCost === null ? '-' : formatMoney(totalCost)}</TableCell>
+            <TableCell align="right">{formatPercent(100)}</TableCell>
+          </TableTotalRow>
         </DataTable>
       )}
     </Card>

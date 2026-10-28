@@ -1,7 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { formatCount, formatMoney, formatRate } from '../../lib/format'
+import { hasAllProductAccess } from '../../lib/roles'
 import { useAsyncData } from '../../lib/useAsyncData'
 import { supabaseRpc, supabaseSelect } from '../../lib/supabase-rest'
+import { useSession } from '../../lib/useSession'
 import {
   ADVERTISER_SORT_OPTIONS,
   GRANULARITY_OPTIONS,
@@ -123,23 +125,32 @@ type PerformanceLists = {
  * fee rule/event type/sesi: role yang hanya punya `operasional.analytics` tidak perlu
  * izin konfigurasi lain.
  */
-function usePerformanceLists(): { lists: PerformanceLists | null; error: string | null } {
+function usePerformanceLists(includeAdvertisers: boolean): { lists: PerformanceLists | null; error: string | null } {
   const { data, error } = useAsyncData(async () => {
     const [products, advertisers] = await Promise.all([
       supabaseSelect<CodeRow>('products', { active: 'is.true' }, 'code,name'),
-      supabaseSelect<CodeRow>('advertisers', { active: 'is.true' }, 'code,name'),
+      // Akun berproduk terbatas memakai pilihan dari hasil RPC, bukan seluruh tabel pengiklan.
+      includeAdvertisers
+        ? supabaseSelect<CodeRow>('advertisers', { active: 'is.true' }, 'code,name')
+        : Promise.resolve([] as CodeRow[]),
     ])
     const toOptions = (rows: CodeRow[]) =>
       rows
         .map((row) => ({ value: row.code, label: `${row.code} - ${row.name}` }))
         .sort((left, right) => left.value.localeCompare(right.value, 'id'))
     return { products: toOptions(products), advertisers: toOptions(advertisers) }
-  }, [])
+  }, [includeAdvertisers])
   return { lists: data, error }
 }
 
 export function PerformancePage() {
   const initial = periodPresetRange(DEFAULT_PERIOD)
+  const session = useSession()
+  const profile = session.profile
+  // A48: halaman Performa hanya menampilkan pengiklan akun; halaman lain tetap mengikuti A44.
+  const ownAdvertiser = (profile?.advertiser_code ?? '').trim()
+  const ownScope = ownAdvertiser !== ''
+  const fullAccess = hasAllProductAccess(profile)
   const [filters, setFilters] = useState<PerformanceFilters>({
     advertiserCode: '',
     productCode: '',
@@ -152,15 +163,18 @@ export function PerformancePage() {
   const [sortKey, setSortKey] = useState<AdvertiserSortKey>('omzet')
   const [search, setSearch] = useState('')
   const [customPeriod, setCustomPeriod] = useState(false)
+  // Pilihan pengiklan untuk akun berproduk terbatas (Pimpro): hanya yang muncul di hasil RPC.
+  const [advertiserChoices, setAdvertiserChoices] = useState<AdvertiserPerformance[]>([])
 
-  const { lists } = usePerformanceLists()
+  const { lists } = usePerformanceLists(fullAccess)
   const effectiveGranularity = resolveGranularity(granularityMode, filters.dateFrom, filters.dateTo)
   const periodKey = customPeriod ? 'custom' : currentPeriodKey(filters)
+  const effectiveAdvertiserCode = ownScope ? ownAdvertiser : filters.advertiserCode
 
-  const appliedKey = JSON.stringify([filters, effectiveGranularity])
+  const appliedKey = JSON.stringify([filters, effectiveAdvertiserCode, effectiveGranularity])
   const { data, loading, error, reload } = useAsyncData<PerformanceDashboard | PerformanceDetail>(() => {
     return supabaseRpc<PerformanceDashboard | PerformanceDetail>('advertiser_performance', {
-      p_advertiser_code: emptyToNull(filters.advertiserCode),
+      p_advertiser_code: emptyToNull(effectiveAdvertiserCode),
       p_product_code: emptyToNull(filters.productCode),
       p_batch: emptyToNull(filters.batch),
       p_date_from: emptyToNull(filters.dateFrom),
@@ -172,7 +186,27 @@ export function PerformancePage() {
   const detail = data !== null && 'summary' in data ? data : null
   const dashboard = data !== null && 'advertisers' in data ? data : null
 
-  const advertiserOptions = (lists?.advertisers ?? []).map((item) => ({ value: item.value, label: item.label }))
+  useEffect(() => {
+    if (dashboard !== null) setAdvertiserChoices(dashboard.advertisers)
+  }, [dashboard])
+
+  const advertiserOptions = ownScope
+    ? [{
+        value: ownAdvertiser,
+        label: `${ownAdvertiser} - ${profile?.advertiser_name ?? ownAdvertiser}`,
+      }]
+    : fullAccess
+      ? (lists?.advertisers ?? []).map((item) => ({ value: item.value, label: item.label }))
+      : advertiserChoices
+          .filter((row): row is AdvertiserPerformance & { advertiser_code: string } => row.advertiser_code !== null)
+          .map((row) => ({
+            value: row.advertiser_code,
+            // Sama dengan label dropdown konfigurasi: "01 - Zul".
+            label: row.advertiser_name === null
+              ? row.advertiser_code
+              : `${row.advertiser_code} - ${row.advertiser_name}`,
+          }))
+          .sort((left, right) => left.value.localeCompare(right.value, 'id'))
   const productOptions = (lists?.products ?? []).map((item) => ({ value: item.value, label: item.label }))
   const periodLabel = PERIOD_PRESETS.find((preset) => preset.key === periodKey)?.label ?? 'Kustom'
 
@@ -219,13 +253,13 @@ export function PerformancePage() {
   }
 
   function openAdvertiser(row: AdvertiserPerformance): void {
-    if (row.advertiser_code === null) return
+    if (ownScope || row.advertiser_code === null) return
     changeFilters({ advertiserCode: row.advertiser_code })
     setSearch('')
   }
 
   const chips = [
-    filters.advertiserCode === '' ? null : {
+    ownScope || filters.advertiserCode === '' ? null : {
       key: 'advertiser',
       label: `Pengiklan: ${advertiserOptions.find((item) => item.value === filters.advertiserCode)?.label ?? filters.advertiserCode}`,
       onRemove: () => changeFilters({ advertiserCode: '' }),
@@ -250,15 +284,17 @@ export function PerformancePage() {
   const controls = (
     <div className="filter-bar flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-card p-3.5">
       <div className="filter-row flex min-w-0 flex-wrap items-center gap-2.5">
-        <Select
-          id="filter-pengiklan-performa"
-          ariaLabel="Filter pengiklan"
-          className={CONTROL_WIDTH}
-          value={filters.advertiserCode}
-          placeholder="Semua pengiklan"
-          options={advertiserOptions}
-          onChange={(value) => changeFilters({ advertiserCode: value })}
-        />
+        {ownScope ? null : (
+          <Select
+            id="filter-pengiklan-performa"
+            ariaLabel="Filter pengiklan"
+            className={CONTROL_WIDTH}
+            value={filters.advertiserCode}
+            placeholder="Semua pengiklan"
+            options={advertiserOptions}
+            onChange={(value) => changeFilters({ advertiserCode: value })}
+          />
+        )}
         <Select
           id="filter-produk-performa"
           ariaLabel="Filter produk"
@@ -292,7 +328,7 @@ export function PerformancePage() {
             onChange={chooseDateRange}
           />
         ) : null}
-        {filters.advertiserCode === '' ? null : (
+        {effectiveAdvertiserCode === '' ? null : (
           <Select
             id="filter-granularitas-performa"
             ariaLabel="Granularitas grafik"
@@ -343,8 +379,8 @@ export function PerformancePage() {
         <PerformanceDetailView
           detail={detail}
           granularity={effectiveGranularity}
-          advertiserName={advertiserOptions.find((item) => item.value === filters.advertiserCode)?.label ?? filters.advertiserCode}
-          onBack={() => changeFilters({ advertiserCode: '' })}
+          advertiserName={advertiserOptions.find((item) => item.value === effectiveAdvertiserCode)?.label ?? effectiveAdvertiserCode}
+          onBack={ownScope ? undefined : () => changeFilters({ advertiserCode: '' })}
         />
       ) : (
         <PerformanceDashboardView
@@ -563,7 +599,8 @@ function PerformanceDetailView({
   detail: PerformanceDetail
   granularity: Granularity
   advertiserName: string
-  onBack: () => void
+  /** Akun Advertiser tidak punya daftar pengiklan, jadi tombol kembali disembunyikan. */
+  onBack?: () => void
 }) {
   const summary = detail.summary
   const labels = detail.rows.map((row) => formatPeriodLabel(row.period_start, granularity))
@@ -577,7 +614,7 @@ function PerformanceDetailView({
   return (
     <div className="mt-4">
       <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={onBack}>← Semua pengiklan</Button>
+        {onBack === undefined ? null : <Button variant="ghost" size="sm" onClick={onBack}>← Semua pengiklan</Button>}
         <h2 className="min-w-0 truncate text-[16px] font-semibold text-ink">{title}</h2>
       </div>
 

@@ -11,7 +11,7 @@ import { Card, DetailList, KpiCard } from '../../ui/Card'
 import { EmptyState, ErrorState, SkeletonRows } from '../../ui/Feedback'
 import { FilterChip } from '../../ui/Filters'
 import { Drawer } from '../../ui/Overlay'
-import { DataTable, TableCell, TableRow, type TableColumn } from '../../ui/Table'
+import { DataTable, TableCell, TableRow, TableTotalRow, type TableColumn } from '../../ui/Table'
 import { BatchFilter, EventTypeFilter, ProductFilter } from '../shared/FilterControls'
 
 /**
@@ -156,13 +156,13 @@ export function ResumeBatchPage() {
                       <TableCell align="right" className="font-semibold">{formatCount(row.tickets)}</TableCell>
                     </TableRow>
                   ))}
-                  <TableRow>
-                    <TableCell className="font-semibold">Total</TableCell>
+                  <TableTotalRow>
+                    <TableCell>Total</TableCell>
                     <TableCell>{''}</TableCell>
                     <TableCell>{''}</TableCell>
                     <TableCell>{''}</TableCell>
-                    <TableCell align="right" className="font-semibold">{formatCount(summary?.tickets ?? 0)}</TableCell>
-                  </TableRow>
+                    <TableCell align="right">{formatCount(summary?.tickets ?? 0)}</TableCell>
+                  </TableTotalRow>
                 </DataTable>
               </Card>
             )}

@@ -132,7 +132,8 @@ describe('Report Spend Iklan: perbandingan pengiklan (A46)', () => {
     fireEvent.change(screen.getByLabelText('Filter batch'), { target: { value: '122' } })
 
     expect(await screen.findByText('Perbandingan Pengiklan')).toBeTruthy()
-    expect(screen.getByText('Tertinggi')).toBeTruthy()
+    // Urutan tabel sudah menunjukkan peringkat; badge "Tertinggi" sengaja dihapus.
+    expect(screen.queryByText('Tertinggi')).toBeNull()
     expect(screen.getByRole('columnheader', { name: 'Share Tiket' })).toBeTruthy()
     expect(screen.getAllByText('Zul').length).toBeGreaterThan(0)
     expect(screen.getAllByText('Rina').length).toBeGreaterThan(0)

@@ -7,7 +7,7 @@
 > Dokumen yang mengikat tetap `CLAUDE.md` + `docs/`. File ini hanya mencatat **sejauh mana**
 > pekerjaan sudah berjalan, bukan aturan baru.
 
-Terakhir diperbarui: 2026-10-27
+Terakhir diperbarui: 2026-10-28
 Repo: `C:\Users\MyBook Z Series\dvflow` (git `main`, **sudah di-commit lokal** — belum di-push)
 Rencana lengkap: `~/.claude/plans/baca-file-claude-md-dan-glowing-pike.md`
 Nama aplikasi: **dvflow** (`OrderOnline` tetap nama provider, bukan nama aplikasi)
@@ -491,3 +491,7 @@ sering terlanggar:
 | 2026-10-27 | F2.0 | A46 (0056): menu Performa / Analitik - dashboard semua pengiklan (kartu/tabel) + detail track record per pengiklan; spend prorata harian, tiket/omzet Paid, closing rate tiket/leads, ROAS omzet/(spend+PPN), top 2 produk by tiket; Report Spend menambah kartu Perbandingan Pengiklan. Izin operasional.analytics (default Manajer + Admin) |
 | 2026-10-27 | F2.0 | A47: sidebar accordion - hanya satu grup terbuka, grup halaman aktif otomatis terbuka, status disimpan di localStorage; route/izin/urutan menu tidak berubah |
 | 2026-10-27 | - | Gate A46/A47: typecheck PASS; unit test 643 lulus (277 api + 133 shared + 233 web); pgTAP 639 PASS (27 berkas); build PASS |
+| 2026-10-28 | F2.0 | A48 (0057): Performa / Analitik - akun Advertiser hanya melihat pengiklannya sendiri, Pimpro melihat semua pengiklan di produknya, Admin/Manajer/Owner/Developer melihat seluruhnya; A44 dan Report Spend tidak berubah; default izin analytics ditambah untuk Advertiser + Pimpro |
+| 2026-10-28 | - | Gate A48: typecheck PASS; unit test 645 lulus (277 api + 133 shared + 235 web); pgTAP 660 PASS (28 berkas); build PASS |
+| 2026-10-28 | F2.0 | A49: revisi tampilan - badge "Tertinggi" dihapus; baris Total tabel lebih tinggi (padding 14px vs 8px), bold, latar indigo lembut, dipakai di Report Spend + Resume Batch; Add Team tidak lagi menampilkan pengiklan di kolom Akses Produk dan membatasi 4 badge produk + ringkasan; sidebar item 14px, teks ink, hover indigo 30%, item aktif tetap |
+| 2026-10-28 | - | Gate A49: typecheck PASS; unit test 647 lulus (277 api + 133 shared + 237 web); pgTAP 660 PASS (28 berkas); build PASS |

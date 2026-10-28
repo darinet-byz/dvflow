@@ -30,6 +30,31 @@ type Member = {
 /** Role yang wajib memegang satu pengiklan (A20). */
 const ADVERTISER_ROLE = 'advertiser'
 
+/** A49: batasi badge produk agar baris tidak memanjang saat produk banyak. */
+const MAX_PRODUCT_BADGES = 4
+
+function ProductAccessBadges({ member }: { member: Member }) {
+  if (member.has_all_product_access !== false) {
+    return <Badge tone="neutral">Semua Produk</Badge>
+  }
+  const codes = member.allowed_product_codes ?? []
+  if (codes.length === 0) return <span className="text-[12px] text-ink-muted">-</span>
+  const visible = codes.slice(0, MAX_PRODUCT_BADGES)
+  const hidden = codes.length - visible.length
+  return (
+    <div className="flex max-w-[240px] flex-wrap items-center gap-1">
+      {visible.map((code) => (
+        <Badge key={code} tone="primary">{code}</Badge>
+      ))}
+      {hidden > 0 ? (
+        <span title={codes.join(', ')}>
+          <Badge tone="neutral">+{hidden} produk</Badge>
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
 const columns = [
   { key: 'username', header: 'Username' },
   { key: 'display_name', header: 'Nama' },
@@ -77,17 +102,12 @@ export function TeamPage() {
   )
   const productOptions = configLists?.products ?? []
   const { data: advertiserChoices } = useAsyncData(fetchAdvertiserChoices, [])
-  const advertiserById = new Map((advertiserChoices ?? []).map((item) => [item.id, item]))
   const advertiserOptions = (current: string) => [
     { value: '', label: 'Pilih pengiklan' },
     ...(advertiserChoices ?? [])
       .filter((item) => item.active || item.id === current)
       .map((item) => ({ value: item.id, label: `${item.code} — ${item.name}${item.active ? '' : ' (nonaktif)'}` })),
   ]
-  const describeAdvertiser = (id: string | null | undefined) => {
-    const item = id ? advertiserById.get(id) : undefined
-    return item ? `${item.code} — ${item.name}` : null
-  }
 
   // Nama role sama persis dengan Konfigurasi Role; ROLE_LABELS hanya cadangan saat daftar belum dimuat.
   const roleNames = new Map((roleList?.roles ?? []).map((item) => [item.id, item.name]))
@@ -371,10 +391,9 @@ export function TeamPage() {
                     username: row.username,
                     display_name: row.display_name,
                     role: roleLabel(row.role),
-                    product_access: [
-                      row.has_all_product_access !== false ? 'Semua Produk' : (row.allowed_product_codes ?? []).join(', '),
-                      describeAdvertiser(row.advertiser_id) ? `Pengiklan ${describeAdvertiser(row.advertiser_id)}` : null,
-                    ].filter(Boolean).join(' | '),
+                    product_access: row.has_all_product_access !== false
+                      ? 'Semua Produk'
+                      : (row.allowed_product_codes ?? []).join(', '),
                     active: row.active ? 'Aktif' : 'Nonaktif',
                   })),
               }}
@@ -387,24 +406,7 @@ export function TeamPage() {
                     <TableCell>{row.display_name}</TableCell>
                     <TableCell>{roleLabel(row.role)}</TableCell>
                     <TableCell>
-                      {row.has_all_product_access !== false ? (
-                        <Badge tone="neutral">Semua Produk</Badge>
-                      ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {row.allowed_product_codes && row.allowed_product_codes.length > 0 ? (
-                            row.allowed_product_codes.map((code) => (
-                              <Badge key={code} tone="primary">
-                                {code}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-[12px] text-ink-muted">-</span>
-                          )}
-                        </div>
-                      )}
-                      {describeAdvertiser(row.advertiser_id) ? (
-                        <div className="mt-1 text-[12px] text-ink-soft">Pengiklan: {describeAdvertiser(row.advertiser_id)}</div>
-                      ) : null}
+                      <ProductAccessBadges member={row} />
                     </TableCell>
                     <TableCell>
                       <Badge tone={row.active ? 'success' : 'danger'}>

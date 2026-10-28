@@ -1189,3 +1189,69 @@ muncul setelah judul grup diklik**.
 
 **Implementasi.** `navigation.ts` menambah `collapsible`; `Sidebar.tsx` merender grup; test navigasi dan sidebar
 diperbarui. Tidak ada perubahan database.
+
+## A48 — Performa / Analitik: scope pengiklan per role (28 Oktober 2026)
+
+**Permintaan pengguna.**
+1. Admin, Manajer, dan role di atasnya melihat seluruh pengiklan.
+2. Advertiser hanya melihat performa pengiklannya sendiri.
+3. Pimpro melihat analitik semua pengiklan di produk yang dicentang.
+
+**Keputusan pengguna.**
+- Pembatasan “hanya dirinya” **hanya berlaku di halaman Performa / Analitik**.
+- A44 tetap berlaku di Order, Presensi, Dashboard, Report Spend, export, dan check-in: akun Advertiser masih
+  boleh membaca order semua pengiklan di produk yang sama.
+- Report Spend **tidak diubah**, termasuk kartu Perbandingan Pengiklan.
+- Pimpro melihat **semua** pengiklan yang punya data di produknya (bukan pilihan sebagian pengiklan).
+
+**Perilaku.**
+- Izin `operasional.analytics` tetap menjadi gerbang menu. Default: Manajer + Admin (0056), ditambah Advertiser
+  + Pimpro (0057). Owner/Developer otomatis. Role lain dapat dicentang di Konfigurasi Role.
+- Scope data ditentukan dari akun, bukan dari checkbox role:
+  - akun dengan `users.advertiser_id` → hanya kode pengiklan itu;
+  - akun tanpa pengiklan → scope produk lewat `actor_can_product`;
+  - Owner/Developer dan akun “Semua Produk” → seluruh pengiklan sesuai scope produknya.
+- Akun Advertiser yang memanggil detail pengiklan lain ditolak `DF006 FORBIDDEN`.
+- Halaman Performa untuk Advertiser langsung menampilkan detail pengiklannya; filter Pengiklan dan tombol
+  “Semua pengiklan” disembunyikan.
+- Untuk Pimpro/akun berproduk terbatas, pilihan dropdown Pengiklan diambil dari hasil RPC (pengiklan yang punya
+  data di produknya), bukan dari seluruh tabel `advertisers`.
+
+**Implementasi (0057).**
+- Migrasi `0057_analytics_advertiser_scope.sql` menambah default izin Advertiser + Pimpro dan mengganti RPC
+  `advertiser_performance` dengan filter pengiklan akun. Tidak ada tabel/kolom/index baru.
+- `PerformancePage.tsx` membaca `profile.advertiser_code`, `has_all_product_access`, dan
+  `allowed_product_codes`; `advertiser_performance` tetap menjadi satu-satunya sumber angka.
+- Test: `supabase/tests/27_analytics_scope.sql` dan tambahan di `apps/web/test/performance.test.tsx`.
+- `schema_version()` = 57.
+
+**Catatan deploy.** Deploy tertahan `check-schema-version` sampai 0057 diterapkan di database produksi.
+
+## A49 — Revisi tampilan tabel, Add Team, dan sidebar (28 Oktober 2026)
+
+**Permintaan pengguna.**
+1. Hapus badge “Tertinggi” di tabel Perbandingan Pengiklan karena urutan sudah menunjukkan peringkat.
+2. Baris “Total” pada tabel dibuat berbeda dari baris data: lebih tinggi, tetap bold, ukuran font sama.
+3. Kolom “Akses Produk” di Add Team tidak perlu menampilkan nama pengiklan; tag produk harus proporsional
+   saat akun memegang banyak produk.
+4. Menu sidebar sulit dibaca: font terlalu kecil, warna tidak aktif terlalu pucat, hover kurang jelas.
+
+**Perilaku.**
+- **Report Spend:** badge “Tertinggi” dihapus. Urutan tabel (Tiket/Omzet/Profit/ROI/Spend) tetap menentukan
+  peringkat.
+- **Baris Total:** memakai komponen bersama `TableTotalRow`; padding vertikal 14px (baris data 8px, ±1,75x),
+  font tetap 13px, teks bold, latar `primary-soft` lembut, dan garis atas 2px. Diterapkan pada tabel Tiket Paid
+  per Sesi dan Perbandingan Pengiklan (Report Spend) serta Resume Batch.
+- **Add Team:** info “Pengiklan: …” dihapus dari kolom Akses Produk dan dari export kolom tersebut; info tetap
+  tersedia di modal Edit Member. Maksimal 4 badge produk ditampilkan; sisanya menjadi badge netral
+  `+N produk` dengan daftar lengkap di `title`. Akun “Semua Produk” tetap satu badge. Export CSV tetap memuat
+  seluruh kode produk.
+- **Sidebar:** item menu 13px → 14px; header grup 10px → 11px; teks tidak aktif `ink-soft` → `ink`; hover item
+  `primary` 30%; hover header grup `primary` 15%; item aktif tetap gradien indigo + teks putih. Lebar sidebar
+  tetap 230px; padding item dan tracking tipis disesuaikan agar label terpanjang tetap satu baris.
+
+**Implementasi.**
+- `apps/web/src/ui/Table.tsx` (`TableTotalRow`), `ReportSpendPage.tsx`, `ResumeBatchPage.tsx`,
+  `TeamPage.tsx`, `Sidebar.tsx`.
+- Test: `report-spend.test.tsx`, `team-advertiser.test.tsx`, `sidebar-accordion.test.tsx`.
+- Tidak ada perubahan database/API.

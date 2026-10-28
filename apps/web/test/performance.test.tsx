@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { canAccessPath } from '../src/lib/roles'
 import { supabaseRpc } from '../src/lib/supabase-rest'
+import { useSession } from '../src/lib/useSession'
 import {
   advertiserLabel,
   autoGranularity,
@@ -16,6 +17,7 @@ import {
 } from '../src/lib/performance'
 
 /** A46: Performa / Analitik — daftar semua pengiklan lalu detail satu pengiklan. */
+vi.mock('../src/lib/useSession', () => ({ useSession: vi.fn() }))
 vi.mock('../src/lib/supabase-rest', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/supabase-rest')>()),
   supabaseRpc: vi.fn(),
@@ -140,6 +142,10 @@ const detail: PerformanceDetail = {
 
 const { PerformancePage, formatAxisMoney, formatPeriodLabel } = await import('../src/pages/performance/PerformancePage')
 
+beforeEach(() => {
+  vi.mocked(useSession).mockReturnValue({ status: 'authenticated', profile: null })
+})
+
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
@@ -219,5 +225,62 @@ describe('Performa / Analitik: halaman', () => {
       'advertiser_performance',
       expect.objectContaining({ p_advertiser_code: '01', p_granularity: 'day' }),
     )
+  }, 20_000)
+
+  it('A48: advertiser hanya melihat pengiklannya sendiri dan langsung membuka detail', async () => {
+    vi.mocked(useSession).mockReturnValue({
+      status: 'authenticated',
+      profile: {
+        user_id: 'u-adv',
+        username: 'adv',
+        display_name: 'Adv',
+        role: 'advertiser',
+        avatar_emoji: null,
+        has_all_product_access: false,
+        allowed_product_codes: ['PAAA'],
+        advertiser_code: '01',
+        advertiser_name: 'Zul',
+        permissions: ['operasional.analytics'],
+      },
+    })
+    vi.mocked(supabaseRpc).mockResolvedValue(detail)
+
+    render(<PerformancePage />)
+
+    expect(await screen.findByRole('heading', { name: '01 - Zul' })).toBeTruthy()
+    expect(screen.queryByLabelText('Filter pengiklan')).toBeNull()
+    expect(screen.queryByText('← Semua pengiklan')).toBeNull()
+    expect(supabaseRpc).toHaveBeenCalledWith(
+      'advertiser_performance',
+      expect.objectContaining({ p_advertiser_code: '01' }),
+    )
+  }, 20_000)
+
+  it('A48: pimpro hanya mendapat pilihan pengiklan dari hasil analitik produknya', async () => {
+    vi.mocked(useSession).mockReturnValue({
+      status: 'authenticated',
+      profile: {
+        user_id: 'u-pim',
+        username: 'pim',
+        display_name: 'Pim',
+        role: 'pimpro',
+        avatar_emoji: null,
+        has_all_product_access: false,
+        allowed_product_codes: ['PAAA'],
+        advertiser_code: null,
+        advertiser_name: null,
+        permissions: ['operasional.analytics'],
+      },
+    })
+    vi.mocked(supabaseRpc).mockResolvedValue({ advertisers: [dashboard.advertisers[0]!] })
+
+    render(<PerformancePage />)
+
+    expect(await screen.findByText('Zul (01)')).toBeTruthy()
+    expect(await screen.findByRole('option', { name: '01 - Zul' })).toBeTruthy()
+    expect(screen.queryByText('Rina (02)')).toBeNull()
+    const select = screen.getByLabelText('Filter pengiklan') as HTMLSelectElement
+    expect(Array.from(select.options).map((option) => option.value)).toEqual(['', '01'])
+    expect(Array.from(select.options).map((option) => option.text)).toEqual(['Semua pengiklan', '01 - Zul'])
   }, 20_000)
 })
