@@ -452,18 +452,6 @@ export function ReportSpendPage() {
         </div>
       )}
 
-      {showComparison ? (
-        <div className="mt-4">
-          <AdvertiserComparison
-            comparison={comparison}
-            productLabel={comparisonProduct}
-            batch={state.applied.batch.trim()}
-            sort={comparisonSort}
-            onSort={setComparisonSort}
-          />
-        </div>
-      ) : null}
-
       {matrix === undefined ? null : (
         <div className="mt-4">
           <Card padding="none">
@@ -506,6 +494,18 @@ export function ReportSpendPage() {
           </Card>
         </div>
       )}
+
+      {showComparison ? (
+        <div className="mt-4">
+          <AdvertiserComparison
+            comparison={comparison}
+            productLabel={comparisonProduct}
+            batch={state.applied.batch.trim()}
+            sort={comparisonSort}
+            onSort={setComparisonSort}
+          />
+        </div>
+      ) : null}
 
       <div className="mt-4">
         {loading && data === null ? (
