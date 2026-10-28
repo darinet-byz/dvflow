@@ -506,3 +506,4 @@ sering terlanggar:
 | 2026-10-28 | - | Deploy production A50-A54: migrasi `0058`-`0060` diterapkan (`schema_version` = 60); commit `255b795` di-push; GitHub Actions **Deploy to Cloudflare Pages** sukses; https://dvflow.pages.dev live |
 | 2026-10-28 | F2.0 | Report Spend: tabel Perbandingan Pengiklan dipindah ke bawah tabel Tiket Paid per Sesi |
 | 2026-10-28 | F2.0 | A55: anak menu accordion sidebar menjorok `ml-2`/`pl-2` dengan garis pemandu `border-primary/20`; Dashboard tetap rata kiri; route/izin/urutan tidak berubah |
+| 2026-10-28 | - | Deploy production A55: commit `a5f6323` di-push; GitHub Actions **Deploy to Cloudflare Pages** sukses; https://dvflow.pages.dev live (aset `index-Cph5gYCI.js` / `index-BBdkGipe.css`) |
