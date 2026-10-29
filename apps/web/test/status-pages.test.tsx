@@ -55,7 +55,9 @@ describe('Status Produk', () => {
   it('menampilkan produk, mapping, dan mengubah status', async () => {
     render(<ProductStatusPage />)
     expect(await screen.findByText('Kuliner')).toBeTruthy()
-    expect(screen.getByText('01')).toBeTruthy()
+    // A59: kolom pengiklan menampilkan NAMA, bukan kode.
+    expect(screen.getByText('Zul')).toBeTruthy()
+    expect(screen.queryByText('01')).toBeNull()
     const select = screen.getByLabelText('Status KM') as HTMLSelectElement
     fireEvent.change(select, { target: { value: 'On-Hold' } })
     expect(supabaseRpc).toHaveBeenCalledWith('set_product_status', {
@@ -69,6 +71,9 @@ describe('Status Pengiklan', () => {
   it('Resign meminta konfirmasi sebelum disimpan', async () => {
     render(<AdvertiserStatusPage />)
     expect(await screen.findByText('Zul')).toBeTruthy()
+    // Status Pengiklan tetap menampilkan KODE produk.
+    expect(screen.getByText('KM')).toBeTruthy()
+    expect(screen.queryByText('Kuliner')).toBeNull()
     const select = screen.getByLabelText('Status 01') as HTMLSelectElement
     fireEvent.change(select, { target: { value: 'Resign' } })
     expect(await screen.findByText('Ubah Status Menjadi Resign')).toBeTruthy()

@@ -1445,3 +1445,12 @@ masih terbuka, dengan izin Dashboard.
 **Implementasi.** Migrasi `0064_dashboard_session_summary.sql` (RPC `dashboard_session_summary`),
 `SessionSummaryCard.tsx`, `DashboardPage.tsx`, navigasi/route, test `32_dashboard_session_summary.sql`
 dan `dashboard-session.test.tsx`.
+
+## A60 - Status Produk: kolom pengiklan memakai nama (29 Oktober 2026)
+
+**Perbaikan.** Kolom "Pengiklan yang pegang" di Status Produk sebelumnya menampilkan kode pengiklan
+(mis. `01`). Sekarang menampilkan **nama pengiklan** (mis. `Zul`); kode tetap tersedia di tooltip
+`kode — nama`. Status Pengiklan tidak berubah dan tetap menampilkan **kode produk** (mis. `KM`).
+
+**Implementasi.** `MappingBadges` mendapat prop `label: 'code' | 'name'`; Status Produk memakai
+`label="name"`. Tidak ada perubahan database/RPC. Test: `status-pages.test.tsx`.

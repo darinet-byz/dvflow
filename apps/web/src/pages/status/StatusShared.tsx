@@ -37,15 +37,30 @@ export type MappingItem = { id?: string; code: string; name: string }
 /**
  * Label mapping (produk-pengiklan) di tabel status.
  * Maksimal 4 badge; sisanya diringkas dan daftar lengkap ada di title.
+ *
+ * A59: Status Produk menampilkan NAMA pengiklan (bukan kode); Status Pengiklan
+ * tetap menampilkan KODE produk. Kode/nama lengkap tetap ada di tooltip.
  */
-export function MappingBadges({ items, empty = '-' }: { items: MappingItem[]; empty?: string }) {
+export function MappingBadges({
+  items,
+  empty = '-',
+  label = 'code',
+}: {
+  items: MappingItem[]
+  empty?: string
+  label?: 'code' | 'name'
+}) {
   if (items.length === 0) return <span className="text-[12px] text-ink-muted">{empty}</span>
   const visible = items.slice(0, 4)
   const hidden = items.length - visible.length
+  const text = (item: MappingItem): string =>
+    label === 'name' ? (item.name.trim() === '' ? item.code : item.name) : item.code
   return (
     <div className="flex max-w-[260px] flex-wrap items-center gap-1">
       {visible.map((item) => (
-        <Badge key={`${item.code}-${item.name}`} tone="primary">{item.code}</Badge>
+        <span key={`${item.code}-${item.name}`} title={`${item.code} — ${item.name}`}>
+          <Badge tone="primary">{text(item)}</Badge>
+        </span>
       ))}
       {hidden > 0 ? (
         <span title={items.map((item) => `${item.code} — ${item.name}`).join(', ')}>

@@ -160,7 +160,7 @@ export function ProductStatusPage() {
                   <span className="font-mono text-[11px] text-ink-muted">{row.code}</span>
                   <span className="block font-medium text-ink">{row.name}</span>
                 </TableCell>
-                <TableCell><MappingBadges items={row.advertisers} /></TableCell>
+                <TableCell><MappingBadges items={row.advertisers} label="name" /></TableCell>
                 <TableCell>
                   {canEdit ? (
                     <Select
