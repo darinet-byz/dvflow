@@ -9,14 +9,16 @@ import { Card, CardHeader, KpiCard } from '../../ui/Card'
 import { ErrorState, Skeleton } from '../../ui/Feedback'
 import { useFilterState } from '../shared/useFilterState'
 import { StandardFilterBar } from '../shared/StandardFilterBar'
+import { SessionSummaryCard } from './SessionSummaryCard'
 
 /**
- * Dashboard Resume (PRD §40–§43, 01 §16).
+ * Dashboard (PRD §40–§43, 01 §16; A59).
  *
  * Yang dijaga:
  *   * seluruh KPI memakai SATU set filter yang sama (PRD §41) — dijamin dengan
  *     mengirim satu objek filter ke satu RPC;
- *   * **tidak ada chart** dan tidak ada breakdown card tambahan (01 §16);
+ *   * **tidak ada chart**; kartu Data per Sesi adalah ringkasan operasional yang
+ *     dipindahkan dari Resume Batch (A59);
  *   * hanya satu KPI yang diberi visual primary (guideline §43): `Paid`, karena
  *     itu angka yang paling menentukan tindakan operasional.
  *
@@ -35,7 +37,7 @@ export function DashboardPage() {
 
   return (
     <>
-      <PageHeader title="Dashboard Resume" />
+      <PageHeader title="Dashboard" />
 
       <StandardFilterBar
         filters={state.filters}
@@ -56,6 +58,18 @@ export function DashboardPage() {
       ) : (
         <div className="mt-4 flex flex-col gap-4">
           <Card>
+            <CardHeader title="Finansial" />
+            {/* Grid 6 kolom: baris 1 Gross & Net (masing-masing 3), baris 2 tiga potongan (masing-masing 2) -> tepi rata. */}
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
+              <KpiCard size="lg" className="md:col-span-3" label="Gross" value={formatMoney(data.gross_amount)} />
+              <KpiCard size="lg" className="md:col-span-3" label="Net" value={formatMoney(data.net_amount)} highlight />
+              <KpiCard className="md:col-span-2" label="Platform Fee" value={formatMoney(data.platform_fee_amount ?? 0)} />
+              <KpiCard className="md:col-span-2" label="E-payment Fee" value={formatMoney(data.tax_amount)} />
+              <KpiCard className="md:col-span-2" label="E-payment Fee Tax" value={formatMoney(data.epayment_tax_amount ?? 0)} />
+            </div>
+          </Card>
+
+          <Card>
             <CardHeader title="Order" />
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
               <KpiCard label="Leads" value={formatCount(data.leads)} hint="Jumlah Order ID" />
@@ -70,17 +84,7 @@ export function DashboardPage() {
             </div>
           </Card>
 
-          <Card>
-            <CardHeader title="Finansial" />
-            {/* Grid 6 kolom: baris 1 Gross & Net (masing-masing 3), baris 2 tiga potongan (masing-masing 2) -> tepi rata. */}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
-              <KpiCard size="lg" className="md:col-span-3" label="Gross" value={formatMoney(data.gross_amount)} />
-              <KpiCard size="lg" className="md:col-span-3" label="Net" value={formatMoney(data.net_amount)} highlight />
-              <KpiCard className="md:col-span-2" label="Platform Fee" value={formatMoney(data.platform_fee_amount ?? 0)} />
-              <KpiCard className="md:col-span-2" label="E-payment Fee" value={formatMoney(data.tax_amount)} />
-              <KpiCard className="md:col-span-2" label="E-payment Fee Tax" value={formatMoney(data.epayment_tax_amount ?? 0)} />
-            </div>
-          </Card>
+          <SessionSummaryCard filters={state.applied} />
 
           <Card>
             <CardHeader title="Kehadiran" />
@@ -104,7 +108,7 @@ export function DashboardPage() {
 function DashboardSkeleton() {
   return (
     <div className="mt-4 flex flex-col gap-4" aria-busy="true">
-      {[0, 1, 2].map((group) => (
+      {[0, 1, 2, 3].map((group) => (
         <Card key={group}>
           <Skeleton height={18} className="mb-3 max-w-[220px]" />
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">

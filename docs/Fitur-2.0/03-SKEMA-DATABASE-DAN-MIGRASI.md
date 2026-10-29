@@ -108,7 +108,7 @@ Tabel `app_permissions` diisi dengan entri terstruktur:
 | Modul | Permission Key | Nama Fitur | Keterangan |
 |---|---|---|---|
 | **Operasional** | `operasional.scan_qr` | Scan QR Tiket | Halaman pemindai QR & validasi hadir |
-| **Operasional** | `operasional.dashboard` | Dashboard Resume | Melihat kartu KPI omzet & kehadiran |
+| **Operasional** | `operasional.dashboard` | Dashboard | Melihat kartu KPI, Finansial, Data per Sesi, dan kehadiran |
 | **Operasional** | `operasional.order` | Data Order | Tabel order masuk dari webhook |
 | **Operasional** | `operasional.presensi` | Presensi Acara | Tabel daftar kehadiran peserta (T1–T10) |
 | **Operasional** | `operasional.generator` | Name Generator | Pembuat format nama produk iklan |

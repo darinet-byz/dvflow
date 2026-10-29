@@ -293,7 +293,7 @@ Server MUST always revalidate:
   provider status. A refunded order is excluded from every `app_status = 'Paid'` report and loses
   participant access. Refund is full per order and may be cancelled with an audit trail.
 - Reschedule changes the **effective event** (`event_batch/session/city`) used by Presensi,
-  ticket/QR/Zoom, scanner, and Resume Batch. Revenue and ad attribution stay on the original
+  ticket/QR/Zoom, scanner, and Dashboard Data per Sesi. Revenue and ad attribution stay on the original
   batch/session/city. Webhooks must never overwrite the reschedule override.
 - Reschedule is allowed only for Paid, parsed-valid, non-OTS orders with **no attendance at all**;
   status is `Reschedule` until check-in at the destination, then `Hadir`.
@@ -321,13 +321,12 @@ Do not add additional participant tokens unless the requirements are explicitly 
 
 Do not add, remove, rename, or reorder MVP navigation without a requirement change.
 
-Dashboard Resume stands alone. Other sections are collapsible (A47):
+Dashboard stands alone. Other sections are collapsible (A47):
 
 ```text
 ACARA
   Scan QR
   Presensi Acara
-  Resume Batch
 
 ORDER
   Order

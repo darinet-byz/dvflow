@@ -191,7 +191,7 @@ Mengambil kamus seluruh hak akses yang tersedia di sistem untuk dirender sebagai
       "module_name": "Operasional",
       "permissions": [
         { "key": "operasional.scan_qr", "name": "Scan QR Tiket", "description": "Memindai QR tiket peserta di gate" },
-        { "key": "operasional.dashboard", "name": "Dashboard Resume", "description": "Melihat omzet, KPI leads, dan kehadiran" },
+        { "key": "operasional.dashboard", "name": "Dashboard", "description": "Melihat omzet, KPI leads, data per sesi, dan kehadiran" },
         { "key": "operasional.order", "name": "Data Order", "description": "Melihat dan mencari transaksi order" },
         { "key": "operasional.presensi", "name": "Presensi Acara", "description": "Melihat riwayat log kehadiran peserta T1-T10" },
         { "key": "operasional.generator", "name": "Product Name Generator", "description": "Membuat nama produk iklan terstandar" }

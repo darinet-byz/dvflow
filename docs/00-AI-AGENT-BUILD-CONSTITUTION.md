@@ -35,7 +35,7 @@ Jika code bertentangan dengan dokumen di atas, code yang diubah.
 ## 3. Scope sidebar final
 OPERASIONAL
 - Scan QR
-- Dashboard Resume
+- Dashboard
 - Order
 - Presensi Acara
 

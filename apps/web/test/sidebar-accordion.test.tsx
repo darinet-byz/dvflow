@@ -39,7 +39,7 @@ describe('Sidebar accordion (A47)', () => {
   it('Dashboard langsung terlihat; grup lain tertutup sampai diklik', () => {
     render(<MemoryRouter initialEntries={['/']}><Sidebar /></MemoryRouter>)
 
-    expect(screen.getByText('Dashboard Resume')).toBeTruthy()
+    expect(screen.getByText('Dashboard')).toBeTruthy()
     const acara = screen.getByRole('button', { name: 'ACARA' })
     expect(acara.getAttribute('aria-expanded')).toBe('false')
     expect(screen.queryByText('Scan QR')).toBeNull()
@@ -70,7 +70,7 @@ describe('Sidebar accordion (A47)', () => {
   it('A55: anak menu accordion menjorok dengan garis pemandu, Dashboard tetap rata', () => {
     render(<MemoryRouter initialEntries={['/']}><Sidebar /></MemoryRouter>)
 
-    const dashboardList = screen.getByText('Dashboard Resume').closest('li')!.parentElement!
+    const dashboardList = screen.getByText('Dashboard').closest('li')!.parentElement!
     expect(dashboardList.className.split(/\s+/)).not.toContain('ml-2')
 
     fireEvent.click(screen.getByRole('button', { name: 'ACARA' }))
@@ -85,7 +85,7 @@ describe('Sidebar accordion (A47)', () => {
   it('A49: item nonaktif lebih besar dan gelap; item aktif tetap putih', () => {
     render(<MemoryRouter initialEntries={['/']}><Sidebar /></MemoryRouter>)
 
-    const active = screen.getByText('Dashboard Resume').closest('a')
+    const active = screen.getByText('Dashboard').closest('a')
     expect(active).not.toBeNull()
     const activeClasses = active!.className.split(/\s+/)
     expect(activeClasses).toContain('text-[12px]')

@@ -50,7 +50,7 @@ beforeEach(() => {
             module_name: 'Operasional',
             permissions: [
               { key: 'operasional.scan_qr', name: 'Scan QR Tiket', description: 'Memindai tiket' },
-              { key: 'operasional.dashboard', name: 'Dashboard Resume', description: 'Melihat KPI' },
+              { key: 'operasional.dashboard', name: 'Dashboard', description: 'Melihat KPI' },
             ],
           },
           {

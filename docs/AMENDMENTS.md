@@ -1419,3 +1419,29 @@ berbeda untuk peserta yang pindah acara.
 `cancel_refund`, `refund_page`, `export_refund_page`; endpoint di `packages/api/src/orders/handlers.ts`;
 UI `OrderRefundPage.tsx` + `OrderLifecycleActions.tsx`; test `supabase/tests/31_reschedule_refund.sql`,
 `packages/api/test/orders.test.ts`, dan render test web.
+
+## A59 - Dashboard: gabung Resume Batch menjadi Data per Sesi (29 Oktober 2026)
+
+**Permintaan pengguna.** Resume Batch digabung ke Dashboard. Nama "Dashboard Resume" diganti "Dashboard".
+Urutan kartu: filter, Finansial, Order, Data per Sesi, Kehadiran.
+
+**Perilaku.**
+- Menu dan judul halaman menjadi **Dashboard**; label permission `operasional.dashboard` menjadi "Dashboard".
+- Menu/halaman Resume Batch dihapus; `/resume-batch` redirect ke `/`.
+- Kartu **Data per Sesi** selalu tampil di antara Order dan Kehadiran.
+- Produk **dan** batch wajib dipilih. Jika belum lengkap, tabel tetap tampil kosong dengan pesan
+  **"Pilih spesifik produk dan batch"** dan RPC tidak dipanggil.
+- Setelah lengkap, kartu mengikuti seluruh filter Dashboard: tanggal WIB, pencarian, pengiklan,
+  jenis acara, batch, sesi, dan kota. Default tanggal tetap "Hari Ini" (berbeda dari Resume Batch
+  lama yang all-time).
+- Isi: tiket Paid per sesi + kota, rincian per pengiklan/OTS, baris total, dan drawer per pengiklan.
+  Hanya produk valid; refund tidak dihitung; batch/sesi/kota memakai acara efektif reschedule (A58).
+- Omzet tidak terlibat di kartu ini.
+
+**Izin.** Card cukup memakai `operasional.dashboard`. Izin `operasional.resume_batch` dihapus dari
+Konfigurasi Role. Wrapper RPC lama `batch_session_summary(text,text,text)` tetap ada untuk tab yang
+masih terbuka, dengan izin Dashboard.
+
+**Implementasi.** Migrasi `0064_dashboard_session_summary.sql` (RPC `dashboard_session_summary`),
+`SessionSummaryCard.tsx`, `DashboardPage.tsx`, navigasi/route, test `32_dashboard_session_summary.sql`
+dan `dashboard-session.test.tsx`.

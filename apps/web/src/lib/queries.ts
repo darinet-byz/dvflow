@@ -209,6 +209,27 @@ export type RefundSortKey =
   | 'session'
   | 'city'
 
+/** A59: ringkasan tiket Paid per sesi/kota untuk kartu Dashboard. */
+export type SessionAdvertiser = {
+  advertiser_code: string | null
+  advertiser_name: string | null
+  ots: boolean
+  tickets: number
+}
+
+export type SessionSummaryRow = {
+  session: string | null
+  city: string | null
+  event_type: EventTypeName | null
+  tickets: number
+  advertisers: SessionAdvertiser[]
+}
+
+export type SessionSummary = {
+  summary: { tickets: number; sessions: number }
+  rows: SessionSummaryRow[]
+}
+
 /** Riwayat reschedule (append-only), dibaca langsung lewat RLS. */
 export type RescheduleHistoryRow = {
   id: string
@@ -259,6 +280,14 @@ export async function fetchPresensiPage(
     p_page: options.page,
     p_page_size: options.pageSize,
   })
+}
+
+/**
+ * A59: data per sesi di Dashboard. Produk + batch wajib diisi; parameter lain
+ * mengikuti filter Dashboard yang sama.
+ */
+export async function fetchDashboardSessionSummary(filters: CommonFilters): Promise<SessionSummary> {
+  return supabaseRpc<SessionSummary>('dashboard_session_summary', toFilterArgs(filters))
 }
 
 export async function fetchRefundPage(

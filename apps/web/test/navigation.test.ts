@@ -23,10 +23,9 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
     ])
 
     expect(flattenNavigation().map((item) => item.label)).toEqual([
-      'Dashboard Resume',
+      'Dashboard',
       'Scan QR',
       'Presensi Acara',
-      'Resume Batch',
       'Order',
       'Order Refund',
       'Order Unmapped',

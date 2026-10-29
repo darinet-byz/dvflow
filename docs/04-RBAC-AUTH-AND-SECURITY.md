@@ -34,6 +34,8 @@ Versi: 1.0
 - `operasional.product_status` dan `operasional.advertiser_status` default Manajer + Admin.
 - A58: `operasional.order_refund` (halaman), `action.reschedule`, dan `action.refund` default Manajer + Admin;
   dapat diberikan/dicabut per role di Konfigurasi Role. Master Admin tetap bypass.
+- A59: kartu **Data per Sesi** di Dashboard memakai izin `operasional.dashboard`; izin
+  `operasional.resume_batch` dihapus dari Konfigurasi Role. URL `/resume-batch` diarahkan ke `/`.
 - `set_advertiser_status('Resign')` menutup akses user terkait; status aktif kembali membuka akses.
 - Hapus user hanya untuk akun tanpa data historis; selain itu `USER_HAS_DATA` dan gunakan Non-Aktifkan.
 

@@ -24,7 +24,8 @@ export const PATH_PERMISSION_MAP: Record<string, string> = {
   '/generator': 'operasional.generator',
   '/report-spend': 'operasional.report_spend',
   '/performa': 'operasional.analytics',
-  '/resume-batch': 'operasional.resume_batch',
+  // A59: URL lama diarahkan ke Dashboard; aksesnya mengikuti izin Dashboard.
+  '/resume-batch': 'operasional.dashboard',
   '/status-produk': 'operasional.product_status',
   '/status-advertiser': 'operasional.advertiser_status',
   '/konfigurasi-produk': 'config.produk',

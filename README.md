@@ -169,7 +169,7 @@ DELETE /api/config/:resource/:id                 nonaktifkan (row TIDAK dihapus)
 Daftar (baca) konfigurasi tidak punya endpoint: aplikasi membacanya langsung dari Supabase lewat
 RLS memakai access JWT. Hal yang sama berlaku untuk Order, Presensi, Dashboard, dan Report Tax.
 
-Halaman aplikasi yang sudah ada: Login, Dashboard Resume, Scan QR (+ Manual Search), Order,
+Halaman aplikasi yang sudah ada: Login, Dashboard (termasuk data per sesi), Scan QR (+ Manual Search), Order,
 Presensi Acara, Konfigurasi Produk (produk/pengiklan/type/sesi), Konfigurasi Tax, Report Tax,
 Product Name Generator, dan Profil. Yang belum: `wrangler.toml` dan deployment (P10).
 

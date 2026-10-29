@@ -15,6 +15,7 @@ vi.mock('../src/lib/queries', async (importOriginal) => {
       sudah_hadir: 2, belum_hadir: 4, attendance_rate: 0.33,
     })),
     fetchConfigLists: vi.fn(async () => ({ products: [], advertisers: [], eventTypes: [], eventTypeNames: [], sessions: [], paymentMethods: [] })),
+    fetchDashboardSessionSummary: vi.fn(async () => ({ summary: { tickets: 0, sessions: 0 }, rows: [] })),
   }
 })
 
@@ -32,6 +33,15 @@ describe('Dashboard: kartu Finansial 2 baris', () => {
     expect(cards.slice(0, 2).every((card) => card.className.includes('md:col-span-3'))).toBe(true)
     expect(cards.slice(2).every((card) => card.className.includes('md:col-span-2'))).toBe(true)
     expect(section.className).toContain('md:grid-cols-6')
+  })
+})
+
+describe('Dashboard: urutan kartu (A59)', () => {
+  it('Finansial, Order, Data per Sesi, Kehadiran', async () => {
+    render(<MemoryRouter><DashboardPage /></MemoryRouter>)
+    await screen.findByText('Gross')
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)
+    expect(headings).toEqual(['Finansial', 'Order', 'Data per Sesi', 'Kehadiran'])
   })
 })
 

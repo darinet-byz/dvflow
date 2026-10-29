@@ -76,7 +76,7 @@ Sistem mendefinisikan 6 role acuan dengan karakteristik otoritas sebagai berikut
 - **Kategori Checklist Permission**:
   1. **Modul Operasional**:
      - `operasional.scan_qr` (Akses halaman Scan QR)
-     - `operasional.dashboard` (Melihat Dashboard Resume & KPI)
+     - `operasional.dashboard` (Melihat Dashboard & KPI)
      - `operasional.order` (Melihat & memfilter daftar Order)
      - `operasional.presensi` (Melihat tabel Presensi Acara T1-T10)
      - `operasional.generator` (Akses Product Name Generator)
@@ -112,7 +112,7 @@ Sistem mendefinisikan 6 role acuan dengan karakteristik otoritas sebagai berikut
 - **Perilaku di Sisi Frontend & Backend (Berlaku di Semua Fitur Berbasis Produk)**:
   1. **Presensi Acara (`/presensi`)**: Tabel kehadiran hanya menampilkan peserta dari produk yang diizinkan. Dropdown filter produk hanya memuat produk miliknya, dan kartu KPI (Hadir, Belum Hadir, Attendance Rate) dihitung murni dari produk tersebut.
   2. **Halaman Order (`/order`)**: Tabel order hanya memuat baris order dari produk yang diizinkan. Filter dropdown dan ekspor data hanya mencakup produk tersebut.
-  3. **Dashboard Resume (`/`)**: Kartu KPI (Leads, Paid, Pending, Gross Revenue, Net Revenue) dan grafik omzet otomatis hanya menghitung transaksi dari produk yang diizinkan.
+  3. **Dashboard (`/`)**: Kartu KPI (Leads, Paid, Pending, Gross Revenue, Net Revenue), Finansial, Data per Sesi, dan Kehadiran otomatis hanya menghitung transaksi dari produk yang diizinkan. Kartu Data per Sesi memerlukan produk + batch dipilih (A59).
   4. **Report Tax (`/report-tax`)**: Jika role diizinkan membuka Report Tax, tabel rekapitulasi omzet dan potongan pajak hanya menampilkan data produk yang diizinkan.
   5. **Konfigurasi Zoom & Tiket**: Jika role diizinkan mengatur Zoom/Tiket, dropdown produk dan daftar mapping hanya menampilkan produk yang menjadi wewenangnya.
   6. **Halaman Scan QR (`/scan-qr`)**: Jika operator memindai tiket peserta dari produk lain di luar wewenangnya, server menolak check-in dengan pesan: *"Akses ditolak: Tiket ini milik produk lain ([Nama Produk]) dan di luar wewenang acara Anda."*

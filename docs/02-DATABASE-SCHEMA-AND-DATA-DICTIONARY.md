@@ -149,7 +149,7 @@ Status:
 
 Acara efektif (A58):
 - event_batch TEXT NULL, event_session TEXT NULL, event_city TEXT NULL  -- override tujuan reschedule
-- effective_batch/session/city = generated column `coalesce(event_*, kolom asal)`  -- dibaca Presensi, tiket/QR/Zoom, scanner, Resume Batch
+- effective_batch/session/city = generated column `coalesce(event_*, kolom asal)`  -- dibaca Presensi, tiket/QR/Zoom, scanner, dan kartu Data per Sesi di Dashboard (A59)
 - batch/session/city tetap nilai ASAL untuk omzet, Report Spend, Performa, dan laporan iklan
 - order_reschedules: riwayat append-only (from/to batch-sesi-kota, reason, actor_id, actor_name, created_at)
 - order_refunds: satu refund aktif per order (amount, reason, previous_status, refunded_at/by, reverted_at/by, revert_reason)
@@ -273,10 +273,24 @@ Advertiser untuk edit/hapus. Tulis hanya lewat Worker (service_role). Hard delet
 Angka order memakai himpunan `distinct order_id` yang sama dengan `summary`; report bertumpuk tetap dijumlahkan.
 Tidak ada tabel/kolom baru.
 
-### 12b. RPC batch_session_summary (A39, 0049)
-Resume Batch: tiket Paid (`sum(quantity)`, order `app_status = Paid`, `product_parse_status = valid`) per (sesi, kota,
-jenis acara) untuk satu produk + batch (`normalize_batch`), dengan rincian per pengiklan (+ OTS). Tidak ada tabel baru.
-Izin `operasional.resume_batch`; scope produk + pengiklan diterapkan ulang lewat `actor_can_order`.
+### 12b. RPC dashboard_session_summary (A59, 0064)
+Data per Sesi di Dashboard (dipindahkan dari Resume Batch): tiket Paid (`sum(quantity)`, order `app_status = Paid`,
+`product_parse_status = valid`) per (sesi, kota, jenis acara) untuk satu produk + batch (`normalize_batch`), dengan
+rincian per pengiklan (+ OTS). Tidak ada tabel baru.
+
+```text
+dashboard_session_summary(
+  p_product_code, p_batch, p_event_type,
+  p_search, p_date_from, p_date_to,
+  p_advertiser_code, p_session, p_city
+)
+```
+
+Produk + batch wajib. Seluruh parameter lain mengikuti filter Dashboard yang sama (tanggal WIB, pencarian,
+pengiklan, jenis acara, sesi, kota). Batch/sesi/kota memakai acara efektif reschedule (A58); refund tidak dihitung.
+Izin `operasional.dashboard`; scope produk + pengiklan lewat `actor_can_order`. Wrapper lama
+`batch_session_summary(text,text,text)` dipertahankan untuk tab yang masih terbuka dan memakai izin yang sama.
+Izin `operasional.resume_batch` dihapus.
 
 ### 12c. RPC advertiser_performance (A46, 0056)
 Track record iklan per pengiklan. Tidak ada tabel baru.

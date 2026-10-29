@@ -25,7 +25,7 @@ dvflow [Operasional event]
 ------------------------------
 OPERASIONAL
   [ ] Scan QR
-  [ ] Dashboard Resume
+  [ ] Dashboard
   [ ] Order
   [ ] Presensi Acara
   [ ] Product Name Generator
@@ -49,7 +49,7 @@ ACCOUNT
 dvflow [Operasional event]
 ------------------------------
 OPERASIONAL
-  [ ] Dashboard Resume            (Data otomatis ter-filter ke produknya)
+  [ ] Dashboard            (Data otomatis ter-filter ke produknya)
   [ ] Order                       (Data otomatis ter-filter ke produknya)
   [ ] Presensi Acara              (Data otomatis ter-filter ke produknya)
 ACCOUNT
@@ -233,7 +233,7 @@ Untuk akun dengan akses *Produk Tertentu* (terutama **Pimpro** dan **Member**):
 |---|---|
 | **Presensi Acara (`/presensi`)** | - Tabel hanya menampilkan baris peserta dari produk yang diizinkan.<br>- Dropdown filter produk hanya menampilkan produk miliknya.<br>- Kartu KPI (Hadir, Belum Hadir, Attendance Rate) dihitung murni dari produk tersebut. |
 | **Data Order (`/order`)** | - Tabel hanya menampilkan order dari produk yang diizinkan.<br>- Dropdown filter produk hanya berisi produk miliknya.<br>- Tombol Export Data hanya mengekspor transaksi produk miliknya. |
-| **Dashboard Resume (`/`)** | - Kartu KPI (Leads, Paid, Omzet Kotor, Omzet Bersih) hanya menjumlahkan transaksi dari produk yang diizinkan.<br>- Grafik dan ringkasan persentase murni mencerminkan produk miliknya. |
+| **Dashboard (`/`)** | - Kartu KPI (Leads, Paid, Omzet Kotor, Omzet Bersih) hanya menjumlahkan transaksi dari produk yang diizinkan.<br>- Kartu Data per Sesi (A59) menampilkan tiket Paid per sesi/kota; produk + batch wajib dipilih.<br>- Ringkasan persentase murni mencerminkan produk miliknya. |
 | **Report Tax (`/report-tax`)** | - Jika role diizinkan membuka Report Tax, tabel rekap omzet dan potongan pajak hanya menampilkan data produk yang diizinkan. |
 | **Konfigurasi Zoom & Tiket** | - Jika role diizinkan mengatur Zoom/Tiket, dropdown produk dan daftar mapping hanya menampilkan produk yang menjadi wewenangnya. |
 | **Scan QR Tiket (`/scan-qr`)** | - Jika operator memindai tiket peserta dari produk lain di luar wewenangnya, server menolak check-in dengan alert merah: *"Akses ditolak: Tiket ini milik produk lain ([Nama Produk]) dan di luar wewenang acara Anda."* |

@@ -22,7 +22,6 @@ import { ProfilePage } from './pages/profile/ProfilePage'
 import { ReportTaxPage } from './pages/report-tax/ReportTaxPage'
 import { ReportSpendPage } from './pages/report-spend/ReportSpendPage'
 import { PerformancePage } from './pages/performance/PerformancePage'
-import { ResumeBatchPage } from './pages/resume-batch/ResumeBatchPage'
 import { ProductStatusPage } from './pages/status/ProductStatusPage'
 import { AdvertiserStatusPage } from './pages/status/AdvertiserStatusPage'
 import { ScanQrPage } from './pages/scanner/ScanQrPage'
@@ -93,7 +92,8 @@ export function App() {
           <Route path="/report-tax" element={<RoleGuard path="/report-tax"><ReportTaxPage /></RoleGuard>} />
           <Route path="/report-spend" element={<RoleGuard path="/report-spend"><ReportSpendPage /></RoleGuard>} />
           <Route path="/performa" element={<RoleGuard path="/performa"><PerformancePage /></RoleGuard>} />
-          <Route path="/resume-batch" element={<RoleGuard path="/resume-batch"><ResumeBatchPage /></RoleGuard>} />
+          {/* A59: Resume Batch dilebur ke Dashboard; URL lama diarahkan. */}
+          <Route path="/resume-batch" element={<Navigate to={DASHBOARD_PATH} replace />} />
           <Route path="/status-produk" element={<RoleGuard path="/status-produk"><ProductStatusPage /></RoleGuard>} />
           <Route path="/status-advertiser" element={<RoleGuard path="/status-advertiser"><AdvertiserStatusPage /></RoleGuard>} />
           <Route path="/generator" element={<GeneratorPage />} />
@@ -167,7 +167,7 @@ function NotFound() {
       message="Alamat yang Anda buka tidak ada di aplikasi ini."
       action={
         <a href={DASHBOARD_PATH} className="text-[13px] font-semibold text-primary hover:underline">
-          Kembali ke Dashboard Resume
+          Kembali ke Dashboard
         </a>
       }
     />
