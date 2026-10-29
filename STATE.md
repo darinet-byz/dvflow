@@ -7,7 +7,7 @@
 > Dokumen yang mengikat tetap `CLAUDE.md` + `docs/`. File ini hanya mencatat **sejauh mana**
 > pekerjaan sudah berjalan, bukan aturan baru.
 
-Terakhir diperbarui: 2026-10-28
+Terakhir diperbarui: 2026-10-29
 Repo: `C:\Users\MyBook Z Series\dvflow` (git `main`, sudah di-push ke `origin/main`; production live di https://dvflow.pages.dev)
 Rencana lengkap: `~/.claude/plans/baca-file-claude-md-dan-glowing-pike.md`
 Nama aplikasi: **dvflow** (`OrderOnline` tetap nama provider, bukan nama aplikasi)
@@ -507,3 +507,6 @@ sering terlanggar:
 | 2026-10-28 | F2.0 | Report Spend: tabel Perbandingan Pengiklan dipindah ke bawah tabel Tiket Paid per Sesi |
 | 2026-10-28 | F2.0 | A55: anak menu accordion sidebar menjorok `ml-2`/`pl-2` dengan garis pemandu `border-primary/20`; Dashboard tetap rata kiri; route/izin/urutan tidak berubah |
 | 2026-10-28 | - | Deploy production A55: commit `a5f6323` di-push; GitHub Actions **Deploy to Cloudflare Pages** sukses; https://dvflow.pages.dev live (aset `index-Cph5gYCI.js` / `index-BBdkGipe.css`) |
+| 2026-10-29 | F2.0 | A56 (0061): Performa/Analitik - tiga grafik diganti satu grafik **Total Spend (spend + PPN) + Tiket Terjual** (dual axis, tooltip angka real, rentang mengikuti filter); grafik per batch & per produk memakai **semua waktu** lewat RPC `advertiser_breakdown` (tanpa parameter tanggal, scope A44/A48 tetap), spend per produk dihitung, produk/batch spend-only ikut tampil |
+| 2026-10-29 | - | Gate A56: typecheck PASS; unit test web 244 PASS (36 berkas); pgTAP 731 PASS (30 berkas, termasuk 34 assertion baru); build PASS |
+| 2026-10-29 | - | Deploy production A56: migrasi `0061` diterapkan (`schema_version` = 61); commit `7ec051c` di-push; GitHub Actions **Deploy to Cloudflare Pages** sukses; https://dvflow.pages.dev live (aset `index-BoSDbRJi.js` / `index-DtWlV-rp.css`) |
