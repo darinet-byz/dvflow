@@ -1333,3 +1333,30 @@ perlu sedikit menjorok ke dalam sebagai petunjuk visual bahwa item berasal dari 
 
 **Implementasi.** `Sidebar.tsx` memakai komponen lokal `NavItemList` dengan prop `indented`; test di
 `sidebar-accordion.test.tsx`. Tidak ada perubahan route, izin, API, atau database.
+
+## A56 - Performa / Analitik: satu grafik utama + grafik per batch/produk (29 Oktober 2026)
+
+**Permintaan pengguna.** Tiga grafik lama (Spend/Omzet/Profit x Waktu) terasa "asal-asalan" karena angkanya
+tidak bisa dibaca. Ganti dengan satu grafik garis **Total Spend + Tiket Terjual** yang mengikuti filter tanggal,
+lalu tambah grafik perbandingan **per batch** dan **per produk** yang sengaja **mengabaikan filter tanggal**
+(semua waktu).
+
+**Perilaku.**
+- Grafik utama: satu garis **Total Spend** (spend + PPN, sumbu kiri, Rupiah) + satu garis
+  **Tiket Terjual** (sumbu kanan, jumlah). Rentang X persis mengikuti filter tanggal dan granularitas;
+  header menampilkan rentang nyata. Basis Total Spend dipilih agar konsisten dengan KPI dan grafik
+  per batch/produk.
+- Omzet dan Profit tidak lagi menjadi grafik; tetap tampil sebagai KPI.
+- Grafik per produk menampilkan Total Spend (termasuk PPN) dan Omzet sebagai bar sumbu kiri, serta
+  Tiket sebagai garis sumbu kanan.
+- Grafik per batch menampilkan metrik yang sama.
+- Grafik batch/produk memakai seluruh riwayat pengiklan, dengan label "Semua waktu"; filter pengiklan,
+  produk, dan batch tetap berlaku.
+- Produk/batch yang punya spend tetapi belum ada tiket Paid tetap tampil (boncos terlihat).
+- Hover menampilkan angka real per titik/bar; garis diputus pada bucket tanpa data (tidak menyambung).
+- Chart perbandingan menampilkan 12 grup teratas menurut Spend; tabel di bawahnya memuat sisa data.
+
+**Implementasi.** Migrasi `0061_performance_breakdown.sql` menambah RPC `advertiser_breakdown`
+(tanpa parameter tanggal, scope A48/A44 tetap ditegakkan). `TrendChart` mendapat sumbu kanan, tooltip,
+dan pemutusan segmen; komponen baru `ComparisonChart` untuk bar+line. `PerformancePage.tsx` memanggil
+RPC kedua hanya saat mode detail. Test: `performance.test.tsx` dan `supabase/tests/29_performance_breakdown.sql`.

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+﻿import { useEffect, useMemo, useState } from 'react'
 import { formatCount, formatMoney, formatRate } from '../../lib/format'
 import { hasAllProductAccess } from '../../lib/roles'
 import { useAsyncData } from '../../lib/useAsyncData'
@@ -10,6 +10,7 @@ import {
   PERIOD_PRESETS,
   advertiserLabel,
   costPerTicket,
+  formatPeriodRangeLabel,
   formatRoas,
   metricNumber,
   periodPresetRange,
@@ -18,19 +19,22 @@ import {
   sortAdvertisers,
   type AdvertiserPerformance,
   type AdvertiserSortKey,
-  type BatchPerformance,
+  type BatchBreakdown,
   type Granularity,
   type Numeric,
+  type PerformanceBreakdown,
   type PerformanceDashboard,
   type PerformanceDetail,
   type PerformanceMetrics,
   type PeriodPresetKey,
+  type ProductPerformance,
   type TopProduct,
 } from '../../lib/performance'
 import { PageHeader } from '../../layout/PageHeader'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card, CardHeader, KpiCard } from '../../ui/Card'
+import { ComparisonChart } from '../../ui/ComparisonChart'
 import { Select, SearchInput, TextInput } from '../../ui/Field'
 import { EmptyState, ErrorState, SkeletonRows } from '../../ui/Feedback'
 import { FilterChip } from '../../ui/Filters'
@@ -182,6 +186,30 @@ export function PerformancePage() {
 
   const detail = data !== null && 'summary' in data ? data : null
   const dashboard = data !== null && 'advertisers' in data ? data : null
+
+  // A56: breakdown batch/produk sengaja TIDAK memakai tanggal — RPC-nya juga tidak
+  // punya parameter tanggal. Hanya pengiklan + filter produk/batch yang diteruskan.
+  // `key` disimpan bersama hasil agar data pengiklan lama tidak tampil sesaat
+  // ketika pengguna berpindah pengiklan (useAsyncData menahan data sebelumnya).
+  const breakdownKey = JSON.stringify([effectiveAdvertiserCode, filters.productCode, filters.batch])
+  const {
+    data: breakdownState,
+    loading: breakdownLoading,
+    error: breakdownError,
+    reload: reloadBreakdown,
+  } = useAsyncData<{ key: string; value: PerformanceBreakdown } | null>(() => {
+    const code = effectiveAdvertiserCode.trim()
+    if (code === '') return Promise.resolve(null)
+    return supabaseRpc<PerformanceBreakdown>('advertiser_breakdown', {
+      p_advertiser_code: code,
+      p_product_code: emptyToNull(filters.productCode),
+      p_batch: emptyToNull(filters.batch),
+      p_limit: 200,
+    }).then((value) => ({ key: breakdownKey, value }))
+  }, [breakdownKey])
+  const breakdown = breakdownState !== null && breakdownState.key === breakdownKey ? breakdownState.value : null
+  // Saat kunci berubah, useAsyncData belum menyalakan `loading` pada render pertama.
+  const breakdownPending = breakdown === null && effectiveAdvertiserCode.trim() !== ''
 
   useEffect(() => {
     if (dashboard !== null) setAdvertiserChoices(dashboard.advertisers)
@@ -375,7 +403,13 @@ export function PerformancePage() {
       ) : detail !== null ? (
         <PerformanceDetailView
           detail={detail}
+          breakdown={breakdown}
+          breakdownLoading={breakdownLoading || breakdownPending}
+          breakdownError={breakdownError}
+          onReloadBreakdown={reloadBreakdown}
           granularity={effectiveGranularity}
+          dateFrom={filters.dateFrom}
+          dateTo={filters.dateTo}
           advertiserName={advertiserOptions.find((item) => item.value === effectiveAdvertiserCode)?.label ?? effectiveAdvertiserCode}
           onBack={ownScope ? undefined : () => changeFilters({ advertiserCode: '' })}
         />
@@ -587,25 +621,45 @@ function AdvertiserTable({ rows, onOpen }: { rows: AdvertiserPerformance[]; onOp
   )
 }
 
+/** Jumlah grup maksimal pada grafik perbandingan; tabel tetap memuat sisanya. */
+const CHART_TOP = 12
+
+const EMPTY_BREAKDOWN: PerformanceBreakdown = { products: [], batches: [] }
+
 function PerformanceDetailView({
   detail,
+  breakdown,
+  breakdownLoading,
+  breakdownError,
+  onReloadBreakdown,
   granularity,
+  dateFrom,
+  dateTo,
   advertiserName,
   onBack,
 }: {
   detail: PerformanceDetail
+  breakdown: PerformanceBreakdown | null
+  breakdownLoading: boolean
+  breakdownError: string | null
+  onReloadBreakdown: () => void
   granularity: Granularity
+  dateFrom: string
+  dateTo: string
   advertiserName: string
   /** Akun Advertiser tidak punya daftar pengiklan, jadi tombol kembali disembunyikan. */
   onBack?: () => void
 }) {
   const summary = detail.summary
   const labels = detail.rows.map((row) => formatPeriodLabel(row.period_start, granularity))
-  const spendValues = detail.rows.map((row) => metricNumber(row.spend))
-  const omzetValues = detail.rows.map((row) => metricNumber(row.omzet))
-  const profitValues = detail.rows.map((row) => metricNumber(row.profit))
+  // A56 revisi: grafik utama memakai Total Spend (spend + PPN) agar konsisten dengan
+  // KPI, grafik per batch/produk, dan tabel breakdown. Nilai per bucket dijumlahkan
+  // dari `total_spend`, jadi totalnya sama dengan KPI Total Spend.
+  const totalSpendValues = detail.rows.map((row) => metricNumber(row.total_spend))
+  const ticketValues = detail.rows.map((row) => row.tickets)
   const profit = metricNumber(summary.profit)
   const title = advertiserName.trim() === '' ? 'Detail Pengiklan' : advertiserName
+  const rangeLabel = formatPeriodRangeLabel(dateFrom, dateTo, granularity)
 
   return (
     <div className="mt-4">
@@ -650,8 +704,36 @@ function PerformanceDetailView({
         Coverage report: {coverageHint(summary)} Cost/Tiket: {costPerTicket(summary) === null ? '-' : formatMoney(costPerTicket(summary) as number)}.
       </p>
 
+      <Card className="mt-4">
+        <CardHeader
+          title="Total Spend & Tiket Terjual"
+          description={
+            rangeLabel === ''
+              ? 'Total Spend (spend + PPN) di sumbu kiri, tiket Paid di sumbu kanan.'
+              : `${rangeLabel} · Total Spend (spend + PPN) di sumbu kiri, tiket Paid di sumbu kanan.`
+          }
+        />
+        {detail.rows.length === 0 ? (
+          <p className="text-[13px] text-ink-soft">Belum ada data pada rentang ini.</p>
+        ) : (
+          <TrendChart
+            labels={labels}
+            series={[
+              { key: 'total_spend', label: 'Total Spend', color: '#4f46f5', values: totalSpendValues, axis: 'left', format: formatMoney },
+              { key: 'tickets', label: 'Tiket Terjual', color: '#f5b94c', values: ticketValues, axis: 'right', format: formatCount },
+            ]}
+            formatValue={formatMoney}
+            formatAxis={formatAxisMoney}
+            formatAxisRight={(value) => formatCount(Math.round(value))}
+            ariaLabel="Grafik total spend dan tiket terjual"
+            height={260}
+            showArea
+          />
+        )}
+      </Card>
+
       <Card className="mt-3">
-        <CardHeader title="Top 2 Produk" description="Berdasarkan tiket terjual (order Paid), level produk." />
+        <CardHeader title="Top 2 Produk" description="Berdasarkan tiket terjual (order Paid), level produk, pada periode filter." />
         {detail.top_products.length === 0 ? (
           <p className="text-[13px] text-ink-soft">Belum ada tiket Paid pada periode ini.</p>
         ) : (
@@ -669,124 +751,148 @@ function PerformanceDetailView({
         )}
       </Card>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader title="Spend x Waktu" description="Spend sebelum PPN pada periode yang dipilih." />
-          {detail.rows.length === 0 ? <p className="text-[13px] text-ink-soft">Belum ada data.</p> : (
-            <TrendChart
-              labels={labels}
-              series={[{ key: 'spend', label: 'Spend', color: '#4f46f5', values: spendValues }]}
-              formatValue={formatMoney}
-              formatAxis={formatAxisMoney}
-              ariaLabel="Grafik garis spend"
-              soft
-            />
-          )}
-        </Card>
-        <Card>
-          <CardHeader title="Omzet x Waktu" description="Gross order Paid pada periode yang dipilih." />
-          {detail.rows.length === 0 ? <p className="text-[13px] text-ink-soft">Belum ada data.</p> : (
-            <TrendChart
-              labels={labels}
-              series={[{ key: 'omzet', label: 'Omzet', color: '#35c96c', values: omzetValues }]}
-              formatValue={formatMoney}
-              formatAxis={formatAxisMoney}
-              ariaLabel="Grafik garis omzet"
-              soft
-            />
-          )}
-        </Card>
-        <Card>
-          <CardHeader title="Profit x Waktu" description="Omzet − Total Spend; nilai negatif berarti boncos." />
-          {detail.rows.length === 0 ? <p className="text-[13px] text-ink-soft">Belum ada data.</p> : (
-            <TrendChart
-              labels={labels}
-              series={[{ key: 'profit', label: 'Profit', color: '#f5b94c', values: profitValues }]}
-              formatValue={formatMoney}
-              formatAxis={formatAxisMoney}
-              ariaLabel="Grafik garis profit"
-              soft
-            />
-          )}
-        </Card>
-      </div>
-
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
-        <ProductTable products={detail.products} />
-        <BatchTable batches={detail.batches} />
-      </div>
+      {breakdownError !== null ? (
+        <div className="mt-4">
+          <ErrorState message={breakdownError} action={<Button onClick={onReloadBreakdown}>Coba lagi</Button>} />
+        </div>
+      ) : breakdownLoading && breakdown === null ? (
+        <div className="mt-4">
+          <Card>
+            <SkeletonRows rows={4} />
+          </Card>
+        </div>
+      ) : (
+        <>
+          <ProductBreakdownCard products={(breakdown ?? EMPTY_BREAKDOWN).products} />
+          <BatchBreakdownCard batches={(breakdown ?? EMPTY_BREAKDOWN).batches} />
+        </>
+      )}
     </div>
   )
 }
 
-function ProductTable({ products }: { products: TopProduct[] }) {
+function chartAxisRight(value: number): string {
+  return formatCount(Math.round(value))
+}
+
+function ProductBreakdownCard({ products }: { products: ProductPerformance[] }) {
   const totalTickets = products.reduce((sum, product) => sum + product.tickets, 0)
+  const chartRows = products.slice(0, CHART_TOP)
+
   return (
-    <Card padding="none">
+    <Card className="mt-4" padding="none">
       <div className="px-3.5 pb-2 pt-3">
-        <h2 className="text-[14px] font-semibold text-ink">Breakdown Produk</h2>
-        <p className="mt-0.5 text-[12px] text-ink-soft">Semua produk dengan tiket Paid pada periode ini.</p>
+        <h2 className="text-[14px] font-semibold text-ink">Per Produk — Semua Waktu</h2>
+        <p className="mt-0.5 text-[12px] text-ink-soft">
+          Spend (termasuk PPN), omzet, dan tiket sepanjang riwayat pengiklan; filter tanggal tidak dipakai.
+          {products.length > CHART_TOP ? ` Grafik menampilkan ${CHART_TOP} produk teratas menurut Spend.` : ''}
+        </p>
       </div>
       {products.length === 0 ? (
-        <p className="border-t border-line px-3 py-6 text-center text-ink-soft">Belum ada tiket Paid.</p>
+        <p className="border-t border-line px-3 py-6 text-center text-ink-soft">Belum ada produk dengan tiket atau spend.</p>
       ) : (
-        <DataTable
-          columns={[
-            { key: 'product', header: 'Produk', minWidth: 180 },
-            { key: 'tickets', header: 'Tiket', align: 'right', minWidth: 80 },
-            { key: 'omzet', header: 'Omzet', align: 'right', minWidth: 130 },
-            { key: 'share', header: 'Share', align: 'right', minWidth: 80 },
-          ]}
-          stickyHeader={false}
-        >
-          {products.map((product) => (
-            <TableRow key={product.product_code ?? product.product_name ?? 'tanpa-produk'}>
-              <TableCell>{productLabel(product)}</TableCell>
-              <TableCell align="right">{formatCount(product.tickets)}</TableCell>
-              <TableCell align="right">{formatMoney(product.omzet)}</TableCell>
-              <TableCell align="right">{formatRate(totalTickets === 0 ? null : product.tickets / totalTickets)}</TableCell>
-            </TableRow>
-          ))}
-        </DataTable>
+        <>
+          <div className="px-3.5 pb-3">
+            <ComparisonChart
+              labels={chartRows.map((product) => productLabel(product))}
+              series={[
+                { key: 'spend', label: 'Total Spend', color: '#4f46f5', values: chartRows.map((product) => metricNumber(product.total_spend)) },
+                { key: 'omzet', label: 'Omzet', color: '#35c96c', values: chartRows.map((product) => metricNumber(product.omzet)) },
+                { key: 'tickets', label: 'Tiket', color: '#f5b94c', values: chartRows.map((product) => product.tickets), axis: 'right', type: 'line', format: formatCount },
+              ]}
+              formatValue={formatMoney}
+              formatAxis={formatAxisMoney}
+              formatAxisRight={chartAxisRight}
+              ariaLabel="Grafik per produk"
+            />
+          </div>
+          <DataTable
+            columns={[
+              { key: 'product', header: 'Produk', minWidth: 170 },
+              { key: 'spend', header: 'Total Spend', align: 'right', minWidth: 130 },
+              { key: 'tickets', header: 'Tiket', align: 'right', minWidth: 80 },
+              { key: 'omzet', header: 'Omzet', align: 'right', minWidth: 130 },
+              { key: 'profit', header: 'Profit / Boncos', align: 'right', minWidth: 130 },
+              { key: 'roas', header: 'ROAS', align: 'right', minWidth: 80 },
+              { key: 'share', header: 'Share', align: 'right', minWidth: 80 },
+            ]}
+            stickyHeader={false}
+          >
+            {products.map((product) => (
+              <TableRow key={product.product_code ?? product.product_name ?? 'tanpa-produk'}>
+                <TableCell>{productLabel(product)}</TableCell>
+                <TableCell align="right">{formatMoney(product.total_spend)}</TableCell>
+                <TableCell align="right">{formatCount(product.tickets)}</TableCell>
+                <TableCell align="right">{formatMoney(product.omzet)}</TableCell>
+                <TableCell align="right">
+                  <span className={profitClass(product.profit)}>{formatMoney(product.profit)}</span>
+                </TableCell>
+                <TableCell align="right">{formatRoas(product.roas)}</TableCell>
+                <TableCell align="right">{formatRate(totalTickets === 0 ? null : product.tickets / totalTickets)}</TableCell>
+              </TableRow>
+            ))}
+          </DataTable>
+        </>
       )}
     </Card>
   )
 }
 
-function BatchTable({ batches }: { batches: BatchPerformance[] }) {
+function BatchBreakdownCard({ batches }: { batches: BatchBreakdown[] }) {
+  const chartRows = batches.slice(0, CHART_TOP)
+
   return (
-    <Card padding="none">
+    <Card className="mt-4" padding="none">
       <div className="px-3.5 pb-2 pt-3">
-        <h2 className="text-[14px] font-semibold text-ink">Breakdown Batch</h2>
-        <p className="mt-0.5 text-[12px] text-ink-soft">Kontribusi batch terhadap tiket, omzet, dan spend.</p>
+        <h2 className="text-[14px] font-semibold text-ink">Per Batch — Semua Waktu</h2>
+        <p className="mt-0.5 text-[12px] text-ink-soft">
+          Kontribusi batch terhadap spend (termasuk PPN), tiket, dan omzet sepanjang riwayat; filter tanggal tidak dipakai.
+          {batches.length > CHART_TOP ? ` Grafik menampilkan ${CHART_TOP} batch teratas menurut Spend.` : ''}
+        </p>
       </div>
       {batches.length === 0 ? (
-        <p className="border-t border-line px-3 py-6 text-center text-ink-soft">Belum ada tiket Paid.</p>
+        <p className="border-t border-line px-3 py-6 text-center text-ink-soft">Belum ada batch dengan tiket atau spend.</p>
       ) : (
-        <DataTable
-          columns={[
-            { key: 'batch', header: 'Batch', minWidth: 80 },
-            { key: 'spend', header: 'Total Spend', align: 'right', minWidth: 130 },
-            { key: 'tickets', header: 'Tiket', align: 'right', minWidth: 80 },
-            { key: 'omzet', header: 'Omzet', align: 'right', minWidth: 130 },
-            { key: 'profit', header: 'Profit / Boncos', align: 'right', minWidth: 130 },
-            { key: 'roas', header: 'ROAS', align: 'right', minWidth: 80 },
-          ]}
-          stickyHeader={false}
-        >
-          {batches.map((batch) => (
-            <TableRow key={batch.batch ?? 'tanpa-batch'}>
-              <TableCell>{batch.batch ?? '-'}</TableCell>
-              <TableCell align="right">{formatMoney(batch.total_spend)}</TableCell>
-              <TableCell align="right">{formatCount(batch.tickets)}</TableCell>
-              <TableCell align="right">{formatMoney(batch.omzet)}</TableCell>
-              <TableCell align="right">
-                <span className={profitClass(batch.profit)}>{formatMoney(batch.profit)}</span>
-              </TableCell>
-              <TableCell align="right">{formatRoas(batch.roas)}</TableCell>
-            </TableRow>
-          ))}
-        </DataTable>
+        <>
+          <div className="px-3.5 pb-3">
+            <ComparisonChart
+              labels={chartRows.map((batch) => batch.batch ?? 'Tanpa batch')}
+              series={[
+                { key: 'spend', label: 'Total Spend', color: '#4f46f5', values: chartRows.map((batch) => metricNumber(batch.total_spend)) },
+                { key: 'omzet', label: 'Omzet', color: '#35c96c', values: chartRows.map((batch) => metricNumber(batch.omzet)) },
+                { key: 'tickets', label: 'Tiket', color: '#f5b94c', values: chartRows.map((batch) => batch.tickets), axis: 'right', type: 'line', format: formatCount },
+              ]}
+              formatValue={formatMoney}
+              formatAxis={formatAxisMoney}
+              formatAxisRight={chartAxisRight}
+              ariaLabel="Grafik per batch"
+            />
+          </div>
+          <DataTable
+            columns={[
+              { key: 'batch', header: 'Batch', minWidth: 80 },
+              { key: 'spend', header: 'Total Spend', align: 'right', minWidth: 130 },
+              { key: 'tickets', header: 'Tiket', align: 'right', minWidth: 80 },
+              { key: 'omzet', header: 'Omzet', align: 'right', minWidth: 130 },
+              { key: 'profit', header: 'Profit / Boncos', align: 'right', minWidth: 130 },
+              { key: 'roas', header: 'ROAS', align: 'right', minWidth: 80 },
+            ]}
+            stickyHeader={false}
+          >
+            {batches.map((batch) => (
+              <TableRow key={batch.batch ?? 'tanpa-batch'}>
+                <TableCell>{batch.batch ?? '-'}</TableCell>
+                <TableCell align="right">{formatMoney(batch.total_spend)}</TableCell>
+                <TableCell align="right">{formatCount(batch.tickets)}</TableCell>
+                <TableCell align="right">{formatMoney(batch.omzet)}</TableCell>
+                <TableCell align="right">
+                  <span className={profitClass(batch.profit)}>{formatMoney(batch.profit)}</span>
+                </TableCell>
+                <TableCell align="right">{formatRoas(batch.roas)}</TableCell>
+              </TableRow>
+            ))}
+          </DataTable>
+        </>
       )}
     </Card>
   )

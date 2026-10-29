@@ -71,6 +71,39 @@ export type PerformanceDetail = {
   batches: BatchPerformance[]
 }
 
+/**
+ * A56: baris breakdown per batch/produk dari RPC `advertiser_breakdown`.
+ *
+ * RPC ini tidak menerima tanggal sama sekali, jadi angkanya selalu "semua waktu".
+ * `leads`/`paid` ikut dikembalikan agar kartu breakdown bisa dibaca tanpa
+ * memanggil RPC lain.
+ */
+export type BreakdownMetrics = {
+  spend: Numeric
+  tax_amount: Numeric
+  total_spend: Numeric
+  leads: number
+  paid: number
+  tickets: number
+  omzet: Numeric
+  profit: Numeric
+  roas: number | null
+}
+
+export type ProductPerformance = BreakdownMetrics & {
+  product_code: string | null
+  product_name: string | null
+}
+
+export type BatchBreakdown = BreakdownMetrics & {
+  batch: string | null
+}
+
+export type PerformanceBreakdown = {
+  products: ProductPerformance[]
+  batches: BatchBreakdown[]
+}
+
 export type Granularity = 'day' | 'month' | 'year'
 
 export type PeriodPresetKey =
@@ -155,6 +188,22 @@ export function autoGranularity(from: string, to: string): Granularity {
 
 export function resolveGranularity(mode: 'auto' | Granularity, from: string, to: string): Granularity {
   return mode === 'auto' ? autoGranularity(from, to) : mode
+}
+
+/**
+ * Rentang filter yang benar-benar dipakai grafik utama: "01 Okt 2026 - 29 Okt 2026 · harian".
+ * Ditampilkan di header grafik supaya pembaca tidak perlu menebak rentangnya.
+ */
+export function formatPeriodRangeLabel(from: string, to: string, granularity: Granularity): string {
+  if (from === '' || to === '') return ''
+  const format = (value: string): string => {
+    const [year, month, day] = value.split('-').map(Number)
+    if (!year || !month) return value
+    return new Intl.DateTimeFormat('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })
+      .format(new Date(year, month - 1, day ?? 1))
+  }
+  const unit = granularity === 'year' ? 'tahunan' : granularity === 'month' ? 'bulanan' : 'harian'
+  return `${format(from)} – ${format(to)} · ${unit}`
 }
 
 /** Angka aman untuk perhitungan; nilai kosong/NaN menjadi 0. */

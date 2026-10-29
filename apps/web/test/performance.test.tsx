@@ -9,9 +9,11 @@ import {
   autoGranularity,
   deltaPercent,
   formatDeltaPercent,
+  formatPeriodRangeLabel,
   formatRoas,
   periodPresetRange,
   sortAdvertisers,
+  type PerformanceBreakdown,
   type PerformanceDetail,
   type PerformanceDashboard,
 } from '../src/lib/performance'
@@ -140,6 +142,18 @@ const detail: PerformanceDetail = {
   ],
 }
 
+/** A56: breakdown batch/produk selalu semua waktu (RPC tanpa parameter tanggal). */
+const breakdown: PerformanceBreakdown = {
+  products: [
+    { product_code: 'PBBB', product_name: 'Produk B', spend: 100000, tax_amount: 0, total_spend: 100000, leads: 4, paid: 4, tickets: 4, omzet: 800000, profit: 700000, roas: 8 },
+    { product_code: 'PAAA', product_name: 'Produk A', spend: 300000, tax_amount: 33000, total_spend: 333000, leads: 1, paid: 1, tickets: 1, omzet: 150000, profit: -183000, roas: 150000 / 333000 },
+  ],
+  batches: [
+    { batch: '200', spend: 100000, tax_amount: 0, total_spend: 100000, leads: 4, paid: 4, tickets: 4, omzet: 800000, profit: 700000, roas: 8 },
+    { batch: '100', spend: 300000, tax_amount: 33000, total_spend: 333000, leads: 1, paid: 1, tickets: 1, omzet: 150000, profit: -183000, roas: 150000 / 333000 },
+  ],
+}
+
 const { PerformancePage, formatAxisMoney, formatPeriodLabel } = await import('../src/pages/performance/PerformancePage')
 
 beforeEach(() => {
@@ -188,6 +202,8 @@ describe('Performa / Analitik: perhitungan murni', () => {
     expect(formatPeriodLabel('2026-01-01', 'year')).toBe('2026')
     expect(formatAxisMoney(5_000_000)).toBe('5 jt')
     expect(formatAxisMoney(250_000)).toBe('250 rb')
+    expect(formatPeriodRangeLabel('2026-10-01', '2026-10-29', 'day')).toBe('01 Okt 2026 – 29 Okt 2026 · harian')
+    expect(formatPeriodRangeLabel('2026-01-01', '2026-10-29', 'month')).toBe('01 Jan 2026 – 29 Okt 2026 · bulanan')
   })
 })
 
@@ -201,7 +217,8 @@ describe('Performa / Analitik: izin', () => {
 
 describe('Performa / Analitik: halaman', () => {
   it('menampilkan semua pengiklan sebagai kartu, lalu detail saat diklik', async () => {
-    vi.mocked(supabaseRpc).mockImplementation(async (_fn, args) => {
+    vi.mocked(supabaseRpc).mockImplementation(async (fn, args) => {
+      if (fn === 'advertiser_breakdown') return breakdown
       const advertiser = (args as { p_advertiser_code?: string | null }).p_advertiser_code
       return advertiser === null || advertiser === undefined ? dashboard : detail
     })
@@ -219,14 +236,47 @@ describe('Performa / Analitik: halaman', () => {
     expect(await screen.findByRole('heading', { name: '01 - Zul' })).toBeTruthy()
     expect(screen.getByText('Top 2 Produk')).toBeTruthy()
     expect(screen.queryByText('Periode')).toBeNull()
-    expect(screen.getByRole('img', { name: 'Grafik garis spend' })).toBeTruthy()
-    expect(screen.getByRole('img', { name: 'Grafik garis omzet' })).toBeTruthy()
-    expect(screen.getByRole('img', { name: 'Grafik garis profit' })).toBeTruthy()
-    expect(screen.getByText('Breakdown Batch')).toBeTruthy()
-    expect(supabaseRpc).toHaveBeenLastCalledWith(
+    expect(screen.getByRole('img', { name: 'Grafik total spend dan tiket terjual' })).toBeTruthy()
+    expect(screen.queryByRole('img', { name: 'Grafik garis omzet' })).toBeNull()
+    expect(screen.queryByRole('img', { name: 'Grafik garis profit' })).toBeNull()
+    expect(await screen.findByRole('img', { name: 'Grafik per produk' })).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'Grafik per batch' })).toBeTruthy()
+    expect(screen.getByText('Per Produk — Semua Waktu')).toBeTruthy()
+    expect(screen.getByText('Per Batch — Semua Waktu')).toBeTruthy()
+    expect(supabaseRpc).toHaveBeenCalledWith(
       'advertiser_performance',
       expect.objectContaining({ p_advertiser_code: '01', p_granularity: 'day' }),
     )
+    expect(supabaseRpc).toHaveBeenCalledWith(
+      'advertiser_breakdown',
+      expect.objectContaining({ p_advertiser_code: '01', p_limit: 200 }),
+    )
+    const breakdownCall = vi.mocked(supabaseRpc).mock.calls.find(([fn]) => fn === 'advertiser_breakdown')
+    expect(breakdownCall?.[1]).not.toHaveProperty('p_date_from')
+    expect(breakdownCall?.[1]).not.toHaveProperty('p_date_to')
+  }, 20_000)
+
+  it('A56: hover grafik utama menampilkan angka real', async () => {
+    vi.mocked(supabaseRpc).mockImplementation(async (fn, args) => {
+      if (fn === 'advertiser_breakdown') return breakdown
+      const advertiser = (args as { p_advertiser_code?: string | null }).p_advertiser_code
+      return advertiser === null || advertiser === undefined ? dashboard : detail
+    })
+
+    render(<PerformancePage />)
+
+    fireEvent.click(await screen.findByRole('button', { name: /Zul \(01\)/ }))
+
+    const chart = await screen.findByRole('img', { name: 'Grafik total spend dan tiket terjual' })
+    const hoverBand = chart.querySelector('rect[fill="transparent"]')
+    expect(hoverBand).not.toBeNull()
+    fireEvent.mouseEnter(hoverBand as Element)
+
+    const tooltip = screen.getByTestId('trend-chart-tooltip')
+    expect(tooltip.textContent?.replace(/\u00a0/g, ' ')).toContain('Rp 433.000')
+    expect(tooltip.textContent?.replace(/\u00a0/g, ' ')).not.toContain('Rp 400.000')
+    expect(tooltip.textContent).toContain('Tiket Terjual')
+    expect(tooltip.textContent).toContain('5')
   }, 20_000)
 
   it('A48: advertiser hanya melihat pengiklannya sendiri dan langsung membuka detail', async () => {
@@ -245,7 +295,10 @@ describe('Performa / Analitik: halaman', () => {
         permissions: ['operasional.analytics'],
       },
     })
-    vi.mocked(supabaseRpc).mockResolvedValue(detail)
+    vi.mocked(supabaseRpc).mockImplementation(async (fn) => {
+      if (fn === 'advertiser_breakdown') return breakdown
+      return detail
+    })
 
     render(<PerformancePage />)
 
@@ -274,7 +327,10 @@ describe('Performa / Analitik: halaman', () => {
         permissions: ['operasional.analytics'],
       },
     })
-    vi.mocked(supabaseRpc).mockResolvedValue({ advertisers: [dashboard.advertisers[0]!] })
+    vi.mocked(supabaseRpc).mockImplementation(async (fn) => {
+      if (fn === 'advertiser_breakdown') return breakdown
+      return { advertisers: [dashboard.advertisers[0]!] }
+    })
 
     render(<PerformancePage />)
 
