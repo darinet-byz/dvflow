@@ -9,7 +9,7 @@ vi.mock('../src/lib/queries', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/queries')>()),
   fetchConfigLists: vi.fn(async () => ({ products: [], advertisers: [], eventTypes: [], eventTypeNames: [], sessions: [], paymentMethods: [] })),
   fetchDashboardSummary: vi.fn(async () => ({ leads: 0, paid: 0, pending: 0, cancelled: 0, conversion_rate: null, gross_amount: 0, tax_amount: 0, net_amount: 0, sudah_hadir: 0, belum_hadir: 0, attendance_rate: null })),
-  fetchPresensiSummary: vi.fn(async () => ({ paid: 0, sudah_hadir: 0, belum_hadir: 0, attendance_rate: null })),
+  fetchPresensiSummary: vi.fn(async () => ({ paid_tickets: 0, sudah_hadir: 0, belum_hadir: 0, attendance_rate: null })),
   fetchOrdersPage: vi.fn(async () => ({ rows: [], total: 0, page: 1, page_size: 50, summary: { total: 0, paid: 0, pending: 0 } })),
   fetchPresensiPage: vi.fn(async () => ({ rows: [], total: 0, page: 1, page_size: 50 })),
 }))

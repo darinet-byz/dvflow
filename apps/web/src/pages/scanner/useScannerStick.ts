@@ -36,6 +36,10 @@ export function useScannerStick(enabled: boolean, onPayload: (payload: string) =
   useEffect(() => {
     if (!enabled) return
 
+    // Dialog A61 bisa menonaktifkan hook di tengah tembakan scan; jangan biarkan
+    // sisa karakter lama menempel ke scan berikutnya saat hook aktif kembali.
+    bufferRef.current = ''
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null
       if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) return

@@ -1,6 +1,6 @@
 import { hasPermission } from '../../lib/roles'
 import { useSession } from '../../lib/useSession'
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { extractOrderIdFromQrPayload } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
 import { useAsyncData, useDebouncedValue } from '../../lib/useAsyncData'
@@ -56,6 +56,9 @@ type Candidate = {
   batch: string | null
   session: string | null
   city: string | null
+  quantity: number
+  checked_in_tickets: number
+  remaining_tickets: number
   already_checked_in: boolean
   checked_in_at: string | null
 }
@@ -63,7 +66,8 @@ type Candidate = {
 export function ScanQrPage() {
   const { profile } = useSession()
   const toast = useToast()
-  const { outcome, setOutcome, busy, runCheckin, playAudioFeedback } = useCheckin()
+  const { outcome, setOutcome, busy, runCheckin, playAudioFeedback, pendingTickets, confirmTickets, cancelTickets } =
+    useCheckin()
   const fieldMode = useFieldAppMode()
   const [scanMode, setScanMode] = useState<'camera' | 'scanner_stick'>('camera')
   const [showTestQr, setShowTestQr] = useState(false)
@@ -72,6 +76,10 @@ export function ScanQrPage() {
 
   const handlePayload = useCallback(
     (rawPayload: string): void => {
+      // A61: selama dialog jumlah tiket terbuka, scan lain diabaikan. Ini juga
+      // melindungi Scanner Stick dari mengonfirmasi jumlah secara tak sengaja.
+      if (pendingTickets !== null) return
+
       // QR tes: dicek lebih dulu, tidak pernah ke server, tidak mencatat presensi.
       if (isScannerTestQr(rawPayload)) {
         if (!shouldProcessQr(lastQrRef.current, SCANNER_TEST_QR_PAYLOAD, Date.now())) return
@@ -96,12 +104,13 @@ export function ScanQrPage() {
 
       void runCheckin(orderId, 'qr')
     },
-    [runCheckin, toast],
+    [pendingTickets, runCheckin, toast],
   )
 
   const scanner = useQrScanner(handlePayload)
 
-  const stick = useScannerStick(scanMode === 'scanner_stick', handlePayload)
+  // Keyboard wedged dimatikan saat dialog terbuka; lihat catatan di modal.
+  const stick = useScannerStick(scanMode === 'scanner_stick' && pendingTickets === null, handlePayload)
 
   return (
     <>
@@ -118,6 +127,19 @@ export function ScanQrPage() {
       />
       <TestQrModal open={showTestQr} onClose={() => setShowTestQr(false)} />
       <OtsDrawer open={showOts} onClose={() => setShowOts(false)} canDelete={hasPermission(profile, 'action.delete_master')} />
+      <TicketQuantityModal
+        prompt={pendingTickets}
+        busy={busy}
+        scannerStick={scanMode === 'scanner_stick'}
+        onConfirm={(tickets) => {
+          lastQrRef.current = pendingTickets === null ? null : { orderId: pendingTickets.orderId, at: Date.now() }
+          void confirmTickets(tickets)
+        }}
+        onCancel={() => {
+          lastQrRef.current = pendingTickets === null ? null : { orderId: pendingTickets.orderId, at: Date.now() }
+          cancelTickets()
+        }}
+      />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Card>
@@ -296,6 +318,11 @@ export function ManualSearch({ onCheckin, busy }: { onCheckin: (orderId: string)
                 <p className="font-mono text-[12px] text-ink-soft">Order {candidate.order_id}</p>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5">
                   <Badge tone={appStatusTone(candidate.app_status)}>{candidate.app_status}</Badge>
+                  {candidate.quantity > 1 ? (
+                    <Badge tone="primary">
+                      {candidate.quantity} tiket · hadir {candidate.checked_in_tickets}/{candidate.quantity}
+                    </Badge>
+                  ) : null}
                   {candidate.already_checked_in ? (
                     <Badge tone="warning">Sudah check-in {formatTime(candidate.checked_in_at)}</Badge>
                   ) : null}
@@ -305,13 +332,13 @@ export function ManualSearch({ onCheckin, busy }: { onCheckin: (orderId: string)
               <Button
                 size="sm"
                 variant="primary"
-                disabled={busy}
+                disabled={busy || candidate.already_checked_in}
                 onClick={() => {
                   onCheckin(candidate.order_id)
                   setRefreshKey((value) => value + 1)
                 }}
               >
-                Check-in
+                {candidate.already_checked_in ? 'Sudah check-in' : 'Check-in'}
               </Button>
             </li>
           ))}
@@ -406,10 +433,21 @@ function TestQrModal({ open, onClose }: { open: boolean; onClose: () => void }) 
  * State & aksi check-in bersama layar Scan dan Cari Peserta (A30): satu sumber pesan,
  * bunyi, dan toast jumlah tiket, supaya kedua layar berperilaku sama persis.
  */
+export type PendingTickets = {
+  orderId: string
+  source: 'qr' | 'manual'
+  name: string | null
+  session: string | null
+  quantity: number
+  checkedIn: number
+  remaining: number
+}
+
 export function useCheckin() {
   const toast = useToast()
   const [outcome, setOutcome] = useState<ScanOutcome | null>(null)
   const [busy, setBusy] = useState(false)
+  const [pendingTickets, setPendingTickets] = useState<PendingTickets | null>(null)
 
   function playAudioFeedback(success: boolean) {
     try {
@@ -433,25 +471,52 @@ export function useCheckin() {
     }
   }
 
+  /**
+   * A61: `tickets` kosong berarti "tanya server berapa sisanya". Server menjawab
+   * NEEDS_QUANTITY tanpa menulis apa pun, lalu pemanggil menampilkan dialog.
+   */
   const runCheckin = useCallback(
-    async (orderId: string, source: 'qr' | 'manual'): Promise<void> => {
+    async (orderId: string, source: 'qr' | 'manual', tickets?: number): Promise<void> => {
       setBusy(true)
       try {
         const payload =
           source === 'qr'
-            ? await authorizedRequest<CheckinResponse>(`/checkin/${encodeURIComponent(orderId)}`, { method: 'POST' })
+            ? await authorizedRequest<CheckinResponse>(`/checkin/${encodeURIComponent(orderId)}`, {
+                method: 'POST',
+                ...(tickets === undefined ? {} : { body: { tickets } }),
+              })
             : await authorizedRequest<CheckinResponse>('/api/scanner/manual-checkin', {
                 method: 'POST',
-                body: { order_id: orderId },
+                body: tickets === undefined ? { order_id: orderId } : { order_id: orderId, tickets },
               })
 
+        if (payload.state === 'NEEDS_QUANTITY') {
+          setPendingTickets({
+            orderId: payload.order_id,
+            source,
+            name: payload.name,
+            session: payload.session,
+            quantity: Math.max(payload.quantity ?? 1, 1),
+            checkedIn: payload.checked_in_tickets ?? 0,
+            remaining: Math.max(payload.remaining_tickets ?? 1, 1),
+          })
+          return
+        }
+
+        setPendingTickets(null)
         setOutcome(fromCheckinSuccess(payload))
         playAudioFeedback(true)
-        // A19: panitia langsung tahu berapa orang yang masuk dengan tiket ini.
-        const tickets = `${payload.quantity ?? 1} tiket`
-        if (payload.state === 'ALREADY_CHECKED_IN') toast.show(`Sudah check-in sebelumnya · ${tickets}`, 'info')
-        else toast.show(`Check-in berhasil · ${tickets}`, 'success')
+        const confirmed = payload.tickets_confirmed ?? 0
+        const remaining = payload.remaining_tickets ?? 0
+        if (payload.state === 'ALREADY_CHECKED_IN') {
+          toast.show(`Sudah check-in · ${payload.quantity ?? 1} tiket`, 'info')
+        } else if (remaining > 0) {
+          toast.show(`Check-in ${confirmed} tiket · sisa ${remaining} dari ${payload.quantity ?? confirmed}`, 'success')
+        } else {
+          toast.show(`Check-in ${confirmed} tiket berhasil`, 'success')
+        }
       } catch (error) {
+        setPendingTickets(null)
         setOutcome(fromCheckinError(error))
         playAudioFeedback(false)
       } finally {
@@ -461,7 +526,130 @@ export function useCheckin() {
     [toast],
   )
 
-  return { outcome, setOutcome, busy, runCheckin, playAudioFeedback }
+  const confirmTickets = useCallback(
+    async (tickets: number): Promise<void> => {
+      if (pendingTickets === null) return
+      await runCheckin(pendingTickets.orderId, pendingTickets.source, tickets)
+    },
+    [pendingTickets, runCheckin],
+  )
+
+  const cancelTickets = useCallback(() => setPendingTickets(null), [])
+
+  return {
+    outcome,
+    setOutcome,
+    busy,
+    runCheckin,
+    playAudioFeedback,
+    pendingTickets,
+    confirmTickets,
+    cancelTickets,
+  }
+}
+
+/**
+ * Dialog jumlah tiket (A61).
+ *
+ * Muncul hanya bila sisa tiket > 1. Untuk Scanner Stick, seluruh tombol keyboard
+ * diabaikan selama dialog terbuka: alat mengetik isi QR + Enter, dan tanpa guard
+ * ini Enter bisa mengonfirmasi jumlah yang salah. Konfirmasi selalu lewat klik/tap.
+ */
+export function TicketQuantityModal({
+  prompt,
+  busy,
+  scannerStick = false,
+  onConfirm,
+  onCancel,
+}: {
+  prompt: PendingTickets | null
+  busy: boolean
+  scannerStick?: boolean
+  onConfirm: (tickets: number) => void
+  onCancel: () => void
+}) {
+  const [count, setCount] = useState(1)
+
+  useEffect(() => {
+    setCount(Math.max(prompt?.remaining ?? 1, 1))
+  }, [prompt?.orderId, prompt?.remaining])
+
+  if (prompt === null) return null
+
+  const max = Math.max(prompt.remaining, 1)
+  const safeCount = Math.min(Math.max(count, 1), max)
+  const quick = Array.from({ length: Math.min(max, 6) }, (_, index) => index + 1)
+
+  return (
+    <Modal open title="Berapa tiket yang masuk?" onClose={onCancel}>
+      <div
+        data-testid="ticket-quantity-modal"
+        onKeyDown={(event) => {
+          // Enter dan karakter tunggal (isi QR dari Scanner Stick) tidak boleh
+          // mengubah atau mengonfirmasi apa pun. Tab/Escape tetap berfungsi.
+          if (event.key === 'Enter' || event.key.length === 1) {
+            event.preventDefault()
+            event.stopPropagation()
+          }
+        }}
+      >
+        <p className="text-[15px] font-semibold text-ink">{formatText(prompt.name)}</p>
+        <p className="font-mono text-[12px] text-ink-soft">Order {prompt.orderId}</p>
+        {prompt.session === null ? null : <p className="text-[12px] text-ink-soft">Sesi {prompt.session}</p>}
+
+        <p className="mt-2 rounded-md border border-line bg-page p-2 text-[12px] text-ink-soft">
+          Order ini <strong className="text-ink">{prompt.quantity} tiket</strong> · sudah hadir{' '}
+          <strong className="text-ink">{prompt.checkedIn}</strong> · sisa{' '}
+          <strong className="text-ink">{max}</strong>
+        </p>
+
+        <div className="mt-3 flex items-center justify-center gap-3">
+          <Button size="sm" disabled={safeCount <= 1} onClick={() => setCount((value) => Math.max(1, value - 1))}>
+            −
+          </Button>
+          <span className="min-w-[3ch] text-center text-[32px] font-bold leading-none tabular-nums text-primary">
+            {safeCount}
+          </span>
+          <Button size="sm" disabled={safeCount >= max} onClick={() => setCount((value) => Math.min(max, value + 1))}>
+            +
+          </Button>
+        </div>
+
+        {quick.length > 1 ? (
+          <div className="mt-3 flex flex-wrap justify-center gap-1.5">
+            {quick.map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => setCount(value)}
+                className={cn(
+                  'h-8 min-w-8 rounded-sm border px-2 text-[13px] font-semibold',
+                  safeCount === value
+                    ? 'border-primary bg-primary-soft text-primary'
+                    : 'border-line bg-card text-ink hover:bg-soft',
+                )}
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        {scannerStick ? (
+          <p className="mt-3 rounded-md border border-warning/30 bg-warning-soft p-2 text-[11px] text-[#c78a21]">
+            Mode Scanner Stick: konfirmasi dengan klik. Ketikan alat berikutnya diabaikan selama dialog ini terbuka.
+          </p>
+        ) : null}
+
+        <div className="mt-4 flex flex-wrap justify-end gap-2">
+          <Button onClick={onCancel}>Batal</Button>
+          <Button variant="primary" loading={busy} onClick={() => onConfirm(safeCount)}>
+            Konfirmasi {safeCount} tiket
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
 }
 
 /** Kartu "Hasil terakhir" (PRD §96): status, nama, Order ID, jumlah tiket besar. */
@@ -505,8 +693,19 @@ export function OutcomeCard({ outcome, busy }: { outcome: ScanOutcome | null; bu
             <p className="font-mono text-[12px] text-ink-soft">Order {outcome.orderId}</p>
           )}
           {outcome.quantity === null ? null : (
-            <p className="my-1 text-[15px] font-bold tracking-wide text-primary" aria-label={`Jumlah tiket ${outcome.quantity}`}>
-              <span className="mr-1 text-[40px] leading-none">{outcome.quantity}</span>TIKET
+            <p
+              className="my-1 text-[15px] font-bold tracking-wide text-primary"
+              aria-label={`Jumlah tiket ${outcome.ticketsConfirmed || outcome.quantity}`}
+            >
+              <span className="mr-1 text-[40px] leading-none">{outcome.ticketsConfirmed || outcome.quantity}</span>TIKET
+            </p>
+          )}
+          {outcome.quantity === null || outcome.checkedInTickets === null ? null : (
+            <p className="text-[12px] font-semibold text-ink">
+              Total hadir {outcome.checkedInTickets}/{outcome.quantity}
+              {outcome.remainingTickets !== null && outcome.remainingTickets > 0
+                ? ` · sisa ${outcome.remainingTickets} tiket`
+                : ''}
             </p>
           )}
           <p className="mt-1 text-[12px] text-ink-soft">{outcome.detail}</p>

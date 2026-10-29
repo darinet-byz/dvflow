@@ -182,18 +182,22 @@ Validation:
 - app_status = Paid;
 - event_type = Seminar Offline.
 
-If no seminar attendance exists:
-- insert one row source=seminar_qr;
-- return 200 CHECKIN_SUCCESS.
+A61 — check-in per tiket. Body opsional:
+```json
+{ "tickets": 2 }
+```
 
-If already exists:
-- do not insert;
-- return 200 with state ALREADY_CHECKED_IN + original timestamp.
+- Tiket tersisa 1 → langsung check-in tanpa body.
+- Tiket tersisa > 1 tanpa `tickets` → 200 `NEEDS_QUANTITY` + `remaining_tickets`, **tanpa menulis**.
+- `tickets` diisi → satu baris presensi seminar per tiket; kelebihan dipotong ke sisa.
+- Semua tiket sudah hadir → 200 `ALREADY_CHECKED_IN`.
+- Respons memuat `quantity`, `checked_in_tickets`, `remaining_tickets`, `tickets_confirmed`.
 
 Errors:
 - 404 ORDER_NOT_FOUND
 - 403 ORDER_NOT_PAID
 - 409 NOT_SEMINAR_ORDER
+- 400 INVALID_ARGUMENT (tickets < 1 atau di luar batas)
 
 ## 10. GET /api/scanner/search?q=
 Auth: logged-in user.
@@ -206,14 +210,16 @@ Search seminar candidates by:
 Limit results: 20.
 Server-side query.
 Do not return webinar orders.
+A61: setiap kandidat memuat `quantity`, `checked_in_tickets`, `remaining_tickets`.
 
 ## 11. POST /api/scanner/manual-checkin
 Auth: logged-in user.
 Body:
 ```json
-{ "order_id": "283033796" }
+{ "order_id": "283033796", "tickets": 2 }
 ```
 
+`tickets` opsional dan mengikuti aturan yang sama dengan POST /checkin/:orderId.
 Same validator as POST /checkin/:orderId.
 Source = seminar_manual.
 No bypass.

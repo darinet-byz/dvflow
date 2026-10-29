@@ -17,6 +17,11 @@ insert into public.orders(order_id,product_code,name,event_type,app_status,gross
  -- tanpa source_created_at -> pakai created_at (16 Okt 10:00 WIB)
  ('d-nosrc','AAAA','Tanpa Sumber','Seminar Offline','Pending',100,'2026-10-16 03:00:00+00',null);
 
+-- A61: presensi membuat order Paid ini tidak dianggap "data kedaluwarsa" saat tes
+-- dijalankan jauh setelah tanggal fixture.
+insert into public.attendance_events(order_id, attendance_type, source)
+values ('d-early', 'webinar', 'webinar_redirect');
+
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"f7000000-0000-0000-0000-000000000001","app_role":"developer"}';
 select is((select array_agg(r->>'order_id' order by r->>'order_id') from jsonb_array_elements(
@@ -26,8 +31,8 @@ select is((public.dashboard_summary(p_date_from => '2026-10-16', p_date_to => '2
 select is((public.dashboard_summary(p_date_from => '2026-10-16', p_date_to => '2026-10-16')->>'paid')::int, 1, 'dashboard paid 16 Okt');
 select is((public.dashboard_summary(p_date_from => '2026-10-15', p_date_to => '2026-10-15')->>'leads')::int, 1, '15 Okt hanya order 23:59 WIB');
 select is((public.dashboard_summary(p_date_from => '2026-10-12', p_date_to => '2026-10-12')->>'leads')::int, 1, 'order sinkron belakangan masuk ke tanggal ordernya');
-select is((public.presensi_summary(p_date_from => '2026-10-16', p_date_to => '2026-10-16')->>'paid')::int, 1, 'presensi_summary ikut');
-select is((public.presensi_page(p_date_from => '2026-10-16', p_date_to => '2026-10-16')->>'total')::int, 3, 'presensi_page ikut');
+select is((public.presensi_summary(p_date_from => '2026-10-16', p_date_to => '2026-10-16')->>'paid_tickets')::int, 1, 'presensi_summary ikut');
+select is((public.presensi_page(p_date_from => '2026-10-16', p_date_to => '2026-10-16')->>'total')::int, 1, 'presensi_page ikut (hanya peserta Paid)');
 reset role;
 
 select * from finish();

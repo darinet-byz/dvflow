@@ -48,6 +48,35 @@ describe('hasil check-in', () => {
     expect(fromUnknownQr('x').quantity).toBeNull()
   })
 
+  it('A61: check-in sebagian menampilkan tiket baru diverifikasi dan sisanya', () => {
+    const outcome = fromCheckinSuccess({
+      ...BASE,
+      quantity: 4,
+      tickets_confirmed: 2,
+      checked_in_tickets: 2,
+      remaining_tickets: 2,
+    })
+
+    expect(outcome.tone).toBe('success')
+    expect(outcome.ticketsConfirmed).toBe(2)
+    expect(outcome.checkedInTickets).toBe(2)
+    expect(outcome.remainingTickets).toBe(2)
+    expect(outcome.detail).toContain('sisa 2 tiket')
+  })
+
+  it('A61: tiket terakhir -> detail menyebut semua tiket sudah hadir', () => {
+    const outcome = fromCheckinSuccess({
+      ...BASE,
+      quantity: 4,
+      tickets_confirmed: 2,
+      checked_in_tickets: 4,
+      remaining_tickets: 0,
+    })
+
+    expect(outcome.detail).toContain('semua 4 tiket sudah hadir')
+    expect(outcome.remainingTickets).toBe(0)
+  })
+
   it('sudah check-in -> kuning, BUKAN merah: bukan kegagalan', () => {
     const outcome = fromCheckinSuccess({ ...BASE, state: 'ALREADY_CHECKED_IN' })
 

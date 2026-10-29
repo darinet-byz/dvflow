@@ -164,7 +164,7 @@ export function AdvertiserStatusPage() {
         ) : rows.length === 0 ? (
           <EmptyState title="Belum ada pengiklan" description="Tambahkan pengiklan di Konfigurasi Produk." />
         ) : (
-          <DataTable columns={columns} stickyHeader={false}>
+          <DataTable rowNumbers columns={columns} stickyHeader={false}>
             {rows.map((row) => (
               <TableRow key={row.id}>
                 <TableCell>

@@ -109,10 +109,10 @@ run('integrasi OTS (A34) terhadap Supabase lokal', () => {
       `select source, count(*)::text as count from public.attendance_events where order_id = $1 group by source`,
       [orderId],
     )
-    expect(attendance.rows).toEqual([{ source: 'seminar_ots', count: '1' }])
+    expect(attendance.rows).toEqual([{ source: 'seminar_ots', count: '2' }])
   })
 
-  it('edit 3 tiket x 100.000 -> total tetap 300.000, batch dinormalisasi, presensi tidak dobel', async () => {
+  it('edit 3 tiket x 100.000 -> total tetap 300.000, batch dinormalisasi, presensi per tiket', async () => {
     const response = await authed('/api/ots', {
       order_id: orderId,
       name: 'Budi Integrasi Edit',
@@ -137,7 +137,7 @@ run('integrasi OTS (A34) terhadap Supabase lokal', () => {
       `select count(*)::text as count from public.attendance_events where order_id = $1`,
       [orderId],
     )
-    expect(attendance.rows[0]?.count).toBe('1')
+    expect(attendance.rows[0]?.count).toBe('3')
   })
 
   it('hapus OTS menghapus order dan presensinya', async () => {

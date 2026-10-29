@@ -12,10 +12,11 @@ vi.mock('../src/ui/Toast', () => ({ useToast: () => ({ show: vi.fn() }) }))
 vi.mock('../src/lib/queries', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/queries')>()),
   fetchConfigLists: vi.fn(async () => ({ products: [], advertisers: [], eventTypes: [], eventTypeNames: [], sessions: [], paymentMethods: [] })),
-  fetchPresensiSummary: vi.fn(async () => ({ paid: 1, sudah_hadir: 1, belum_hadir: 0, attendance_rate: 1 })),
+  fetchPresensiSummary: vi.fn(async () => ({ paid_tickets: 1, sudah_hadir: 1, belum_hadir: 0, attendance_rate: 1 })),
   fetchPresensiPage: vi.fn(async () => ({ total: 1, page: 1, page_size: 50, rows: [{
     order_id: 'OTS-000001', name: 'Siti Aminah', phone: null, product_code: 'KULI', product_name: 'Kuliner Masteri', advertiser_code: null, advertiser_name: null,
     event_type: 'Seminar Offline', batch: '392', session: 'S1', city: 'Solo', product_parse_status: 'valid', app_status: 'Paid', attendance_status: 'Hadir',
+    quantity: 1, checked_in_tickets: 1, attendance_data_expired: false, gross_amount: 100000,
     total_activity: 1, latest_activity: '2026-10-17T02:00:00Z', timestamps: ['2026-10-17T02:00:00Z'], created_at: '2026-10-17T02:00:00Z', paid_at: null, updated_at: '2026-10-17T02:00:00Z',
   }] })),
 }))

@@ -93,7 +93,7 @@ select is((public.presensi_page(p_search => 'rr-a')->'rows'->0->>'session'), 'S2
 select is((public.presensi_page(p_search => 'rr-a', p_city => 'Bandung')->'total')::int, 1, 'presensi: filter kota tujuan menemukan peserta');
 select is((public.presensi_page(p_search => 'rr-a', p_city => 'Solo')->'total')::int, 0, 'presensi: filter kota asal tidak menemukan peserta');
 select is((public.presensi_page(p_attendance_status => 'Reschedule')->'total')::int >= 1, true, 'presensi: filter Reschedule valid');
-select is((public.presensi_summary(p_search => 'rr-a', p_city => 'Bandung')->>'paid')::int, 1, 'presensi_summary: filter memakai acara efektif');
+select is((public.presensi_summary(p_search => 'rr-a', p_city => 'Bandung')->>'paid_tickets')::int, 2, 'presensi_summary: filter memakai acara efektif (2 tiket)');
 select is((public.dashboard_summary(p_search => 'rr-a', p_city => 'Bandung')->>'paid')::int, 0, 'dashboard: omzet/atribusi tetap di acara asal');
 select is((public.dashboard_summary(p_search => 'rr-a', p_city => 'Solo')->>'paid')::int, 1, 'dashboard: acara asal tetap menghitung order');
 select is((public.orders_page(p_search => 'rr-a')->'rows'->0->>'rescheduled')::boolean, true, 'orders_page: menandai rescheduled');
@@ -109,7 +109,15 @@ insert into public.attendance_events(order_id, attendance_type, source, scanner_
 values ('rr-a', 'seminar', 'seminar_qr', 'fa000000-0000-0000-0000-000000000001');
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"fa000000-0000-0000-0000-000000000001","app_role":"developer"}';
-select is((public.presensi_page(p_search => 'rr-a')->'rows'->0->>'attendance_status'), 'Hadir', 'presensi: reschedule menjadi Hadir setelah check-in');
+select is((public.presensi_page(p_search => 'rr-a')->'rows'->0->>'attendance_status'), 'Hadir Sebagian', 'presensi: 1 dari 2 tiket -> Hadir Sebagian');
+select is((public.presensi_page(p_search => 'rr-a')->'rows'->0->>'checked_in_tickets')::int, 1, 'presensi: tiket hadir = 1');
+reset role;
+
+insert into public.attendance_events(order_id, attendance_type, source, scanner_user_id, ticket_no)
+values ('rr-a', 'seminar', 'seminar_qr', 'fa000000-0000-0000-0000-000000000001', 2);
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"fa000000-0000-0000-0000-000000000001","app_role":"developer"}';
+select is((public.presensi_page(p_search => 'rr-a')->'rows'->0->>'attendance_status'), 'Hadir', 'presensi: reschedule menjadi Hadir setelah semua tiket check-in');
 reset role;
 
 select throws_ok(
@@ -150,9 +158,9 @@ select throws_ok(
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"fa000000-0000-0000-0000-000000000001","app_role":"developer"}';
-select is((public.presensi_page(p_search => 'rr-c')->'rows'->0->>'attendance_status'), 'Refund', 'presensi: status Refund');
-select is((public.presensi_page(p_attendance_status => 'Refund')->'total')::int, 1, 'presensi: filter Refund');
-select is((public.presensi_summary(p_search => 'rr-c')->>'paid')::int, 0, 'presensi_summary: refund tidak dihitung Paid');
+select is((public.presensi_page(p_search => 'rr-c')->>'total')::int, 0, 'presensi: order Refund tidak tampil sebagai peserta');
+select is((public.presensi_page(p_attendance_status => 'Refund')->'total')::int, 0, 'presensi: filter Refund kosong');
+select is((public.presensi_summary(p_search => 'rr-c')->>'paid_tickets')::int, 0, 'presensi_summary: refund tidak dihitung tiket Paid');
 select is((public.dashboard_summary(p_search => 'rr-c')->>'paid')::int, 0, 'dashboard: refund tidak dihitung Paid');
 select is((public.dashboard_summary(p_search => 'rr-c')->>'gross_amount')::numeric, 0::numeric, 'dashboard: omzet refund dikeluarkan');
 select is((public.dashboard_summary(p_search => 'rr-c')->>'paid_tickets')::int, 0, 'dashboard: jumlah tiket refund dikeluarkan');

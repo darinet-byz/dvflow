@@ -165,6 +165,8 @@ export function OrderRefundPage() {
         ) : (
           <Card padding="none">
             <DataTable
+              rowNumbers
+              rowNumberStart={(state.page - 1) * state.pageSize + 1}
               exportConfig={{
                 filename: 'order-refund',
                 columns: COLUMNS.filter((column) => column.key !== 'actions'),

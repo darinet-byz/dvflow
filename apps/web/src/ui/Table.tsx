@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from 'react'
 import { ExportButton, type ExportConfig } from './ExportButton'
 import { cn } from './cn'
 
@@ -43,6 +43,9 @@ export function DataTable({
   onSortChange,
   exportConfig,
   extraExports,
+  rowNumbers = false,
+  rowNumberStart = 1,
+  maxRows = 20,
 }: {
   exportConfig?: ExportConfig
   extraExports?: readonly ExtraExport[]
@@ -53,8 +56,45 @@ export function DataTable({
   className?: string
   sort?: TableSort
   onSortChange?: (key: string) => void
+  /** Nomor baris di kolom paling kiri; lanjut antar halaman lewat `rowNumberStart`. */
+  rowNumbers?: boolean
+  rowNumberStart?: number
+  /**
+   * Jumlah baris yang terlihat sebelum tabel menggulir sendiri (A61).
+   * `null` mematikan batas tinggi — dipakai tabel kecil yang sudah punya tinggi sendiri.
+   */
+  maxRows?: number | null
 }) {
   const hasExports = exportConfig !== undefined || (extraExports !== undefined && extraExports.length > 0)
+  let nextRowNumber = rowNumberStart
+  const body = rowNumbers
+    ? Children.map(children, (child) => {
+        if (!isValidElement(child)) return child
+
+        if (child.type === TableRow) {
+          const row = child as ReactElement<{ children?: ReactNode }>
+          const number = nextRowNumber
+          nextRowNumber += 1
+          return cloneElement(
+            row,
+            {},
+            <>
+              <TableCell align="right" className="w-10 tabular-nums text-[12px] text-ink-soft">
+                {number}
+              </TableCell>
+              {row.props.children}
+            </>,
+          )
+        }
+
+        if (child.type === TableTotalRow) {
+          const row = child as ReactElement<{ children?: ReactNode }>
+          return cloneElement(row, {}, <><TableCell />{row.props.children}</>)
+        }
+
+        return child
+      })
+    : children
   return (
     <div className="min-w-0 max-w-full">
       {hasExports ? (
@@ -65,10 +105,22 @@ export function DataTable({
           ))}
         </div>
       ) : null}
-    <div className={cn('max-w-full overflow-x-auto rounded-md border border-line bg-card', className)}>
+    <div
+      className={cn('max-w-full overflow-auto rounded-md border border-line bg-card', className)}
+      // ±2,3rem per baris + header; 70vh menjaga laptop 768p tetap nyaman.
+      style={maxRows === null ? undefined : { maxHeight: `min(${maxRows * 2.3}rem, 70vh)` }}
+    >
       <table className="w-full border-collapse text-[13px]">
         <thead className={cn('bg-primary-soft text-left', stickyHeader && 'sticky top-0 z-10')}>
           <tr>
+            {rowNumbers ? (
+              <th
+                scope="col"
+                className="w-10 whitespace-nowrap border-b border-line px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-primary"
+              >
+                No
+              </th>
+            ) : null}
             {columns.map((column) => {
               const sortable = column.sortKey !== undefined && onSortChange !== undefined
               const active = sortable && sort?.key === column.sortKey
@@ -103,7 +155,7 @@ export function DataTable({
             })}
           </tr>
         </thead>
-        <tbody>{children}</tbody>
+        <tbody>{body}</tbody>
       </table>
     </div>
     </div>
@@ -135,7 +187,7 @@ export function TableCell({
   mono = false,
   className,
 }: {
-  children: ReactNode
+  children?: ReactNode
   align?: 'left' | 'right'
   mono?: boolean
   className?: string

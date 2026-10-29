@@ -89,12 +89,12 @@ export function DashboardPage() {
           <Card>
             <CardHeader title="Kehadiran" />
             <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-              <KpiCard label="Sudah Hadir" value={formatCount(data.sudah_hadir)} />
-              <KpiCard label="Belum Hadir" value={formatCount(data.belum_hadir)} />
+              <KpiCard label="Sudah Hadir (tiket)" value={formatCount(data.sudah_hadir)} />
+              <KpiCard label="Belum Hadir (tiket)" value={formatCount(data.belum_hadir)} />
               <KpiCard
                 label="Attendance Rate"
                 value={formatRate(data.attendance_rate)}
-                hint={data.paid === 0 ? 'Belum ada order Paid' : 'Hadir ÷ Paid'}
+                hint={(data.paid_tickets ?? data.paid) === 0 ? 'Belum ada tiket Paid' : 'Tiket hadir ÷ tiket Paid'}
               />
             </div>
           </Card>

@@ -28,7 +28,7 @@ select is((public.export_orders_page(p_batch => '058')->>'total')::int, 1, 'expo
 select is((public.presensi_page(p_batch => '058')->>'total')::int, 1, 'presensi ikut');
 select is((public.export_presensi_page(p_batch => '058')->>'total')::int, 1, 'export presensi ikut');
 select is((public.dashboard_summary(p_batch => '058')->>'leads')::int, 1, 'dashboard ikut');
-select is((public.presensi_summary(p_batch => '058')->>'paid')::int, 1, 'ringkasan presensi ikut');
+select is((public.presensi_summary(p_batch => '058')->>'paid_tickets')::int, 1, 'ringkasan presensi ikut');
 select is((public.tax_report('batch', p_batch => '058')->'summary'->>'transactions')::int, 1, 'report tax ikut');
 reset role;
 

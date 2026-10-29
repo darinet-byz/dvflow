@@ -30,15 +30,25 @@ export type DashboardSummary = {
   attendance_rate: number | null
 }
 
-/** A23: ringkasan kehadiran halaman Presensi (cukup izin Presensi, tanpa angka keuangan). */
-export type PresensiSummary = Pick<DashboardSummary, 'paid' | 'sudah_hadir' | 'belum_hadir' | 'attendance_rate'>
+/**
+ * A23: ringkasan kehadiran halaman Presensi (cukup izin Presensi, tanpa angka keuangan).
+ * A61: angkanya dalam TIKET, bukan jumlah order.
+ */
+export type PresensiSummary = {
+  paid_tickets: number
+  sudah_hadir: number
+  belum_hadir: number
+  attendance_rate: number | null
+}
 
 export type AppStatus = 'Pending' | 'Paid' | 'Cancelled' | 'Refund'
 export type EventTypeName = 'Seminar Offline' | 'Webinar Online' | 'Hybrid'
 export type AttendanceStatus =
   | 'Hadir'
+  | 'Hadir Sebagian'
   | 'Belum Hadir'
   | 'Reschedule'
+  | 'Data presensi tidak tersedia'
   | 'Refund'
   | 'Pending'
   | 'Cancelled'
@@ -137,6 +147,10 @@ export type PresensiRow = {
   /** Nominal & jumlah tiket dibutuhkan modal Refund di drawer Presensi. */
   gross_amount: number
   quantity: number
+  /** A61: tiket yang sudah hadir (0..quantity). */
+  checked_in_tickets: number
+  /** A61: baris presensi sudah terhapus retensi 30 hari. */
+  attendance_data_expired: boolean
   attendance_status: AttendanceStatus
   total_activity: number
   latest_activity: string | null

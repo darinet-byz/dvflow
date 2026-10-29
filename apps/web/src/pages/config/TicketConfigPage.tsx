@@ -289,6 +289,7 @@ export function TicketConfigPage() {
             <SkeletonRows rows={3} />
           ) : (
             <DataTable
+              rowNumbers
               columns={columns}
               exportConfig={{
                 filename: 'konfigurasi-tiket-qr',

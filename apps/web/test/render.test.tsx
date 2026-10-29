@@ -31,7 +31,7 @@ vi.mock('../src/lib/queries', async (importOriginal) => {
       belum_hadir: 0,
       attendance_rate: 1,
     })),
-    fetchPresensiSummary: vi.fn(async () => ({ paid: 2, sudah_hadir: 2, belum_hadir: 0, attendance_rate: 1 })),
+    fetchPresensiSummary: vi.fn(async () => ({ paid_tickets: 2, sudah_hadir: 2, belum_hadir: 0, attendance_rate: 1 })),
     fetchOrdersPage: vi.fn(async () => ({
       rows: [
         {
@@ -90,6 +90,8 @@ vi.mock('../src/lib/queries', async (importOriginal) => {
           app_status: 'Paid',
           gross_amount: 300000,
           quantity: 1,
+          checked_in_tickets: 1,
+          attendance_data_expired: false,
           attendance_status: 'Hadir',
           total_activity: 3,
           latest_activity: '2026-10-13T09:00:00.000Z',
@@ -176,6 +178,7 @@ describe('tabel Master Order (PRD §45)', () => {
     renderPage(<OrderPage />)
 
     expect(await columnHeaders()).toEqual([
+      'No',
       'Order ID',
       'Nama',
       'No WA',
@@ -250,7 +253,7 @@ describe('tabel Presensi (PRD §103, §105)', () => {
     const queries = await import('../src/lib/queries')
     vi.mocked(queries.fetchDashboardSummary).mockClear()
     renderPage(<PresensiPage />)
-    expect(await screen.findByText('Belum Hadir')).toBeDefined()
+    expect(await screen.findByText(/Belum Hadir/)).toBeDefined()
     expect(queries.fetchPresensiSummary).toHaveBeenCalled()
     expect(queries.fetchDashboardSummary).not.toHaveBeenCalled()
   })
@@ -259,27 +262,81 @@ describe('tabel Presensi (PRD §103, §105)', () => {
     renderPage(<PresensiPage />)
 
     const headers = await columnHeaders()
-    expect(headers.slice(0, 3)).toEqual(['Order ID', 'Nama', 'No WA'])
+    expect(headers.slice(0, 4)).toEqual(['No', 'Order ID', 'Nama', 'Tiket'])
   })
 
-  it('A58: urutan kolom baru dan timestamp di paling kanan', async () => {
+  it('A61: urutan kolom baru, jumlah tiket, dan timestamp di paling kanan', async () => {
     renderPage(<PresensiPage />)
 
     const headers = await columnHeaders()
-    expect(headers.slice(0, 11)).toEqual([
-      'Order ID', 'Nama', 'No WA', 'Produk', 'Batch', 'Sesi', 'Kota',
-      'Pengiklan', 'Seminar / Webinar', 'Status', 'Total Activity',
+    expect(headers.slice(0, 12)).toEqual([
+      'No', 'Order ID', 'Nama', 'Tiket', 'No WA', 'Produk', 'Batch', 'Sesi', 'Kota',
+      'Pengiklan', 'Seminar / Webinar', 'Status',
     ])
-    expect(headers.slice(-10)).toEqual(['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'])
+    expect(headers.slice(-11)).toEqual(['Total Activity', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'])
   })
 
-  it('A58: filter status menyediakan Reschedule dan Refund', async () => {
+  it('A61: filter status hanya menawarkan status peserta Paid', async () => {
     renderPage(<PresensiPage />)
 
     const select = await screen.findByLabelText('Filter status presensi')
     const values = Array.from((select as HTMLSelectElement).options).map((option) => option.value)
     expect(values).toContain('Reschedule')
-    expect(values).toContain('Refund')
+    expect(values).toContain('Hadir Sebagian')
+    expect(values).toContain('Data presensi tidak tersedia')
+    expect(values).not.toContain('Pending')
+    expect(values).not.toContain('Cancelled')
+    expect(values).not.toContain('Refund')
+  })
+
+  it('A61: nomor baris, kolom Tiket, dan status Hadir Sebagian 2/4', async () => {
+    const queries = await import('../src/lib/queries')
+    vi.mocked(queries.fetchPresensiPage).mockResolvedValueOnce({
+      rows: [
+        {
+          order_id: '283033796',
+          name: 'Ahmad',
+          phone: '+628111',
+          product_code: 'KM',
+          product_name: 'Kuliner Masteri',
+          advertiser_code: '01',
+          advertiser_name: 'Zul',
+          event_type: 'Seminar Offline',
+          batch: '392',
+          session: 'S1',
+          city: 'Solo',
+          product_parse_status: 'valid',
+          app_status: 'Paid',
+          gross_amount: 400000,
+          quantity: 4,
+          checked_in_tickets: 2,
+          attendance_data_expired: false,
+          attendance_status: 'Hadir Sebagian',
+          total_activity: 2,
+          latest_activity: '2026-10-13T09:00:00.000Z',
+          timestamps: ['2026-10-13T09:00:00.000Z'],
+          created_at: '2026-10-13T08:00:00.000Z',
+          paid_at: '2026-10-13T08:05:00.000Z',
+          updated_at: '2026-10-13T08:05:00.000Z',
+        },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 50,
+    })
+
+    renderPage(<PresensiPage />)
+    const table = await screen.findByRole('table')
+    const firstRow = within(table).getAllByRole('row')[1]
+    const cells = within(firstRow as HTMLElement).getAllByRole('cell')
+    expect(cells[0]?.textContent).toBe('1')
+    expect(cells[3]?.textContent).toBe('4')
+    expect(within(table).getByText('Hadir Sebagian')).toBeDefined()
+    expect(within(table).getByText('2/4')).toBeDefined()
+
+    // A61: tinggi tabel dibatasi (20 baris, maksimal 70vh).
+    const wrapper = table.parentElement as HTMLElement
+    expect(wrapper.style.maxHeight).toBe('min(46rem, 70vh)')
   })
 })
 

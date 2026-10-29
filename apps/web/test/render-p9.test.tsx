@@ -343,6 +343,6 @@ describe('Konfigurasi Produk (PRD §57–§63, §162)', () => {
     const headers = within(tables[0] as HTMLElement)
       .getAllByRole('columnheader')
       .map((cell) => (cell.textContent ?? '').trim())
-    expect(headers.slice(0, 3)).toEqual(['Nama', 'Kode', 'Status'])
+    expect(headers.slice(0, 4)).toEqual(['No', 'Nama', 'Kode', 'Status'])
   })
 })

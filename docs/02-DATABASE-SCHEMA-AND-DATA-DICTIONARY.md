@@ -202,18 +202,21 @@ Rules:
 - id UUID PK default gen_random_uuid()
 - order_id TEXT NOT NULL
 - attendance_type TEXT NOT NULL CHECK IN ('webinar','seminar')
-- source TEXT NOT NULL CHECK IN ('webinar_redirect','seminar_qr','seminar_manual')
+- source TEXT NOT NULL CHECK IN ('webinar_redirect','seminar_qr','seminar_manual','seminar_ots')
 - scanner_user_id UUID NULL FK users(id)
 - clicked_at TIMESTAMPTZ NOT NULL DEFAULT now()
+- ticket_no INTEGER NOT NULL DEFAULT 1 CHECK (1..10000) — A61
 
 FK recommendation:
 - order_id references orders(order_id) ON DELETE RESTRICT.
 
-Seminar uniqueness:
-- partial unique index `UNIQUE(order_id) WHERE attendance_type='seminar'`.
+Seminar uniqueness (A61):
+- partial unique index `UNIQUE(order_id, ticket_no) WHERE attendance_type='seminar'`.
+- satu baris = satu tiket hadir; rombongan boleh datang bertahap.
 
 Webinar:
-- tidak unique; setiap redirect valid membuat row.
+- tidak unique; setiap redirect valid membuat row dengan `ticket_no = 1`.
+- satu klik link membuat presensi order; KPI menghitung seluruh tiket order hadir.
 
 Retention:
 - delete attendance_events WHERE clicked_at < now() - interval '30 days'.

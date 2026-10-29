@@ -26,33 +26,59 @@ export type ScanOutcome = {
   clickedAt: string | null
   /** Jumlah tiket order (A19); null bila bukan hasil check-in. */
   quantity: number | null
+  /** A61: tiket yang baru dikonfirmasi pada scan ini. */
+  ticketsConfirmed: number | null
+  /** A61: total tiket yang sudah hadir pada order ini. */
+  checkedInTickets: number | null
+  /** A61: sisa tiket yang belum check-in. */
+  remainingTickets: number | null
   /** Apakah ini hasil yang perlu perhatian operator. */
   alert: boolean
 }
 
+export type CheckinState = 'CHECKIN_SUCCESS' | 'ALREADY_CHECKED_IN' | 'NEEDS_QUANTITY'
+
 export type CheckinResponse = {
-  state: 'CHECKIN_SUCCESS' | 'ALREADY_CHECKED_IN'
+  state: CheckinState
   order_id: string
   name: string | null
   event_type: string | null
   session: string | null
   /** A19: jumlah tiket order; server lama mungkin belum mengirim. */
   quantity?: number
-  clicked_at: string
-  attendance_id: string
+  /** A61: progres check-in per tiket. */
+  checked_in_tickets?: number
+  remaining_tickets?: number
+  tickets_confirmed?: number
+  clicked_at: string | null
+  first_clicked_at?: string | null
+  attendance_id: string | null
   scanner: { user_id: string; display_name: string }
 }
 
 export function fromCheckinSuccess(payload: CheckinResponse): ScanOutcome {
+  const quantity = Math.max(payload.quantity ?? 1, 1)
+  const confirmed = payload.tickets_confirmed ?? (payload.state === 'ALREADY_CHECKED_IN' ? 0 : 1)
+  const checkedIn = payload.checked_in_tickets ?? (payload.state === 'ALREADY_CHECKED_IN' ? quantity : confirmed)
+  const remaining = payload.remaining_tickets ?? Math.max(quantity - checkedIn, 0)
+
+  // A61: rombongan boleh datang bertahap. Pesan harus menyebut sisa tiket supaya
+  // operator tahu barcode ini masih boleh dipindai lagi.
   if (payload.state === 'ALREADY_CHECKED_IN') {
     return {
       tone: 'warning',
       title: 'Sudah check-in',
-      detail: 'Peserta ini sudah tercatat hadir sebelumnya.',
+      detail:
+        quantity > 1
+          ? `Semua ${quantity} tiket order ini sudah check-in.`
+          : 'Peserta ini sudah tercatat hadir sebelumnya.',
       name: payload.name,
       orderId: payload.order_id,
       clickedAt: payload.clicked_at,
-      quantity: payload.quantity ?? 1,
+      quantity,
+      ticketsConfirmed: 0,
+      checkedInTickets: checkedIn,
+      remainingTickets: 0,
       alert: false,
     }
   }
@@ -60,11 +86,17 @@ export function fromCheckinSuccess(payload: CheckinResponse): ScanOutcome {
   return {
     tone: 'success',
     title: 'Check-in berhasil',
-    detail: 'Presensi tercatat atas nama operator ini.',
+    detail:
+      remaining > 0
+        ? `${confirmed} tiket diverifikasi · total ${checkedIn}/${quantity} hadir · sisa ${remaining} tiket.`
+        : `${confirmed} tiket diverifikasi · semua ${quantity} tiket sudah hadir.`,
     name: payload.name,
     orderId: payload.order_id,
     clickedAt: payload.clicked_at,
-    quantity: payload.quantity ?? 1,
+    quantity,
+    ticketsConfirmed: confirmed,
+    checkedInTickets: checkedIn,
+    remainingTickets: remaining,
     alert: false,
   }
 }
@@ -90,6 +122,9 @@ export function fromScannerTestQr(): ScanOutcome {
     // Bukan check-in: tanpa waktu check-in agar kartu tidak menulis "Check-in <jam>".
     clickedAt: null,
     quantity: null,
+    ticketsConfirmed: null,
+    checkedInTickets: null,
+    remainingTickets: null,
     alert: false,
   }
 }
@@ -112,6 +147,7 @@ export function fromCheckinError(error: unknown): ScanOutcome {
     SESSION_INVALID: 'Sesi berakhir',
     USER_DISABLED: 'Akun nonaktif',
     FORBIDDEN: 'Tidak punya akses',
+    INVALID_ARGUMENT: 'Jumlah tiket tidak valid',
   }
 
   return {
@@ -122,6 +158,9 @@ export function fromCheckinError(error: unknown): ScanOutcome {
     orderId: null,
     clickedAt: null,
     quantity: null,
+    ticketsConfirmed: null,
+    checkedInTickets: null,
+    remainingTickets: null,
     alert: true,
   }
 }
@@ -142,6 +181,9 @@ export function fromUnknownQr(rawPayload: string): ScanOutcome {
     orderId: null,
     clickedAt: null,
     quantity: null,
+    ticketsConfirmed: null,
+    checkedInTickets: null,
+    remainingTickets: null,
     alert: true,
   }
 }

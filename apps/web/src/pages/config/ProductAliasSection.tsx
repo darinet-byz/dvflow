@@ -142,6 +142,7 @@ export function ProductAliasSection({ configVersion = 0 }: { configVersion?: num
           <SkeletonRows rows={3} />
         ) : (
           <DataTable
+            rowNumbers
             columns={columns}
             exportConfig={{
               filename: 'alias-produk-dvflow',

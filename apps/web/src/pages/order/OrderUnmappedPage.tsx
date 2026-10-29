@@ -225,6 +225,7 @@ export function OrderUnmappedPage() {
             <SkeletonRows rows={4} />
           ) : (
             <DataTable
+              rowNumbers
               columns={columns}
               exportConfig={{
                 filename: 'order-unmapped',
@@ -254,6 +255,7 @@ export function OrderUnmappedPage() {
                       aria-label="Pilih semua order"
                     />
                   </td>
+                  <td aria-hidden="true" />
                   <td colSpan={6} className="px-3 py-2">
                     {someSelected ? `${selectedIds.size} dari ${rows.length} dipilih` : 'Pilih Semua di Halaman Ini'}
                   </td>

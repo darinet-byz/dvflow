@@ -146,10 +146,10 @@ function SessionTable({
 }) {
   const total = rows.reduce((sum, row) => sum + row.tickets, 0)
   return (
-    <DataTable columns={COLUMNS} className="max-h-[420px] overflow-y-auto">
+    <DataTable rowNumbers maxRows={null} columns={COLUMNS} className="max-h-[420px] overflow-y-auto">
       {rows.length === 0 ? (
         <tr>
-          <td colSpan={COLUMNS.length} className="px-3 py-8 text-center text-ink-soft">
+          <td colSpan={COLUMNS.length + 1} className="px-3 py-8 text-center text-ink-soft">
             {emptyMessage}
           </td>
         </tr>

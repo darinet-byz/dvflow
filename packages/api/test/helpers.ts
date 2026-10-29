@@ -435,32 +435,74 @@ export function createFakeDb(state: FakeState): Db {
         if (order['app_status'] !== 'Paid') throw new DbError('DF002', 'fake')
         if (order['event_type'] !== 'Seminar Offline' && order['event_type'] !== 'Hybrid') throw new DbError('DF003', 'fake')
 
-        const existing = state.attendanceEvents.find(
+        const quantity = Math.max(Number(order['quantity'] ?? 1), 1)
+        const existing = state.attendanceEvents.filter(
           (event) => event['order_id'] === orderId && event['attendance_type'] === 'seminar',
         )
-        if (existing !== undefined) {
+        const present = Math.min(existing.length, quantity)
+        const remaining = Math.max(quantity - present, 0)
+
+        if (remaining === 0) {
+          const last = existing[existing.length - 1]
           return {
             order_id: orderId,
             state: 'ALREADY_CHECKED_IN',
-            attendance_id: existing['id'],
-            clicked_at: existing['clicked_at'],
-            scanner_user_id: existing['scanner_user_id'],
+            attendance_id: last?.['id'] ?? null,
+            clicked_at: last?.['clicked_at'] ?? null,
+            first_clicked_at: existing[0]?.['clicked_at'] ?? null,
+            scanner_user_id: last?.['scanner_user_id'] ?? null,
+            quantity,
+            checked_in_tickets: present,
+            remaining_tickets: 0,
+            tickets_confirmed: 0,
           } as T
         }
 
-        const created = insertAttendance(state, {
-          order_id: orderId,
-          attendance_type: 'seminar',
-          source: args['p_source'],
-          scanner_user_id: args['p_scanner_user_id'],
-        })
+        const requested = args['p_tickets']
+        if (requested === -1 && remaining > 1) {
+          return {
+            order_id: orderId,
+            state: 'NEEDS_QUANTITY',
+            attendance_id: null,
+            clicked_at: null,
+            first_clicked_at: existing[0]?.['clicked_at'] ?? null,
+            scanner_user_id: args['p_scanner_user_id'],
+            quantity,
+            checked_in_tickets: present,
+            remaining_tickets: remaining,
+            tickets_confirmed: 0,
+          } as T
+        }
+
+        // NULL = pemanggil lama (seluruh sisa); -1 = probe (sampai sini berarti sisa 1).
+        const want =
+          requested === null || requested === undefined
+            ? remaining
+            : requested === -1
+              ? 1
+              : Math.min(Number(requested), remaining)
+        let created: Record<string, unknown> | null = null
+        for (let index = 1; index <= want; index += 1) {
+          created = insertAttendance(state, {
+            order_id: orderId,
+            attendance_type: 'seminar',
+            source: args['p_source'],
+            scanner_user_id: args['p_scanner_user_id'],
+            ticket_no: present + index,
+          })
+        }
 
         return {
           order_id: orderId,
           state: 'CHECKIN_SUCCESS',
-          attendance_id: created['id'],
-          clicked_at: created['clicked_at'],
-          scanner_user_id: created['scanner_user_id'],
+          attendance_id: created?.['id'] ?? null,
+          clicked_at: created?.['clicked_at'] ?? null,
+          first_clicked_at: existing[0]?.['clicked_at'] ?? created?.['clicked_at'] ?? null,
+          scanner_user_id: created?.['scanner_user_id'] ?? null,
+          quantity,
+          checked_in_tickets: present + want,
+          remaining_tickets: remaining - want,
+          tickets_confirmed: want,
         } as T
       }
 

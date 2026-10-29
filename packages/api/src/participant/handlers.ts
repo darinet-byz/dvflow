@@ -3,7 +3,7 @@ import { resolveProductAlias } from '../webhooks/handlers'
 import { buildCheckinPath, isOrderIdShaped } from '@dvflow/shared'
 import type { Db } from '../db/types'
 import { ApiFailure } from '../http/errors'
-import { ok } from '../http/response'
+import { ok, readJsonObject } from '../http/response'
 import type { RouteContext } from '../router'
 import type { UserRow } from '../users'
 import {
@@ -320,12 +320,26 @@ function escapeForPage(value: string): string {
   return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;')
 }
 
+export type CheckinState = 'CHECKIN_SUCCESS' | 'ALREADY_CHECKED_IN' | 'NEEDS_QUANTITY'
+
 export type CheckinResult = {
   order_id: string
-  state: 'CHECKIN_SUCCESS' | 'ALREADY_CHECKED_IN'
-  attendance_id: string
-  clicked_at: string
+  state: CheckinState
+  attendance_id: string | null
+  clicked_at: string | null
+  first_clicked_at: string | null
   scanner_user_id: string | null
+  /** A61: jumlah tiket order, tiket yang sudah hadir, sisa, dan yang baru dikonfirmasi. */
+  quantity: number
+  checked_in_tickets: number
+  remaining_tickets: number
+  tickets_confirmed: number
+}
+
+/** Body opsional `{ tickets: 2 }` — jumlah tiket yang masuk pada gelombang ini. */
+function readTickets(body: Record<string, unknown>): number | null {
+  const value = body['tickets']
+  return typeof value === 'number' && Number.isInteger(value) ? value : null
 }
 
 /**
@@ -340,7 +354,7 @@ export type CheckinResult = {
  */
 export async function checkinSeminar(
   context: RouteContext,
-  input: { orderId: string; source: 'seminar_qr' | 'seminar_manual' },
+  input: { orderId: string; source: 'seminar_qr' | 'seminar_manual'; tickets?: number | null },
 ): Promise<Response> {
   const operator = await requirePermission(context, 'operasional.scan_qr')
   if (input.source === 'seminar_manual') await requirePermission(context, 'action.manual_checkin')
@@ -358,6 +372,9 @@ export async function checkinSeminar(
     p_order_id: input.orderId,
     p_source: input.source,
     p_scanner_user_id: operator.id,
+    // -1 = probe "berapa sisa tiket?". NULL sengaja tidak dipakai: NULL adalah
+    // jalur kompatibilitas untuk pemanggil lama yang check-in seluruh order.
+    p_tickets: input.tickets ?? -1,
   })
 
   // Nama peserta dibaca setelah RPC berhasil, hanya untuk ditampilkan di kartu
@@ -371,9 +388,13 @@ export async function checkinSeminar(
     name: order?.name ?? null,
     event_type: order?.event_type ?? null,
     session: order?.effective_session ?? order?.session ?? null,
-    // A19: jumlah tiket untuk notifikasi panitia di scanner.
-    quantity: order?.quantity ?? 1,
+    // A19/A61: jumlah tiket order + progres check-in untuk notifikasi panitia.
+    quantity: result.quantity ?? order?.quantity ?? 1,
+    checked_in_tickets: result.checked_in_tickets ?? 0,
+    remaining_tickets: result.remaining_tickets ?? 0,
+    tickets_confirmed: result.tickets_confirmed ?? 0,
     clicked_at: result.clicked_at,
+    first_clicked_at: result.first_clicked_at ?? null,
     attendance_id: result.attendance_id,
     scanner: describeOperator(operator),
   })
@@ -383,7 +404,17 @@ function describeOperator(user: UserRow): { user_id: string; display_name: strin
   return { user_id: user.id, display_name: user.display_name }
 }
 
-/** POST /checkin/:orderId — jalur QR (03 §9). */
+/**
+ * POST /checkin/:orderId — jalur QR (03 §9).
+ *
+ * Body opsional `{ tickets: 2 }` dipakai saat peserta rombongan datang sebagian.
+ * Tanpa body, server meminta jumlah lebih dulu (NEEDS_QUANTITY) bila tiket tersisa > 1.
+ */
 export async function checkinByQr(context: RouteContext): Promise<Response> {
-  return checkinSeminar(context, { orderId: context.params['orderId'] ?? '', source: 'seminar_qr' })
+  const body = await readJsonObject(context.request)
+  return checkinSeminar(context, {
+    orderId: context.params['orderId'] ?? '',
+    source: 'seminar_qr',
+    tickets: readTickets(body),
+  })
 }

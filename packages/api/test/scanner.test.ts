@@ -52,28 +52,84 @@ describe('check-in seminar lewat QR (03 §9)', () => {
   it('H01: Paid + Seminar -> CHECKIN_SUCCESS dengan data untuk kartu hasil', async () => {
     const { state, api, accessToken } = await setup()
 
-    const response = await api(authed(accessToken, { method: 'POST', path: '/checkin/700001' }))
+    const response = await api(
+      authed(accessToken, { method: 'POST', path: '/checkin/700001', body: { tickets: 3 } }),
+    )
     expect(response.status).toBe(200)
 
     const body = await readBody<{
-      data: { state: string; order_id: string; name: string; session: string; quantity: number; scanner: { display_name: string } }
+      data: {
+        state: string
+        order_id: string
+        name: string
+        session: string
+        quantity: number
+        tickets_confirmed: number
+        checked_in_tickets: number
+        remaining_tickets: number
+        scanner: { display_name: string }
+      }
     }>(response)
     expect(body.data.state).toBe('CHECKIN_SUCCESS')
     expect(body.data.order_id).toBe('700001')
     expect(body.data.name).toBe('Ahmad')
     expect(body.data.quantity).toBe(3)
+    expect(body.data.tickets_confirmed).toBe(3)
+    expect(body.data.checked_in_tickets).toBe(3)
+    expect(body.data.remaining_tickets).toBe(0)
     expect(body.data.scanner.display_name).toBe('Operator Satu')
 
-    const event = state.attendanceEvents[0]
-    expect(event?.['source']).toBe('seminar_qr')
-    expect(event?.['scanner_user_id']).toBe('user-staff')
+    expect(state.attendanceEvents).toHaveLength(3)
+    expect(state.attendanceEvents[0]?.['source']).toBe('seminar_qr')
+    expect(state.attendanceEvents[0]?.['scanner_user_id']).toBe('user-staff')
+  })
+
+  it('A61: multi-tiket tanpa jumlah -> NEEDS_QUANTITY tanpa menulis presensi', async () => {
+    const { state, api, accessToken } = await setup()
+
+    const response = await api(authed(accessToken, { method: 'POST', path: '/checkin/700001' }))
+    const body = await readBody<{
+      data: { state: string; quantity: number; checked_in_tickets: number; remaining_tickets: number }
+    }>(response)
+
+    expect(response.status).toBe(200)
+    expect(body.data.state).toBe('NEEDS_QUANTITY')
+    expect(body.data.quantity).toBe(3)
+    expect(body.data.checked_in_tickets).toBe(0)
+    expect(body.data.remaining_tickets).toBe(3)
+    expect(state.attendanceEvents).toHaveLength(0)
+  })
+
+  it('A61: rombongan datang bertahap, sisa berkurang sampai ALREADY', async () => {
+    const { state, api, accessToken } = await setup()
+
+    const first = await readBody<{ data: { state: string; tickets_confirmed: number; remaining_tickets: number } }>(
+      await api(authed(accessToken, { method: 'POST', path: '/checkin/700001', body: { tickets: 1 } })),
+    )
+    expect(first.data.state).toBe('CHECKIN_SUCCESS')
+    expect(first.data.tickets_confirmed).toBe(1)
+    expect(first.data.remaining_tickets).toBe(2)
+
+    const second = await readBody<{ data: { state: string; tickets_confirmed: number; remaining_tickets: number } }>(
+      await api(authed(accessToken, { method: 'POST', path: '/checkin/700001', body: { tickets: 2 } })),
+    )
+    expect(second.data.state).toBe('CHECKIN_SUCCESS')
+    expect(second.data.tickets_confirmed).toBe(2)
+    expect(second.data.remaining_tickets).toBe(0)
+
+    const third = await readBody<{ data: { state: string; quantity: number } }>(
+      await api(authed(accessToken, { method: 'POST', path: '/checkin/700001' })),
+    )
+    expect(third.data.state).toBe('ALREADY_CHECKED_IN')
+    expect(third.data.quantity).toBe(3)
+    expect(state.attendanceEvents).toHaveLength(3)
   })
 
   it('H02: scan berulang -> ALREADY_CHECKED_IN dengan timestamp yang sama', async () => {
     const { state, api, accessToken } = await setup()
 
     const first = await readBody<{ data: { clicked_at: string } }>(
-      await api(authed(accessToken, { method: 'POST', path: '/checkin/700001' })),
+      await api(authed(accessToken, { method: 'POST', path: '/checkin/700001', body: { tickets: 3 } })),
     )
     const second = await readBody<{ data: { state: string; clicked_at: string } }>(
       await api(authed(accessToken, { method: 'POST', path: '/checkin/700001' })),
@@ -82,7 +138,7 @@ describe('check-in seminar lewat QR (03 §9)', () => {
     expect(second.data.state).toBe('ALREADY_CHECKED_IN')
     expect(second.data.clicked_at).toBe(first.data.clicked_at)
     expect((second.data as { quantity?: number }).quantity).toBe(3)
-    expect(state.attendanceEvents).toHaveLength(1)
+    expect(state.attendanceEvents).toHaveLength(3)
   })
 
   it('H03/H04/H05: webinar, Pending, dan order tak dikenal ditolak', async () => {
@@ -176,12 +232,15 @@ describe('Manual Search (03 §10, 01 §14, H06–H08)', () => {
     expect(body.data.candidates[0]?.['app_status']).toBe('Pending')
   })
 
-  it('status check-in ikut ditampilkan', async () => {
+  it('status check-in dan progres tiket ikut ditampilkan', async () => {
     const { api, accessToken } = await setup()
-    await api(authed(accessToken, { method: 'POST', path: '/checkin/700001' }))
+    await api(authed(accessToken, { method: 'POST', path: '/checkin/700001', body: { tickets: 1 } }))
 
     const body = await search(api, accessToken, '700001')
-    expect(body.data.candidates[0]?.['already_checked_in']).toBe(true)
+    expect(body.data.candidates[0]?.['already_checked_in']).toBe(false)
+    expect(body.data.candidates[0]?.['quantity']).toBe(3)
+    expect(body.data.candidates[0]?.['checked_in_tickets']).toBe(1)
+    expect(body.data.candidates[0]?.['remaining_tickets']).toBe(2)
     expect(body.data.candidates[0]?.['checked_in_at']).toBe('2026-10-13T08:00:00.000Z')
   })
 
@@ -228,11 +287,12 @@ describe('Manual check-in (03 §11, H09)', () => {
       authed(accessToken, {
         method: 'POST',
         path: '/api/scanner/manual-checkin',
-        body: { order_id: '700001' },
+        body: { order_id: '700001', tickets: 3 },
       }),
     )
 
     expect(response.status).toBe(200)
+    expect(state.attendanceEvents).toHaveLength(3)
     expect(state.attendanceEvents[0]?.['source']).toBe('seminar_manual')
   })
 
@@ -264,12 +324,12 @@ describe('Manual check-in (03 §11, H09)', () => {
   it('manual dan QR pada order yang sama tidak membuat presensi kedua', async () => {
     const { state, api, accessToken } = await setup()
 
-    await api(authed(accessToken, { method: 'POST', path: '/checkin/700001' }))
+    await api(authed(accessToken, { method: 'POST', path: '/checkin/700001', body: { tickets: 3 } }))
     const manual = await api(
       authed(accessToken, { method: 'POST', path: '/api/scanner/manual-checkin', body: { order_id: '700001' } }),
     )
 
     expect((await readBody<{ data: { state: string } }>(manual)).data.state).toBe('ALREADY_CHECKED_IN')
-    expect(state.attendanceEvents).toHaveLength(1)
+    expect(state.attendanceEvents).toHaveLength(3)
   })
 })

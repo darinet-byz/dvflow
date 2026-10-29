@@ -36,7 +36,8 @@ select is((select count(*)::int from public.orders where source = 'ots' and name
 select is((select order_id ~ '^OTS-[0-9]{6}$' from public.orders where name = 'Budi OTS'), true, 'Order ID berbentuk OTS-000001');
 select is((select app_status || '|' || quantity || '|' || gross_amount || '|' || net_amount || '|' || tax_amount || '|' || platform_fee_amount || '|' || payment_method
   from public.orders where name = 'Budi OTS'), 'Paid|2|300000.00|300000.00|0.00|0.00|ots_tunai', 'Paid, 2 tiket, total 300.000, tanpa potongan');
-select is((select e.source from public.attendance_events e join public.orders o using (order_id) where o.name = 'Budi OTS'), 'seminar_ots', 'langsung hadir');
+select is((select count(*)::int from public.attendance_events e join public.orders o using (order_id) where o.name = 'Budi OTS'), 2, 'langsung hadir: 2 baris untuk 2 tiket');
+select is((select bool_and(e.source = 'seminar_ots') from public.attendance_events e join public.orders o using (order_id) where o.name = 'Budi OTS'), true, 'sumber presensi OTS');
 select is((select ots_collected_by::text from public.orders where name = 'Budi OTS'), 'f9000000-0000-0000-0000-0000000000a1', 'petugas tercatat');
 
 -- Edit: 3 tiket x 100.000, batch 058 -> 58, sesi/kota berubah.
@@ -46,7 +47,7 @@ select is((public.save_ots_registration(
 )->>'action'), 'updated', 'OTS diedit');
 select is((select gross_amount || '|' || net_amount || '|' || quantity || '|' || payment_method || '|' || name || '|' || batch || '|' || session || '|' || city
   from public.orders where source = 'ots' and product_code = 'OTSA'), '300000.00|300000.00|3|ots_qris|Budi Santoso|58|S2|Bandung', 'total, qty, metode, nama, batch/sesi/kota berubah');
-select is((select count(*)::int from public.attendance_events e join public.orders o using (order_id) where o.source = 'ots'), 1, 'edit tidak menambah presensi');
+select is((select count(*)::int from public.attendance_events e join public.orders o using (order_id) where o.source = 'ots'), 3, 'edit menambah baris tiket yang belum tercatat');
 
 -- Ikut laporan
 set local role authenticated;
@@ -54,7 +55,7 @@ set local request.jwt.claims = '{"sub":"f9000000-0000-0000-0000-0000000000a1","a
 select is((public.dashboard_summary(p_product_code => 'OTSA')->>'paid')::int, 1, 'dashboard: OTS = Paid');
 select is((public.dashboard_summary(p_product_code => 'OTSA')->>'paid_tickets')::int, 3, 'dashboard: 3 tiket dari quantity');
 select is((public.dashboard_summary(p_product_code => 'OTSA')->>'gross_amount')::numeric, 300000::numeric, 'dashboard: gross OTS');
-select is((public.presensi_summary(p_product_code => 'OTSA')->>'sudah_hadir')::int, 1, 'presensi: hadir');
+select is((public.presensi_summary(p_product_code => 'OTSA')->>'sudah_hadir')::int, 3, 'presensi: hadir dihitung per tiket');
 reset role;
 
 -- Kompatibilitas aplikasi lama: 11 argumen, tanpa quantity/unit price.

@@ -438,6 +438,7 @@ export function TeamPage() {
             <SkeletonRows rows={3} />
           ) : (
             <DataTable
+              rowNumbers
               columns={visibleColumns}
               exportConfig={{
                 filename: 'team',

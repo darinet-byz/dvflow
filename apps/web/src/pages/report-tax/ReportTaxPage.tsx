@@ -166,7 +166,7 @@ export function ReportTaxPage() {
               />
             </div>
 
-            <DataTable columns={COLUMNS} exportConfig={{ filename: `report-tax-${dimension}`, loadRows: async () => (await supabaseRpc<TaxReport>('tax_report', { p_dimension: dimension, ...toFilterArgs(state.applied) })).rows.map(row => ({ ...row })) }}>
+            <DataTable rowNumbers columns={COLUMNS} exportConfig={{ filename: `report-tax-${dimension}`, loadRows: async () => (await supabaseRpc<TaxReport>('tax_report', { p_dimension: dimension, ...toFilterArgs(state.applied) })).rows.map(row => ({ ...row })) }}>
               {(data?.rows ?? []).map((row) => (
                 <TableRow key={row.label}>
                   <TableCell>{groupLabel(dimension, row.label)}</TableCell>

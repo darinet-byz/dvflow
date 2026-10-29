@@ -312,6 +312,7 @@ export function ZoomPage() {
             <SkeletonRows rows={3} />
           ) : (
             <DataTable
+              rowNumbers
               columns={columns}
               exportConfig={{
                 filename: 'konfigurasi-zoom',

@@ -259,6 +259,7 @@ export function IntegrationsPage() {
             <SkeletonRows rows={3} />
           ) : (
             <DataTable
+              rowNumbers
               columns={columns}
               exportConfig={{
                 filename: 'koneksi-orderonline',

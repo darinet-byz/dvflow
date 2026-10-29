@@ -82,6 +82,9 @@ export function PresensiDetailDrawer({
               { label: 'No WA', value: formatText(row.phone) },
               { label: 'Status order', value: <Badge tone={appStatusTone(row.app_status)}>{row.app_status}</Badge> },
               { label: 'Status presensi', value: <Badge tone={attendanceTone(row.attendance_status)}>{row.attendance_status}</Badge> },
+              { label: 'Jumlah tiket', value: String(row.quantity) },
+              { label: 'Tiket hadir', value: `${row.checked_in_tickets}/${row.quantity}` },
+              { label: 'Sisa tiket', value: String(Math.max(row.quantity - row.checked_in_tickets, 0)) },
               { label: 'Total Activity', value: String(row.total_activity) },
               { label: 'Aktivitas terbaru', value: formatDateTime(row.latest_activity) },
             ]}

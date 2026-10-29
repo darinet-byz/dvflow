@@ -24,6 +24,10 @@ export type ScannerCandidate = {
   batch: string | null
   session: string | null
   city: string | null
+  /** A61: progres check-in per tiket, supaya tombol Check-in tahu sisanya. */
+  quantity: number
+  checked_in_tickets: number
+  remaining_tickets: number
   already_checked_in: boolean
   checked_in_at: string | null
 }
@@ -42,7 +46,10 @@ type OrderSearchRow = {
   effective_batch: string | null
   effective_session: string | null
   effective_city: string | null
+  quantity: number | null
 }
+
+type CheckinProgress = { count: number; clickedAt: string | null }
 
 /**
  * GET /api/scanner/search?q= (03 §10).
@@ -76,7 +83,7 @@ export async function scannerSearch(context: RouteContext): Promise<Response> {
       event_type: 'in.("Seminar Offline","Hybrid")',
       or: buildIlikeOrFilter(['order_id', 'name', 'phone'], term),
     },
-    'order_id,name,phone,app_status,product_name,batch,session,city,effective_batch,effective_session,effective_city',
+    'order_id,name,phone,app_status,product_name,batch,session,city,effective_batch,effective_session,effective_city,quantity',
   )
 
   const ranked = rankCandidates(rows, term).slice(0, SCANNER_SEARCH_LIMIT)
@@ -88,7 +95,9 @@ export async function scannerSearch(context: RouteContext): Promise<Response> {
   return ok({
     query: raw,
     candidates: ranked.map((row) => {
-      const clickedAt = checkins.get(row.order_id) ?? null
+      const progress = checkins.get(row.order_id) ?? null
+      const quantity = Math.max(row.quantity ?? 1, 1)
+      const checkedIn = Math.min(progress?.count ?? 0, quantity)
       return {
         order_id: row.order_id,
         name: row.name,
@@ -98,8 +107,11 @@ export async function scannerSearch(context: RouteContext): Promise<Response> {
         batch: row.effective_batch ?? row.batch,
         session: row.effective_session ?? row.session,
         city: row.effective_city ?? row.city,
-        already_checked_in: clickedAt !== null,
-        checked_in_at: clickedAt,
+        quantity,
+        checked_in_tickets: checkedIn,
+        remaining_tickets: Math.max(quantity - checkedIn, 0),
+        already_checked_in: checkedIn >= quantity,
+        checked_in_at: progress?.clickedAt ?? null,
       } satisfies ScannerCandidate
     }),
   })
@@ -120,7 +132,12 @@ export async function scannerManualCheckin(context: RouteContext): Promise<Respo
     throw new ApiFailure('INVALID_PAYLOAD', 'order_id wajib diisi')
   }
 
-  return checkinSeminar(context, { orderId: orderId.trim(), source: 'seminar_manual' })
+  const tickets = body['tickets']
+  return checkinSeminar(context, {
+    orderId: orderId.trim(),
+    source: 'seminar_manual',
+    tickets: typeof tickets === 'number' && Number.isInteger(tickets) ? tickets : null,
+  })
 }
 
 /**
@@ -162,9 +179,9 @@ function score(row: OrderSearchRow, lowerTerm: string): number {
   return 3
 }
 
-/** Ambil status check-in seminar untuk kandidat yang tersaring (satu query). */
-async function loadSeminarCheckins(db: Db, orderIds: string[]): Promise<Map<string, string>> {
-  const checkins = new Map<string, string>()
+/** Ambil progres check-in seminar (jumlah tiket + waktu terakhir) untuk kandidat yang tersaring. */
+async function loadSeminarCheckins(db: Db, orderIds: string[]): Promise<Map<string, CheckinProgress>> {
+  const checkins = new Map<string, CheckinProgress>()
   if (orderIds.length === 0) return checkins
 
   const rows = await db.selectRows<{ order_id: string; clicked_at: string }>(
@@ -176,6 +193,14 @@ async function loadSeminarCheckins(db: Db, orderIds: string[]): Promise<Map<stri
     'order_id,clicked_at',
   )
 
-  for (const row of rows) checkins.set(row.order_id, row.clicked_at)
+  for (const row of rows) {
+    const current = checkins.get(row.order_id)
+    if (current === undefined) {
+      checkins.set(row.order_id, { count: 1, clickedAt: row.clicked_at })
+      continue
+    }
+    current.count += 1
+    if (row.clicked_at > (current.clickedAt ?? '')) current.clickedAt = row.clicked_at
+  }
   return checkins
 }

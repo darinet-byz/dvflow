@@ -601,7 +601,7 @@ const ADVERTISER_COLUMNS: readonly TableColumn[] = [
 function AdvertiserTable({ rows, onOpen }: { rows: AdvertiserPerformance[]; onOpen: (row: AdvertiserPerformance) => void }) {
   return (
     <Card padding="none">
-      <DataTable columns={ADVERTISER_COLUMNS}>
+      <DataTable rowNumbers columns={ADVERTISER_COLUMNS}>
         {rows.map((row) => (
           <TableRow key={row.advertiser_code ?? advertiserLabel(row)}>
             <TableCell>
@@ -828,6 +828,7 @@ function ProductBreakdownCard({ products }: { products: ProductPerformance[] }) 
             />
           </div>
           <DataTable
+            rowNumbers
             columns={[
               { key: 'product', header: 'Produk', minWidth: 170 },
               { key: 'spend', header: 'Total Spend', align: 'right', minWidth: 130 },
@@ -911,6 +912,7 @@ function BatchBreakdownCard({
             />
           </div>
           <DataTable
+            rowNumbers
             columns={[
               { key: 'batch', header: 'Batch', minWidth: 80 },
               { key: 'activity', header: 'Aktivitas Terakhir', minWidth: 130 },

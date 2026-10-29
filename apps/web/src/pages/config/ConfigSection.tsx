@@ -234,7 +234,7 @@ export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged
         </div>
       ) : (
         <>
-          <DataTable columns={[...spec.columns, { key: 'actions', header: 'Aksi' }]} exportConfig={{ filename: spec.resource, loadRows: () => rows, disabled: loading || error !== null }}>
+          <DataTable rowNumbers columns={[...spec.columns, { key: 'actions', header: 'Aksi' }]} exportConfig={{ filename: spec.resource, loadRows: () => rows, disabled: loading || error !== null }}>
             {rows.map((row) => (
               <TableRow key={String(row['id'])}>
                 {spec.columns.map((column) => (

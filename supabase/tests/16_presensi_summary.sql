@@ -14,7 +14,7 @@ insert into public.attendance_events(order_id,attendance_type,source) values ('p
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"f6000000-0000-0000-0000-000000000001","app_role":"presensi_only"}';
-select is(public.presensi_summary(), '{"paid":2,"sudah_hadir":1,"belum_hadir":1,"attendance_rate":0.5000}'::jsonb,
+select is(public.presensi_summary(), '{"paid_tickets":2,"sudah_hadir":1,"belum_hadir":1,"attendance_rate":0.5000}'::jsonb,
   'izin Presensi saja: ringkasan kehadiran tersedia');
 select ok(not (public.presensi_summary() ? 'gross_amount'), 'tanpa angka keuangan');
 select throws_ok('select public.dashboard_summary()', 'DF006', 'FORBIDDEN', 'dashboard_summary tetap butuh izin Dashboard');

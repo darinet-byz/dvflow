@@ -58,17 +58,17 @@ select is(
     where r ->> 'order_id' = '400001'),
   'Hadir', 'I03 Paid + presensi -> Hadir');
 
+-- A61: halaman presensi hanya untuk peserta Paid. Pending/Cancelled/Refund tidak
+-- pernah tampil, sekalipun lolos filter lain.
 select is(
-  (select r ->> 'attendance_status'
-     from jsonb_array_elements(public.presensi_page() -> 'rows') r
+  (select count(*) from jsonb_array_elements(public.presensi_page() -> 'rows') r
     where r ->> 'order_id' = '400003'),
-  'Pending', 'I04 Pending bukan Belum Hadir');
+  0::bigint, 'I04 Pending tidak tampil di presensi');
 
 select is(
-  (select r ->> 'attendance_status'
-     from jsonb_array_elements(public.presensi_page() -> 'rows') r
+  (select count(*) from jsonb_array_elements(public.presensi_page() -> 'rows') r
     where r ->> 'order_id' = '400004'),
-  'Cancelled', 'order Cancelled punya label sendiri');
+  0::bigint, 'order Cancelled tidak tampil di presensi');
 
 select is(
   (select r ->> 'total_activity'
@@ -82,8 +82,8 @@ select is(
 -- ---------------------------------------------------------------------------
 -- I01: seminar dan webinar tampil di tabel yang sama
 -- ---------------------------------------------------------------------------
-select is((select public.presensi_page() ->> 'total')::int, 4,
-  'I01 tanpa filter, seluruh order tampil di satu tabel presensi');
+select is((select public.presensi_page() ->> 'total')::int, 2,
+  'I01 tanpa filter, hanya peserta Paid tampil di tabel presensi');
 
 -- ---------------------------------------------------------------------------
 -- J04: filter gabungan memakai semantik AND
@@ -99,17 +99,17 @@ select is((select (public.presensi_page(
 select is((select (public.presensi_page(p_attendance_status => 'Hadir') ->> 'total')::int), 2,
   'filter Hadir/Belum Hadir bekerja setelah status dihitung');
 
-select is((select (public.presensi_page(p_event_type => 'Seminar Offline') ->> 'total')::int), 3,
-  'filter Seminar/Webinar bekerja');
+select is((select (public.presensi_page(p_event_type => 'Seminar Offline') ->> 'total')::int), 1,
+  'filter Seminar/Webinar bekerja (hanya peserta Paid)');
 
 select is((select (public.presensi_page(p_search => 'Bella') ->> 'total')::int), 1,
   'J08 pencarian nama');
 
-select is((select (public.presensi_page(p_search => '628333') ->> 'total')::int), 1,
-  'J08 pencarian nomor WA');
+select is((select (public.presensi_page(p_search => '628333') ->> 'total')::int), 0,
+  'J08 pencarian nomor WA order Pending tidak menampilkan apa pun');
 
-select is((select (public.presensi_page(p_search => '400004') ->> 'total')::int), 1,
-  'J08 pencarian Order ID');
+select is((select (public.presensi_page(p_search => '400004') ->> 'total')::int), 0,
+  'J08 pencarian Order ID Cancelled tidak menampilkan apa pun');
 
 select is((select (public.presensi_page(p_search => '%') ->> 'total')::int), 0,
   'L06 wildcard `%` diperlakukan sebagai teks biasa, bukan "tampilkan semua"');
@@ -136,9 +136,9 @@ select throws_ok('select public.presensi_page(p_page => 0)',
 select is((select public.presensi_page(p_sort => 'order_id', p_sort_dir => 'asc') -> 'rows' -> 0 ->> 'order_id'),
   '400001', 'J09 sort order_id asc');
 select is((select public.presensi_page(p_sort => 'order_id', p_sort_dir => 'desc') -> 'rows' -> 0 ->> 'order_id'),
-  '400004', 'J09 sort order_id desc');
+  '400002', 'J09 sort order_id desc');
 select is((select public.presensi_page(p_sort => 'city', p_sort_dir => 'asc') -> 'rows' -> 0 ->> 'city'),
-  'Bandung', 'J09 sort city asc');
+  'Solo', 'J09 sort city asc');
 
 select throws_ok('select public.presensi_page(p_sort => ''created_at'')',
   'DF011', 'INVALID_SORT', 'kolom database mentah tidak dapat dipakai sebagai sort');
@@ -152,18 +152,19 @@ select throws_ok('select public.presensi_page(p_attendance_status => ''Alpa'')',
 -- ---------------------------------------------------------------------------
 -- PRD §41: seluruh KPI memakai SATU set filter yang sama
 -- ---------------------------------------------------------------------------
+-- A61: pembanding paritas adalah Paid (peserta), bukan Leads (semua status).
 select is(
-  (select (public.dashboard_summary() ->> 'leads')::int),
+  (select (public.dashboard_summary() ->> 'paid')::int),
   (select (public.presensi_page(p_page_size => 100) ->> 'total')::int),
-  'paritas filter: Leads = total baris presensi tanpa filter');
+  'paritas filter: Paid = total baris presensi tanpa filter');
 
 select is(
-  (select (public.dashboard_summary(p_product_code => 'KM') ->> 'leads')::int),
+  (select (public.dashboard_summary(p_product_code => 'KM') ->> 'paid')::int),
   (select (public.presensi_page(p_product_code => 'KM', p_page_size => 100) ->> 'total')::int),
-  'paritas filter: Leads = total baris presensi dengan filter produk');
+  'paritas filter: Paid = total baris presensi dengan filter produk');
 
 select is(
-  (select (public.dashboard_summary(p_date_from => current_date) ->> 'leads')::int),
+  (select (public.dashboard_summary(p_date_from => current_date) ->> 'paid')::int),
   (select (public.presensi_page(p_date_from => current_date, p_page_size => 100) ->> 'total')::int),
   'paritas filter: filter tanggal juga identik');
 

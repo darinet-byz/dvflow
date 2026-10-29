@@ -104,7 +104,7 @@ select is(has_function_privilege('anon', 'public.upsert_order_webhook(jsonb)', '
   false, 'RPC upsert webhook tertutup untuk anon');
 select is(has_function_privilege('authenticated', 'public.verify_login(text, text)', 'execute'),
   false, 'RPC verifikasi login tertutup untuk authenticated');
-select is(has_function_privilege('authenticated', 'public.checkin_seminar(text, text, uuid)', 'execute'),
+select is(has_function_privilege('authenticated', 'public.checkin_seminar(text, text, uuid, integer)', 'execute'),
   false, 'RPC check-in tertutup untuk authenticated');
 select is(has_function_privilege('authenticated',
     'public.admin_create_user(uuid, text, text, text, text, text, boolean)', 'execute'),

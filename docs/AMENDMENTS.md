@@ -1454,3 +1454,60 @@ dan `dashboard-session.test.tsx`.
 
 **Implementasi.** `MappingBadges` mendapat prop `label: 'code' | 'name'`; Status Produk memakai
 `label="name"`. Tidak ada perubahan database/RPC. Test: `status-pages.test.tsx`.
+
+## A61 — Presensi per tiket, check-in rombongan bertahap, tabel 20 baris (29 Oktober 2026)
+
+**Permintaan pengguna.**
+
+1. KPI **Hadir / Belum Hadir** dihitung dari **jumlah tiket**, bukan jumlah Order ID.
+2. Tabel Presensi hanya menampilkan **peserta** (order Paid); Pending/Cancelled/Refund tidak boleh tercampur.
+3. Setiap tabel list punya **nomor urut** di kolom paling kiri.
+4. Order multi-tiket diberi penanda yang jelas, termasuk jumlah tiketnya.
+5. Scan QR order multi-tiket memunculkan **dialog jumlah tiket** yang masuk; barcode masih bisa dipakai
+   sampai semua tiket terverifikasi.
+6. Perilaku aman untuk **Scanner Stick**.
+7. Semua tabel dibatasi **20 baris terlihat** dengan scroll di dalam tabel.
+
+**Keputusan.**
+
+- **Presensi per tiket.** `attendance_events` mendapat `ticket_no`; index unik seminar berubah dari
+  `UNIQUE(order_id)` menjadi `UNIQUE(order_id, ticket_no)`. Data lama di-backfill: check-in sebelum A61
+  berarti seluruh tiket order hadir, sesuai makna lama.
+- **KPI tiket.** `paid_tickets` = `sum(quantity)` order Paid; `sudah_hadir` = tiket yang check-in
+  (seminar: jumlah baris seminar; webinar: satu klik link = semua tiket order hadir);
+  `belum_hadir` = selisihnya; `attendance_rate` = hadir ÷ tiket. Dashboard memakai definisi yang sama.
+- **Hanya peserta Paid.** `presensi_page` dan `export_presensi_page` menambahkan `app_status = 'Paid'`.
+  Filter status di UI: Hadir, Hadir Sebagian, Belum Hadir, Reschedule, Data presensi tidak tersedia.
+  Order Refund tetap dikelola di halaman Order Refund.
+- **Status parsial.** Order Paid dengan `0 < tiket hadir < quantity` berstatus **Hadir Sebagian**;
+  tabel menampilkan `2/4` di samping badge.
+- **Data presensi kedaluwarsa.** `attendance_events` dihapus setelah 30 hari (A41). Order yang lebih tua
+  dari 30 hari dan tidak punya baris presensi ditandai **Data presensi tidak tersedia** dan dikeluarkan
+  dari penyebut KPI — bukan dihitung Belum Hadir. Penanda memakai tanggal order karena tidak ada kolom
+  tanggal acara; order yang dibeli jauh sebelum acara dapat ikut bertanda.
+- **Check-in bertahap.** `checkin_seminar` menerima `p_tickets` opsional:
+  - sisa 1 → langsung check-in tanpa dialog;
+  - sisa > 1 tanpa `p_tickets` → `NEEDS_QUANTITY`, **tanpa menulis**;
+  - `p_tickets` melebihi sisa dipotong ke sisa; 0/negatif ditolak (`DF011`);
+  - sisa 0 → `ALREADY_CHECKED_IN`;
+  - dua operator bersamaan diserialkan per order (`pg_advisory_xact_lock`);
+  - **kompatibilitas klien lama:** pemanggil 3 argumen (tanpa `p_tickets`) tetap check-in seluruh
+    sisa tiket seperti perilaku lama, sedangkan frontend baru memakai nilai probe internal `-1`
+    untuk meminta dialog jumlah. Dengan begitu migrasi database boleh mendahului deploy frontend.
+- **API.** `POST /checkin/:orderId` dan `POST /api/scanner/manual-checkin` menerima body opsional
+  `{ "tickets": 2 }`; respons menambah `checked_in_tickets`, `remaining_tickets`, `tickets_confirmed`.
+- **Scanner Stick.** Saat dialog terbuka, hook keyboard-wedge dimatikan dan seluruh tombol keyboard
+  diabaikan (kecuali Esc). Konfirmasi hanya lewat klik/tap; tidak ada fokus otomatis ke tombol, sehingga
+  scan berikutnya tidak bisa mengonfirmasi jumlah secara tak sengaja.
+- **Nomor & tinggi tabel.** `DataTable` mendapat `rowNumbers` (nomor lanjut antar halaman) dan
+  `maxRows` (default 20). Tinggi wadah `min(20 × ±2,3rem, 70vh)` dengan header sticky; pagination
+  server tetap 50/100 dan batas 500 baris (A18). Export CSV tidak memuat kolom nomor.
+- **OTS.** OTS langsung membuat baris presensi sebanyak `quantity`; edit quantity menambah baris tiket
+  yang belum tercatat.
+
+**Implementasi.** Migration `0065_presensi_tiket_dan_checkin_bertahap.sql`; `presensi_page`,
+`export_presensi_page`, `presensi_summary`, `dashboard_summary`, `checkin_seminar`,
+`save_ots_registration`; `packages/api` (scanner + participant); `apps/web` (`Table`, halaman Presensi,
+Scanner, `scan-feedback`, Status badges, semua pemakai `DataTable`). Tes: pgTAP `33_...`, pembaruan
+`01/03/05/16/17/19/22/31`, API `scanner.test.ts`, web `render.test.tsx`, `render-p9.test.tsx`,
+`scan-feedback.test.ts`.

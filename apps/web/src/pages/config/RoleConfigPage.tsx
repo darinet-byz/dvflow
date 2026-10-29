@@ -225,7 +225,7 @@ export function RoleConfigPage() {
             action={<Button onClick={reloadRoles}>Coba Lagi</Button>}
           />
         ) : (
-          <DataTable columns={columns}>
+          <DataTable rowNumbers columns={columns}>
             {filteredRoles.map((role) => (
               <TableRow key={role.id}>
                 <TableCell>

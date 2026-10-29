@@ -462,7 +462,7 @@ export function ReportSpendPage() {
             {matrix.rows.length === 0 ? (
               <p className="border-t border-line px-3 py-6 text-center text-ink-soft">Belum ada tiket Paid pada report ini.</p>
             ) : (
-              <DataTable columns={matrixColumns(matrix)} stickyHeader={false}>
+              <DataTable rowNumbers columns={matrixColumns(matrix)} stickyHeader={false}>
                 {matrix.rows.map((row) => (
                   <TableRow key={`${row.session ?? ''}|${row.city ?? ''}|${row.event_type ?? ''}`}>
                     <TableCell>{formatText(row.city)}</TableCell>
@@ -514,7 +514,7 @@ export function ReportSpendPage() {
           </Card>
         ) : (
           <Card padding="none">
-            <DataTable columns={columns}>
+            <DataTable rowNumbers columns={columns}>
               {rows.map((row) => {
                 const profit = spendProfit(row.omzet, row.total_spend)
                 return (
@@ -752,7 +752,7 @@ export function AdvertiserComparison({
           Belum ada report spend untuk produk dan batch ini pada rentang tanggal yang dipilih.
         </p>
       ) : (
-        <DataTable columns={COMPARISON_COLUMNS} stickyHeader={false}>
+        <DataTable rowNumbers columns={COMPARISON_COLUMNS} stickyHeader={false}>
           {sorted.map((row) => {
             const profit = spendProfit(row.omzet, row.total_spend)
             const cost = row.tickets > 0 ? Number(row.total_spend) / row.tickets : null

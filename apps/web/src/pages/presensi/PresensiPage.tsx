@@ -41,14 +41,16 @@ import { activeCommonFilters } from '../../lib/filters'
  *     TANPA filter Hadir/Belum Hadir. Filter itu adalah pemilih BARIS, bukan
  *     filter KPI: kalau ia ikut menyaring KPI, memilih "Hadir" akan selalu
  *     menampilkan "Belum Hadir = 0" dan angkanya kehilangan arti.
+ *   * A61: KPI dan status dihitung per TIKET (bukan per Order ID), tabel hanya
+ *     memuat peserta Paid, dan order multi-tiket menampilkan jumlah + progres.
  */
+/** A61: tabel hanya memuat peserta Paid; status non-Paid tidak lagi ditawarkan. */
 const ATTENDANCE_OPTIONS = [
   { value: 'Hadir', label: 'Hadir' },
+  { value: 'Hadir Sebagian', label: 'Hadir Sebagian' },
   { value: 'Belum Hadir', label: 'Belum Hadir' },
   { value: 'Reschedule', label: 'Reschedule' },
-  { value: 'Refund', label: 'Refund' },
-  { value: 'Pending', label: 'Pending' },
-  { value: 'Cancelled', label: 'Cancelled' },
+  { value: 'Data presensi tidak tersedia', label: 'Data presensi tidak tersedia' },
 ]
 
 /** Kolom timestamp diturunkan dari batas tampil dokumen, bukan ditulis 10 kali. */
@@ -60,6 +62,8 @@ const TIMESTAMP_COLUMNS: readonly TableColumn[] = Array.from(
 const COLUMNS: readonly TableColumn[] = [
   { key: 'order_id', header: 'Order ID', sortKey: 'order_id', minWidth: 110 },
   { key: 'name', header: 'Nama', sortKey: 'name', minWidth: 140 },
+  // A61: jumlah tiket per order, supaya Order ID multi-tiket langsung terlihat.
+  { key: 'quantity', header: 'Tiket', align: 'right', minWidth: 64 },
   { key: 'phone', header: 'No WA', minWidth: 120 },
   { key: 'product_name', header: 'Produk', sortKey: 'product_name', minWidth: 150 },
   { key: 'batch', header: 'Batch', sortKey: 'batch', minWidth: 70 },
@@ -178,12 +182,21 @@ export function PresensiPage() {
 
       {summary.data === null ? null : (
         <div className={fieldMode ? 'mt-3 grid grid-cols-3 gap-2' : 'mt-4 grid grid-cols-1 gap-3 md:grid-cols-3'}>
-          <KpiCard label="Hadir" value={formatCount(summary.data.sudah_hadir)} highlight />
-          <KpiCard label="Belum Hadir" value={formatCount(summary.data.belum_hadir)} />
+          <KpiCard
+            label={fieldMode ? 'Hadir' : 'Hadir (tiket)'}
+            value={formatCount(summary.data.sudah_hadir)}
+            hint={fieldMode ? undefined : 'Jumlah tiket yang sudah check-in'}
+            highlight
+          />
+          <KpiCard
+            label={fieldMode ? 'Belum Hadir' : 'Belum Hadir (tiket)'}
+            value={formatCount(summary.data.belum_hadir)}
+            hint={fieldMode ? undefined : 'Tiket Paid yang belum check-in'}
+          />
           <KpiCard
             label={fieldMode ? 'Rate' : 'Attendance Rate'}
             value={formatRate(summary.data.attendance_rate)}
-            hint={fieldMode ? undefined : summary.data.paid === 0 ? 'Belum ada order Paid' : 'Hadir ÷ Paid'}
+            hint={fieldMode ? undefined : summary.data.paid_tickets === 0 ? 'Belum ada tiket Paid' : 'Tiket hadir ÷ tiket Paid'}
           />
         </div>
       )}
@@ -205,7 +218,9 @@ export function PresensiPage() {
               <PresensiCards rows={table.data?.rows ?? []} onSelect={setSelected} />
             ) : (
               <DataTable
-                exportConfig={{ filename: 'presensi', columns: [...COLUMNS, { key: 'app_status', header: 'Status order' }, { key: 'rescheduled', header: 'Reschedule' }, { key: 'original_batch', header: 'Batch asal' }, { key: 'original_session', header: 'Sesi asal' }, { key: 'original_city', header: 'Kota asal' }], loadRows: async () => {
+                rowNumbers
+                rowNumberStart={(state.page - 1) * state.pageSize + 1}
+                exportConfig={{ filename: 'presensi', columns: [...COLUMNS, { key: 'checked_in_tickets', header: 'Tiket hadir' }, { key: 'app_status', header: 'Status order' }, { key: 'rescheduled', header: 'Reschedule' }, { key: 'original_batch', header: 'Batch asal' }, { key: 'original_session', header: 'Sesi asal' }, { key: 'original_city', header: 'Kota asal' }], loadRows: async () => {
                   const rows = await collectPages(page => fetchPresensiPage(state.applied, { sort: sort.key, direction: sort.direction, page, pageSize: 100, exporting: true }))
                   return rows.map(row => ({ ...row, ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`t${i + 1}`, row.timestamps?.[i] ?? ''])) }))
                 } }} columns={COLUMNS} sort={{ key: sort.key, direction: sort.direction }} onSortChange={toggleSort}>
@@ -222,6 +237,13 @@ export function PresensiPage() {
                       {isOtsOrder(row.order_id) ? <Badge tone="primary" className="ml-1.5">OTS</Badge> : null}
                     </TableCell>
                     <TableCell>{formatText(row.name)}</TableCell>
+                    <TableCell align="right">
+                      {row.quantity > 1 ? (
+                        <Badge tone="primary" className="tabular-nums">{row.quantity}</Badge>
+                      ) : (
+                        <span className="tabular-nums">{row.quantity}</span>
+                      )}
+                    </TableCell>
                     <TableCell>{formatText(row.phone)}</TableCell>
                     <TableCell>{formatText(row.product_name)}</TableCell>
                     <TableCell>{formatText(row.batch)}</TableCell>
@@ -238,7 +260,14 @@ export function PresensiPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge tone={attendanceTone(row.attendance_status)}>{row.attendance_status}</Badge>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge tone={attendanceTone(row.attendance_status)}>{row.attendance_status}</Badge>
+                        {row.attendance_status === 'Hadir Sebagian' ? (
+                          <span className="text-[11px] font-semibold tabular-nums text-ink-soft">
+                            {row.checked_in_tickets}/{row.quantity}
+                          </span>
+                        ) : null}
+                      </div>
                     </TableCell>
                     <TableCell align="right">{formatCount(row.total_activity)}</TableCell>
                     {Array.from({ length: TIMESTAMP_DISPLAY_LIMIT }, (_, index) => (
@@ -299,6 +328,9 @@ function PresensiCards({ rows, onSelect }: { rows: PresensiRow[]; onSelect: (row
               </p>
               <p className="truncate text-[12px] text-ink-soft">
                 {[row.product_name, row.batch ? `Batch ${row.batch}` : null, row.session, row.city].filter(Boolean).join(' · ') || '-'}
+              </p>
+              <p className="truncate text-[11px] font-semibold text-ink-soft">
+                {row.quantity > 1 ? `${row.quantity} tiket · hadir ${row.checked_in_tickets}/${row.quantity}` : '1 tiket'}
               </p>
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1">

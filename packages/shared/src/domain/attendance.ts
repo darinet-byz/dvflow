@@ -14,6 +14,7 @@ import { TIMESTAMP_DISPLAY_LIMIT } from './constants'
 
 export type AttendanceStatusLabel =
   | 'Hadir'
+  | 'Hadir Sebagian'
   | 'Belum Hadir'
   | 'Reschedule'
   | 'Refund'
@@ -24,16 +25,21 @@ export type AttendanceStatusLabel =
  * A58: Refund adalah status order, jadi selalu menang. `Reschedule` hanya
  * berlaku selama peserta belum punya presensi sama sekali; setelah check-in
  * di acara tujuan ia kembali menjadi `Hadir`.
+ *
+ * A61: presensi dihitung per tiket. Bila `quantity` diberikan dan baru sebagian
+ * tiket yang hadir, statusnya `Hadir Sebagian` (bukan `Hadir`).
  */
 export function attendanceStatusLabel(
   appStatus: AppStatus,
   attendanceCount: number,
   rescheduled = false,
+  quantity = 1,
 ): AttendanceStatusLabel {
   if (appStatus === 'Refund') return 'Refund'
   if (appStatus !== 'Paid') return appStatus
   if (rescheduled && attendanceCount === 0) return 'Reschedule'
-  return attendanceCount > 0 ? 'Hadir' : 'Belum Hadir'
+  if (attendanceCount <= 0) return 'Belum Hadir'
+  return attendanceCount >= Math.max(quantity, 1) ? 'Hadir' : 'Hadir Sebagian'
 }
 
 /**

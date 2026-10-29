@@ -46,8 +46,10 @@ export function Badge({
 export type AppStatus = 'Pending' | 'Paid' | 'Cancelled' | 'Refund'
 export type AttendanceStatusLabel =
   | 'Hadir'
+  | 'Hadir Sebagian'
   | 'Belum Hadir'
   | 'Reschedule'
+  | 'Data presensi tidak tersedia'
   | 'Refund'
   | 'Pending'
   | 'Cancelled'
@@ -79,6 +81,8 @@ export function attendanceTone(status: string): BadgeTone {
   switch (status) {
     case 'Hadir':
       return 'success'
+    case 'Hadir Sebagian':
+      return 'primary'
     case 'Reschedule':
       return 'warning'
     case 'Pending':
