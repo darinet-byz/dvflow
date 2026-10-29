@@ -97,12 +97,23 @@ export type ProductPerformance = BreakdownMetrics & {
 
 export type BatchBreakdown = BreakdownMetrics & {
   batch: string | null
+  /** Produk pemilik batch; satu nomor batch bisa ada di beberapa produk. */
+  product_code: string | null
+  product_name: string | null
+  /** Tanggal aktivitas terakhir (order atau report spend), `YYYY-MM-DD`. */
+  last_activity: string | null
 }
 
 export type PerformanceBreakdown = {
   products: ProductPerformance[]
   batches: BatchBreakdown[]
 }
+
+/** A57: kartu Per Produk memakai 2 batch terakhir dari masing-masing produk. */
+export const PRODUCT_RECENT_BATCHES = 2
+
+/** A57: kartu Per Batch hanya menampilkan 5 batch terakhir produk terpilih. */
+export const BATCH_RECENT_LIMIT = 5
 
 export type Granularity = 'day' | 'month' | 'year'
 

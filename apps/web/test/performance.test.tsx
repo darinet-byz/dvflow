@@ -149,8 +149,8 @@ const breakdown: PerformanceBreakdown = {
     { product_code: 'PAAA', product_name: 'Produk A', spend: 300000, tax_amount: 33000, total_spend: 333000, leads: 1, paid: 1, tickets: 1, omzet: 150000, profit: -183000, roas: 150000 / 333000 },
   ],
   batches: [
-    { batch: '200', spend: 100000, tax_amount: 0, total_spend: 100000, leads: 4, paid: 4, tickets: 4, omzet: 800000, profit: 700000, roas: 8 },
-    { batch: '100', spend: 300000, tax_amount: 33000, total_spend: 333000, leads: 1, paid: 1, tickets: 1, omzet: 150000, profit: -183000, roas: 150000 / 333000 },
+    { batch: '200', product_code: 'PBBB', product_name: 'Produk B', last_activity: '2026-09-20', spend: 100000, tax_amount: 0, total_spend: 100000, leads: 4, paid: 4, tickets: 4, omzet: 800000, profit: 700000, roas: 8 },
+    { batch: '100', product_code: 'PAAA', product_name: 'Produk A', last_activity: '2026-09-10', spend: 300000, tax_amount: 33000, total_spend: 333000, leads: 1, paid: 1, tickets: 1, omzet: 150000, profit: -183000, roas: 150000 / 333000 },
   ],
 }
 
@@ -239,17 +239,35 @@ describe('Performa / Analitik: halaman', () => {
     expect(screen.getByRole('img', { name: 'Grafik total spend dan tiket terjual' })).toBeTruthy()
     expect(screen.queryByRole('img', { name: 'Grafik garis omzet' })).toBeNull()
     expect(screen.queryByRole('img', { name: 'Grafik garis profit' })).toBeNull()
-    expect(await screen.findByRole('img', { name: 'Grafik per produk' })).toBeTruthy()
-    expect(screen.getByRole('img', { name: 'Grafik per batch' })).toBeTruthy()
-    expect(screen.getByText('Per Produk — Semua Waktu')).toBeTruthy()
-    expect(screen.getByText('Per Batch — Semua Waktu')).toBeTruthy()
+    expect(screen.queryByText('(kanan)')).toBeNull()
+
+    const productChart = await screen.findByRole('img', { name: 'Grafik per produk' })
+    expect(productChart.querySelector('polyline')).toBeNull()
+    expect(screen.getByText('Per Produk — 2 Batch Terakhir')).toBeTruthy()
+
+    // A57: kartu Per Batch butuh produk dipilih.
+    expect(screen.getByText('Pilih produk di filter atas untuk melihat 5 batch terakhir.')).toBeTruthy()
+    expect(screen.queryByRole('img', { name: 'Grafik per batch' })).toBeNull()
+
+    fireEvent.change(screen.getByLabelText('Filter produk'), { target: { value: 'PAAA' } })
+
+    expect(await screen.findByRole('img', { name: 'Grafik per batch' })).toBeTruthy()
+    expect(screen.getByText('Per Batch — 5 Terakhir')).toBeTruthy()
+    expect(screen.getByText('Aktivitas Terakhir')).toBeTruthy()
+    expect(screen.getByRole('img', { name: 'Grafik per batch' }).querySelector('polyline')).toBeNull()
+
     expect(supabaseRpc).toHaveBeenCalledWith(
       'advertiser_performance',
       expect.objectContaining({ p_advertiser_code: '01', p_granularity: 'day' }),
     )
     expect(supabaseRpc).toHaveBeenCalledWith(
       'advertiser_breakdown',
-      expect.objectContaining({ p_advertiser_code: '01', p_limit: 200 }),
+      expect.objectContaining({
+        p_advertiser_code: '01',
+        p_limit: 200,
+        p_recent_batches_per_product: 2,
+        p_batch_limit: 5,
+      }),
     )
     const breakdownCall = vi.mocked(supabaseRpc).mock.calls.find(([fn]) => fn === 'advertiser_breakdown')
     expect(breakdownCall?.[1]).not.toHaveProperty('p_date_from')

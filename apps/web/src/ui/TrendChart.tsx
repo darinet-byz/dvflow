@@ -124,7 +124,6 @@ export function TrendChart({
           <span key={item.key} className="inline-flex items-center gap-1.5">
             <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ backgroundColor: item.color }} />
             {item.label}
-            {hasRight && item.axis === 'right' ? <span className="text-ink-muted">(kanan)</span> : null}
           </span>
         ))}
         <span className="ml-auto text-ink-muted">Arahkan kursor untuk melihat angka</span>

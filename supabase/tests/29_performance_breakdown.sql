@@ -137,9 +137,9 @@ select throws_ok($$select public.advertiser_breakdown('71',null,null,200)$$,
   'DF006', 'FORBIDDEN', 'member tanpa izin Performa ditolak');
 
 reset role;
-select is(has_function_privilege('anon','public.advertiser_breakdown(text,text,text,integer)','execute'), false,
+select is(has_function_privilege('anon','public.advertiser_breakdown(text,text,text,integer,integer,integer)','execute'), false,
   'advertiser_breakdown tidak bisa dipanggil anon');
-select is(has_function_privilege('authenticated','public.advertiser_breakdown(text,text,text,integer)','execute'), true,
+select is(has_function_privilege('authenticated','public.advertiser_breakdown(text,text,text,integer,integer,integer)','execute'), true,
   'advertiser_breakdown bisa dipanggil authenticated');
 
 select * from finish();

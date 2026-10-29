@@ -1360,3 +1360,24 @@ lalu tambah grafik perbandingan **per batch** dan **per produk** yang sengaja **
 (tanpa parameter tanggal, scope A48/A44 tetap ditegakkan). `TrendChart` mendapat sumbu kanan, tooltip,
 dan pemutusan segmen; komponen baru `ComparisonChart` untuk bar+line. `PerformancePage.tsx` memanggil
 RPC kedua hanya saat mode detail. Test: `performance.test.tsx` dan `supabase/tests/29_performance_breakdown.sql`.
+
+## A57 - Performa / Analitik: batang semua + batas batch terakhir (29 Oktober 2026)
+
+**Permintaan pengguna.** Hilangkan teks "(kanan)" di legenda; grafik batch/produk tidak boleh campur
+batang dan garis. Kartu Per Batch wajib memilih produk dan hanya menampilkan 5 batch terakhir; kartu
+Per Produk memakai 2 batch terakhir dari masing-masing produk.
+
+**Perilaku.**
+- Legenda hanya berisi nama seri (`Total Spend`, `Omzet`, `Tiket`); sumbu kanan tetap ada tanpa label teks.
+- Semua seri grafik breakdown memakai batang berkelompok (tidak ada garis): Total Spend + Omzet di
+  sumbu kiri, Tiket di sumbu kanan.
+- "Batch terakhir" = tanggal aktivitas terbaru (`greatest(max(tanggal order), max(date_to report))`),
+  tie-break nilai batch menurun. Nomor batch tidak dipakai sebagai urutan utama.
+- Per Batch: tanpa produk terpilih hanya tampil petunjuk; setelah produk dipilih tampil grafik + tabel
+  5 batch terakhir (kolom baru "Aktivitas Terakhir").
+- Per Produk: grafik dan tabel memakai 2 batch terakhir tiap produk. Produk/batch spend-only tetap muncul.
+
+**Implementasi.** Migrasi `0062_performance_recent_batches.sql` mengganti signature
+`advertiser_breakdown` menjadi 6 parameter (`p_recent_batches_per_product`, `p_batch_limit`) dan
+mengembalikan `last_activity`/`product_code`/`product_name` per batch. `ComparisonChart` menjadi
+grouped bar murni. Test: `performance.test.tsx` dan `supabase/tests/30_performance_recent_batches.sql`.

@@ -1,13 +1,15 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
-import { formatCount, formatMoney, formatRate } from '../../lib/format'
+import { formatCount, formatDate, formatMoney, formatRate } from '../../lib/format'
 import { hasAllProductAccess } from '../../lib/roles'
 import { useAsyncData } from '../../lib/useAsyncData'
 import { supabaseRpc, supabaseSelect } from '../../lib/supabase-rest'
 import { useSession } from '../../lib/useSession'
 import {
   ADVERTISER_SORT_OPTIONS,
+  BATCH_RECENT_LIMIT,
   GRANULARITY_OPTIONS,
   PERIOD_PRESETS,
+  PRODUCT_RECENT_BATCHES,
   advertiserLabel,
   costPerTicket,
   formatPeriodRangeLabel,
@@ -205,6 +207,10 @@ export function PerformancePage() {
       p_product_code: emptyToNull(filters.productCode),
       p_batch: emptyToNull(filters.batch),
       p_limit: 200,
+      // A57: produk = 2 batch terakhir per produk; batch = 5 terakhir (dipakai
+      // hanya setelah produk dipilih).
+      p_recent_batches_per_product: PRODUCT_RECENT_BATCHES,
+      p_batch_limit: BATCH_RECENT_LIMIT,
     }).then((value) => ({ key: breakdownKey, value }))
   }, [breakdownKey])
   const breakdown = breakdownState !== null && breakdownState.key === breakdownKey ? breakdownState.value : null
@@ -233,6 +239,9 @@ export function PerformancePage() {
           }))
           .sort((left, right) => left.value.localeCompare(right.value, 'id'))
   const productOptions = (lists?.products ?? []).map((item) => ({ value: item.value, label: item.label }))
+  const selectedProductLabel = filters.productCode === ''
+    ? ''
+    : productOptions.find((item) => item.value === filters.productCode)?.label ?? filters.productCode
   const periodLabel = PERIOD_PRESETS.find((preset) => preset.key === periodKey)?.label ?? 'Kustom'
 
   const filteredAdvertisers = useMemo(() => {
@@ -410,6 +419,8 @@ export function PerformancePage() {
           granularity={effectiveGranularity}
           dateFrom={filters.dateFrom}
           dateTo={filters.dateTo}
+          productSelected={filters.productCode !== ''}
+          selectedProductLabel={selectedProductLabel}
           advertiserName={advertiserOptions.find((item) => item.value === effectiveAdvertiserCode)?.label ?? effectiveAdvertiserCode}
           onBack={ownScope ? undefined : () => changeFilters({ advertiserCode: '' })}
         />
@@ -635,6 +646,8 @@ function PerformanceDetailView({
   granularity,
   dateFrom,
   dateTo,
+  productSelected,
+  selectedProductLabel,
   advertiserName,
   onBack,
 }: {
@@ -646,6 +659,9 @@ function PerformanceDetailView({
   granularity: Granularity
   dateFrom: string
   dateTo: string
+  /** A57: tanpa produk, kartu Per Batch hanya menampilkan petunjuk. */
+  productSelected: boolean
+  selectedProductLabel: string
   advertiserName: string
   /** Akun Advertiser tidak punya daftar pengiklan, jadi tombol kembali disembunyikan. */
   onBack?: () => void
@@ -764,7 +780,11 @@ function PerformanceDetailView({
       ) : (
         <>
           <ProductBreakdownCard products={(breakdown ?? EMPTY_BREAKDOWN).products} />
-          <BatchBreakdownCard batches={(breakdown ?? EMPTY_BREAKDOWN).batches} />
+          <BatchBreakdownCard
+            batches={(breakdown ?? EMPTY_BREAKDOWN).batches}
+            productSelected={productSelected}
+            selectedProductLabel={selectedProductLabel}
+          />
         </>
       )}
     </div>
@@ -782,9 +802,10 @@ function ProductBreakdownCard({ products }: { products: ProductPerformance[] }) 
   return (
     <Card className="mt-4" padding="none">
       <div className="px-3.5 pb-2 pt-3">
-        <h2 className="text-[14px] font-semibold text-ink">Per Produk — Semua Waktu</h2>
+        <h2 className="text-[14px] font-semibold text-ink">Per Produk — 2 Batch Terakhir</h2>
         <p className="mt-0.5 text-[12px] text-ink-soft">
-          Spend (termasuk PPN), omzet, dan tiket sepanjang riwayat pengiklan; filter tanggal tidak dipakai.
+          Total Spend (termasuk PPN), omzet, dan tiket dari {PRODUCT_RECENT_BATCHES} batch terakhir tiap produk;
+          filter tanggal tidak dipakai.
           {products.length > CHART_TOP ? ` Grafik menampilkan ${CHART_TOP} produk teratas menurut Spend.` : ''}
         </p>
       </div>
@@ -798,7 +819,7 @@ function ProductBreakdownCard({ products }: { products: ProductPerformance[] }) 
               series={[
                 { key: 'spend', label: 'Total Spend', color: '#4f46f5', values: chartRows.map((product) => metricNumber(product.total_spend)) },
                 { key: 'omzet', label: 'Omzet', color: '#35c96c', values: chartRows.map((product) => metricNumber(product.omzet)) },
-                { key: 'tickets', label: 'Tiket', color: '#f5b94c', values: chartRows.map((product) => product.tickets), axis: 'right', type: 'line', format: formatCount },
+                { key: 'tickets', label: 'Tiket', color: '#f5b94c', values: chartRows.map((product) => product.tickets), axis: 'right', format: formatCount },
               ]}
               formatValue={formatMoney}
               formatAxis={formatAxisMoney}
@@ -838,20 +859,41 @@ function ProductBreakdownCard({ products }: { products: ProductPerformance[] }) 
   )
 }
 
-function BatchBreakdownCard({ batches }: { batches: BatchBreakdown[] }) {
-  const chartRows = batches.slice(0, CHART_TOP)
+function BatchBreakdownCard({
+  batches,
+  productSelected,
+  selectedProductLabel,
+}: {
+  batches: BatchBreakdown[]
+  productSelected: boolean
+  selectedProductLabel: string
+}) {
+  // A57: tanpa produk, tidak ada dasar yang jelas untuk "5 batch terakhir".
+  if (!productSelected) {
+    return (
+      <Card className="mt-4">
+        <CardHeader
+          title="Per Batch — 5 Terakhir"
+          description="Filter tanggal tidak dipakai; batch diurutkan dari tanggal aktivitas terbaru."
+        />
+        <p className="text-[13px] text-ink-soft">Pilih produk di filter atas untuk melihat 5 batch terakhir.</p>
+      </Card>
+    )
+  }
+
+  const chartRows = batches.slice(0, BATCH_RECENT_LIMIT)
+  const scope = selectedProductLabel.trim() === '' ? 'produk terpilih' : selectedProductLabel
 
   return (
     <Card className="mt-4" padding="none">
       <div className="px-3.5 pb-2 pt-3">
-        <h2 className="text-[14px] font-semibold text-ink">Per Batch — Semua Waktu</h2>
+        <h2 className="text-[14px] font-semibold text-ink">Per Batch — 5 Terakhir</h2>
         <p className="mt-0.5 text-[12px] text-ink-soft">
-          Kontribusi batch terhadap spend (termasuk PPN), tiket, dan omzet sepanjang riwayat; filter tanggal tidak dipakai.
-          {batches.length > CHART_TOP ? ` Grafik menampilkan ${CHART_TOP} batch teratas menurut Spend.` : ''}
+          {BATCH_RECENT_LIMIT} batch terakhir {scope} berdasarkan tanggal aktivitas terbaru; filter tanggal tidak dipakai.
         </p>
       </div>
       {batches.length === 0 ? (
-        <p className="border-t border-line px-3 py-6 text-center text-ink-soft">Belum ada batch dengan tiket atau spend.</p>
+        <p className="border-t border-line px-3 py-6 text-center text-ink-soft">Belum ada batch dengan tiket atau spend untuk produk ini.</p>
       ) : (
         <>
           <div className="px-3.5 pb-3">
@@ -860,7 +902,7 @@ function BatchBreakdownCard({ batches }: { batches: BatchBreakdown[] }) {
               series={[
                 { key: 'spend', label: 'Total Spend', color: '#4f46f5', values: chartRows.map((batch) => metricNumber(batch.total_spend)) },
                 { key: 'omzet', label: 'Omzet', color: '#35c96c', values: chartRows.map((batch) => metricNumber(batch.omzet)) },
-                { key: 'tickets', label: 'Tiket', color: '#f5b94c', values: chartRows.map((batch) => batch.tickets), axis: 'right', type: 'line', format: formatCount },
+                { key: 'tickets', label: 'Tiket', color: '#f5b94c', values: chartRows.map((batch) => batch.tickets), axis: 'right', format: formatCount },
               ]}
               formatValue={formatMoney}
               formatAxis={formatAxisMoney}
@@ -871,6 +913,7 @@ function BatchBreakdownCard({ batches }: { batches: BatchBreakdown[] }) {
           <DataTable
             columns={[
               { key: 'batch', header: 'Batch', minWidth: 80 },
+              { key: 'activity', header: 'Aktivitas Terakhir', minWidth: 130 },
               { key: 'spend', header: 'Total Spend', align: 'right', minWidth: 130 },
               { key: 'tickets', header: 'Tiket', align: 'right', minWidth: 80 },
               { key: 'omzet', header: 'Omzet', align: 'right', minWidth: 130 },
@@ -880,8 +923,9 @@ function BatchBreakdownCard({ batches }: { batches: BatchBreakdown[] }) {
             stickyHeader={false}
           >
             {batches.map((batch) => (
-              <TableRow key={batch.batch ?? 'tanpa-batch'}>
+              <TableRow key={`${batch.product_code ?? ''}-${batch.batch ?? 'tanpa-batch'}`}>
                 <TableCell>{batch.batch ?? '-'}</TableCell>
+                <TableCell>{formatDate(batch.last_activity)}</TableCell>
                 <TableCell align="right">{formatMoney(batch.total_spend)}</TableCell>
                 <TableCell align="right">{formatCount(batch.tickets)}</TableCell>
                 <TableCell align="right">{formatMoney(batch.omzet)}</TableCell>
