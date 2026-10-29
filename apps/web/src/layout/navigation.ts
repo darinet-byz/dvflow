@@ -41,6 +41,8 @@ export const NAV_SECTIONS: NavSection[] = [
     collapsible: true,
     items: [
       { label: 'Order', path: '/order', icon: 'receipt' },
+      // A58: monitoring refund + pembatalan refund.
+      { label: 'Order Refund', path: '/order-refund', icon: 'rotate-ccw' },
       { label: 'Order Unmapped', path: '/order-unmapped', icon: 'alert-circle' },
     ],
   },

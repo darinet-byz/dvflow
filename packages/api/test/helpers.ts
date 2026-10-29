@@ -637,6 +637,38 @@ export function createFakeDb(state: FakeState): Db {
         } as T
       }
 
+      if (name === 'reschedule_order' || name === 'refund_order' || name === 'cancel_refund') {
+        const order = state.orders.find((row) => row['order_id'] === String(args['p_order_id'] ?? ''))
+        if (order === undefined) throw new DbError('DF001', 'ORDER_NOT_FOUND')
+        if (name === 'reschedule_order') {
+          return {
+            order_id: order['order_id'],
+            from_batch: order['batch'] ?? null,
+            from_session: order['session'] ?? null,
+            from_city: order['city'] ?? null,
+            batch: args['p_batch'] ?? order['batch'] ?? null,
+            session: args['p_session'] ?? order['session'] ?? null,
+            city: args['p_city'] ?? order['city'] ?? null,
+            rescheduled: true,
+          } as T
+        }
+        if (name === 'refund_order') {
+          return {
+            order_id: order['order_id'],
+            refund_id: 'refund-fake',
+            status: 'Refund',
+            amount: order['gross_amount'] ?? 0,
+            refunded_at: new Date().toISOString(),
+          } as T
+        }
+        return {
+          order_id: order['order_id'],
+          refund_id: 'refund-fake',
+          status: order['previous_status'] ?? 'Paid',
+          reverted_at: new Date().toISOString(),
+        } as T
+      }
+
       throw new Error(`RPC tidak dikenal di tiruan: ${name}`)
     },
 

@@ -59,7 +59,7 @@ export function DashboardPage() {
             <CardHeader title="Order" />
             <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
               <KpiCard label="Leads" value={formatCount(data.leads)} hint="Jumlah Order ID" />
-              <KpiCard label="Paid" value={formatCount(data.paid)} highlight hint="Order ID processing/complete" />
+              <KpiCard label="Paid" value={formatCount(data.paid)} highlight hint="Order ID processing/complete; Refund tidak dihitung" />
               <KpiCard label="Jumlah Tiket" value={formatCount(data.paid_tickets ?? data.paid)} hint="Total tiket dari order Paid" />
               <KpiCard label="Pending" value={formatCount(data.pending)} />
               <KpiCard

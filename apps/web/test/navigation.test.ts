@@ -28,6 +28,7 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
       'Presensi Acara',
       'Resume Batch',
       'Order',
+      'Order Refund',
       'Order Unmapped',
       'Status Produk',
       'Status Pengiklan',

@@ -287,6 +287,18 @@ Server MUST always revalidate:
 - event is Seminar Offline;
 - duplicate state.
 
+### Reschedule & Refund (A58)
+
+- `Refund` is a fourth `app_status`, written only by the manual refund RPC — never mapped from a
+  provider status. A refunded order is excluded from every `app_status = 'Paid'` report and loses
+  participant access. Refund is full per order and may be cancelled with an audit trail.
+- Reschedule changes the **effective event** (`event_batch/session/city`) used by Presensi,
+  ticket/QR/Zoom, scanner, and Resume Batch. Revenue and ad attribution stay on the original
+  batch/session/city. Webhooks must never overwrite the reschedule override.
+- Reschedule is allowed only for Paid, parsed-valid, non-OTS orders with **no attendance at all**;
+  status is `Reschedule` until check-in at the destination, then `Hadir`.
+- See `docs/AMENDMENTS.md` A58.
+
 ### Participant access
 
 Access is allowed only when:
@@ -309,24 +321,45 @@ Do not add additional participant tokens unless the requirements are explicitly 
 
 Do not add, remove, rename, or reorder MVP navigation without a requirement change.
 
-### OPERASIONAL
+Dashboard Resume stands alone. Other sections are collapsible (A47):
 
-1. Scan QR
-2. Dashboard Resume
-3. Order
-4. Presensi Acara
+```text
+ACARA
+  Scan QR
+  Presensi Acara
+  Resume Batch
 
-### KONFIGURASI
+ORDER
+  Order
+  Order Refund            (A58)
+  Order Unmapped
 
-5. Konfigurasi Produk
-6. Konfigurasi Tax
-7. Report Tax
-8. Product Name Generator
+STATUS
+  Status Produk
+  Status Pengiklan
 
-### ACCOUNT
+LAPORAN & PAJAK
+  Report Spend Iklan
+  Performa / Analitik
+  Report Tax
+  Konfigurasi Tax
 
-9. Profil
-10. Logout
+PRODUK & ACARA
+  Konfigurasi Produk
+  Product Name Generator
+  Konfigurasi Zoom
+  Konfigurasi Barcode / Tiket
+
+SISTEM
+  Add Team
+  Konfigurasi Role
+  API & Webhook
+  Reset Data
+
+AKUN
+  Profil
+  Logout
+```
 
 MVP deliberately does NOT include:
 
@@ -537,6 +570,8 @@ event_types
 sessions_config
 payment_fee_rules
 orders
+order_reschedules   # A58
+order_refunds       # A58
 attendance_events
 app_settings
 webhook_logs (optional)

@@ -9,6 +9,9 @@ Versi: 1.0
 | Login | Yes | Yes | Yes |
 | Dashboard read | Yes | Yes | Yes |
 | Order read/search/filter | Yes | Yes | Yes |
+| Order Refund read (A58) | Yes | Yes | No |
+| Reschedule peserta (A58) | Yes | Yes | No |
+| Refund / batalkan refund (A58) | Yes | Yes | No |
 | Order edit/delete | No | No | No |
 | Presensi read | Yes | Yes | Yes |
 | QR/manual check-in | Yes | Yes | Yes |
@@ -29,6 +32,8 @@ Versi: 1.0
   dan mengatur produk yang ia pegang. Edit/hapus akun tetap Developer/Owner.
 - `config.roles` tetap khusus Developer/Owner.
 - `operasional.product_status` dan `operasional.advertiser_status` default Manajer + Admin.
+- A58: `operasional.order_refund` (halaman), `action.reschedule`, dan `action.refund` default Manajer + Admin;
+  dapat diberikan/dicabut per role di Konfigurasi Role. Master Admin tetap bypass.
 - `set_advertiser_status('Resign')` menutup akses user terkait; status aktif kembali membuka akses.
 - Hapus user hanya untuk akun tanpa data historis; selain itu `USER_HAS_DATA` dan gunakan Non-Aktifkan.
 

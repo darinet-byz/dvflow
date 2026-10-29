@@ -13,7 +13,7 @@ import {
 import { useAsyncData } from '../../lib/useAsyncData'
 import { useConfigLists } from '../../lib/useConfigLists'
 import { PageHeader } from '../../layout/PageHeader'
-import { Badge, appStatusTone, attendanceTone, eventTypeTone } from '../../ui/Badge'
+import { Badge, attendanceTone, eventTypeTone } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card, KpiCard } from '../../ui/Card'
 import { ErrorState, SkeletonRows } from '../../ui/Feedback'
@@ -45,6 +45,8 @@ import { activeCommonFilters } from '../../lib/filters'
 const ATTENDANCE_OPTIONS = [
   { value: 'Hadir', label: 'Hadir' },
   { value: 'Belum Hadir', label: 'Belum Hadir' },
+  { value: 'Reschedule', label: 'Reschedule' },
+  { value: 'Refund', label: 'Refund' },
   { value: 'Pending', label: 'Pending' },
   { value: 'Cancelled', label: 'Cancelled' },
 ]
@@ -59,14 +61,15 @@ const COLUMNS: readonly TableColumn[] = [
   { key: 'order_id', header: 'Order ID', sortKey: 'order_id', minWidth: 110 },
   { key: 'name', header: 'Nama', sortKey: 'name', minWidth: 140 },
   { key: 'phone', header: 'No WA', minWidth: 120 },
-  ...TIMESTAMP_COLUMNS,
-  { key: 'total_activity', header: 'Total Activity', align: 'right', sortKey: 'total_activity', minWidth: 110 },
   { key: 'product_name', header: 'Produk', sortKey: 'product_name', minWidth: 150 },
   { key: 'batch', header: 'Batch', sortKey: 'batch', minWidth: 70 },
   { key: 'session', header: 'Sesi', sortKey: 'session', minWidth: 70 },
   { key: 'city', header: 'Kota', sortKey: 'city', minWidth: 100 },
   { key: 'advertiser_name', header: 'Pengiklan', minWidth: 110 },
   { key: 'event_type', header: 'Seminar / Webinar', minWidth: 140 },
+  { key: 'attendance_status', header: 'Status', minWidth: 110 },
+  { key: 'total_activity', header: 'Total Activity', align: 'right', sortKey: 'total_activity', minWidth: 110 },
+  ...TIMESTAMP_COLUMNS,
 ]
 
 /** Default 01 §6: aktivitas terbaru lebih dulu. */
@@ -151,7 +154,7 @@ export function PresensiPage() {
               ariaLabel="Filter status presensi"
               className={CONTROL_WIDTH}
               value={state.filters.attendanceStatus}
-              placeholder="Hadir & Belum Hadir"
+              placeholder="Semua status"
               options={ATTENDANCE_OPTIONS}
               onChange={(value) => state.update('attendanceStatus', value)}
             />
@@ -202,7 +205,7 @@ export function PresensiPage() {
               <PresensiCards rows={table.data?.rows ?? []} onSelect={setSelected} />
             ) : (
               <DataTable
-                exportConfig={{ filename: 'presensi', columns: [...COLUMNS, { key: 'attendance_status', header: 'Status presensi' }, { key: 'app_status', header: 'Status order' }], loadRows: async () => {
+                exportConfig={{ filename: 'presensi', columns: [...COLUMNS, { key: 'app_status', header: 'Status order' }, { key: 'rescheduled', header: 'Reschedule' }, { key: 'original_batch', header: 'Batch asal' }, { key: 'original_session', header: 'Sesi asal' }, { key: 'original_city', header: 'Kota asal' }], loadRows: async () => {
                   const rows = await collectPages(page => fetchPresensiPage(state.applied, { sort: sort.key, direction: sort.direction, page, pageSize: 100, exporting: true }))
                   return rows.map(row => ({ ...row, ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`t${i + 1}`, row.timestamps?.[i] ?? ''])) }))
                 } }} columns={COLUMNS} sort={{ key: sort.key, direction: sort.direction }} onSortChange={toggleSort}>
@@ -220,28 +223,29 @@ export function PresensiPage() {
                     </TableCell>
                     <TableCell>{formatText(row.name)}</TableCell>
                     <TableCell>{formatText(row.phone)}</TableCell>
-                    {Array.from({ length: TIMESTAMP_DISPLAY_LIMIT }, (_, index) => (
-                      <TableCell key={index} mono>
-                        {formatTime(row.timestamps?.[index])}
-                      </TableCell>
-                    ))}
-                    <TableCell align="right">{formatCount(row.total_activity)}</TableCell>
                     <TableCell>{formatText(row.product_name)}</TableCell>
                     <TableCell>{formatText(row.batch)}</TableCell>
                     <TableCell>{formatText(row.session)}</TableCell>
                     <TableCell>{formatText(row.city)}</TableCell>
                     <TableCell>{formatText(row.advertiser_name)}</TableCell>
                     <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        {row.event_type === null ? null : (
-                          <Badge tone={eventTypeTone(row.event_type)}>
-                            {row.event_type === 'Seminar Offline' ? 'Seminar' : row.event_type === 'Hybrid' ? 'Hybrid' : 'Webinar'}
-                          </Badge>
-                        )}
-                        <Badge tone={attendanceTone(row.attendance_status)}>{row.attendance_status}</Badge>
-                        <Badge tone={appStatusTone(row.app_status)}>{row.app_status}</Badge>
-                      </div>
+                      {row.event_type === null ? (
+                        '-'
+                      ) : (
+                        <Badge tone={eventTypeTone(row.event_type)}>
+                          {row.event_type === 'Seminar Offline' ? 'Seminar' : row.event_type === 'Hybrid' ? 'Hybrid' : 'Webinar'}
+                        </Badge>
+                      )}
                     </TableCell>
+                    <TableCell>
+                      <Badge tone={attendanceTone(row.attendance_status)}>{row.attendance_status}</Badge>
+                    </TableCell>
+                    <TableCell align="right">{formatCount(row.total_activity)}</TableCell>
+                    {Array.from({ length: TIMESTAMP_DISPLAY_LIMIT }, (_, index) => (
+                      <TableCell key={index} mono>
+                        {formatTime(row.timestamps?.[index])}
+                      </TableCell>
+                    ))}
                   </TableRow>
                 ))}
               </DataTable>
@@ -266,7 +270,15 @@ export function PresensiPage() {
         )}
       </div>
 
-      <PresensiDetailDrawer row={selected} onClose={() => setSelected(null)} />
+      <PresensiDetailDrawer
+        row={selected}
+        onClose={() => setSelected(null)}
+        onChanged={() => {
+          setSelected(null)
+          table.reload()
+          summary.reload()
+        }}
+      />
     </>
   )
 }

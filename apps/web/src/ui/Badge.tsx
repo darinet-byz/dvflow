@@ -43,8 +43,14 @@ export function Badge({
   )
 }
 
-export type AppStatus = 'Pending' | 'Paid' | 'Cancelled'
-export type AttendanceStatusLabel = 'Hadir' | 'Belum Hadir' | 'Pending' | 'Cancelled'
+export type AppStatus = 'Pending' | 'Paid' | 'Cancelled' | 'Refund'
+export type AttendanceStatusLabel =
+  | 'Hadir'
+  | 'Belum Hadir'
+  | 'Reschedule'
+  | 'Refund'
+  | 'Pending'
+  | 'Cancelled'
 export type EventTypeName = 'Seminar Offline' | 'Webinar Online' | 'Hybrid'
 
 /** Status order (PRD §52, guideline §18). */
@@ -55,6 +61,7 @@ export function appStatusTone(status: string): BadgeTone {
     case 'Pending':
       return 'warning'
     case 'Cancelled':
+    case 'Refund':
       return 'danger'
     default:
       return 'neutral'
@@ -72,9 +79,12 @@ export function attendanceTone(status: string): BadgeTone {
   switch (status) {
     case 'Hadir':
       return 'success'
+    case 'Reschedule':
+      return 'warning'
     case 'Pending':
       return 'warning'
     case 'Cancelled':
+    case 'Refund':
       return 'danger'
     default:
       return 'neutral'

@@ -16,6 +16,7 @@ import { accessOrder, checkinByQr, checkinInfoPage } from './participant/handler
 import { getProfile, updateProfile } from './profile/handlers'
 import { scannerManualCheckin, scannerSearch } from './scanner/handlers'
 import { deleteOts, listOts, listOtsEvents, saveOts } from './ots/handlers'
+import { cancelRefund, refundOrder, rescheduleOrder } from './orders/handlers'
 import { createAdSpend, deleteAdSpend, updateAdSpend } from './ad-spend/handlers'
 import { orderOnlineWebhook } from './webhooks/handlers'
 import { batchRemapOrders, deleteAlias, deleteUnmappedOrders, listAliases, listUnmappedOrders, saveAlias } from './aliases/handlers'
@@ -105,6 +106,10 @@ export const ROUTES: Route[] = [
   { method: 'POST', path: '/checkin/:orderId', handler: checkinByQr, auth: 'access' },
   { method: 'GET', path: '/api/scanner/search', handler: scannerSearch, auth: 'access' },
   { method: 'POST', path: '/api/scanner/manual-checkin', handler: scannerManualCheckin, auth: 'access' },
+  // A58: siklus hidup order (reschedule/refund) — keputusan server, bukan UI.
+  { method: 'POST', path: '/api/orders/:orderId/reschedule', handler: rescheduleOrder, auth: 'access' },
+  { method: 'POST', path: '/api/orders/:orderId/refund/cancel', handler: cancelRefund, auth: 'access' },
+  { method: 'POST', path: '/api/orders/:orderId/refund', handler: refundOrder, auth: 'access' },
   // A29: pendaftaran peserta OTS (bayar di lokasi).
   { method: 'GET', path: '/api/ots/events', handler: listOtsEvents, auth: 'access' },
   { method: 'GET', path: '/api/ots', handler: listOts, auth: 'access' },

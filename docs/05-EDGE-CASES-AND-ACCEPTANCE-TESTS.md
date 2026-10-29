@@ -102,6 +102,12 @@ I06 table shows only latest 10 timestamps.
 I07 attendance >30 days removed by cron.
 I08 Master Order remains after attendance deletion.
 I09 seminar duplicate prevention remains enforced after UI refresh/concurrent scan.
+I10 reschedule Paid + no attendance -> status `Reschedule`; ticket/QR/Zoom/scanner/Resume Batch memakai acara tujuan.
+I11 status `Reschedule` menjadi `Hadir` setelah check-in di acara tujuan.
+I12 reschedule ditolak (`ORDER_ALREADY_CHECKED_IN`) bila sudah ada presensi seminar/webinar; order OTS ditolak.
+I13 omzet/Report Spend/Performa/Dashboard tetap memakai batch/sesi/kota asal setelah reschedule; webhook tidak menimpa override.
+I14 refund penuh -> status `Refund`, keluar dari Paid/tiket/omzet/laporan Paid dan akses tiket/Zoom; muncul di Order Refund.
+I15 batalkan refund -> status provider terakhir kembali; riwayat refund tetap ada; refund duplikat ditolak.
 
 ## J. Search / Filter / Pagination
 J01 default order page 50 rows.

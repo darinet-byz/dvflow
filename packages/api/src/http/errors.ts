@@ -19,6 +19,10 @@ export type ApiErrorCode =
   | 'UNSUPPORTED_ORDER_STATUS'
   | 'ORDER_NOT_FOUND'
   | 'ORDER_NOT_PAID'
+  | 'ORDER_ALREADY_CHECKED_IN'
+  | 'ORDER_ALREADY_REFUNDED'
+  | 'ORDER_NOT_REFUNDED'
+  | 'RESCHEDULE_NOT_ALLOWED'
   | 'NOT_SEMINAR_ORDER'
   | 'CODE_TAKEN'
   | 'IDENTIFIER_TAKEN'
@@ -51,7 +55,17 @@ export const ERROR_CATALOG: Record<ApiErrorCode, { status: number; message: stri
   UNSUPPORTED_ORDER_STATUS: { status: 422, message: 'Status order dari provider tidak didukung.' },
   // 03 §9: error check-in.
   ORDER_NOT_FOUND: { status: 404, message: 'Order tidak ditemukan.' },
-  ORDER_NOT_PAID: { status: 403, message: 'Order belum dibayar. Check-in ditolak.' },
+  ORDER_NOT_PAID: { status: 403, message: 'Order belum dibayar. Tindakan ini memerlukan order Paid.' },
+  ORDER_ALREADY_CHECKED_IN: {
+    status: 409,
+    message: 'Peserta sudah memiliki presensi. Reschedule hanya dapat dilakukan sebelum check-in.',
+  },
+  ORDER_ALREADY_REFUNDED: { status: 409, message: 'Order ini sudah direfund.' },
+  ORDER_NOT_REFUNDED: { status: 409, message: 'Order ini tidak sedang dalam status Refund.' },
+  RESCHEDULE_NOT_ALLOWED: {
+    status: 409,
+    message: 'Reschedule tidak dapat dilakukan untuk order ini (hanya order Paid non-OTS dengan produk valid).',
+  },
   NOT_SEMINAR_ORDER: { status: 409, message: 'Order ini bukan acara offline (Seminar Offline/Hybrid).' },
   // 03 §12: konfigurasi.
   CODE_TAKEN: { status: 409, message: 'Kode sudah dipakai.' },
@@ -107,6 +121,10 @@ export const DB_SQLSTATE_TO_API_CODE: Record<string, ApiErrorCode> = {
   DF001: 'ORDER_NOT_FOUND',
   DF002: 'ORDER_NOT_PAID',
   DF003: 'NOT_SEMINAR_ORDER',
+  DF019: 'ORDER_ALREADY_CHECKED_IN',
+  DF020: 'ORDER_ALREADY_REFUNDED',
+  DF021: 'ORDER_NOT_REFUNDED',
+  DF022: 'RESCHEDULE_NOT_ALLOWED',
   DF004: 'INVALID_CREDENTIALS',
   DF005: 'USER_DISABLED',
   DF006: 'FORBIDDEN',

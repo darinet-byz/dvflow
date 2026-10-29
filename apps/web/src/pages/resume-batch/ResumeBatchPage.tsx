@@ -90,7 +90,10 @@ export function ResumeBatchPage() {
 
   return (
     <>
-      <PageHeader title="Resume Batch" description="Jumlah tiket Paid per sesi dalam satu batch, gabungan semua pengiklan." />
+      <PageHeader
+        title="Resume Batch"
+        description="Jumlah tiket Paid per sesi dalam satu batch, gabungan semua pengiklan. Peserta yang reschedule dihitung pada sesi/kota tujuan."
+      />
 
       <div className="filter-bar flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-card p-3.5">
         <div className="filter-row flex min-w-0 flex-wrap items-center gap-2.5">

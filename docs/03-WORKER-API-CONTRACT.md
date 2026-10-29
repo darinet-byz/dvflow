@@ -287,6 +287,36 @@ Tidak ada endpoint Worker baru.
 - Izin `operasional.analytics`; scope produk lewat `actor_can_product` (A44). Error: `FORBIDDEN` 403,
   `INVALID_ARGUMENT` 400.
 
+## 12d. Reschedule & Refund (A58)
+Semua endpoint mengubah state, memakai access token, dan menegakkan aturan ulang di RPC database.
+
+### `POST /api/orders/:orderId/reschedule`
+Izin `action.reschedule`. Body:
+```json
+{ "batch": "392", "session": "S2", "city": "Bandung", "reason": "opsional" }
+```
+Hanya order Paid, produk valid, bukan OTS, dan **belum memiliki presensi apa pun**. Mengubah acara efektif
+(`event_*`), tidak mengubah omzet/atribusi batch. Response: `{ order_id, from_*, batch, session, city, rescheduled }`.
+
+Error: `ORDER_NOT_FOUND` 404, `ORDER_NOT_PAID` 403, `ORDER_ALREADY_CHECKED_IN` 409,
+`RESCHEDULE_NOT_ALLOWED` 409, `INVALID_ARGUMENT` 400, `FORBIDDEN` 403.
+
+### `POST /api/orders/:orderId/refund`
+Izin `action.refund`. Body: `{ "reason": "wajib" }`. Refund **penuh** sebesar `gross_amount`; order menjadi
+`app_status = 'Refund'`, sehingga keluar dari Paid/tiket/omzet/laporan Paid dan akses tiket/Zoom ditutup.
+
+Error: `ORDER_NOT_FOUND` 404, `ORDER_NOT_PAID` 403, `ORDER_ALREADY_REFUNDED` 409, `INVALID_ARGUMENT` 400.
+
+### `POST /api/orders/:orderId/refund/cancel`
+Izin `action.refund`. Body: `{ "reason": "opsional" }`. Menutup refund aktif dan mengembalikan order ke
+`previous_status` (status provider terakhir). Riwayat refund tetap tersimpan.
+
+Error: `ORDER_NOT_REFUNDED` 409.
+
+### Baca halaman Order Refund
+Browser membaca RPC `refund_page` / `export_refund_page` (filter tanggal memakai **tanggal refund**).
+Izin halaman `operasional.order_refund`; export juga membutuhkan `action.export_data`.
+
 ## 13. Profile endpoints
 GET /api/profile
 PATCH /api/profile

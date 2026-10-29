@@ -12,10 +12,27 @@
 import type { AppStatus } from '../types'
 import { TIMESTAMP_DISPLAY_LIMIT } from './constants'
 
-export type AttendanceStatusLabel = 'Hadir' | 'Belum Hadir' | 'Pending' | 'Cancelled'
+export type AttendanceStatusLabel =
+  | 'Hadir'
+  | 'Belum Hadir'
+  | 'Reschedule'
+  | 'Refund'
+  | 'Pending'
+  | 'Cancelled'
 
-export function attendanceStatusLabel(appStatus: AppStatus, attendanceCount: number): AttendanceStatusLabel {
+/**
+ * A58: Refund adalah status order, jadi selalu menang. `Reschedule` hanya
+ * berlaku selama peserta belum punya presensi sama sekali; setelah check-in
+ * di acara tujuan ia kembali menjadi `Hadir`.
+ */
+export function attendanceStatusLabel(
+  appStatus: AppStatus,
+  attendanceCount: number,
+  rescheduled = false,
+): AttendanceStatusLabel {
+  if (appStatus === 'Refund') return 'Refund'
   if (appStatus !== 'Paid') return appStatus
+  if (rescheduled && attendanceCount === 0) return 'Reschedule'
   return attendanceCount > 0 ? 'Hadir' : 'Belum Hadir'
 }
 

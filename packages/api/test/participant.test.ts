@@ -48,6 +48,13 @@ describe('akses peserta: penolakan (PRD §89, §F03–§F06, §G04–§G06)', ()
     }
   })
 
+  it('A58: order Refund ditolak seperti order tidak dibayar', async () => {
+    const { api } = await setup({ orders: [fakeOrder({ order_id: '444', app_status: 'Refund' })] })
+    const response = await access(api, '444')
+    expect(response.status).toBe(403)
+    expect(await response.text()).toContain('Pembayaran belum selesai')
+  })
+
   it('produk yang tidak terparse ditolak walau order Paid', async () => {
     const { api } = await setup({
       orders: [fakeOrder({ order_id: '333', product_parse_status: 'invalid', event_type: null })],
@@ -81,6 +88,24 @@ describe('akses peserta seminar: halaman tiket (PRD §93, §G01, §G03)', () => 
     expect(html).toContain('283033796')
     // Payload QR (03 §8) — QR sendiri dibuat browser, bukan di sini.
     expect(html).toContain('/checkin/283033796')
+  })
+
+  it('A58: tiket memakai acara efektif setelah reschedule', async () => {
+    const { api } = await setup({
+      orders: [fakeOrder({
+        order_id: '283033797',
+        event_session: 'S2',
+        event_city: 'Bandung',
+        effective_session: 'S2',
+        effective_city: 'Bandung',
+        effective_batch: '392',
+      })],
+    })
+    const response = await access(api, '283033797')
+    expect(response.status).toBe(200)
+    const html = await response.text()
+    expect(html).toContain('Bandung')
+    expect(html).toContain('S2')
   })
 
   it('A19: urutan nama, Order ID (sekali), produk, batch, kota, sesi, QR, jumlah tiket; tanpa pengiklan/label acara', async () => {

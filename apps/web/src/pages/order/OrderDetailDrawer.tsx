@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Badge, appStatusTone, eventTypeTone } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { DetailList } from '../../ui/Card'
@@ -5,7 +6,9 @@ import { Drawer } from '../../ui/Overlay'
 import { useToast } from '../../ui/Toast'
 import { formatDateTime, formatMoney, formatText } from '../../lib/format'
 import { isOtsOrder, participantAccessPath, participantAccessUrl, paymentMethodLabel } from '../../lib/access-link'
-import type { OrderRow } from '../../lib/queries'
+import { supabaseSelect } from '../../lib/supabase-rest'
+import type { OrderRow, RescheduleHistoryRow } from '../../lib/queries'
+import { OrderLifecycleActions } from './OrderLifecycleActions'
 
 /**
  * Drawer detail Order — READ-ONLY (PRD §48, 01 §18).
@@ -15,10 +18,42 @@ import type { OrderRow } from '../../lib/queries'
  * sini: tombol edit dan tombol delete — keduanya belum ditentukan dokumen
  * (PRD §49–§50) dan tidak boleh ditambahkan atas dasar asumsi.
  */
-export function OrderDetailDrawer({ order, onClose }: { order: OrderRow | null; onClose: () => void }) {
+export function OrderDetailDrawer({
+  order,
+  onClose,
+  onChanged,
+}: {
+  order: OrderRow | null
+  onClose: () => void
+  onChanged?: () => void
+}) {
   const toast = useToast()
+  const [history, setHistory] = useState<RescheduleHistoryRow[]>([])
   // A27: link resmi memisahkan kode toko: /access/MTIX/283818331.
   const accessUrl = order ? participantAccessUrl(order.order_id) : ''
+
+  useEffect(() => {
+    if (order === null || order.rescheduled !== true) {
+      setHistory([])
+      return
+    }
+    let cancelled = false
+    void supabaseSelect<RescheduleHistoryRow>(
+      'order_reschedules',
+      { order_id: `eq.${order.order_id}`, order: 'created_at.desc' },
+      'id,from_batch,from_session,from_city,to_batch,to_session,to_city,reason,actor_name,created_at',
+    )
+      .then((rows) => {
+        if (!cancelled) setHistory(rows)
+      })
+      .catch(() => {
+        // Riwayat bersifat konteks tambahan; kegagalan baca tidak boleh menutup detail order.
+        if (!cancelled) setHistory([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [order?.order_id, order?.rescheduled])
 
   async function copyAccessLink() {
     if (!accessUrl) return
@@ -101,6 +136,47 @@ export function OrderDetailDrawer({ order, onClose }: { order: OrderRow | null; 
             />
           </Section>
 
+          {order.rescheduled === true ? (
+            <Section title="Reschedule">
+              <DetailList
+                items={[
+                  {
+                    label: 'Asal',
+                    value: eventLabel(order.batch, order.session, order.city),
+                  },
+                  {
+                    label: 'Tujuan',
+                    value: eventLabel(
+                      order.effective_batch ?? order.batch,
+                      order.effective_session ?? order.session,
+                      order.effective_city ?? order.city,
+                    ),
+                  },
+                  { label: 'Alasan terakhir', value: formatText(history[0]?.reason) },
+                  { label: 'Diubah oleh', value: formatText(history[0]?.actor_name) },
+                  { label: 'Waktu', value: formatDateTime(history[0]?.created_at) },
+                ]}
+              />
+              {history.length > 1 ? (
+                <details className="mt-2 text-[12px] text-ink-soft">
+                  <summary className="cursor-pointer font-semibold text-ink">Riwayat lengkap ({history.length})</summary>
+                  <ol className="mt-2 flex flex-col gap-1.5">
+                    {history.map((item) => (
+                      <li key={item.id}>
+                        <span className="font-mono">{formatDateTime(item.created_at)}</span>
+                        {' · '}
+                        {eventLabel(item.from_batch, item.from_session, item.from_city)}
+                        {' → '}
+                        {eventLabel(item.to_batch, item.to_session, item.to_city)}
+                        {item.actor_name ? ` · ${item.actor_name}` : ''}
+                      </li>
+                    ))}
+                  </ol>
+                </details>
+              ) : null}
+            </Section>
+          ) : null}
+
           <Section title="Status">
             <DetailList
               items={[
@@ -110,6 +186,10 @@ export function OrderDetailDrawer({ order, onClose }: { order: OrderRow | null; 
               ]}
             />
           </Section>
+
+          <div className="border-t border-line pt-3">
+            <OrderLifecycleActions order={order} onChanged={onChanged ?? onClose} />
+          </div>
 
           <Section title="Pembayaran">
             <DetailList
@@ -178,6 +258,15 @@ export function OrderDetailDrawer({ order, onClose }: { order: OrderRow | null; 
       )}
     </Drawer>
   )
+}
+
+function eventLabel(batch: string | null | undefined, session: string | null | undefined, city: string | null | undefined): string {
+  const parts = [
+    batch ? `Batch ${batch}` : null,
+    session ? `Sesi ${session}` : null,
+    city ?? null,
+  ].filter(Boolean)
+  return parts.length === 0 ? '-' : parts.join(' · ')
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

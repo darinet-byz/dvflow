@@ -117,8 +117,14 @@ export type AppPermissionModuleGroup = {
   permissions: AppPermissionItem[]
 }
 
-/** Nilai app_status. Hanya tiga ini (02-DATABASE-SCHEMA §9). */
-export type AppStatus = 'Pending' | 'Paid' | 'Cancelled'
+/**
+ * Nilai app_status.
+ *
+ * A58: `Refund` adalah status operasional keempat. Nilai ini TIDAK pernah
+ * dipetakan dari status provider (lihat `normalizeAppStatus`); ia hanya
+ * ditulis oleh RPC `refund_order`/`cancel_refund`.
+ */
+export type AppStatus = 'Pending' | 'Paid' | 'Cancelled' | 'Refund'
 
 export type ProductParseStatus = 'valid' | 'invalid'
 export type TaxMappingStatus = 'mapped' | 'unmapped'

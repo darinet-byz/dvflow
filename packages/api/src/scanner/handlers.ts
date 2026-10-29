@@ -34,9 +34,14 @@ type OrderSearchRow = {
   phone: string | null
   app_status: string
   product_name: string | null
+  /** Nilai asal, dipakai sebagai fallback untuk data/fixture lama. */
   batch: string | null
   session: string | null
   city: string | null
+  /** A58: kolom efektif — peserta reschedule muncul dengan acara tujuan. */
+  effective_batch: string | null
+  effective_session: string | null
+  effective_city: string | null
 }
 
 /**
@@ -71,7 +76,7 @@ export async function scannerSearch(context: RouteContext): Promise<Response> {
       event_type: 'in.("Seminar Offline","Hybrid")',
       or: buildIlikeOrFilter(['order_id', 'name', 'phone'], term),
     },
-    'order_id,name,phone,app_status,product_name,batch,session,city',
+    'order_id,name,phone,app_status,product_name,batch,session,city,effective_batch,effective_session,effective_city',
   )
 
   const ranked = rankCandidates(rows, term).slice(0, SCANNER_SEARCH_LIMIT)
@@ -85,7 +90,14 @@ export async function scannerSearch(context: RouteContext): Promise<Response> {
     candidates: ranked.map((row) => {
       const clickedAt = checkins.get(row.order_id) ?? null
       return {
-        ...row,
+        order_id: row.order_id,
+        name: row.name,
+        phone: row.phone,
+        app_status: row.app_status,
+        product_name: row.product_name,
+        batch: row.effective_batch ?? row.batch,
+        session: row.effective_session ?? row.session,
+        city: row.effective_city ?? row.city,
         already_checked_in: clickedAt !== null,
         checked_in_at: clickedAt,
       } satisfies ScannerCandidate

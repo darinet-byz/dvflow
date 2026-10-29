@@ -33,9 +33,15 @@ export type DashboardSummary = {
 /** A23: ringkasan kehadiran halaman Presensi (cukup izin Presensi, tanpa angka keuangan). */
 export type PresensiSummary = Pick<DashboardSummary, 'paid' | 'sudah_hadir' | 'belum_hadir' | 'attendance_rate'>
 
-export type AppStatus = 'Pending' | 'Paid' | 'Cancelled'
+export type AppStatus = 'Pending' | 'Paid' | 'Cancelled' | 'Refund'
 export type EventTypeName = 'Seminar Offline' | 'Webinar Online' | 'Hybrid'
-export type AttendanceStatus = 'Hadir' | 'Belum Hadir' | 'Pending' | 'Cancelled'
+export type AttendanceStatus =
+  | 'Hadir'
+  | 'Belum Hadir'
+  | 'Reschedule'
+  | 'Refund'
+  | 'Pending'
+  | 'Cancelled'
 
 /** Satu baris Master Order (PRD §45 + data snapshot untuk drawer). */
 export type OrderRow = {
@@ -51,9 +57,20 @@ export type OrderRow = {
   advertiser_code: string | null
   advertiser_name: string | null
   event_type: EventTypeName | null
+  /** Batch/sesi/kota ASAL — dipakai laporan penjualan/iklan (A58). */
   batch: string | null
   session: string | null
   city: string | null
+  /** Override acara tujuan reschedule; null bila tidak pernah reschedule. */
+  event_batch?: string | null
+  event_session?: string | null
+  event_city?: string | null
+  /** Acara efektif = tujuan bila ada, jika tidak asal. */
+  effective_batch?: string | null
+  effective_session?: string | null
+  effective_city?: string | null
+  rescheduled?: boolean
+  has_attendance?: boolean
   raw_status: string | null
   app_status: AppStatus
   payment_method: string | null
@@ -106,11 +123,20 @@ export type PresensiRow = {
   advertiser_code: string | null
   advertiser_name: string | null
   event_type: EventTypeName | null
+  /** Batch/sesi/kota acara EFEKTIF (tujuan reschedule bila ada). */
   batch: string | null
   session: string | null
   city: string | null
+  /** Nilai asal untuk konteks drawer saat sudah reschedule. */
+  original_batch?: string | null
+  original_session?: string | null
+  original_city?: string | null
+  rescheduled?: boolean
   product_parse_status: 'valid' | 'invalid'
   app_status: AppStatus
+  /** Nominal & jumlah tiket dibutuhkan modal Refund di drawer Presensi. */
+  gross_amount: number
+  quantity: number
   attendance_status: AttendanceStatus
   total_activity: number
   latest_activity: string | null
@@ -138,6 +164,64 @@ export type PresensiSortKey =
   | 'city'
 
 export type SortDirection = 'asc' | 'desc'
+
+/** A58: satu baris halaman Order Refund. Filter tanggal memakai tanggal refund. */
+export type RefundRow = {
+  order_id: string
+  name: string | null
+  phone: string | null
+  product_code: string | null
+  product_name: string | null
+  advertiser_code: string | null
+  advertiser_name: string | null
+  event_type: EventTypeName | null
+  batch: string | null
+  session: string | null
+  city: string | null
+  event_batch: string | null
+  event_session: string | null
+  event_city: string | null
+  rescheduled: boolean
+  quantity: number
+  gross_amount: number
+  refund_amount: number
+  refund_reason: string
+  refunded_at: string
+  refunded_by_name: string | null
+  previous_status: AppStatus
+}
+
+export type RefundPage = {
+  rows: RefundRow[]
+  total: number
+  page: number
+  page_size: number
+  summary: { total: number; tickets: number; amount: number }
+}
+
+export type RefundSortKey =
+  | 'order_id'
+  | 'name'
+  | 'refunded_at'
+  | 'amount'
+  | 'product_name'
+  | 'batch'
+  | 'session'
+  | 'city'
+
+/** Riwayat reschedule (append-only), dibaca langsung lewat RLS. */
+export type RescheduleHistoryRow = {
+  id: string
+  from_batch: string | null
+  from_session: string | null
+  from_city: string | null
+  to_batch: string | null
+  to_session: string | null
+  to_city: string | null
+  reason: string | null
+  actor_name: string | null
+  created_at: string
+}
 
 /**
  * PRD §41: Dashboard memakai satu set filter yang sama untuk seluruh KPI.
@@ -170,6 +254,19 @@ export async function fetchPresensiPage(
 ): Promise<PresensiPage> {
   return supabaseRpc<PresensiPage>(options.exporting ? 'export_presensi_page' : 'presensi_page', {
     ...toPresensiArgs(filters),
+    p_sort: options.sort,
+    p_sort_dir: options.direction,
+    p_page: options.page,
+    p_page_size: options.pageSize,
+  })
+}
+
+export async function fetchRefundPage(
+  filters: CommonFilters,
+  options: { sort: RefundSortKey; direction: SortDirection; page: number; pageSize: PageSize; exporting?: boolean },
+): Promise<RefundPage> {
+  return supabaseRpc<RefundPage>(options.exporting ? 'export_refund_page' : 'refund_page', {
+    ...toFilterArgs(filters),
     p_sort: options.sort,
     p_sort_dir: options.direction,
     p_page: options.page,

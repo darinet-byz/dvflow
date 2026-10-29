@@ -145,7 +145,14 @@ Product raw + normalized:
 
 Status:
 - raw_status TEXT NULL
-- app_status TEXT NOT NULL CHECK app_status IN ('Pending','Paid','Cancelled')
+- app_status TEXT NOT NULL CHECK app_status IN ('Pending','Paid','Cancelled','Refund')  -- A58: Refund hanya ditulis RPC manual, bukan mapping provider
+
+Acara efektif (A58):
+- event_batch TEXT NULL, event_session TEXT NULL, event_city TEXT NULL  -- override tujuan reschedule
+- effective_batch/session/city = generated column `coalesce(event_*, kolom asal)`  -- dibaca Presensi, tiket/QR/Zoom, scanner, Resume Batch
+- batch/session/city tetap nilai ASAL untuk omzet, Report Spend, Performa, dan laporan iklan
+- order_reschedules: riwayat append-only (from/to batch-sesi-kota, reason, actor_id, actor_name, created_at)
+- order_refunds: satu refund aktif per order (amount, reason, previous_status, refunded_at/by, reverted_at/by, revert_reason)
 
 Payment:
 - payment_method TEXT NULL
@@ -343,6 +350,8 @@ Recommended implementation:
 7. sessions_config
 8. payment_fee_rules
 9. orders
+9a. order_reschedules (A58)
+9b. order_refunds (A58)
 10. attendance_events
 11. app_settings
 12. webhook_logs optional

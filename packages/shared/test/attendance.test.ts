@@ -21,6 +21,17 @@ describe('status kehadiran (PRD §107)', () => {
     expect(attendanceStatusLabel('Cancelled', 0)).toBe('Cancelled')
     expect(attendanceStatusLabel('Cancelled', 2)).toBe('Cancelled')
   })
+
+  it('A58 Refund selalu Refund, walau ada attendance', () => {
+    expect(attendanceStatusLabel('Refund', 0)).toBe('Refund')
+    expect(attendanceStatusLabel('Refund', 3)).toBe('Refund')
+  })
+
+  it('A58 reschedule tampil sampai ada presensi, lalu Hadir', () => {
+    expect(attendanceStatusLabel('Paid', 0, true)).toBe('Reschedule')
+    expect(attendanceStatusLabel('Paid', 1, true)).toBe('Hadir')
+    expect(attendanceStatusLabel('Paid', 0, false)).toBe('Belum Hadir')
+  })
 })
 
 describe('rolling timestamp (PRD §105)', () => {

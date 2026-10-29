@@ -36,19 +36,47 @@ type OrderRow = {
   product_name: string | null
   advertiser_code: string | null
   advertiser_name: string | null
+  /** Batch/sesi/kota ASAL (atribusi penjualan). */
   batch: string | null
   session: string | null
   city: string | null
+  /** A58: acara efektif (tujuan reschedule bila ada). */
+  effective_batch?: string | null
+  effective_session?: string | null
+  effective_city?: string | null
+  event_batch?: string | null
+  event_session?: string | null
+  event_city?: string | null
   /** Jumlah tiket (A19); default DB 1. */
   quantity: number
 }
 
 const ORDER_COLUMNS =
-  'order_id,name,app_status,product_parse_status,event_type,product_raw,product_code,product_name,advertiser_code,advertiser_name,batch,session,city,quantity'
+  'order_id,name,app_status,product_parse_status,event_type,product_raw,product_code,product_name,advertiser_code,advertiser_name,batch,session,city,effective_batch,effective_session,effective_city,event_batch,event_session,event_city,quantity'
 
 export async function loadOrder(db: Db, orderId: string): Promise<OrderRow | null> {
   const rows = await db.selectRows<OrderRow>('orders', { order_id: `eq.${orderId}` }, ORDER_COLUMNS)
   return rows[0] ?? null
+}
+
+type EventOrderRow = OrderRow & { rescheduled: boolean }
+
+/**
+ * A58: acara efektif = tujuan reschedule bila ada. `product_raw` dikosongkan
+ * untuk order yang sudah reschedule supaya rule Zoom/tiket exact untuk produk
+ * lama tidak menang atas rule scope sesi/batch yang baru.
+ */
+function withEffectiveEvent(order: OrderRow): EventOrderRow {
+  const rescheduled =
+    order.event_batch != null || order.event_session != null || order.event_city != null
+  return {
+    ...order,
+    rescheduled,
+    product_raw: rescheduled ? null : order.product_raw,
+    batch: order.effective_batch ?? order.batch,
+    session: order.effective_session ?? order.session,
+    city: order.effective_city ?? order.city,
+  }
 }
 
 /**
@@ -110,12 +138,15 @@ async function accessOrderPage(context: RouteContext): Promise<Response> {
     return renderErrorPage('INVALID_EVENT_PRODUCT', orderId)
   }
 
+  // A58: tiket/QR/Zoom mengikuti acara efektif (tujuan reschedule), bukan acara asal.
+  const eventOrder = withEffectiveEvent(order)
+
   // Webinar: selalu ke Zoom. Hybrid (A14): link yang sama membuka tiket QR, dan
   // tombol "JOIN SECARA ONLINE (ZOOM)" kembali ke link ini dengan ?via=zoom.
   const wantsZoom = order.event_type === 'Webinar Online' ||
     (order.event_type === 'Hybrid' && context.url.searchParams.get('via') === 'zoom')
   if (wantsZoom) {
-    return redirectToWebinar(context, order)
+    return redirectToWebinar(context, eventOrder)
   }
 
   const [ticketRows, attendanceRows] = await Promise.all([
@@ -133,7 +164,7 @@ async function accessOrderPage(context: RouteContext): Promise<Response> {
 
   const byKey = new Map(ticketRows.map((row) => [row.key, row.value_text]))
   let matchedRaw: string | null = null
-  for (const candidate of candidateSettingKeys({ ...order, alias_target: await resolveProductAlias(context.db, order.product_raw) }, TICKET_PREFIX)) {
+  for (const candidate of candidateSettingKeys({ ...eventOrder, alias_target: eventOrder.rescheduled ? null : await resolveProductAlias(context.db, order.product_raw) }, TICKET_PREFIX)) {
     const val = byKey.get(candidate)
     if (val !== undefined && val !== null && val.trim() !== '') {
       matchedRaw = val
@@ -150,17 +181,17 @@ async function accessOrderPage(context: RouteContext): Promise<Response> {
     orderId: order.order_id,
     participantName: order.name,
     eventType: order.event_type,
-    productName: order.product_name,
-    advertiserName: order.advertiser_name,
-    batch: order.batch,
-    session: order.session,
-    city: order.city,
+    productName: eventOrder.product_name,
+    advertiserName: eventOrder.advertiser_name,
+    batch: eventOrder.batch,
+    session: eventOrder.session,
+    city: eventOrder.city,
     notes: ticketMeta?.notes ?? null,
-    quantity: order.quantity ?? 1,
-    checkinPath: buildCheckinPath(order.order_id),
+    quantity: eventOrder.quantity ?? 1,
+    checkinPath: buildCheckinPath(eventOrder.order_id),
     alreadyCheckedIn: checkedInEvent !== null,
     checkedInAt: checkedInEvent?.clicked_at ?? null,
-    zoomPath: order.event_type === 'Hybrid' && (await findWebinarDestination(context, order)) !== null
+    zoomPath: eventOrder.event_type === 'Hybrid' && (await findWebinarDestination(context, eventOrder)) !== null
       ? `${context.url.pathname}?via=zoom`
       : null,
   }
@@ -178,7 +209,10 @@ async function accessOrderPage(context: RouteContext): Promise<Response> {
  * peserta yang tidak pernah sampai ke Zoom akan merusak laporan kehadiran.
  */
 /** Link Zoom yang berlaku untuk order ini, atau null bila belum ada / tidak aman. */
-async function findWebinarDestination(context: RouteContext, order: OrderRow): Promise<string | null> {
+async function findWebinarDestination(
+  context: RouteContext,
+  order: EventOrderRow,
+): Promise<string | null> {
   const rows = await context.db.selectRows<{ key: string; value_text: string | null }>(
     'app_settings',
     { key: `like.${WEBINAR_PREFIX}*` },
@@ -187,7 +221,8 @@ async function findWebinarDestination(context: RouteContext, order: OrderRow): P
 
   const byKey = new Map(rows.map((row) => [row.key, row.value_text]))
   let destination: string | null = null
-  for (const candidate of candidateSettingKeys({ ...order, alias_target: await resolveProductAlias(context.db, order.product_raw) }, WEBINAR_PREFIX)) {
+  const aliasTarget = order.rescheduled ? null : await resolveProductAlias(context.db, order.product_raw)
+  for (const candidate of candidateSettingKeys({ ...order, alias_target: aliasTarget }, WEBINAR_PREFIX)) {
     const val = byKey.get(candidate)
     if (val !== undefined && val !== null && val.trim() !== '') {
       destination = val
@@ -201,7 +236,7 @@ async function findWebinarDestination(context: RouteContext, order: OrderRow): P
   return destination.trim()
 }
 
-async function redirectToWebinar(context: RouteContext, order: OrderRow): Promise<Response> {
+async function redirectToWebinar(context: RouteContext, order: EventOrderRow): Promise<Response> {
   const destination = await findWebinarDestination(context, order)
   if (destination === null) {
     return renderWebinarPendingPage({ orderId: order.order_id, participantName: order.name })
@@ -335,7 +370,7 @@ export async function checkinSeminar(
     order_id: result.order_id,
     name: order?.name ?? null,
     event_type: order?.event_type ?? null,
-    session: order?.session ?? null,
+    session: order?.effective_session ?? order?.session ?? null,
     // A19: jumlah tiket untuk notifikasi panitia di scanner.
     quantity: order?.quantity ?? 1,
     clicked_at: result.clicked_at,

@@ -88,6 +88,8 @@ vi.mock('../src/lib/queries', async (importOriginal) => {
           city: 'Solo',
           product_parse_status: 'valid',
           app_status: 'Paid',
+          gross_amount: 300000,
+          quantity: 1,
           attendance_status: 'Hadir',
           total_activity: 3,
           latest_activity: '2026-10-13T09:00:00.000Z',
@@ -100,6 +102,38 @@ vi.mock('../src/lib/queries', async (importOriginal) => {
       total: 1,
       page: 1,
       page_size: 50,
+    })),
+    fetchRefundPage: vi.fn(async () => ({
+      rows: [
+        {
+          order_id: '283033797',
+          name: 'Budi',
+          phone: '+628112',
+          product_code: 'KM',
+          product_name: 'Kuliner Masteri',
+          advertiser_code: '01',
+          advertiser_name: 'Zul',
+          event_type: 'Seminar Offline',
+          batch: '392',
+          session: 'S1',
+          city: 'Solo',
+          event_batch: null,
+          event_session: null,
+          event_city: null,
+          rescheduled: false,
+          quantity: 2,
+          gross_amount: 300000,
+          refund_amount: 300000,
+          refund_reason: 'peserta membatalkan',
+          refunded_at: '2026-10-13T09:00:00.000Z',
+          refunded_by_name: 'Admin Satu',
+          previous_status: 'Paid',
+        },
+      ],
+      total: 1,
+      page: 1,
+      page_size: 50,
+      summary: { total: 1, tickets: 2, amount: 300000 },
     })),
     fetchConfigLists: vi.fn(async () => ({
       products: [{ value: 'KM', label: 'KM — Kuliner Masteri' }],
@@ -114,6 +148,7 @@ vi.mock('../src/lib/queries', async (importOriginal) => {
 
 const { OrderPage } = await import('../src/pages/order/OrderPage')
 const { PresensiPage } = await import('../src/pages/presensi/PresensiPage')
+const { OrderRefundPage } = await import('../src/pages/refund/OrderRefundPage')
 const { LoginPage } = await import('../src/pages/LoginPage')
 const { ToastProvider } = await import('../src/ui/Toast')
 
@@ -225,6 +260,38 @@ describe('tabel Presensi (PRD §103, §105)', () => {
 
     const headers = await columnHeaders()
     expect(headers.slice(0, 3)).toEqual(['Order ID', 'Nama', 'No WA'])
+  })
+
+  it('A58: urutan kolom baru dan timestamp di paling kanan', async () => {
+    renderPage(<PresensiPage />)
+
+    const headers = await columnHeaders()
+    expect(headers.slice(0, 11)).toEqual([
+      'Order ID', 'Nama', 'No WA', 'Produk', 'Batch', 'Sesi', 'Kota',
+      'Pengiklan', 'Seminar / Webinar', 'Status', 'Total Activity',
+    ])
+    expect(headers.slice(-10)).toEqual(['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'])
+  })
+
+  it('A58: filter status menyediakan Reschedule dan Refund', async () => {
+    renderPage(<PresensiPage />)
+
+    const select = await screen.findByLabelText('Filter status presensi')
+    const values = Array.from((select as HTMLSelectElement).options).map((option) => option.value)
+    expect(values).toContain('Reschedule')
+    expect(values).toContain('Refund')
+  })
+})
+
+describe('halaman Order Refund (A58)', () => {
+  it('menampilkan KPI, tabel refund, dan tanggal refund', async () => {
+    renderPage(<OrderRefundPage />)
+
+    expect((await screen.findAllByText('Order Refund')).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText('Nominal Refund')).length).toBeGreaterThan(0)
+    expect((await screen.findAllByText('Tanggal Refund')).length).toBeGreaterThan(0)
+    expect(await screen.findByText('283033797')).toBeDefined()
+    expect(await screen.findByText('peserta membatalkan')).toBeDefined()
   })
 })
 

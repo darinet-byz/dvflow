@@ -137,7 +137,7 @@ export function ReportTaxPage() {
 
       {data === null ? null : (
         <div className="mt-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <KpiCard label="Jumlah transaksi" value={formatCount(data.summary.transactions)} hint="Order Paid" />
+          <KpiCard label="Jumlah transaksi" value={formatCount(data.summary.transactions)} hint="Order Paid; Refund tidak dihitung" />
           <KpiCard label="Gross" value={formatMoney(data.summary.gross_amount)} />
           {/* Total Tax (Blueprint §17) = seluruh potongan; rinciannya di kartu sebelahnya (A15). */}
           <KpiCard

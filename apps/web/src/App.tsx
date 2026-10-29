@@ -27,6 +27,7 @@ import { ProductStatusPage } from './pages/status/ProductStatusPage'
 import { AdvertiserStatusPage } from './pages/status/AdvertiserStatusPage'
 import { ScanQrPage } from './pages/scanner/ScanQrPage'
 import { OrderPage } from './pages/order/OrderPage'
+import { OrderRefundPage } from './pages/refund/OrderRefundPage'
 import { OrderUnmappedPage } from './pages/order/OrderUnmappedPage'
 import { PresensiPage } from './pages/presensi/PresensiPage'
 import { RoleConfigPage } from './pages/config/RoleConfigPage'
@@ -84,6 +85,7 @@ export function App() {
           <Route path={DASHBOARD_PATH} element={<DashboardPage />} />
           <Route path="/scan-qr" element={<ScanQrPage />} />
           <Route path="/order" element={<OrderPage />} />
+          <Route path="/order-refund" element={<RoleGuard path="/order-refund"><OrderRefundPage /></RoleGuard>} />
           <Route path="/order-unmapped" element={<RoleGuard path="/order-unmapped"><OrderUnmappedPage /></RoleGuard>} />
           <Route path="/presensi" element={<PresensiPage />} />
           <Route path="/konfigurasi-produk" element={<RoleGuard path="/konfigurasi-produk"><KonfigurasiProdukPage /></RoleGuard>} />

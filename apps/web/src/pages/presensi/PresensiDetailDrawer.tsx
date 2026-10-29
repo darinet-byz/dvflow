@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { Badge, appStatusTone, attendanceTone, eventTypeTone } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { DetailList } from '../../ui/Card'
@@ -5,7 +6,9 @@ import { Drawer } from '../../ui/Overlay'
 import { useToast } from '../../ui/Toast'
 import { formatDateTime, formatText, formatTime } from '../../lib/format'
 import { isOtsOrder, participantAccessPath, participantAccessUrl } from '../../lib/access-link'
-import type { PresensiRow } from '../../lib/queries'
+import { supabaseSelect } from '../../lib/supabase-rest'
+import type { PresensiRow, RescheduleHistoryRow } from '../../lib/queries'
+import { OrderLifecycleActions } from '../order/OrderLifecycleActions'
 
 /**
  * Drawer detail Presensi (PRD §112).
@@ -17,9 +20,40 @@ import type { PresensiRow } from '../../lib/queries'
  * Semua timestamp ditampilkan (sampai yang tersimpan), bukan hanya sepuluh yang
  * dipakai kolom tabel.
  */
-export function PresensiDetailDrawer({ row, onClose }: { row: PresensiRow | null; onClose: () => void }) {
+export function PresensiDetailDrawer({
+  row,
+  onClose,
+  onChanged,
+}: {
+  row: PresensiRow | null
+  onClose: () => void
+  onChanged?: () => void
+}) {
   const toast = useToast()
   const timestamps = row?.timestamps ?? []
+  const [history, setHistory] = useState<RescheduleHistoryRow[]>([])
+
+  useEffect(() => {
+    if (row === null || row.rescheduled !== true) {
+      setHistory([])
+      return
+    }
+    let cancelled = false
+    void supabaseSelect<RescheduleHistoryRow>(
+      'order_reschedules',
+      { order_id: `eq.${row.order_id}`, order: 'created_at.desc' },
+      'id,from_batch,from_session,from_city,to_batch,to_session,to_city,reason,actor_name,created_at',
+    )
+      .then((rows) => {
+        if (!cancelled) setHistory(rows)
+      })
+      .catch(() => {
+        if (!cancelled) setHistory([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [row?.order_id, row?.rescheduled])
   // A27: link resmi memisahkan kode toko: /access/MTIX/283818331.
   const accessUrl = row ? participantAccessUrl(row.order_id) : ''
 
@@ -52,6 +86,38 @@ export function PresensiDetailDrawer({ row, onClose }: { row: PresensiRow | null
               { label: 'Aktivitas terbaru', value: formatDateTime(row.latest_activity) },
             ]}
           />
+
+          {row.rescheduled === true ? (
+            <section>
+              <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Reschedule</h3>
+              <DetailList
+                items={[
+                  { label: 'Asal', value: eventLabel(row.original_batch, row.original_session, row.original_city) },
+                  { label: 'Tujuan', value: eventLabel(row.batch, row.session, row.city) },
+                  { label: 'Alasan terakhir', value: formatText(history[0]?.reason) },
+                  { label: 'Diubah oleh', value: formatText(history[0]?.actor_name) },
+                  { label: 'Waktu', value: formatDateTime(history[0]?.created_at) },
+                ]}
+              />
+              {history.length > 1 ? (
+                <details className="mt-2 text-[12px] text-ink-soft">
+                  <summary className="cursor-pointer font-semibold text-ink">Riwayat lengkap ({history.length})</summary>
+                  <ol className="mt-2 flex flex-col gap-1.5">
+                    {history.map((item) => (
+                      <li key={item.id}>
+                        <span className="font-mono">{formatDateTime(item.created_at)}</span>
+                        {' · '}
+                        {eventLabel(item.from_batch, item.from_session, item.from_city)}
+                        {' → '}
+                        {eventLabel(item.to_batch, item.to_session, item.to_city)}
+                        {item.actor_name ? ` · ${item.actor_name}` : ''}
+                      </li>
+                    ))}
+                  </ol>
+                </details>
+              ) : null}
+            </section>
+          ) : null}
 
           {isOtsOrder(row.order_id) ? (
             <p className="rounded-md border border-line bg-page p-2.5 text-[12px] text-ink-soft">
@@ -122,8 +188,21 @@ export function PresensiDetailDrawer({ row, onClose }: { row: PresensiRow | null
               Total {row.total_activity} aktivitas. Timestamp lebih tua dari 60 hari dihapus otomatis.
             </p>
           </section>
+
+          <div className="border-t border-line pt-3">
+            <OrderLifecycleActions order={row} onChanged={onChanged ?? onClose} />
+          </div>
         </div>
       )}
     </Drawer>
   )
+}
+
+function eventLabel(batch: string | null | undefined, session: string | null | undefined, city: string | null | undefined): string {
+  const parts = [
+    batch ? `Batch ${batch}` : null,
+    session ? `Sesi ${session}` : null,
+    city ?? null,
+  ].filter(Boolean)
+  return parts.length === 0 ? '-' : parts.join(' · ')
 }

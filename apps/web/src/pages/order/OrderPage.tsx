@@ -44,6 +44,8 @@ const STATUS_OPTIONS = [
   { value: 'Paid', label: 'Paid' },
   { value: 'Pending', label: 'Pending' },
   { value: 'Cancelled', label: 'Cancelled' },
+  // A58: refund adalah status order tersendiri, bukan Cancelled.
+  { value: 'Refund', label: 'Refund' },
 ]
 
 /** Urutan kolom mengikuti PRD §45. */
@@ -253,7 +255,10 @@ export function OrderPage() {
                   <TableCell>{formatText(row.session)}</TableCell>
                   <TableCell>{formatText(row.city)}</TableCell>
                   <TableCell>
-                    <Badge tone={appStatusTone(row.app_status)}>{row.app_status}</Badge>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge tone={appStatusTone(row.app_status)}>{row.app_status}</Badge>
+                      {row.rescheduled ? <Badge tone="warning">Reschedule</Badge> : null}
+                    </div>
                   </TableCell>
                   <TableCell>{formatText(paymentMethodLabel(row.payment_method))}</TableCell>
                   <TableCell>{formatText(row.payment_provider)}</TableCell>
@@ -286,7 +291,14 @@ export function OrderPage() {
         )}
       </div>
 
-      <OrderDetailDrawer order={selected} onClose={() => setSelected(null)} />
+      <OrderDetailDrawer
+        order={selected}
+        onClose={() => setSelected(null)}
+        onChanged={() => {
+          setSelected(null)
+          reload()
+        }}
+      />
     </>
   )
 }

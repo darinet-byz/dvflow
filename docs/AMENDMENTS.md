@@ -1381,3 +1381,41 @@ Per Produk memakai 2 batch terakhir dari masing-masing produk.
 `advertiser_breakdown` menjadi 6 parameter (`p_recent_batches_per_product`, `p_batch_limit`) dan
 mengembalikan `last_activity`/`product_code`/`product_name` per batch. `ComparisonChart` menjadi
 grouped bar murni. Test: `performance.test.tsx` dan `supabase/tests/30_performance_recent_batches.sql`.
+
+## A58 - Reschedule & Refund (29 Oktober 2026)
+
+**Permintaan pengguna.** Peserta kadang pindah sesi/kota setelah terdaftar; sebagian membatalkan dan
+meminta refund. Presensi perlu menampilkan status `Reschedule` dan `Refund`, dan refund harus
+berpengaruh ke tiket Paid/omzet. Kontrol refund perlu halaman khusus.
+
+**Keputusan.**
+- `Refund` adalah status order ke-4 (`Pending`, `Paid`, `Cancelled`, `Refund`), **penuh per order**.
+  Nominal refund = `gross_amount` saat refund. Refund tidak menghapus order atau presensi.
+- Semua laporan yang memfilter `app_status = 'Paid'` otomatis mengeluarkan order refund: Paid,
+  Jumlah Tiket, Gross/Tax/Net/Platform Fee, Attendance Rate, Report Spend, Performa, Report Tax,
+  dan Resume Batch. Akses tiket/Zoom peserta juga ditutup.
+- Refund dapat dibatalkan. `order_refunds` menyimpan audit + `previous_status` (status provider
+  terakhir), sehingga pembatalan mengembalikan status yang benar. Refund duplikat ditolak.
+- `Reschedule` hanya menggeser **acara**: batch/sesi/kota efektif dipakai Presensi, tiket/QR/Zoom,
+  scanner, dan Resume Batch. Omzet serta atribusi batch/pengiklan **tetap di acara asal**.
+- Override disimpan di `orders.event_batch/event_session/event_city`; generated column
+  `effective_*` = `coalesce(event_*, kolom asal)`. Webhook tidak pernah menimpa `event_*`.
+- Reschedule hanya untuk order Paid, produk valid, bukan OTS, dan belum punya presensi apa pun
+  (seminar maupun webinar). Status `Reschedule` berubah menjadi `Hadir` setelah check-in di tujuan.
+- Riwayat reschedule append-only di `order_reschedules` (from/to, alasan, aktor, waktu).
+- Urutan kolom Presensi: Order ID, Nama, No WA, Produk, Batch, Sesi, Kota, Pengiklan,
+  Seminar/Webinar, Status, Total Activity, T1..T10 (timestamp paling kanan).
+- Menu baru **Order Refund** di seksi ORDER. Izin baru: `operasional.order_refund`,
+  `action.reschedule`, `action.refund` (default Manajer + Admin; dapat diatur di Konfigurasi Role).
+- Aksi reschedule/refund ditandai dari drawer Presensi dan Order; halaman Order Refund adalah
+  kontrol (daftar, KPI, export, batalkan refund).
+
+**Konsekuensi yang disadari.** Order refund juga keluar dari Report Tax. Bila fee provider ternyata
+tetap dibebankan setelah refund, aturan terpisah perlu diputuskan. Reschedule tidak mengubah omzet,
+sehingga angka Resume Batch (tiket per acara) dan Report Spend/Performa (atribusi penjualan) dapat
+berbeda untuk peserta yang pindah acara.
+
+**Implementasi.** Migrasi `0063_reschedule_and_refund.sql`; RPC `reschedule_order`, `refund_order`,
+`cancel_refund`, `refund_page`, `export_refund_page`; endpoint di `packages/api/src/orders/handlers.ts`;
+UI `OrderRefundPage.tsx` + `OrderLifecycleActions.tsx`; test `supabase/tests/31_reschedule_refund.sql`,
+`packages/api/test/orders.test.ts`, dan render test web.
