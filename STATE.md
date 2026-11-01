@@ -7,7 +7,7 @@
 > Dokumen yang mengikat tetap `CLAUDE.md` + `docs/`. File ini hanya mencatat **sejauh mana**
 > pekerjaan sudah berjalan, bukan aturan baru.
 
-Terakhir diperbarui: 2026-10-29
+Terakhir diperbarui: 2026-11-02
 Repo: `C:\Users\MyBook Z Series\dvflow` (git `main`, sudah di-push ke `origin/main`; production live di https://dvflow.pages.dev)
 Rencana lengkap: `~/.claude/plans/baca-file-claude-md-dan-glowing-pike.md`
 Nama aplikasi: **dvflow** (`OrderOnline` tetap nama provider, bukan nama aplikasi)
@@ -519,3 +519,5 @@ sering terlanggar:
 | 2026-10-29 | A60 | Status Produk: kolom pengiklan sekarang menampilkan nama (bukan kode), dengan tooltip kode — nama; Status Pengiklan tetap menampilkan kode produk. Tanpa migrasi |
 | 2026-10-29 | A61 | Presensi per tiket (migrasi `0065`): KPI Hadir/Belum Hadir dari quantity, list hanya Paid, status Hadir Sebagian + Data presensi tidak tersedia, kolom Tiket, nomor urut semua tabel, tabel maks 20 baris/70vh, dialog jumlah tiket untuk scan multi-tiket (aman untuk Scanner Stick). Gate: typecheck PASS; unit 680 lulus (292 api + 135 shared + 253 web); pgTAP 863 lulus / 34 berkas; integration 37 lulus. Klien lama tetap check-in seluruh order (kompatibilitas mundur migrasi). |
 | 2026-10-29 | - | Deploy production A61: backup `prod-pre-a61-schema/data-20261029-221922.sql`; migrasi `0065` diterapkan (`schema_version` = 65, PostgREST reload); commit `21db48f` di-push dan workflow Deploy sukses; bundle production memuat dialog jumlah tiket, Hadir Sebagian, dan Data presensi tidak tersedia. |
+| 2026-11-02 | A62 | Presensi: kolom **Di-scan oleh** (nama operator, webinar kosong), e-tiket bertahap (QR tetap tampil sampai semua tiket check-in; progress `data-checkin-count` memicu reload), dan koreksi manual **Tandai Hadir** / **Batalkan Check-in** sebagian atau seluruh tiket. Migrasi `0066`, izin `operasional.presensi` + `action.manual_checkin`, nomor tiket memakai slot kosong pertama. Gate: typecheck PASS; unit 301 api + 258 web; pgTAP 882 lulus / 35 berkas; build PASS. |
+| 2026-11-02 | - | Deploy production A62: backup `prod-schema-before-0066.sql` + `prod-data-before-0066.sql`; migrasi `0066` diterapkan (`schema_version` = 66, PostgREST reload); commit `25e55a0` di-push dan workflow Deploy sukses; smoke test production semua langkah lulus. |
