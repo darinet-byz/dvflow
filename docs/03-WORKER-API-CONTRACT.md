@@ -224,6 +224,30 @@ Same validator as POST /checkin/:orderId.
 Source = seminar_manual.
 No bypass.
 
+## 11a. POST /api/presensi/:orderId/mark-present (A62)
+Auth: `operasional.presensi` + `action.manual_checkin`.
+
+Body opsional:
+```json
+{ "tickets": 1 }
+```
+
+Tanpa `tickets` = seluruh sisa tiket ditandai hadir. Dengan `tickets` = sejumlah itu
+(dipotong ke sisa oleh RPC). Memakai `checkin_seminar` source `seminar_manual`,
+sehingga operator yang melakukan koreksi tercatat di `attendance_events.scanner_user_id`.
+
+## 11b. POST /api/presensi/:orderId/reset (A62)
+Auth: `operasional.presensi` + `action.manual_checkin`.
+
+Body opsional:
+```json
+{ "tickets": 1 }
+```
+
+Tanpa `tickets` = seluruh presensi seminar order dihapus. Dengan `tickets` = N presensi
+terbaru dihapus, sehingga status dapat berubah menjadi `Hadir Sebagian`.
+Order harus Paid dan Seminar Offline/Hybrid; webinar ditolak `NOT_SEMINAR_ORDER`.
+
 ## 12. Configuration CRUD endpoints
 Use one consistent protected pattern.
 

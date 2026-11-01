@@ -16,10 +16,17 @@ function start(): void {
   if (!mountCheckinQr()) return
   // Lingkungan tanpa `location`/`fetch` (mis. verifikasi artefak di Node) cukup menggambar QR.
   if (typeof location === 'undefined' || typeof fetch !== 'function') return
+  // A62: tiket multi-tiket boleh hadir bertahap; muat ulang ketika jumlah tiket
+  // hadir berubah supaya sisa tiket yang bisa dipindai ikut terlihat.
+  const initialCount = document
+    .querySelector('[data-checkin-count]')
+    ?.getAttribute('data-checkin-count') ?? null
   watchCheckin({
     url: location.href,
     fetchPage: async (url) => (await fetch(url, { cache: 'no-store', credentials: 'omit' })).text(),
     onCheckedIn: () => location.reload(),
+    initialCount,
+    onChanged: () => location.reload(),
   })
 }
 

@@ -196,6 +196,34 @@ describe('akses peserta seminar: halaman tiket (PRD §93, §G01, §G03)', () => 
     expect(html).not.toContain(TICKET_QR_SCRIPT_PATH)
   })
 
+  it('A62: 1 dari 2 tiket check-in -> QR tetap tampil dan sisa tiket disebut', async () => {
+    const { api } = await setup({
+      orders: [fakeOrder({ quantity: 2 })],
+      attendanceEvents: [
+        {
+          id: 'event-uuid-1',
+          order_id: '283033796',
+          attendance_type: 'seminar',
+          source: 'seminar_qr',
+          clicked_at: '2026-10-13T07:30:00.000Z',
+          ticket_no: 1,
+        },
+      ],
+    })
+
+    const html = await (await access(api, '283033796')).text()
+
+    // Tiket kedua masih bisa dipindai: QR + skrip tetap ada, stempel belum muncul.
+    expect(html).toContain(`id="${CHECKIN_QR_ELEMENT_ID}"`)
+    expect(html).toContain('data-checkin-payload="/checkin/283033796"')
+    expect(html).toContain(TICKET_QR_SCRIPT_PATH)
+    expect(html).toContain('data-checked-in="false"')
+    expect(html).toContain('data-checkin-count="1/2"')
+    expect(html).toContain('Check-in sebagian: 1 dari 2 tiket sudah hadir. Sisa 1 tiket masih bisa dipindai.')
+    expect(html).toContain('1 SUDAH CHECK-IN')
+    expect(html).not.toContain('CHECK-IN BERHASIL')
+  })
+
   it('halaman error tidak memuat skrip sama sekali', async () => {
     const { api } = await setup()
     const response = await access(api, '999999')

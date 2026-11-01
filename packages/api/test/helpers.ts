@@ -506,6 +506,42 @@ export function createFakeDb(state: FakeState): Db {
         } as T
       }
 
+      if (name === 'reset_presensi') {
+        const orderId = String(args['p_order_id'] ?? '')
+        const order = state.orders.find((row) => row['order_id'] === orderId)
+
+        if (order === undefined) throw new DbError('DF001', 'fake')
+        if (order['app_status'] !== 'Paid') throw new DbError('DF002', 'fake')
+        if (order['event_type'] !== 'Seminar Offline' && order['event_type'] !== 'Hybrid') throw new DbError('DF003', 'fake')
+
+        const quantity = Math.max(Number(order['quantity'] ?? 1), 1)
+        const rows = state.attendanceEvents
+          .map((event, index) => ({ event, index }))
+          .filter(({ event }) => event['order_id'] === orderId && event['attendance_type'] === 'seminar')
+          .sort((left, right) => {
+            const byTime = String(right.event['clicked_at'] ?? '').localeCompare(String(left.event['clicked_at'] ?? ''))
+            if (byTime !== 0) return byTime
+            return Number(right.event['ticket_no'] ?? 0) - Number(left.event['ticket_no'] ?? 0)
+          })
+
+        const requested = args['p_tickets']
+        const remove = requested === null || requested === undefined
+          ? rows.length
+          : Math.min(Number(requested), rows.length)
+
+        for (const { index } of [...rows.slice(0, remove)].sort((left, right) => right.index - left.index)) {
+          state.attendanceEvents.splice(index, 1)
+        }
+
+        return {
+          order_id: orderId,
+          removed_tickets: remove,
+          quantity,
+          checked_in_tickets: rows.length - remove,
+          remaining_tickets: quantity - (rows.length - remove),
+        } as T
+      }
+
       if (name === 'change_password') {
         const userId = String(args['p_user_id'] ?? '')
         const currentPassword = String(args['p_current_password'] ?? '')

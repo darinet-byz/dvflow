@@ -21,6 +21,7 @@ import { createAdSpend, deleteAdSpend, updateAdSpend } from './ad-spend/handlers
 import { orderOnlineWebhook } from './webhooks/handlers'
 import { batchRemapOrders, deleteAlias, deleteUnmappedOrders, listAliases, listUnmappedOrders, saveAlias } from './aliases/handlers'
 import { getDataSummary, purgeExpiredUnmapped, resetData } from './developer/handlers'
+import { markPresensiPresent, resetPresensi } from './presensi/handlers'
 
 /**
  * Tabel rute backend (03 §4–§7, §13, §14).
@@ -106,6 +107,9 @@ export const ROUTES: Route[] = [
   { method: 'POST', path: '/checkin/:orderId', handler: checkinByQr, auth: 'access' },
   { method: 'GET', path: '/api/scanner/search', handler: scannerSearch, auth: 'access' },
   { method: 'POST', path: '/api/scanner/manual-checkin', handler: scannerManualCheckin, auth: 'access' },
+  // A62: koreksi presensi dari halaman Presensi (tanpa scan / kembalikan ke Belum Hadir).
+  { method: 'POST', path: '/api/presensi/:orderId/mark-present', handler: markPresensiPresent, auth: 'access' },
+  { method: 'POST', path: '/api/presensi/:orderId/reset', handler: resetPresensi, auth: 'access' },
   // A58: siklus hidup order (reschedule/refund) — keputusan server, bukan UI.
   { method: 'POST', path: '/api/orders/:orderId/reschedule', handler: rescheduleOrder, auth: 'access' },
   { method: 'POST', path: '/api/orders/:orderId/refund/cancel', handler: cancelRefund, auth: 'access' },

@@ -2,11 +2,16 @@ import { useEffect, useState } from 'react'
 import { Badge, appStatusTone, attendanceTone, eventTypeTone } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { DetailList } from '../../ui/Card'
-import { Drawer } from '../../ui/Overlay'
+import { TextInput } from '../../ui/Field'
+import { Drawer, Modal } from '../../ui/Overlay'
 import { useToast } from '../../ui/Toast'
+import { ApiError } from '../../lib/api'
 import { formatDateTime, formatText, formatTime } from '../../lib/format'
 import { isOtsOrder, participantAccessPath, participantAccessUrl } from '../../lib/access-link'
+import { hasPermission } from '../../lib/roles'
+import { authorizedRequest } from '../../lib/session'
 import { supabaseSelect } from '../../lib/supabase-rest'
+import { useSession } from '../../lib/useSession'
 import type { PresensiRow, RescheduleHistoryRow } from '../../lib/queries'
 import { OrderLifecycleActions } from '../order/OrderLifecycleActions'
 
@@ -30,8 +35,13 @@ export function PresensiDetailDrawer({
   onChanged?: () => void
 }) {
   const toast = useToast()
+  const profile = useSession().profile
   const timestamps = row?.timestamps ?? []
   const [history, setHistory] = useState<RescheduleHistoryRow[]>([])
+  const [correction, setCorrection] = useState<'present' | 'reset' | null>(null)
+  const [correctionCount, setCorrectionCount] = useState('1')
+  const [correctionBusy, setCorrectionBusy] = useState(false)
+  const [correctionError, setCorrectionError] = useState<string | null>(null)
 
   useEffect(() => {
     if (row === null || row.rescheduled !== true) {
@@ -54,6 +64,60 @@ export function PresensiDetailDrawer({
       cancelled = true
     }
   }, [row?.order_id, row?.rescheduled])
+
+  // Tutup dialog koreksi saat pindah baris / drawer ditutup.
+  useEffect(() => {
+    setCorrection(null)
+    setCorrectionError(null)
+  }, [row?.order_id])
+
+  // A62: koreksi manual hanya untuk presensi seminar/hybrid yang masih Paid.
+  // Webinar tidak punya scan, dan OTS memang langsung hadir.
+  const remainingTickets = row === null ? 0 : Math.max(row.quantity - row.checked_in_tickets, 0)
+  const canCorrect = row !== null &&
+    hasPermission(profile, 'action.manual_checkin') &&
+    row.app_status === 'Paid' &&
+    !isOtsOrder(row.order_id) &&
+    (row.event_type === 'Seminar Offline' || row.event_type === 'Hybrid')
+
+  function openCorrection(kind: 'present' | 'reset'): void {
+    if (row === null) return
+    setCorrectionError(null)
+    setCorrection(kind)
+    setCorrectionCount(String(kind === 'present' ? Math.max(remainingTickets, 1) : Math.max(row.checked_in_tickets, 1)))
+  }
+
+  async function submitCorrection(): Promise<void> {
+    if (row === null || correction === null || correctionBusy) return
+    const max = correction === 'present' ? remainingTickets : row.checked_in_tickets
+    const count = Number(correctionCount)
+    if (!Number.isInteger(count) || count < 1 || count > max) {
+      setCorrectionError(`Jumlah tiket harus antara 1 dan ${max}.`)
+      return
+    }
+
+    setCorrectionBusy(true)
+    setCorrectionError(null)
+    try {
+      await authorizedRequest(
+        `/api/presensi/${encodeURIComponent(row.order_id)}/${correction === 'present' ? 'mark-present' : 'reset'}`,
+        { method: 'POST', body: { tickets: count } },
+      )
+      toast.show(
+        correction === 'present'
+          ? `${count} tiket ditandai hadir.`
+          : `${count} check-in dibatalkan.`,
+        'success',
+      )
+      setCorrection(null)
+      onChanged?.()
+    } catch (cause) {
+      setCorrectionError(cause instanceof ApiError ? cause.message : 'Tindakan gagal. Silakan coba lagi.')
+    } finally {
+      setCorrectionBusy(false)
+    }
+  }
+
   // A27: link resmi memisahkan kode toko: /access/MTIX/283818331.
   const accessUrl = row ? participantAccessUrl(row.order_id) : ''
 
@@ -86,6 +150,7 @@ export function PresensiDetailDrawer({
               { label: 'Tiket hadir', value: `${row.checked_in_tickets}/${row.quantity}` },
               { label: 'Sisa tiket', value: String(Math.max(row.quantity - row.checked_in_tickets, 0)) },
               { label: 'Total Activity', value: String(row.total_activity) },
+              { label: 'Di-scan oleh', value: formatText(row.scanner_names?.length ? row.scanner_names.join(', ') : null) },
               { label: 'Aktivitas terbaru', value: formatDateTime(row.latest_activity) },
             ]}
           />
@@ -186,15 +251,90 @@ export function PresensiDetailDrawer({
                 ))}
               </ol>
             )}
-            {/* Retensi 60 hari: yang lebih tua sudah dihapus cron (PRD §106). */}
+            {/* Retensi 30 hari: yang lebih tua sudah dihapus cron (PRD §106, A41). */}
             <p className="mt-2 text-[11px] text-ink-muted">
-              Total {row.total_activity} aktivitas. Timestamp lebih tua dari 60 hari dihapus otomatis.
+              Total {row.total_activity} aktivitas. Timestamp lebih tua dari 30 hari dihapus otomatis.
             </p>
           </section>
+
+          {canCorrect ? (
+            <section data-testid="presensi-correction">
+              <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
+                Koreksi Presensi
+              </h3>
+              <div className="flex flex-wrap gap-2">
+                {remainingTickets > 0 ? (
+                  <Button size="sm" onClick={() => openCorrection('present')}>
+                    Tandai Hadir
+                  </Button>
+                ) : null}
+                {row.checked_in_tickets > 0 ? (
+                  <Button size="sm" variant="danger" onClick={() => openCorrection('reset')}>
+                    Batalkan Check-in
+                  </Button>
+                ) : null}
+              </div>
+              <p className="mt-2 text-[12px] text-ink-soft">
+                Koreksi manual tanpa scan. Tindakan ini tercatat atas nama Anda di kolom “Di-scan oleh”.
+              </p>
+            </section>
+          ) : null}
 
           <div className="border-t border-line pt-3">
             <OrderLifecycleActions order={row} onChanged={onChanged ?? onClose} />
           </div>
+
+          <Modal
+            open={correction !== null}
+            title={correction === 'present' ? 'Tandai Hadir' : 'Batalkan Check-in'}
+            onClose={() => {
+              if (!correctionBusy) setCorrection(null)
+            }}
+            footer={
+              <>
+                <Button onClick={() => setCorrection(null)} disabled={correctionBusy}>
+                  Batal
+                </Button>
+                <Button
+                  variant={correction === 'reset' ? 'danger' : 'primary'}
+                  loading={correctionBusy}
+                  onClick={() => void submitCorrection()}
+                >
+                  {correction === 'present' ? 'Tandai Hadir' : 'Batalkan Check-in'}
+                </Button>
+              </>
+            }
+          >
+            <div className="flex flex-col gap-3">
+              <p className="rounded-md border border-line bg-page p-2.5 text-[12px] text-ink-soft">
+                <strong className="text-ink">{row.order_id}</strong>
+                {row.name ? ` · ${formatText(row.name)}` : ''}
+                <br />
+                Status saat ini: {row.attendance_status} · {row.checked_in_tickets}/{row.quantity} tiket hadir.
+              </p>
+
+              <TextInput
+                id="presensi-correction-count"
+                label={
+                  correction === 'present'
+                    ? `Jumlah tiket yang ditandai hadir (maks. ${Math.max(remainingTickets, 1)})`
+                    : `Jumlah tiket yang dikembalikan ke Belum Hadir (maks. ${Math.max(row.checked_in_tickets, 1)})`
+                }
+                type="number"
+                inputMode="numeric"
+                value={correctionCount}
+                onChange={setCorrectionCount}
+              />
+
+              <p className={correction === 'reset' ? 'text-[12px] text-danger' : 'text-[12px] text-ink-soft'}>
+                {correction === 'present'
+                  ? 'Tiket yang dipilih langsung dianggap hadir tanpa scan. Data presensi tetap tercatat per tiket.'
+                  : 'Data presensi tiket terpilih dihapus permanen. E-tiket peserta kembali menampilkan QR untuk tiket yang dibatalkan.'}
+              </p>
+
+              {correctionError === null ? null : <p className="text-[12px] text-danger">{correctionError}</p>}
+            </div>
+          </Modal>
         </div>
       )}
     </Drawer>

@@ -149,6 +149,8 @@ export type PresensiRow = {
   quantity: number
   /** A61: tiket yang sudah hadir (0..quantity). */
   checked_in_tickets: number
+  /** A62: nama operator yang melakukan check-in (kosong untuk webinar). */
+  scanner_names?: string[]
   /** A61: baris presensi sudah terhapus retensi 30 hari. */
   attendance_data_expired: boolean
   attendance_status: AttendanceStatus

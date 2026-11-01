@@ -56,6 +56,8 @@ export type TicketData = {
   notes?: string | null
   /** Jumlah tiket order (A19, `orders.quantity`). */
   quantity: number
+  /** A62: tiket yang sudah check-in (0..quantity). */
+  checkedInTickets?: number
   /** Payload yang nantinya diubah menjadi QR di browser (03 §8, 05 §G03). */
   checkinPath: string
   alreadyCheckedIn?: boolean
@@ -99,6 +101,15 @@ export function renderTicketPage(data: TicketData): Response {
   ]
 
   const formattedDate = formatCheckinTime(data.checkedInAt)
+  // A62: sebagian tiket hadir bukan berarti selesai. QR tetap ditampilkan
+  // sampai SEMUA tiket order terverifikasi.
+  const quantity = Math.max(data.quantity, 1)
+  const checkedInTickets = Math.min(
+    data.checkedInTickets ?? (data.alreadyCheckedIn ? quantity : 0),
+    quantity,
+  )
+  const remainingTickets = Math.max(quantity - checkedInTickets, 0)
+  const partial = !data.alreadyCheckedIn && checkedInTickets > 0
 
   const qrOrStamp = data.alreadyCheckedIn
     ? `
@@ -113,7 +124,11 @@ export function renderTicketPage(data: TicketData): Response {
         class="qr"
         data-checkin-payload="${escapeHtml(data.checkinPath)}"
       ></div>
-      <p class="hint">Tunjukkan QR ini kepada panitia saat masuk.</p>`
+      <p class="hint${partial ? ' partial' : ''}">${
+        partial
+          ? `Check-in sebagian: ${checkedInTickets} dari ${quantity} tiket sudah hadir. Sisa ${remainingTickets} tiket masih bisa dipindai.`
+          : 'Tunjukkan QR ini kepada panitia saat masuk.'
+      }</p>`
 
   const scriptTag = data.alreadyCheckedIn ? '' : `
     <script src="${TICKET_QR_SCRIPT_PATH}" defer></script>`
@@ -133,8 +148,8 @@ export function renderTicketPage(data: TicketData): Response {
       </dl>
     </section>
 
-    <section class="card checkin" data-checked-in="${data.alreadyCheckedIn ? 'true' : 'false'}">${qrOrStamp}
-      <p class="quantity"><strong>${data.quantity}</strong> TIKET</p>
+    <section class="card checkin" data-checked-in="${data.alreadyCheckedIn ? 'true' : 'false'}" data-checkin-count="${checkedInTickets}/${quantity}">${qrOrStamp}
+      <p class="quantity"><strong>${quantity}</strong> TIKET${partial ? ` · ${checkedInTickets} SUDAH CHECK-IN` : ''}</p>
     </section>
 ${data.zoomPath ? `
     <a class="btn-zoom" href="${escapeHtml(data.zoomPath)}" rel="noopener">JOIN SECARA ONLINE (ZOOM)</a>` : ''}
@@ -323,6 +338,7 @@ function htmlResponse(
   dt { color: #737786; }
   dd { margin: 0; font-weight: 600; }
   .hint { margin: 12px 0 12px; color: #737786; }
+  .hint.partial { color: #b45309; font-weight: 600; }
   .qr { width: 100%; max-width: 260px; aspect-ratio: 1 / 1; margin: 0 auto; background: #fff; }
   .qr svg { display: block; width: 100%; height: 100%; }
   .name { margin: 0 0 6px; font-size: 28px; line-height: 1.2; word-break: break-word; }

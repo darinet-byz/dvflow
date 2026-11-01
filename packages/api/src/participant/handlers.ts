@@ -175,7 +175,15 @@ async function accessOrderPage(context: RouteContext): Promise<Response> {
   // A19: aturan tiket hanya membawa catatan; tidak pernah menolak peserta yang sudah Paid.
   const ticketMeta = matchedRaw !== null ? parseSeminarTicketValue(matchedRaw) : null
 
-  const checkedInEvent = attendanceRows[0] ?? null
+  // A62: status tiket dihitung dari JUMLAH TIKET yang hadir, bukan dari ada/tidaknya
+  // satu baris presensi. Order 2 tiket dengan 1 check-in masih harus menampilkan QR
+  // untuk tiket kedua.
+  const quantity = Math.max(eventOrder.quantity ?? 1, 1)
+  const checkedInTickets = Math.min(attendanceRows.length, quantity)
+  const latestClick = attendanceRows.reduce<string | null>(
+    (latest, row) => (latest === null || row.clicked_at > latest ? row.clicked_at : latest),
+    null,
+  )
 
   const data: TicketData = {
     orderId: order.order_id,
@@ -187,10 +195,11 @@ async function accessOrderPage(context: RouteContext): Promise<Response> {
     session: eventOrder.session,
     city: eventOrder.city,
     notes: ticketMeta?.notes ?? null,
-    quantity: eventOrder.quantity ?? 1,
+    quantity,
+    checkedInTickets,
     checkinPath: buildCheckinPath(eventOrder.order_id),
-    alreadyCheckedIn: checkedInEvent !== null,
-    checkedInAt: checkedInEvent?.clicked_at ?? null,
+    alreadyCheckedIn: checkedInTickets >= quantity,
+    checkedInAt: latestClick,
     zoomPath: eventOrder.event_type === 'Hybrid' && (await findWebinarDestination(context, eventOrder)) !== null
       ? `${context.url.pathname}?via=zoom`
       : null,

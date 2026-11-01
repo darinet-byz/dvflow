@@ -72,6 +72,8 @@ const COLUMNS: readonly TableColumn[] = [
   { key: 'advertiser_name', header: 'Pengiklan', minWidth: 110 },
   { key: 'event_type', header: 'Seminar / Webinar', minWidth: 140 },
   { key: 'attendance_status', header: 'Status', minWidth: 110 },
+  // A62: operator yang melakukan check-in; webinar tidak punya scanner.
+  { key: 'scanner_names', header: 'Di-scan oleh', minWidth: 140 },
   { key: 'total_activity', header: 'Total Activity', align: 'right', sortKey: 'total_activity', minWidth: 110 },
   ...TIMESTAMP_COLUMNS,
 ]
@@ -222,7 +224,11 @@ export function PresensiPage() {
                 rowNumberStart={(state.page - 1) * state.pageSize + 1}
                 exportConfig={{ filename: 'presensi', columns: [...COLUMNS, { key: 'checked_in_tickets', header: 'Tiket hadir' }, { key: 'app_status', header: 'Status order' }, { key: 'rescheduled', header: 'Reschedule' }, { key: 'original_batch', header: 'Batch asal' }, { key: 'original_session', header: 'Sesi asal' }, { key: 'original_city', header: 'Kota asal' }], loadRows: async () => {
                   const rows = await collectPages(page => fetchPresensiPage(state.applied, { sort: sort.key, direction: sort.direction, page, pageSize: 100, exporting: true }))
-                  return rows.map(row => ({ ...row, ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`t${i + 1}`, row.timestamps?.[i] ?? ''])) }))
+                  return rows.map(row => ({
+                    ...row,
+                    scanner_names: (row.scanner_names ?? []).join(', '),
+                    ...Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`t${i + 1}`, row.timestamps?.[i] ?? ''])),
+                  }))
                 } }} columns={COLUMNS} sort={{ key: sort.key, direction: sort.direction }} onSortChange={toggleSort}>
                 {(table.data?.rows ?? []).map((row) => (
                   <TableRow key={row.order_id}>
@@ -269,6 +275,7 @@ export function PresensiPage() {
                         ) : null}
                       </div>
                     </TableCell>
+                    <TableCell>{formatText(row.scanner_names?.length ? row.scanner_names.join(', ') : null)}</TableCell>
                     <TableCell align="right">{formatCount(row.total_activity)}</TableCell>
                     {Array.from({ length: TIMESTAMP_DISPLAY_LIMIT }, (_, index) => (
                       <TableCell key={index} mono>
@@ -332,6 +339,9 @@ function PresensiCards({ rows, onSelect }: { rows: PresensiRow[]; onSelect: (row
               <p className="truncate text-[11px] font-semibold text-ink-soft">
                 {row.quantity > 1 ? `${row.quantity} tiket · hadir ${row.checked_in_tickets}/${row.quantity}` : '1 tiket'}
               </p>
+              {row.scanner_names?.length ? (
+                <p className="truncate text-[11px] text-ink-soft">Di-scan: {row.scanner_names.join(', ')}</p>
+              ) : null}
             </div>
             <div className="flex shrink-0 flex-col items-end gap-1">
               <Badge tone={attendanceTone(row.attendance_status)}>{row.attendance_status}</Badge>

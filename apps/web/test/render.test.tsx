@@ -92,6 +92,7 @@ vi.mock('../src/lib/queries', async (importOriginal) => {
           quantity: 1,
           checked_in_tickets: 1,
           attendance_data_expired: false,
+          scanner_names: ['Admin Satu'],
           attendance_status: 'Hadir',
           total_activity: 3,
           latest_activity: '2026-10-13T09:00:00.000Z',
@@ -269,11 +270,13 @@ describe('tabel Presensi (PRD §103, §105)', () => {
     renderPage(<PresensiPage />)
 
     const headers = await columnHeaders()
-    expect(headers.slice(0, 12)).toEqual([
+    expect(headers.slice(0, 13)).toEqual([
       'No', 'Order ID', 'Nama', 'Tiket', 'No WA', 'Produk', 'Batch', 'Sesi', 'Kota',
-      'Pengiklan', 'Seminar / Webinar', 'Status',
+      'Pengiklan', 'Seminar / Webinar', 'Status', 'Di-scan oleh',
     ])
     expect(headers.slice(-11)).toEqual(['Total Activity', 'T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8', 'T9', 'T10'])
+    // A62: operator yang melakukan check-in terlihat di tabel.
+    expect(await screen.findByText('Admin Satu')).toBeDefined()
   })
 
   it('A61: filter status hanya menawarkan status peserta Paid', async () => {

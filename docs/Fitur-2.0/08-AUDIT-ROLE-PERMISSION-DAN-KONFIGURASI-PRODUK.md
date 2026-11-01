@@ -50,6 +50,7 @@ Seed permission lama tetap menjadi nilai awal; migrasi audit tidak mengganti che
 | `/scan-qr`, HID/kamera | `operasional.scan_qr` | POST `/checkin/:orderId` → `checkin_seminar` | S, Paid, Seminar Offline, idempotensi |
 | Pencarian scanner | `operasional.scan_qr` | GET `/api/scanner/search` | Filter produk eksplisit sebelum hasil dikembalikan |
 | Check-in manual | scan + `action.manual_checkin` | POST `/api/scanner/manual-checkin` | Pemeriksaan yang sama dengan QR |
+| Koreksi presensi (tandai hadir / batalkan) | presensi + `action.manual_checkin` | POST `/api/presensi/:orderId/mark-present`, `/reset` → `checkin_seminar` / `reset_presensi` | S, Paid, Seminar Offline/Hybrid; koreksi tercatat pada `scanner_user_id` |
 | `/konfigurasi-produk`, empat kamus | `config.produk` | SELECT lewat RLS; POST/PATCH/DELETE `/api/config/:resource` | Membuat produk/kamus global perlu akses semua produk; mengubah produk sendiri memakai S |
 | Bagian alias pada halaman produk | `config.alias_produk` | GET/POST/DELETE `/api/product-aliases[/:id]` | Target lama dan baru harus dalam S |
 | `/konfigurasi-tax` | `config.tax` | SELECT fee rules; `/api/config/payment-fee-rules[/:id]` | Penulisan global perlu semua produk |

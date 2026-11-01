@@ -1511,3 +1511,50 @@ dan `dashboard-session.test.tsx`.
 Scanner, `scan-feedback`, Status badges, semua pemakai `DataTable`). Tes: pgTAP `33_...`, pembaruan
 `01/03/05/16/17/19/22/31`, API `scanner.test.ts`, web `render.test.tsx`, `render-p9.test.tsx`,
 `scan-feedback.test.ts`.
+
+## A62 — Operator check-in, e-tiket bertahap, dan koreksi presensi manual (2 November 2026)
+
+**Permintaan pengguna.**
+
+1. Halaman Presensi Acara harus menampilkan **siapa yang scan tiket**; untuk webinar kolomnya kosong.
+2. Setelah scan 1 dari 2 tiket, e-tiket tidak boleh langsung berstatus "sudah check-in semua" —
+   QR tiket yang tersisa harus tetap bisa dipakai.
+3. Presensi harus bisa diubah manual: **Belum Hadir → Hadir tanpa scan**, dan **Hadir → Belum Hadir**
+   baik sebagian tiket maupun seluruh tiket dari Order ID tersebut.
+
+**Keputusan.**
+
+- **Operator check-in.** `presensi_page` dan `export_presensi_page` mengembalikan `scanner_names`
+  (nama `users.display_name` dari `attendance_events.scanner_user_id`). Karena RLS `users` hanya
+  memperbolehkan membaca baris sendiri, nama diambil lewat helper `operator_display_name(uuid)` yang
+  `security definer` dan hanya membuka `display_name` untuk pemegang izin `operasional.presensi`.
+  Webinar tidak punya `scanner_user_id`, jadi kolomnya `-`.
+- **E-tiket bertahap.** Status tiket dihitung dari jumlah baris presensi seminar, bukan keberadaan
+  satu baris. `alreadyCheckedIn` baru benar bila `checked_in_tickets >= quantity`. Selama masih
+  sebagian, QR tetap ditampilkan dengan keterangan `Check-in sebagian: X dari Y tiket ... sisa Z tiket`.
+  Waktu check-in memakai timestamp terbaru. Halaman tiket menandai progres di
+  `data-checkin-count` dan memuat ulang ketika angkanya berubah, sehingga keterangan sisa tiket
+  ikut diperbarui tanpa refresh manual.
+- **Koreksi manual.** Dua endpoint baru:
+  - `POST /api/presensi/:orderId/mark-present` (body opsional `{ "tickets": N }`, default semua sisa)
+    memakai RPC `checkin_seminar` source `seminar_manual`; operator tercatat sebagai scanner.
+  - `POST /api/presensi/:orderId/reset` (body opsional `{ "tickets": N }`, default semua tiket)
+    memakai RPC baru `reset_presensi`; N = hapus N presensi terbaru, sehingga status dapat menjadi
+    `Hadir Sebagian`.
+  Keduanya memerlukan `operasional.presensi` + `action.manual_checkin` (izin Manual Check-in yang
+  sudah ada). Tidak ada permission baru.
+- **Izin RPC.** `checkin_seminar` memeriksa izin menurut sumber: `seminar_qr` memerlukan
+  `operasional.scan_qr`; `seminar_manual` memerlukan `action.manual_checkin`. Handler scanner tetap
+  mewajibkan keduanya untuk Manual Search, sehingga tidak ada jalur yang melemah.
+- **Nomor tiket.** `checkin_seminar` memakai slot `ticket_no` kosong pertama, bukan `jumlah hadir + 1`.
+  Ini mencegah bentrok setelah sebagian presensi dihapus (mis. tiket 1 dan 3 tersisa, check-in
+  berikutnya harus mengisi tiket 2).
+- **UI.** Drawer Presensi mendapat bagian **Koreksi Presensi** dengan tombol `Tandai Hadir` dan
+  `Batalkan Check-in`, modal jumlah tiket, serta peringatan bahwa pembatalan menghapus data presensi.
+  Tombol hanya muncul untuk Seminar Offline/Hybrid, order Paid, bukan OTS, dan pemegang
+  `action.manual_checkin`.
+
+**Implementasi.** Migration `0066_presensi_operator_dan_koreksi_manual.sql`; `packages/api`
+(`presensi/handlers.ts`, routes, participant handlers/pages); `apps/web` (`queries`, halaman Presensi,
+drawer Presensi, `Field`); tes pgTAP `34_...`, API `presensi.test.ts` + `participant.test.ts`,
+web `render.test.tsx`.
