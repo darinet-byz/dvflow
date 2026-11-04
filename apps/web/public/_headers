@@ -19,14 +19,16 @@
   # `connect-src` mengizinkan Supabase project (baca langsung dari browser, K41).
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self' https://*.supabase.co; base-uri 'none'; form-action 'none'; frame-ancestors 'none'; object-src 'none'
 
-# Pengecualian: skrip QR halaman tiket TIDAK ber-hash. Ditaruh SEBELUM wildcard
-# agar tetap menang baik bila Cloudflare memakai urutan maupun kekhususan rule.
+# Aset aplikasi memakai nama ber-hash (index-xxxx.js/css), jadi aman di-cache lama.
+# Jangan memakai `/assets/*`: Cloudflare MENGGABUNGKAN header dari beberapa rule
+# yang cocok, bukan memilih yang paling spesifik. Wildcard itu ikut mengenai
+# ticket-qr.js sehingga `immutable` menang atas `must-revalidate`.
+/assets/index-*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Skrip QR halaman tiket TIDAK ber-hash: selalu revalidasi.
 /assets/ticket-qr.js
   Cache-Control: public, max-age=0, must-revalidate
-
-# Aset hasil build memakai nama ber-hash, jadi aman di-cache lama.
-/assets/*
-  Cache-Control: public, max-age=31536000, immutable
 
 # index.html tidak boleh di-cache: aplikasi diperbarui lewat deploy baru.
 /index.html
