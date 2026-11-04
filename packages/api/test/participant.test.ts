@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { TICKET_QR_ASSET_VERSION } from '@dvflow/shared'
 import { CHECKIN_QR_ELEMENT_ID, TICKET_QR_SCRIPT_PATH } from '../src/participant/pages'
 import { createApiWithEnv, createFakeState, createTestEnv, fakeOrder, makeRequest } from './helpers'
 
@@ -160,7 +161,7 @@ describe('akses peserta seminar: halaman tiket (PRD §93, §G01, §G03)', () => 
     // Wadah QR dengan payload check-in; SVG-nya dipasang skrip di browser.
     expect(html).toContain(`id="${CHECKIN_QR_ELEMENT_ID}"`)
     expect(html).toContain('data-checkin-payload="/checkin/283033796"')
-    expect(html).toContain(`<script src="${TICKET_QR_SCRIPT_PATH}" defer></script>`)
+    expect(html).toContain(`<script src="${TICKET_QR_SCRIPT_PATH}?v=${TICKET_QR_ASSET_VERSION}" defer></script>`)
 
     // Backend tidak pernah membuat gambar QR.
     expect(html).not.toContain('<svg')

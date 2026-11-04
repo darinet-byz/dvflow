@@ -77,7 +77,7 @@ function defaultDirection(key: OrderSortKey): SortDirection {
 }
 
 export function OrderPage() {
-  const state = useFilterState<OrderFilters>(EMPTY_ORDER_FILTERS)
+  const state = useFilterState<OrderFilters>(EMPTY_ORDER_FILTERS, { storageKey: 'order' })
   const { lists } = useConfigLists()
   const [sort, setSort] = useState<{ key: OrderSortKey; direction: SortDirection }>({
     key: 'created_at',

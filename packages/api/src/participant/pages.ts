@@ -60,6 +60,8 @@ export type TicketData = {
   checkedInTickets?: number
   /** Payload yang nantinya diubah menjadi QR di browser (03 §8, 05 §G03). */
   checkinPath: string
+  /** Versi aset skrip QR; mencegah cache lama di HP peserta (lihat KONSTANTA di shared). */
+  scriptVersion?: string
   alreadyCheckedIn?: boolean
   checkedInAt?: string | null
   /** Hybrid: jalur Zoom pada link yang sama (`?via=zoom`); null bila link Zoom belum dikonfigurasi. */
@@ -123,15 +125,21 @@ export function renderTicketPage(data: TicketData): Response {
         id="${CHECKIN_QR_ELEMENT_ID}"
         class="qr"
         data-checkin-payload="${escapeHtml(data.checkinPath)}"
-      ></div>
+      ><p class="qr-fallback">QR sedang dimuat. Jika tidak muncul, tunjukkan halaman ini ke panitia.</p></div>
       <p class="hint${partial ? ' partial' : ''}">${
         partial
           ? `Check-in sebagian: ${checkedInTickets} dari ${quantity} tiket sudah hadir. Sisa ${remainingTickets} tiket masih bisa dipindai.`
           : 'Tunjukkan QR ini kepada panitia saat masuk.'
       }</p>`
 
+  // Versi eksplisit di URL: `/assets/ticket-qr.js` tidak ber-hash, jadi tanpa
+  // query ini HP yang pernah membuka tiket dapat memakai skrip lama dari cache
+  // `immutable` selama satu tahun.
+  const scriptSrc = data.scriptVersion === undefined || data.scriptVersion.trim() === ''
+    ? TICKET_QR_SCRIPT_PATH
+    : `${TICKET_QR_SCRIPT_PATH}?v=${encodeURIComponent(data.scriptVersion.trim())}`
   const scriptTag = data.alreadyCheckedIn ? '' : `
-    <script src="${TICKET_QR_SCRIPT_PATH}" defer></script>`
+    <script src="${escapeHtml(scriptSrc)}" defer></script>`
 
   const body = `
     <header>
@@ -339,14 +347,17 @@ function htmlResponse(
   dd { margin: 0; font-weight: 600; }
   .hint { margin: 12px 0 12px; color: #737786; }
   .hint.partial { color: #b45309; font-weight: 600; }
-  .qr { width: 100%; max-width: 260px; aspect-ratio: 1 / 1; margin: 0 auto; background: #fff; }
-  .qr svg { display: block; width: 100%; height: 100%; }
+  /* Tinggi mengikuti SVG (height:auto), bukan aspect-ratio: WebView lama tidak
+     mendukung aspect-ratio dan QR bisa kolaps menjadi kosong. */
+  .qr { width: 100%; max-width: 260px; margin: 0 auto; background: #fff; }
+  .qr svg { display: block; width: 100%; height: auto; }
+  .qr-fallback { margin: 0; padding: 24px 12px; font-size: 13px; line-height: 1.5; color: #737786; text-align: center; }
   .name { margin: 0 0 6px; font-size: 28px; line-height: 1.2; word-break: break-word; }
   .checkin { text-align: center; }
   .checkin .hint { margin: 12px 0 0; }
   .stamp {
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
-    width: 100%; max-width: 260px; aspect-ratio: 1 / 1; margin: 0 auto;
+    width: 100%; max-width: 260px; min-height: 220px; aspect-ratio: 1 / 1; margin: 0 auto;
     border: 4px solid #35c96c; border-radius: 18px; background: #e6f7ec; color: #0e8345;
     transform: rotate(-4deg);
   }

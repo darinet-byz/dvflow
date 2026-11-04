@@ -70,6 +70,29 @@ describe('OTS (A29/A34)', () => {
     }
   })
 
+  it('scope=all -> semua OTS + total; q mencari nama/Order ID', async () => {
+    const { request } = await setup('admin', ['action.ots'])
+    const created = await request('POST', '/api/ots', valid)
+    const { data } = (await created.json()) as { data: { order_id: string } }
+
+    const all = (await (await request('GET', '/api/ots?scope=all')).json()) as {
+      data: { rows: Record<string, unknown>[]; total: number }
+    }
+    expect(all.data.total).toBe(1)
+    expect(all.data.rows[0]).toMatchObject({ order_id: data.order_id })
+
+    const search = (await (await request('GET', '/api/ots?q=Budi')).json()) as {
+      data: { rows: Record<string, unknown>[]; total: number }
+    }
+    expect(search.data.total).toBe(1)
+
+    const empty = (await (await request('GET', '/api/ots?q=tidak-ada')).json()) as {
+      data: { rows: Record<string, unknown>[]; total: number }
+    }
+    expect(empty.data.total).toBe(0)
+    expect(empty.data.rows).toEqual([])
+  })
+
   it('simpan form baru -> Paid + N tiket + hadir, lalu edit', async () => {
     const { state, request } = await setup('admin', ['action.ots'])
     const created = await request('POST', '/api/ots', valid)

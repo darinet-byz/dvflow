@@ -1,5 +1,6 @@
 import { roundMoney } from '@dvflow/shared'
 import { ApiFailure } from '../http/errors'
+import { buildIlikeOrFilter, sanitizeSearchTerm } from '../http/postgrest-filter'
 import { ok, readJsonObject, readString } from '../http/response'
 import type { RouteContext } from '../router'
 import { productAccess, productFilter, requirePermission } from '../permissions'
@@ -83,19 +84,58 @@ type OtsRow = {
 export async function listOts(context: RouteContext): Promise<Response> {
   const actor = await requirePermission(context, 'action.ots')
   const access = await productAccess(context, actor)
-  const requested = context.url.searchParams.get('date')?.trim() ?? ''
-  const date = DATE_PATTERN.test(requested) ? requested : wibDate(context.now)
-  const start = new Date(`${date}T00:00:00+07:00`)
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
+  const params = context.url.searchParams
+  const requestedDate = params.get('date')?.trim() ?? ''
+  const requestedFrom = params.get('from')?.trim() ?? ''
+  const requestedTo = params.get('to')?.trim() ?? ''
+  const term = sanitizeSearchTerm(params.get('q'))
+  const requestedDateValue = DATE_PATTERN.test(requestedDate) ? requestedDate : null
+  const requestedFromValue = DATE_PATTERN.test(requestedFrom) ? requestedFrom : null
+  const requestedToValue = DATE_PATTERN.test(requestedTo) ? requestedTo : null
+  // Kompatibilitas: panggilan lama tanpa parameter apa pun tetap berarti "hari ini".
+  // `scope=all`, rentang tanggal, atau pencarian membuka seluruh riwayat.
+  const explicitAll = params.get('scope') === 'all'
+    || term !== null
+    || (requestedDateValue === null && (requestedFromValue !== null || requestedToValue !== null))
+  const defaultDate = !explicitAll && requestedDateValue === null && requestedFromValue === null && requestedToValue === null
+    ? wibDate(context.now)
+    : null
+  const date = requestedDateValue ?? defaultDate
+  const from = date ?? requestedFromValue
+  const to = date ?? requestedToValue
 
-  const rows = (await context.db.selectRows<OtsRow>('orders', {
+  const requestedPage = Number.parseInt(params.get('page') ?? '', 10)
+  const requestedPageSize = Number.parseInt(params.get('pageSize') ?? '', 10)
+  const page = Number.isFinite(requestedPage) && requestedPage > 0 ? requestedPage : 1
+  const pageSize = Number.isFinite(requestedPageSize) && requestedPageSize > 0
+    ? Math.min(requestedPageSize, 200)
+    : 50
+
+  const query: Record<string, string> = {
     ...productFilter(access),
     source: 'eq.ots',
-    created_at: `gte.${start.toISOString()}`,
     order: 'created_at.desc',
-    limit: '1000',
-  }, 'order_id,name,phone,product_code,product_name,batch,session,city,event_type,quantity,gross_amount,payment_method,created_at,ots_collected_by'))
-    .filter((row) => new Date(row.created_at) < end)
+    limit: String(pageSize),
+    offset: String((page - 1) * pageSize),
+  }
+
+  if (from !== null || to !== null) {
+    const start = from === null ? null : startOfWibDate(from)
+    const end = to === null ? null : new Date(startOfWibDate(to).getTime() + 24 * 60 * 60 * 1000)
+    const bounds: string[] = []
+    // Nilai di dalam `and` perlu tanda kutip: timestamp mengandung `:` dan `.`
+    // yang bagi parser PostgREST adalah karakter struktural.
+    if (start !== null) bounds.push(`created_at.gte."${start.toISOString()}"`)
+    if (end !== null) bounds.push(`created_at.lt."${end.toISOString()}"`)
+    query['and'] = `(${bounds.join(',')})`
+  }
+
+  if (term !== null) query['or'] = buildIlikeOrFilter(['order_id', 'name', 'phone'], term)
+
+  const [rows, total] = await Promise.all([
+    context.db.selectRows<OtsRow>('orders', query, 'order_id,name,phone,product_code,product_name,batch,session,city,event_type,quantity,gross_amount,payment_method,created_at,ots_collected_by'),
+    context.db.countRows('orders', query),
+  ])
 
   const collectorIds = [...new Set(rows.map((row) => row.ots_collected_by).filter((id): id is string => !!id))]
   const collectors = collectorIds.length === 0 ? [] : await context.db.selectRows<{ id: string; display_name: string }>(
@@ -104,6 +144,11 @@ export async function listOts(context: RouteContext): Promise<Response> {
   const names = new Map(collectors.map((user) => [user.id, user.display_name]))
   return ok({
     date,
+    from,
+    to,
+    page,
+    pageSize,
+    total,
     rows: rows.map(({ ots_collected_by, ...row }) => ({
       ...row,
       quantity: Number(row.quantity ?? 1),
@@ -111,6 +156,14 @@ export async function listOts(context: RouteContext): Promise<Response> {
       collected_by: ots_collected_by ? names.get(ots_collected_by) ?? null : null,
     })),
   })
+}
+
+function startOfWibDate(date: string): Date {
+  return new Date(`${date}T00:00:00+07:00`)
+}
+
+function wibDate(now: Date): string {
+  return new Date(now.getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10)
 }
 
 /** POST /api/ots — buat (tanpa `order_id`) atau edit (dengan `order_id` OTS-…) pendaftaran OTS. */
@@ -211,8 +264,4 @@ function readNumber(body: Record<string, unknown>, key: string): number | null {
     return Number.isFinite(parsed) ? parsed : null
   }
   return null
-}
-
-function wibDate(now: Date): string {
-  return new Date(now.getTime() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10)
 }

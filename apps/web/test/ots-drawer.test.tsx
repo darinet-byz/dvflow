@@ -40,7 +40,7 @@ beforeEach(() => {
     if (path === '/api/ots/events') return { events: [EVENT] }
     if (path === '/api/ots' && init?.method === 'POST') return { order_id: 'OTS-000008', action: 'created', quantity: 2, gross_amount: 300000, checked_in_at: null }
     if (path === '/api/ots' && init?.method === 'DELETE') return {}
-    if (path === '/api/ots') return { rows: [ROW] }
+    if (path.startsWith('/api/ots?')) return { rows: [ROW], total: 1, page: 1, pageSize: 50 }
     return {}
   })
 })
@@ -165,7 +165,7 @@ describe('OtsDrawer', () => {
   it('harga OTS lama di luar preset tampil sebagai opsi tersimpan', async () => {
     vi.mocked(authorizedRequest).mockImplementation(async (path, init) => {
       if (path === '/api/ots/events') return { events: [EVENT] }
-      if (path === '/api/ots') return { rows: [{ ...ROW, quantity: 1, gross_amount: 175000 }] }
+      if (path.startsWith('/api/ots?')) return { rows: [{ ...ROW, quantity: 1, gross_amount: 175000 }], total: 1, page: 1, pageSize: 50 }
       if (init?.method === 'POST') return { order_id: 'OTS-000007', action: 'updated', checked_in_at: null }
       return {}
     })

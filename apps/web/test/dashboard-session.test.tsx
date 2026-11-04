@@ -99,6 +99,9 @@ describe('Data per Sesi: kartu Dashboard', () => {
       ),
     )
 
+    // Kolom Pengiklan menampilkan nama, bukan jumlah.
+    expect(await screen.findByText('Zul (01), OTS (bayar di lokasi)')).toBeTruthy()
+
     fireEvent.click(await screen.findByRole('button', { name: 'S1' }))
     const drawer = screen.getByRole('dialog', { name: 'Sesi S1 · Solo' })
     expect(within(drawer).getByText('Zul (01)')).toBeTruthy()

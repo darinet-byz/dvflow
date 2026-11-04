@@ -26,6 +26,7 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
       'Dashboard',
       'Scan QR',
       'Presensi Acara',
+      'Peserta OTS',
       'Order',
       'Order Refund',
       'Order Unmapped',

@@ -84,7 +84,7 @@ function defaultDirection(key: PresensiSortKey): SortDirection {
 }
 
 export function PresensiPage() {
-  const state = useFilterState<PresensiFilters>(EMPTY_PRESENSI_FILTERS)
+  const state = useFilterState<PresensiFilters>(EMPTY_PRESENSI_FILTERS, { storageKey: 'presensi' })
   // A30: Tampilan Apps Lapangan — filter dilipat, tabel menjadi kartu.
   const fieldMode = useFieldAppMode()
   const [showFilters, setShowFilters] = useState(false)

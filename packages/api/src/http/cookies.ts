@@ -13,7 +13,7 @@ export const REFRESH_COOKIE_MAX_AGE_SECONDS = SESSION_LIFETIME_SECONDS
  * Atribut cookie refresh.
  *
  * `HttpOnly`  : JavaScript tidak dapat membacanya, sehingga XSS tidak langsung
- *               memberi penyerang sesi 7 hari.
+ *               memberi penyerang sesi 14 hari.
  * `Secure`    : hanya lewat HTTPS (localhost tetap dianggap secure context).
  * `SameSite=Lax`: permintaan lintas situs tidak membawa cookie ini — pertahanan
  *               pertama terhadap CSRF, dilengkapi pemeriksaan Origin (04 §8).

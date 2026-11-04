@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { PASSWORD_MIN_LENGTH } from '@dvflow/shared'
 import { ApiError } from '../../lib/api'
 import { changePassword, updateProfile } from '../../lib/session'
+import { clearPersistedFilters } from '../../lib/filter-storage'
 import { useSession } from '../../lib/useSession'
 import { PageHeader } from '../../layout/PageHeader'
 import { Button } from '../../ui/Button'
@@ -84,6 +85,7 @@ export function ProfilePage() {
         newPasswordConfirmation: confirmation,
       })
       // Seluruh sesi sudah dicabut server (01 §3), jadi klien wajib login ulang.
+      clearPersistedFilters()
       toast.show('Password diubah. Silakan login kembali.', 'success')
     } catch (error) {
       setPasswordError(error instanceof ApiError ? error.message : 'Password tidak dapat diubah.')

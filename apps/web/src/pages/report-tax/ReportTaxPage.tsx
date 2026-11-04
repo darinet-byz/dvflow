@@ -73,7 +73,7 @@ const COLUMNS: readonly TableColumn[] = [
 ]
 
 export function ReportTaxPage() {
-  const state = useFilterState(EMPTY_COMMON_FILTERS)
+  const state = useFilterState(EMPTY_COMMON_FILTERS, { storageKey: 'report-tax' })
   const { lists } = useConfigLists()
   const [dimension, setDimension] = useState('payment_method')
 

@@ -1,6 +1,6 @@
 import { requirePermission, productAccess, assertOrderAccess } from '../permissions'
 import { resolveProductAlias } from '../webhooks/handlers'
-import { buildCheckinPath, isOrderIdShaped } from '@dvflow/shared'
+import { buildCheckinPath, isOrderIdShaped, TICKET_QR_ASSET_VERSION } from '@dvflow/shared'
 import type { Db } from '../db/types'
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject } from '../http/response'
@@ -198,6 +198,7 @@ async function accessOrderPage(context: RouteContext): Promise<Response> {
     quantity,
     checkedInTickets,
     checkinPath: buildCheckinPath(eventOrder.order_id),
+    scriptVersion: context.env.CF_PAGES_COMMIT_SHA?.trim() || TICKET_QR_ASSET_VERSION,
     alreadyCheckedIn: checkedInTickets >= quantity,
     checkedInAt: latestClick,
     zoomPath: eventOrder.event_type === 'Hybrid' && (await findWebinarDestination(context, eventOrder)) !== null

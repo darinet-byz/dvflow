@@ -4,6 +4,8 @@ export type NavItem = {
   path: string
   /** Ikon Lucide; belum dipasang (P8) — teks dulu agar tidak ada aset menganggur. */
   icon: string
+  /** Kata kunci tambahan untuk pencarian menu global (mis. “tiket”, “laporan”). */
+  keywords?: string[]
 }
 
 export type NavSection = {
@@ -30,18 +32,19 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'ACARA',
     collapsible: true,
     items: [
-      { label: 'Scan QR', path: OPERASIONAL_PATH, icon: 'scan-line' },
-      { label: 'Presensi Acara', path: '/presensi', icon: 'user-check' },
+      { label: 'Scan QR', path: OPERASIONAL_PATH, icon: 'scan-line', keywords: ['scan', 'kamera', 'checkin', 'tiket'] },
+      { label: 'Presensi Acara', path: '/presensi', icon: 'user-check', keywords: ['kehadiran', 'hadir', 'peserta', 'seminar', 'webinar'] },
+      { label: 'Peserta OTS', path: '/ots', icon: 'clipboard-list', keywords: ['ots', 'bayar di lokasi', 'pendaftaran', 'registrasi'] },
     ],
   },
   {
     title: 'ORDER',
     collapsible: true,
     items: [
-      { label: 'Order', path: '/order', icon: 'receipt' },
+      { label: 'Order', path: '/order', icon: 'receipt', keywords: ['pesanan', 'transaksi', 'order id'] },
       // A58: monitoring refund + pembatalan refund.
-      { label: 'Order Refund', path: '/order-refund', icon: 'rotate-ccw' },
-      { label: 'Order Unmapped', path: '/order-unmapped', icon: 'alert-circle' },
+      { label: 'Order Refund', path: '/order-refund', icon: 'rotate-ccw', keywords: ['refund', 'pembatalan', 'uang kembali'] },
+      { label: 'Order Unmapped', path: '/order-unmapped', icon: 'alert-circle', keywords: ['unmapped', 'tidak terpetakan', 'produk'] },
     ],
   },
   {
@@ -56,31 +59,31 @@ export const NAV_SECTIONS: NavSection[] = [
     title: 'LAPORAN & PAJAK',
     collapsible: true,
     items: [
-      { label: 'Report Spend Iklan', path: '/report-spend', icon: 'megaphone' },
+      { label: 'Report Spend Iklan', path: '/report-spend', icon: 'megaphone', keywords: ['laporan', 'iklan', 'spend', 'biaya', 'budget'] },
       // A46: performa per pengiklan (track record + perbandingan).
-      { label: 'Performa / Analitik', path: '/performa', icon: 'trending-up' },
-      { label: 'Report Tax', path: '/report-tax', icon: 'file-text' },
-      { label: 'Konfigurasi Tax', path: '/konfigurasi-tax', icon: 'percent' },
+      { label: 'Performa / Analitik', path: '/performa', icon: 'trending-up', keywords: ['laporan', 'analitik', 'pengiklan', 'roi'] },
+      { label: 'Report Tax', path: '/report-tax', icon: 'file-text', keywords: ['laporan', 'pajak', 'tax', 'fee'] },
+      { label: 'Konfigurasi Tax', path: '/konfigurasi-tax', icon: 'percent', keywords: ['pajak', 'fee', 'aturan'] },
     ],
   },
   {
     title: 'PRODUK & ACARA',
     collapsible: true,
     items: [
-      { label: 'Konfigurasi Produk', path: '/konfigurasi-produk', icon: 'package' },
-      { label: 'Product Name Generator', path: '/generator', icon: 'wand' },
-      { label: 'Konfigurasi Zoom', path: '/konfigurasi-zoom', icon: 'video' },
-      { label: 'Konfigurasi Barcode / Tiket', path: '/konfigurasi-tiket', icon: 'qr-code' },
+      { label: 'Konfigurasi Produk', path: '/konfigurasi-produk', icon: 'package', keywords: ['produk', 'alias', 'kode'] },
+      { label: 'Product Name Generator', path: '/generator', icon: 'wand', keywords: ['generator', 'nama produk', 'kode produk'] },
+      { label: 'Konfigurasi Zoom', path: '/konfigurasi-zoom', icon: 'video', keywords: ['zoom', 'webinar', 'link'] },
+      { label: 'Konfigurasi Barcode / Tiket', path: '/konfigurasi-tiket', icon: 'qr-code', keywords: ['tiket', 'barcode', 'qr', 'seminar'] },
     ],
   },
   {
     title: 'SISTEM',
     collapsible: true,
     items: [
-      { label: 'Add Team', path: '/add-team', icon: 'users' },
-      { label: 'Konfigurasi Role', path: '/konfigurasi-role', icon: 'shield' },
-      { label: 'API & Webhook', path: '/integrasi', icon: 'plug' },
-      { label: 'Reset Data', path: '/reset-data', icon: 'trash-2' },
+      { label: 'Add Team', path: '/add-team', icon: 'users', keywords: ['tim', 'anggota', 'user', 'akun'] },
+      { label: 'Konfigurasi Role', path: '/konfigurasi-role', icon: 'shield', keywords: ['role', 'hak akses', 'permission'] },
+      { label: 'API & Webhook', path: '/integrasi', icon: 'plug', keywords: ['api', 'webhook', 'integrasi', 'orderonline'] },
+      { label: 'Reset Data', path: '/reset-data', icon: 'trash-2', keywords: ['hapus', 'reset', 'bersihkan'] },
     ],
   },
   {

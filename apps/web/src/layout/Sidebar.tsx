@@ -4,6 +4,7 @@ import { cn } from '../ui/cn'
 import { useSession } from '../lib/useSession'
 import { ROLE_LABELS, canAccessPath } from '../lib/roles'
 import { NAV_SECTIONS, type NavSection } from './navigation'
+import { GlobalSearchButton } from './GlobalSearch'
 
 const OPEN_SECTION_KEY = 'dvflow.sidebar.open'
 
@@ -68,6 +69,8 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <p className="text-[15px] font-bold tracking-tight text-ink">DVFLOW</p>
         <p className="text-[11px] text-ink-muted">Operasional event</p>
       </div>
+
+      <GlobalSearchButton />
 
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
         {NAV_SECTIONS.map((section, index) => {

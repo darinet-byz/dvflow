@@ -26,7 +26,7 @@ const COLUMNS: readonly TableColumn[] = [
   { key: 'city', header: 'Kota', minWidth: 140 },
   { key: 'session', header: 'Sesi', minWidth: 90 },
   { key: 'event_type', header: 'Jenis', minWidth: 130 },
-  { key: 'advertisers', header: 'Pengiklan', align: 'right', minWidth: 100 },
+  { key: 'advertisers', header: 'Pengiklan', minWidth: 220 },
   { key: 'tickets', header: 'Tiket Paid', align: 'right', minWidth: 110 },
 ]
 
@@ -39,6 +39,12 @@ export function advertiserLabel(item: SessionAdvertiser): string {
 
 export function sessionLabel(row: Pick<SessionSummaryRow, 'session' | 'city'>): string {
   return [row.session ?? 'Tanpa sesi', row.city].filter(Boolean).join(' · ')
+}
+
+/** Nama-nama pengiklan di satu sesi; kolom ini menampilkan SIAPA, bukan jumlahnya. */
+export function advertiserNames(row: Pick<SessionSummaryRow, 'advertisers'>): string {
+  if (row.advertisers.length === 0) return '-'
+  return row.advertisers.map(advertiserLabel).join(', ')
 }
 
 export function SessionSummaryCard({ filters }: { filters: CommonFilters }) {
@@ -169,7 +175,11 @@ function SessionTable({
             <TableCell>
               {row.event_type === null ? '-' : <Badge tone={eventTypeTone(row.event_type)}>{row.event_type}</Badge>}
             </TableCell>
-            <TableCell align="right">{formatCount(row.advertisers.length)}</TableCell>
+            <TableCell>
+              <span className="block max-w-[320px] truncate" title={advertiserNames(row)}>
+                {advertiserNames(row)}
+              </span>
+            </TableCell>
             <TableCell align="right" className="font-semibold">{formatCount(row.tickets)}</TableCell>
           </TableRow>
         ))

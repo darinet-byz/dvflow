@@ -9,6 +9,7 @@ import {
   DEFAULT_PAGE_SIZE,
 } from '../../lib/filters'
 import { presetRange } from '../../lib/date-range'
+import { persistFilters, readPersistedFilters } from '../../lib/filter-storage'
 
 /**
  * Keadaan filter + halaman untuk halaman baca.
@@ -18,7 +19,10 @@ import { presetRange } from '../../lib/date-range'
  *     syarat panjang minimum (`effectiveSearch`), sedangkan filter terstruktur
  *     langsung berlaku;
  *   * setiap perubahan filter mengembalikan halaman ke 1 — kalau tidak,
- *     pengguna bisa terjebak di halaman 7 dari hasil yang tinggal 1 halaman.
+ *     pengguna bisa terjebak di halaman 7 dari hasil yang tinggal 1 halaman;
+ *   * bila `storageKey` diberikan, filter disimpan di sessionStorage selama tab
+ *     terbuka, sehingga berpindah halaman (mis. Presensi → Scan → Presensi)
+ *     tidak mengulang setting filter.
  */
 export type FilterState<T extends CommonFilters> = {
   /** Nilai mentah (dipakai input, termasuk teks pencarian yang sedang diketik). */
@@ -40,9 +44,15 @@ function withDefaultDates<T extends CommonFilters>(filters: T): T {
   return { ...filters, dateFrom: today.from, dateTo: today.to }
 }
 
-export function useFilterState<T extends CommonFilters>(initial: T): FilterState<T> {
+export function useFilterState<T extends CommonFilters>(
+  initial: T,
+  options: { storageKey?: string } = {},
+): FilterState<T> {
   // Filter awal tanpa tanggal berarti "pakai default Hari Ini"; "Semua tanggal" tetap bisa dipilih manual.
-  const [filters, setFilters] = useState<T>(() => (initial.dateFrom === '' && initial.dateTo === '' ? withDefaultDates(initial) : initial))
+  const [filters, setFilters] = useState<T>(() => {
+    const base = initial.dateFrom === '' && initial.dateTo === '' ? withDefaultDates(initial) : initial
+    return options.storageKey === undefined ? base : readPersistedFilters(options.storageKey, base)
+  })
   const [page, setPage] = useState(1)
   const [pageSize, setPageSizeState] = useState<PageSize>(DEFAULT_PAGE_SIZE)
 
@@ -57,6 +67,12 @@ export function useFilterState<T extends CommonFilters>(initial: T): FilterState
   useEffect(() => {
     setPage(1)
   }, [appliedKey])
+
+  // Simpan nilai mentah (bukan `applied`) supaya teks pencarian yang sedang
+  // diketik tetap utuh ketika pengguna berpindah halaman lalu kembali.
+  useEffect(() => {
+    if (options.storageKey !== undefined) persistFilters(options.storageKey, filters)
+  }, [options.storageKey, filters])
 
   return {
     filters,

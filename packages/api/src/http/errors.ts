@@ -86,7 +86,7 @@ export const ERROR_CATALOG: Record<ApiErrorCode, { status: number; message: stri
   },
   FORBIDDEN_PRODUCT_ACCESS: { status: 403, message: 'Anda tidak memiliki akses ke produk ini.' },
   // A37: Report Spend Iklan.
-  AD_SPEND_OVERLAP: { status: 409, message: 'Tanggal, produk, dan batch sudah ada.' },
+  AD_SPEND_OVERLAP: { status: 409, message: 'Tanggal, produk, batch, dan jenis acara sudah ada.' },
   AD_SPEND_NOT_FOUND: { status: 404, message: 'Report spend tidak ditemukan.' },
   // Kode lebih baru dari database (migrasi belum diterapkan): beri tahu dengan jujur, bukan 500 bisu.
   SCHEMA_OUT_OF_DATE: { status: 503, message: 'Database belum diperbarui ke versi aplikasi ini. Hubungi developer.' },

@@ -59,7 +59,7 @@ function defaultDirection(key: RefundSortKey): SortDirection {
 export function OrderRefundPage() {
   const profile = useSession().profile
   const toast = useToast()
-  const state = useFilterState<CommonFilters>(EMPTY_COMMON_FILTERS)
+  const state = useFilterState<CommonFilters>(EMPTY_COMMON_FILTERS, { storageKey: 'order-refund' })
   const { lists } = useConfigLists()
   const [sort, setSort] = useState<{ key: RefundSortKey; direction: SortDirection }>({
     key: 'refunded_at',

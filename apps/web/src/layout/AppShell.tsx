@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { FieldAppShell } from './FieldAppShell'
+import { GlobalSearchButton, GlobalSearchDialog } from './GlobalSearch'
 import { useSession } from '../lib/useSession'
 import { canUseFieldApp, setPreferWebLayout, useIsPhone, usePreferWebLayout } from '../lib/field-app'
 
@@ -24,6 +25,7 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen bg-page p-2 sm:p-4 md:p-8">
+      <GlobalSearchDialog />
       <div className="mx-auto flex min-h-[calc(100vh-32px)] w-full max-w-[1440px] overflow-hidden rounded-xl bg-app shadow-app md:min-h-[calc(100vh-64px)]">
         {/* Sidebar tetap untuk md ke atas. */}
         <div className="hidden md:flex">
@@ -50,6 +52,7 @@ export function AppShell() {
               ☰
             </button>
             <p className="text-[14px] font-bold text-ink">DVFLOW</p>
+            <GlobalSearchButton compact className="ml-auto" />
             {fieldEligible ? (
               <button
                 type="button"

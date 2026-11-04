@@ -265,8 +265,9 @@ Delete semantics = `active=false`.
 No hard delete endpoint.
 
 ## 12a. Report Spend Iklan (A37)
-Tulis saja; laporan dibaca browser lewat RPC `ad_spend_report(p_date_from, p_date_to, p_product_code, p_advertiser_code, p_batch)`.
-Hasil RPC: `summary`, `rows` (per report, termasuk `tickets` = sum quantity order Paid - A45), `sessions` (A43: tiket Paid per sesi x pengiklan dari order yang sama), dan `comparison` (A46: roll-up per produk + batch + pengiklan dengan `totals` dan `rows[]`; angka order memakai himpunan distinct yang sama dengan `summary`).
+Tulis saja; laporan dibaca browser lewat RPC `ad_spend_report(p_date_from, p_date_to, p_product_code, p_advertiser_code, p_batch, p_event_type)`.
+Sejak A63, `event_type` (Seminar Offline/Webinar Online/Hybrid) disimpan per report dan wajib dipilih saat input; laporan memisahkan batch yang sama untuk online dan offline.
+Hasil RPC: `summary`, `rows` (per report, termasuk `event_type` dan `tickets` = sum quantity order Paid - A45), `sessions` (A43: tiket Paid per sesi x pengiklan dari order yang sama), dan `comparison` (A46: roll-up per produk + batch + jenis acara + pengiklan dengan `totals` dan `rows[]`; angka order memakai himpunan distinct yang sama dengan `summary`).
 
 ### Status Produk & Pengiklan (A52)
 - `product_status_list()` → array produk `{id,code,name,status,active,advertisers[]}`.

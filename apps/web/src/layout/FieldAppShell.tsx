@@ -4,6 +4,7 @@ import { hasPermission } from '../lib/roles'
 import { useSession } from '../lib/useSession'
 import { FieldAppContext } from '../lib/field-app'
 import { cn } from '../ui/cn'
+import { GlobalSearchButton, GlobalSearchDialog } from './GlobalSearch'
 
 /**
  * Tampilan Apps Lapangan (A30) — hanya untuk Pimpro/Staff/Member berizin `ui.field_app` di HP.
@@ -56,13 +57,17 @@ export function FieldAppShell() {
   return (
     <FieldAppContext.Provider value={true}>
       <div className="field-app flex min-h-[100dvh] flex-col bg-app" data-testid="field-app-shell">
+        <GlobalSearchDialog />
         <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-line bg-card/95 px-4 py-3 backdrop-blur" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
           <p className="text-[16px] font-bold text-ink">{TITLES[location.pathname] ?? 'DVFLOW'}</p>
-          {profile ? (
-            <span className="ml-auto grid h-8 w-8 place-items-center rounded-full bg-primary-soft text-[14px] font-semibold text-primary" aria-label={profile.display_name}>
-              {profile.avatar_emoji ?? profile.display_name.slice(0, 1).toUpperCase()}
-            </span>
-          ) : null}
+          <div className="ml-auto flex items-center gap-2">
+            <GlobalSearchButton compact />
+            {profile ? (
+              <span className="grid h-8 w-8 place-items-center rounded-full bg-primary-soft text-[14px] font-semibold text-primary" aria-label={profile.display_name}>
+                {profile.avatar_emoji ?? profile.display_name.slice(0, 1).toUpperCase()}
+              </span>
+            ) : null}
+          </div>
         </header>
 
         <main className="min-w-0 flex-1 px-3 pb-28 pt-3">

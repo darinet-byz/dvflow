@@ -410,11 +410,13 @@ export function createFakeDb(state: FakeState): Db {
         if (actor === undefined || actor.role !== 'advertiser') throw new DbError(FORBIDDEN, 'fake')
         if (name === 'delete_ad_spend_report') return { id: args['p_id'], deleted: true } as T
         const earlier = state.rpcCalls.slice(0, -1).some((call) => call.name === name &&
-          call.args['p_product_code'] === args['p_product_code'] && call.args['p_batch'] === args['p_batch'])
+          call.args['p_product_code'] === args['p_product_code'] && call.args['p_batch'] === args['p_batch'] &&
+          call.args['p_event_type'] === args['p_event_type'])
         if (earlier && args['p_confirm_overlap'] !== true) throw new DbError('DF016', 'fake')
         nextId += 1
         return { id: `00000000-0000-4000-8000-${String(nextId).padStart(12, '0')}`, action: args['p_id'] ? 'updated' : 'created',
-          product_code: args['p_product_code'], batch: args['p_batch'], date_from: args['p_date_from'], date_to: args['p_date_to'],
+          product_code: args['p_product_code'], batch: args['p_batch'], event_type: args['p_event_type'],
+          date_from: args['p_date_from'], date_to: args['p_date_to'],
           spend: String(args['p_spend']), tax_percent: String(args['p_tax_percent']) } as T
       }
 
@@ -925,6 +927,7 @@ function matchesQuery(row: Record<string, unknown>, query: Record<string, string
     if (['order', 'offset', 'limit'].includes(key)) return true
     if (expression.startsWith('like.')) return String(row[key] ?? '').startsWith(expression.slice(5).replace(/\*$/, ''))
     if (key === 'or') return matchesOrExpression(row, expression)
+    if (key === 'and') return matchesAndExpression(row, expression)
 
     const value = row[key]
 
@@ -941,6 +944,23 @@ function matchesQuery(row: Record<string, unknown>, query: Record<string, string
     if (expression.startsWith('ilike.')) return matchesIlike(value, expression.slice(6))
 
     throw new Error(`operator filter tidak dikenal di tiruan: ${expression}`)
+  })
+}
+
+function matchesAndExpression(row: Record<string, unknown>, expression: string): boolean {
+  const inner = expression.replace(/^\(|\)$/g, '')
+  return inner.split(',').every((clause) => {
+    const separator = clause.indexOf('.')
+    if (separator === -1) return false
+    const column = clause.slice(0, separator)
+    const operator = clause.slice(separator + 1)
+    const value = row[column]
+    const operand = (text: string): string => text.replace(/^"|"$/g, '')
+    if (operator.startsWith('gte.')) return typeof value === 'string' && value >= operand(operator.slice(4))
+    if (operator.startsWith('lt.')) return typeof value === 'string' && value < operand(operator.slice(3))
+    if (operator.startsWith('lte.')) return typeof value === 'string' && value <= operand(operator.slice(4))
+    if (operator.startsWith('gt.')) return typeof value === 'string' && value > operand(operator.slice(3))
+    throw new Error(`and: operator tidak didukung: ${operator}`)
   })
 }
 

@@ -9,7 +9,7 @@ const spendFixture = vi.hoisted(() => ({
   summary: { reports: 1, spend: 6000000, tax_amount: 660000, total_spend: 6660000, leads: 9, paid: 8, omzet: 9000000 },
   rows: [{
     id: 'r1', date_from: '2026-10-18', date_to: '2026-10-26', product_code: 'AAAA', product_name: 'Produk A',
-    advertiser_code: '91', advertiser_name: 'Zul', batch: '122', spend: 6000000, tax_percent: 11,
+    advertiser_code: '91', advertiser_name: 'Zul', batch: '122', event_type: 'Seminar Offline', spend: 6000000, tax_percent: 11,
     tax_amount: 660000, total_spend: 6660000, leads: 9, paid: 8, tickets: 9, omzet: 9000000, own: true,
   }],
   sessions: {
@@ -20,8 +20,8 @@ const spendFixture = vi.hoisted(() => ({
   comparison: {
     totals: { spend: 6000000, tax_amount: 660000, total_spend: 6660000, leads: 9, paid: 8, tickets: 9, omzet: 9000000 },
     rows: [
-      { product_code: 'AAAA', product_name: 'Produk A', batch: '122', advertiser_code: '91', advertiser_name: 'Zul', spend: 4000000, tax_amount: 440000, total_spend: 4440000, leads: 5, paid: 5, tickets: 6, omzet: 6000000 },
-      { product_code: 'AAAA', product_name: 'Produk A', batch: '122', advertiser_code: '92', advertiser_name: 'Rina', spend: 2000000, tax_amount: 220000, total_spend: 2220000, leads: 4, paid: 3, tickets: 3, omzet: 3000000 },
+      { product_code: 'AAAA', product_name: 'Produk A', batch: '122', event_type: 'Seminar Offline', advertiser_code: '91', advertiser_name: 'Zul', spend: 4000000, tax_amount: 440000, total_spend: 4440000, leads: 5, paid: 5, tickets: 6, omzet: 6000000 },
+      { product_code: 'AAAA', product_name: 'Produk A', batch: '122', event_type: 'Seminar Offline', advertiser_code: '92', advertiser_name: 'Rina', spend: 2000000, tax_amount: 220000, total_spend: 2220000, leads: 4, paid: 3, tickets: 3, omzet: 3000000 },
     ],
   },
 }))
@@ -153,7 +153,7 @@ describe('Report Spend Iklan: kartu Jumlah Tiket & kolom Total Tiket (A45)', () 
     expect(card.textContent).toContain('Total tiket dari order Paid')
 
     // Kartu "Paid" sudah diganti; "Paid" hanya tersisa sebagai kolom tabel report.
-    expect(screen.getByText('Paid').tagName).toBe('TH')
+    expect(screen.getAllByText('Paid').some((element) => element.tagName === 'TH')).toBe(true)
     expect(screen.getByRole('columnheader', { name: 'Total Tiket' })).toBeTruthy()
     expect(screen.getByText('Jumlah tiket (quantity) per sesi, bukan jumlah Order ID.')).toBeTruthy()
   })

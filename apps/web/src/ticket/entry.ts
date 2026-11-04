@@ -1,4 +1,4 @@
-import { mountCheckinQr } from './qr'
+import { CHECKIN_QR_ELEMENT_ID, mountCheckinQr } from './qr'
 import { watchCheckin } from './watch'
 
 /**
@@ -12,8 +12,26 @@ import { watchCheckin } from './watch'
  * Sengaja TIDAK memuat React: halaman peserta dibuka di lapangan, sering dengan
  * koneksi buruk, jadi berkasnya harus sekecil mungkin.
  */
+function retryMount(): void {
+  const container = document.getElementById(CHECKIN_QR_ELEMENT_ID)
+  if (container === null || container.getAttribute('data-qr-ready') === 'true') return
+  mountCheckinQr()
+}
+
 function start(): void {
-  if (!mountCheckinQr()) return
+  const mounted = mountCheckinQr()
+
+  // Sebagian browser in-app menunda eksekusi/defer sampai tab kembali terlihat.
+  // Coba pasang lagi tanpa mengganggu QR yang sudah berhasil. Lingkungan
+  // verifikasi Node tidak punya `window`, jadi penjaga ini diperlukan.
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pageshow', retryMount)
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') retryMount()
+    })
+  }
+
+  if (!mounted) return
   // Lingkungan tanpa `location`/`fetch` (mis. verifikasi artefak di Node) cukup menggambar QR.
   if (typeof location === 'undefined' || typeof fetch !== 'function') return
   // A62: tiket multi-tiket boleh hadir bertahap; muat ulang ketika jumlah tiket

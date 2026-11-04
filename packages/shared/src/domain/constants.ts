@@ -35,9 +35,14 @@ export const WEBHOOK_LOG_RETENTION_DAYS = 7
 /** Retensi unmapped orders: 90 hari (kebijakan evergreen). */
 export const UNMAPPED_ORDER_RETENTION_DAYS = 90
 
-/** Masa hidup refresh session: 48 jam (auto-logout tanpa login ulang). */
-export const SESSION_LIFETIME_HOURS = 48
-export const SESSION_LIFETIME_DAYS = 2
+/**
+ * Masa hidup refresh session: 14 hari.
+ *
+ * Satu event biasanya berlangsung 7-10 hari; 14 hari memberi ruang tanpa
+ * memaksa operator login ulang di tengah rangkaian acara.
+ */
+export const SESSION_LIFETIME_HOURS = 14 * 24
+export const SESSION_LIFETIME_DAYS = 14
 export const SESSION_LIFETIME_SECONDS = SESSION_LIFETIME_HOURS * 60 * 60
 
 /** Sesi paten yang valid di sistem. */
@@ -45,6 +50,16 @@ export const PATENT_SESSIONS = ['ST', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 
 
 /** Masa hidup access JWT: 30 menit (01 §3). */
 export const ACCESS_TOKEN_LIFETIME_SECONDS = 30 * 60
+
+/**
+ * Versi aset skrip QR halaman tiket.
+ *
+ * Skrip ini TIDAK ber-hash dan dulu di-cache `immutable` selama satu tahun,
+ * sehingga perubahan kode tidak sampai ke HP peserta. URL-nya sekarang memakai
+ * `?v=`; di produksi nilai ini diisi commit deploy, sedangkan nilai di bawah
+ * menjadi fallback untuk pengembangan/test.
+ */
+export const TICKET_QR_ASSET_VERSION = 'qr-3'
 
 /** Panjang minimum password (01 §4). */
 export const PASSWORD_MIN_LENGTH = 8

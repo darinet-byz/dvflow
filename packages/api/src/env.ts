@@ -29,4 +29,6 @@ export type Env = {
   ALLOW_MASTER_ADMIN_CREATE_MASTER?: string
   /** Daftar origin tambahan yang diizinkan, dipisah koma (opsional). */
   APP_ALLOWED_ORIGINS?: string
+  /** Commit deploy Cloudflare Pages; dipakai sebagai versi cache aset skrip QR. */
+  CF_PAGES_COMMIT_SHA?: string
 }

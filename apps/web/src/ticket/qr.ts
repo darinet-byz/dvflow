@@ -88,7 +88,16 @@ export function mountCheckinQr(doc: Document = document): boolean {
   const payload = container.getAttribute(CHECKIN_QR_PAYLOAD_ATTRIBUTE)
   if (payload === null || payload.trim() === '') return false
 
-  container.innerHTML = buildCheckinQrSvg(payload.trim())
-  container.setAttribute('data-qr-ready', 'true')
-  return true
+  try {
+    container.innerHTML = buildCheckinQrSvg(payload.trim())
+    container.setAttribute('data-qr-ready', 'true')
+    if (typeof container.removeAttribute === 'function') container.removeAttribute('data-qr-error')
+    return true
+  } catch (error) {
+    // Jangan biarkan halaman kosong tanpa penjelasan: fallback teks dari server
+    // tetap tampil, dan penanda ini membantu diagnosis di perangkat peserta.
+    container.setAttribute('data-qr-error', 'true')
+    console.error('[ticket-qr] gagal membuat QR', error)
+    return false
+  }
 }

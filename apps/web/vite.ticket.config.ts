@@ -30,6 +30,10 @@ export default defineConfig({
   build: {
     outDir: 'dist/assets',
     emptyOutDir: false,
+    // Halaman tiket dibuka di HP peserta, termasuk perangkat lama. Target ini
+    // mentranspilasi `?.` dan `??` agar script tidak gagal parse di WebView
+    // yang lebih tua (gejala: QR tidak muncul sama sekali).
+    target: 'es2017',
     // Minifier dibiarkan pada bawaan Vite 8 (Oxc). Menulis `minify: 'esbuild'`
     // akan gagal: sejak Vite 8 esbuild tidak lagi ikut dipasang.
     lib: {

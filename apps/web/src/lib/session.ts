@@ -5,7 +5,7 @@ import { ApiError, apiRequest, type Profile, type SessionPayload } from './api'
  *
  * Model dua lapis yang dijaga di sini:
  *   * **refresh session** — token opaque, `HttpOnly` + `Secure` + `SameSite=Lax`,
- *     hanya dipegang browser dan hanya dikenal server (7 hari);
+ *     hanya dipegang browser dan hanya dikenal server (14 hari);
  *   * **access JWT** — 30 menit, HANYA di memori. Tidak pernah masuk
  *     `localStorage`/`sessionStorage`/cookie, sehingga XSS tidak dapat mengambil
  *     kredensial yang berumur panjang (CLAUDE.md §8).

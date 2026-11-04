@@ -1558,3 +1558,17 @@ Scanner, `scan-feedback`, Status badges, semua pemakai `DataTable`). Tes: pgTAP 
 (`presensi/handlers.ts`, routes, participant handlers/pages); `apps/web` (`queries`, halaman Presensi,
 drawer Presensi, `Field`); tes pgTAP `34_...`, API `presensi.test.ts` + `participant.test.ts`,
 web `render.test.tsx`.
+
+## A63 - Revisi operasional: filter tab, sesi 14 hari, QR, Report Spend, OTS, pencarian menu, dan nama pengiklan (4 November 2026)
+
+Atas permintaan pengguna:
+
+1. **Filter halaman bertahan selama tab terbuka.** `useFilterState` menyimpan filter per halaman di `sessionStorage` (`dvflow.filters.*`), termasuk tanggal. Default Hari Ini tetap dipakai saat belum ada simpanan; `Clear All` kembali ke Hari Ini; logout/ganti password membersihkan simpanan. Halaman: Dashboard, Order, Order Refund, Presensi, Report Tax, Report Spend.
+2. **Refresh session 14 hari.** `SESSION_LIFETIME_HOURS = 336`; cookie refresh otomatis mengikuti. Sesi lama (48 jam) tidak diperpanjang otomatis.
+3. **QR peserta.** QR tidak punya masa berlaku; masalahnya cache aset. Skrip `/assets/ticket-qr.js` tidak ber-hash tetapi di-cache `immutable` 1 tahun. Perbaikan: URL `?v=<commit/fallback>`, header `max-age=0, must-revalidate` untuk path itu, target build `es2017`, tinggi QR tidak lagi bergantung `aspect-ratio`, fallback teks di dalam wadah QR, dan percobaan render ulang saat halaman kembali terlihat.
+4. **Report Spend Iklan: jenis acara.** Migrasi `0067` menambah `ad_spend_reports.event_type` (Seminar Offline/Webinar Online/Hybrid). Input wajib memilih jenis; overlap dan advisory lock memakai jenis; `ad_spend_report` memfilter report dan order berdasarkan jenis. Data lama di-backfill hanya bila seluruh order report satu jenis.
+5. **Daftar OTS.** Menu sidebar **Peserta OTS** (`/ots`) untuk pemegang `action.ots`. `GET /api/ots?scope=all` menampilkan semua OTS; `from`/`to`, `q`, dan pagination juga tersedia. Panggilan tanpa parameter dan drawer Scan QR tetap default hari ini (kompatibilitas).
+6. **Pencarian menu global.** Command palette `Ctrl/Cmd+K` di sidebar/header web dan aplikasi lapangan; mencari nama menu, seksi, dan kata kunci, dibatasi izin role. Tidak mencari data order/peserta.
+7. **Dashboard Data per Sesi.** Kolom Pengiklan menampilkan nama-nama pengiklan (`Zul (01), Rina (02), ...`), bukan jumlah.
+
+**Implementasi.** `0067_ad_spend_event_type.sql`; `packages/shared` (konstanta sesi + versi aset QR); `packages/api` (ad-spend, OTS, participant pages/handlers, env); `apps/web` (filter storage, ticket QR, Report Spend, OTS, GlobalSearch, SessionSummaryCard, navigation); `apps/web/public/_headers`; tes web/API/pgTAP terkait.

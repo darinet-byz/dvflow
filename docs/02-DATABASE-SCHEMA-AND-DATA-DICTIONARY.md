@@ -259,6 +259,7 @@ PPN = round(spend × tax_percent / 100, 2); Total Spend = spend + PPN (juga dihi
 - advertiser_id UUID NOT NULL FK advertisers(id) ON DELETE RESTRICT  -- selalu pengiklan akun penginput
 - product_id UUID NOT NULL FK products(id) ON DELETE RESTRICT
 - batch TEXT NOT NULL CHECK (batch = normalize_batch(batch), tidak kosong)  -- A33
+- event_type TEXT NULL CHECK (event_type in ('Seminar Offline','Webinar Online','Hybrid'))  -- A63
 - date_from DATE NOT NULL
 - date_to DATE NOT NULL CHECK (date_to >= date_from)
 - spend NUMERIC(14,2) NOT NULL CHECK (spend >= 0)  -- SEBELUM PPN
@@ -266,13 +267,14 @@ PPN = round(spend × tax_percent / 100, 2); Total Spend = spend + PPN (juga dihi
 - created_by / updated_by UUID NULL FK users(id) ON DELETE SET NULL
 - created_at / updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 
-Tidak ada unique constraint: rentang bertumpuk untuk produk + batch + pengiklan yang sama ditolak oleh
-`save_ad_spend_report` kecuali pengiklan mengonfirmasi ("Tambahkan Data Ini").
+Tidak ada unique constraint: rentang bertumpuk untuk produk + batch + jenis acara + pengiklan yang sama ditolak oleh
+`save_ad_spend_report` kecuali pengiklan mengonfirmasi ("Tambahkan Data Ini"). Sejak A63, `event_type` memisahkan
+batch yang sama antara Seminar dan Webinar; report lama tanpa jenis acara dianggap bertumpuk dengan jenis apa pun.
 RLS: baca dengan izin `operasional.report_spend` + scope produk (A44). Flag `own` menandai report milik akun
 Advertiser untuk edit/hapus. Tulis hanya lewat Worker (service_role). Hard delete hanya oleh pengiklan pemilik.
 
 **A46 — `comparison`.** `ad_spend_report` juga mengembalikan `comparison: { totals, rows[] }`: roll-up per
-(produk, batch, pengiklan) berisi `spend`, `tax_amount`, `total_spend`, `leads`, `paid`, `tickets`, `omzet`.
+(produk, batch, jenis acara, pengiklan) berisi `spend`, `tax_amount`, `total_spend`, `leads`, `paid`, `tickets`, `omzet`.
 Angka order memakai himpunan `distinct order_id` yang sama dengan `summary`; report bertumpuk tetap dijumlahkan.
 Tidak ada tabel/kolom baru.
 

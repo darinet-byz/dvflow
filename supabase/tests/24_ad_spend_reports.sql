@@ -38,39 +38,46 @@ insert into public.orders(order_id,product_code,advertiser_code,batch,product_ra
  ('sp-7','AAAA','91','122','AAAA91SO122 - S1 - Solo','O7','Seminar Offline','Paid',999000,'2026-10-19T16:30:00Z');
 
 -- Tulis: hanya akun Advertiser.
-select throws_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000d1',null,'AAAA','122','2026-10-20','2026-10-20',100,0)$$,
+select throws_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000d1',null,'AAAA','122','2026-10-20','2026-10-20',100,0,'Seminar Offline')$$,
   'DF006', 'FORBIDDEN', 'developer (tanpa pengiklan) tidak bisa input');
-select throws_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000c1',null,'AAAA','122','2026-10-20','2026-10-20',100,0)$$,
+select throws_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000c1',null,'AAAA','122','2026-10-20','2026-10-20',100,0,'Seminar Offline')$$,
   'DF006', 'FORBIDDEN', 'role lihat saja tidak bisa input');
-select throws_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'AAAA','122','2026-10-21','2026-10-20',100,0)$$,
+select throws_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'AAAA','122','2026-10-21','2026-10-20',100,0,'Seminar Offline')$$,
   'DF011', 'INVALID_ARGUMENT', 'tanggal akhir sebelum awal ditolak');
-select throws_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'ZZZZ','122','2026-10-20','2026-10-20',100,0)$$,
+select throws_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'ZZZZ','122','2026-10-20','2026-10-20',100,0,'Seminar Offline')$$,
   'DF011', 'INVALID_ARGUMENT', 'produk tidak dikenal ditolak');
 
-select is((public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'aaaa','0122','2026-10-20','2026-10-21',6000000,11))->>'batch',
+select is((public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'aaaa','0122','2026-10-20','2026-10-21',6000000,11,'Seminar Offline'))->>'batch',
   '122', 'batch 0122 disimpan sebagai 122 (A33)');
 select is((select advertiser_id from public.ad_spend_reports where batch = '122'), 'f8000000-0000-0000-0000-000000000001'::uuid,
   'pengiklan diambil dari akun');
-select throws_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'AAAA','777','2026-10-20','2026-10-20',100,101)$$,
+select throws_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'AAAA','777','2026-10-20','2026-10-20',100,101,'Seminar Offline')$$,
   'DF011', 'INVALID_ARGUMENT', 'PPN di atas 100% ditolak');
-select throws_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'AAAA','777','2026-10-20','2026-10-20',100,-1)$$,
+select throws_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'AAAA','777','2026-10-20','2026-10-20',100,-1,'Seminar Offline')$$,
   'DF011', 'INVALID_ARGUMENT', 'PPN negatif ditolak');
 select is((select tax_percent from public.ad_spend_reports where batch = '122'), 11.00::numeric, 'PPN tersimpan per report');
 
 -- Rentang bertumpuk: ditolak tanpa konfirmasi, tersimpan dengan konfirmasi ("Tambahkan Data Ini").
-select throws_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'AAAA','122','2026-10-21','2026-10-22',1000000,11)$$,
+select throws_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'AAAA','122','2026-10-21','2026-10-22',1000000,11,'Seminar Offline')$$,
   'DF016', 'AD_SPEND_OVERLAP', 'rentang bertumpuk ditolak tanpa konfirmasi');
-select lives_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'AAAA','122','2026-10-21','2026-10-22',1000000,11,true)$$,
+select lives_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'AAAA','122','2026-10-21','2026-10-22',1000000,11,'Seminar Offline',true)$$,
   'rentang bertumpuk tersimpan dengan konfirmasi');
-select lives_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'AAAA','999','2026-10-20','2026-10-20',500000,0)$$,
+select lives_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'AAAA','999','2026-10-20','2026-10-20',500000,0,'Seminar Offline')$$,
   'batch lain tidak dianggap bertumpuk');
-select lives_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a2',null,'AAAA','122','2026-10-20','2026-10-20',2000000,10)$$,
+select lives_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a2',null,'AAAA','122','2026-10-20','2026-10-20',2000000,10,'Seminar Offline')$$,
   'pengiklan lain dengan produk + batch sama tidak dianggap bertumpuk');
+select throws_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'AAAA','778','2026-10-20','2026-10-20',100,0,'Workshop')$$,
+  'DF011', 'INVALID_ARGUMENT', 'jenis acara di luar daftar ditolak');
+select lives_ok($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a1',null,'AAAA','122','2026-10-20','2026-10-21',1000000,11,'Webinar Online')$$,
+  'batch sama dengan jenis acara berbeda tidak dianggap bertumpuk');
+select lives_ok(format($$select public.delete_ad_spend_report('f8000000-0000-0000-0000-0000000000a1','%s')$$,
+  (select id from public.ad_spend_reports where event_type = 'Webinar Online')),
+  'report webinar percobaan dibersihkan kembali');
 
 -- Edit/hapus report pengiklan lain = tidak ditemukan.
 select throws_ok(format($$select public.delete_ad_spend_report('f8000000-0000-0000-0000-0000000000a2','%s')$$,
   (select id from public.ad_spend_reports where batch = '999')), 'DF017', 'AD_SPEND_NOT_FOUND', 'tidak bisa hapus report pengiklan lain');
-select throws_ok(format($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a2','%s','AAAA','999','2026-10-20','2026-10-20',1,0)$$,
+select throws_ok(format($$select public.save_ad_spend_report('f8000000-0000-0000-0000-0000000000a2','%s','AAAA','999','2026-10-20','2026-10-20',1,0,'Seminar Offline')$$,
   (select id from public.ad_spend_reports where batch = '999')), 'DF017', 'AD_SPEND_NOT_FOUND', 'tidak bisa edit report pengiklan lain');
 
 -- A43: sesi/kota/quantity untuk tabel tiket Paid per sesi × pengiklan.
@@ -88,13 +95,13 @@ select is((select jsonb_array_length(v->'rows') from r), 3, 'filter pengiklan 91
 -- Report 20–21 Okt batch 122: sp-1 (Paid, 00:30 WIB 20 Okt), sp-2 (Pending), sp-3 (Paid), sp-4 (Cancelled).
 -- sp-5 (pengiklan 92), sp-6 (batch 123), sp-7 (23:30 WIB 19 Okt) tidak ikut.
 select is((select x from r, jsonb_array_elements(v->'rows') x where x->>'date_from' = '2026-10-20' and x->>'batch' = '122')
-  - 'id' - 'product_name' - 'advertiser_name' - 'date_from' - 'date_to' - 'product_code' - 'advertiser_code',
-  '{"batch":"122","spend":6000000.00,"tax_percent":11.00,"tax_amount":660000.00,"total_spend":6660000.00,"leads":4,"paid":2,"tickets":3,"omzet":450000.00,"own":true}'::jsonb,
+  - 'id' - 'product_name' - 'advertiser_name' - 'date_from' - 'date_to' - 'product_code' - 'advertiser_code' - 'event_type',
+  '{"batch":"122","spend":6000000.00,"tax_percent":11.00,"tax_amount":660000.00,"total_spend":6660000.00,"leads":3,"paid":2,"tickets":3,"omzet":450000.00,"own":true}'::jsonb,
   'leads = semua order, paid = jumlah Order ID Paid, tickets = sum quantity Paid (A45), omzet = gross Paid, batas hari WIB');
 select is((select x->>'leads' from r, jsonb_array_elements(v->'rows') x where x->>'batch' = '999'), '0', 'tanpa order: leads 0, bukan error');
 select is((select x->>'omzet' from r, jsonb_array_elements(v->'rows') x where x->>'batch' = '999'), '0.00', 'tanpa order: omzet 0');
 -- Total: spend 6jt + 1jt + 500rb, PPN 660rb + 110rb + 0 (11%, 11%, 0%); order sp-3/sp-4 tercakup dua report tetapi dihitung sekali.
-select is((select v->'summary' from r), '{"reports":3,"spend":7500000.00,"tax_amount":770000.00,"total_spend":8270000.00,"leads":4,"paid":2,"omzet":450000.00}'::jsonb,
+select is((select v->'summary' from r), '{"reports":3,"spend":7500000.00,"tax_amount":770000.00,"total_spend":8270000.00,"leads":3,"paid":2,"omzet":450000.00}'::jsonb,
   'total: spend dijumlah, order tidak dihitung dua kali');
 -- A43: hanya order Paid (sp-2 Pending, sp-4 Cancelled tidak dihitung); sp-3 tercakup dua report dihitung sekali.
 select is((select v->'sessions' from r),
@@ -104,7 +111,7 @@ select is((select v->'sessions' from r),
   'sesi × pengiklan: tiket Paid = sum quantity, urut kota lalu sesi');
 -- A44: produk dikontrol bersama — report + order pengiklan 92 di produk AAAA ikut terlihat, tetapi bukan "milik sendiri".
 select is((public.ad_spend_report('2026-10-20','2026-10-22')->'summary'),
-  '{"reports":4,"spend":9500000.00,"tax_amount":970000.00,"total_spend":10470000.00,"leads":5,"paid":3,"omzet":1449000.00}'::jsonb,
+  '{"reports":4,"spend":9500000.00,"tax_amount":970000.00,"total_spend":10470000.00,"leads":4,"paid":3,"omzet":1449000.00}'::jsonb,
   'advertiser: total semua pengiklan di produknya');
 select is((select bool_or((x->>'own')::boolean) from jsonb_array_elements(public.ad_spend_report('2026-10-20','2026-10-22',p_advertiser_code => '92')->'rows') x),
   false, 'advertiser: report pengiklan lain terlihat tetapi tidak bisa diedit');
@@ -114,6 +121,8 @@ select is((public.ad_spend_report('2026-10-20','2026-10-22')->'sessions'->'adver
 select is((public.ad_spend_report('2026-10-23','2026-10-30')->'summary'->>'reports')::int, 0, 'rentang tidak beririsan tidak tampil');
 select is((public.ad_spend_report('2026-10-22','2026-10-22')->'summary'->>'reports')::int, 1, 'report beririsan dengan filter tampil');
 select is((public.ad_spend_report(p_batch => '0122')->'summary'->>'reports')::int, 3, 'filter batch 0122 = 122');
+select is((public.ad_spend_report(p_event_type => 'Seminar Offline')->'summary'->>'reports')::int, 4, 'filter jenis Seminar Offline');
+select is((public.ad_spend_report(p_event_type => 'Webinar Online')->'summary'->>'reports')::int, 0, 'filter jenis Webinar Online tidak mencampur Seminar');
 
 -- Role lihat saja (semua produk): semua pengiklan.
 set local request.jwt.claims = '{"sub":"f8000000-0000-0000-0000-0000000000c1","app_role":"spend_viewer"}';
@@ -148,11 +157,11 @@ select ok(exists(select 1 from public.app_role_permissions where role_id = 'owne
 
 -- Produk/pengiklan yang punya report dianggap dipakai.
 select ok(public.master_is_used('products','AAAA',null), 'produk dengan report dianggap dipakai');
-select is(has_function_privilege('authenticated','public.save_ad_spend_report(uuid,uuid,text,text,date,date,numeric,numeric,boolean)','execute'), false,
+select is(has_function_privilege('authenticated','public.save_ad_spend_report(uuid,uuid,text,text,date,date,numeric,numeric,text,boolean)','execute'), false,
   'save_ad_spend_report tidak bisa dipanggil browser');
 select is(has_function_privilege('authenticated','public.delete_ad_spend_report(uuid,uuid)','execute'), false,
   'delete_ad_spend_report tidak bisa dipanggil browser');
-select is(has_function_privilege('anon','public.ad_spend_report(date,date,text,text,text)','execute'), false,
+select is(has_function_privilege('anon','public.ad_spend_report(date,date,text,text,text,text)','execute'), false,
   'ad_spend_report tidak bisa dipanggil anon');
 
 select * from finish();

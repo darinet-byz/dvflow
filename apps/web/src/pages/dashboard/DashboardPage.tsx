@@ -25,7 +25,7 @@ import { SessionSummaryCard } from './SessionSummaryCard'
  * Rasio ditampilkan "-" ketika penyebutnya nol, bukan "0%" (STATE.md K4).
  */
 export function DashboardPage() {
-  const state = useFilterState(EMPTY_COMMON_FILTERS)
+  const state = useFilterState(EMPTY_COMMON_FILTERS, { storageKey: 'dashboard' })
   const { lists } = useConfigLists()
 
   const appliedKey = JSON.stringify(state.applied)

@@ -21,7 +21,7 @@ import { Modal } from '../../ui/Overlay'
 import { DataTable, TableCell, TableRow, TableTotalRow, type TableColumn } from '../../ui/Table'
 import { useToast } from '../../ui/Toast'
 import { DateRangeField } from '../shared/DateRangeField'
-import { AdvertiserFilter, BatchFilter, DateRangeFilters, ProductFilter } from '../shared/FilterControls'
+import { AdvertiserFilter, BatchFilter, DateRangeFilters, EventTypeFilter, ProductFilter } from '../shared/FilterControls'
 import { useFilterState } from '../shared/useFilterState'
 
 /**
@@ -42,6 +42,7 @@ type SpendRow = {
   advertiser_code: string
   advertiser_name: string
   batch: string
+  event_type: string | null
   /** Spend sebelum PPN. */
   spend: number | string
   tax_percent: number | string
@@ -91,6 +92,7 @@ export type ComparisonRow = {
   product_code: string
   product_name: string
   batch: string
+  event_type?: string | null
   advertiser_code: string
   advertiser_name: string
   spend: number | string
@@ -117,10 +119,17 @@ export type SpendComparison = {
 
 type ComparisonSort = 'tickets' | 'omzet' | 'profit' | 'roi' | 'spend'
 
+const EVENT_TYPE_OPTIONS = [
+  { value: 'Seminar Offline', label: 'Seminar Offline' },
+  { value: 'Webinar Online', label: 'Webinar Online' },
+  { value: 'Hybrid', label: 'Hybrid' },
+] as const
+
 type FormState = {
   id: string | null
   productCode: string
   batch: string
+  eventType: string
   dateFrom: string
   dateTo: string
   spend: string
@@ -132,6 +141,7 @@ const COLUMNS: readonly TableColumn[] = [
   { key: 'product', header: 'Produk', minWidth: 160 },
   { key: 'advertiser', header: 'Pengiklan', minWidth: 130 },
   { key: 'batch', header: 'Batch', minWidth: 80 },
+  { key: 'event_type', header: 'Jenis', minWidth: 130 },
   { key: 'spend', header: 'Spend', align: 'right', minWidth: 130 },
   { key: 'tax', header: 'PPN', align: 'right', minWidth: 120 },
   { key: 'total_spend', header: 'Total Spend', align: 'right', minWidth: 140 },
@@ -239,7 +249,7 @@ function profitClass(value: number): string {
 /** PPN tiap akun iklan biasanya tetap, jadi form baru memakai PPN report terakhir pengiklan ini. */
 function emptyForm(lastTaxPercent: string): FormState {
   const range = yesterday()
-  return { id: null, productCode: '', batch: '', dateFrom: range.from, dateTo: range.to, spend: '', taxPercent: lastTaxPercent }
+  return { id: null, productCode: '', batch: '', eventType: '', dateFrom: range.from, dateTo: range.to, spend: '', taxPercent: lastTaxPercent }
 }
 
 export function ReportSpendPage() {
@@ -252,7 +262,10 @@ export function ReportSpendPage() {
 
   // Hanya dipakai sebagai nilai awal (useState); filter bertanggal tidak memicu default "Hari Ini".
   const initialRange = yesterday()
-  const state = useFilterState<CommonFilters>({ ...EMPTY_COMMON_FILTERS, dateFrom: initialRange.from, dateTo: initialRange.to })
+  const state = useFilterState<CommonFilters>(
+    { ...EMPTY_COMMON_FILTERS, dateFrom: initialRange.from, dateTo: initialRange.to },
+    { storageKey: 'report-spend' },
+  )
   const { lists } = useConfigLists()
   const [refresh, setRefresh] = useState(0)
 
@@ -265,6 +278,7 @@ export function ReportSpendPage() {
       p_product_code: args['p_product_code'],
       p_advertiser_code: args['p_advertiser_code'],
       p_batch: args['p_batch'],
+      p_event_type: args['p_event_type'],
     })
   }, [appliedKey, refresh])
 
@@ -298,6 +312,7 @@ export function ReportSpendPage() {
     const spend = parseSpendInput(form.spend)
     if (form.productCode === '') { setFormError('Pilih produk terlebih dahulu.'); return }
     if (form.batch.trim() === '') { setFormError('Batch wajib diisi.'); return }
+    if (form.eventType === '') { setFormError('Pilih jenis acara: Seminar Offline, Webinar Online, atau Hybrid.'); return }
     if (form.dateFrom === '' || form.dateTo === '') { setFormError('Pilih rentang tanggal.'); return }
     if (spend === null) { setFormError('Biaya iklan wajib diisi.'); return }
     const taxPercent = parseTaxPercent(form.taxPercent)
@@ -311,6 +326,7 @@ export function ReportSpendPage() {
         body: {
           product_code: form.productCode,
           batch: form.batch.trim(),
+          event_type: form.eventType,
           date_from: form.dateFrom,
           date_to: form.dateTo,
           spend,
@@ -340,6 +356,7 @@ export function ReportSpendPage() {
     state.update('dateTo', form.dateTo)
     state.update('productCode', form.productCode)
     state.update('batch', form.batch.trim())
+    state.update('eventType', form.eventType)
     setForm(null)
   }
 
@@ -397,6 +414,7 @@ export function ReportSpendPage() {
           <DateRangeFilters {...controls} />
           <ProductFilter {...controls} />
           <AdvertiserFilter {...controls} />
+          <EventTypeFilter {...controls} />
           <BatchFilter {...controls} />
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
@@ -523,6 +541,9 @@ export function ReportSpendPage() {
                     <TableCell>{row.product_name}</TableCell>
                     <TableCell>{row.advertiser_name}</TableCell>
                     <TableCell>{row.batch}</TableCell>
+                    <TableCell>
+                      {row.event_type == null || row.event_type === '' ? '-' : <Badge tone={eventTypeTone(row.event_type)}>{row.event_type}</Badge>}
+                    </TableCell>
                     <TableCell align="right">{formatMoney(row.spend)}</TableCell>
                     <TableCell align="right">
                       {formatMoney(row.tax_amount)}
@@ -550,6 +571,7 @@ export function ReportSpendPage() {
                                 id: row.id,
                                 productCode: row.product_code,
                                 batch: row.batch,
+                                eventType: row.event_type ?? '',
                                 dateFrom: row.date_from,
                                 dateTo: row.date_to,
                                 spend: String(Number(row.spend)),
@@ -608,6 +630,14 @@ export function ReportSpendPage() {
               maxLength={32}
               onChange={(value) => changeForm({ batch: value })}
             />
+            <Select
+              id="spend-event-type"
+              label="Jenis Acara"
+              value={form.eventType}
+              placeholder="Pilih Seminar / Webinar"
+              options={EVENT_TYPE_OPTIONS}
+              onChange={(value) => changeForm({ eventType: value })}
+            />
             <div>
               <p className="mb-1 block text-[12px] font-semibold text-ink-soft">Tanggal</p>
               <DateRangeField
@@ -645,9 +675,9 @@ export function ReportSpendPage() {
 
             {overlap ? (
               <div className="rounded-md border border-warning/40 bg-warning-soft p-3" role="alert">
-                <p className="font-semibold text-ink">Tanggal, produk, dan batch sudah ada.</p>
+                <p className="font-semibold text-ink">Tanggal, produk, batch, dan jenis acara sudah ada.</p>
                 <p className="mt-0.5 text-[12px] text-ink-soft">
-                  Sudah ada report untuk produk dan batch ini pada tanggal yang sama atau bertumpuk.
+                  Sudah ada report untuk produk, batch, dan jenis acara ini pada tanggal yang sama atau bertumpuk.
                 </p>
                 <div className="mt-3 flex flex-wrap justify-end gap-2">
                   <Button variant="secondary" onClick={showExisting} disabled={saving}>Cek Report</Button>
@@ -758,7 +788,7 @@ export function AdvertiserComparison({
             const cost = row.tickets > 0 ? Number(row.total_spend) / row.tickets : null
             const share = totalTickets > 0 ? (row.tickets / totalTickets) * 100 : 0
             return (
-              <TableRow key={`${row.advertiser_code}|${row.product_code}|${row.batch}`}>
+              <TableRow key={`${row.advertiser_code}|${row.product_code}|${row.batch}|${row.event_type ?? ''}`}>
                 <TableCell>
                   <span className="font-medium text-ink">{row.advertiser_name}</span>
                 </TableCell>

@@ -15,7 +15,7 @@ async function setup(role: string, permissions: string[] = []) {
   return { state, request }
 }
 
-const valid = { product_code: 'KM', batch: '0122', date_from: '2026-10-20', date_to: '2026-10-21', spend: 6000000, tax_percent: 11 }
+const valid = { product_code: 'KM', batch: '0122', event_type: 'Seminar Offline', date_from: '2026-10-20', date_to: '2026-10-21', spend: 6000000, tax_percent: 11 }
 const REPORT_ID = '11111111-2222-4333-8444-555555555555'
 
 describe('Report Spend Iklan (A37)', () => {
@@ -32,6 +32,8 @@ describe('Report Spend Iklan (A37)', () => {
       { product_code: '' },
       { batch: '' },
       { batch: '   ' },
+      { event_type: '' },
+      { event_type: 'Workshop' },
       { date_from: '' },
       { date_to: '2026-10-19' },
       { date_from: '2026-02-30', date_to: '2026-02-30' },
@@ -58,6 +60,7 @@ describe('Report Spend Iklan (A37)', () => {
       p_id: null,
       p_product_code: 'KM',
       p_batch: '122',
+      p_event_type: 'Seminar Offline',
       p_date_from: '2026-10-20',
       p_date_to: '2026-10-21',
       p_spend: 6000000,
@@ -74,7 +77,7 @@ describe('Report Spend Iklan (A37)', () => {
     const second = await request('POST', '/api/ad-spend-reports', valid)
     expect(second.status).toBe(409)
     const failure = (await second.json()) as { error: { code: string; message: string } }
-    expect(failure.error).toEqual({ code: 'AD_SPEND_OVERLAP', message: 'Tanggal, produk, dan batch sudah ada.' })
+    expect(failure.error).toEqual({ code: 'AD_SPEND_OVERLAP', message: 'Tanggal, produk, batch, dan jenis acara sudah ada.' })
     expect((await request('POST', '/api/ad-spend-reports', { ...valid, confirm_overlap: true })).status).toBe(201)
   })
 

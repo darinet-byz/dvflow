@@ -37,7 +37,7 @@ Access JWT:
 Jika implementasi custom JWT Supabase belum dikonfigurasi di project, jangan membuka RLS atau memakai service key di frontend sebagai shortcut.
 
 ## 3. Session lifecycle
-- idle/refresh session lifetime: 7 hari.
+- idle/refresh session lifetime: 14 hari.
 - access JWT lifetime: 30 menit.
 - logout menghapus/menonaktifkan refresh session server-side dan menghapus cookie.
 - password change menonaktifkan seluruh session user tersebut.

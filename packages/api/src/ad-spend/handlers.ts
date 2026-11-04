@@ -20,11 +20,15 @@ type SavedReport = {
   action: 'created' | 'updated'
   product_code: string
   batch: string
+  event_type: string
   date_from: string
   date_to: string
   spend: number | string
   tax_percent: number | string
 }
+
+/** Jenis acara yang dapat dipilih pada report spend; nilainya sama dengan orders.event_type. */
+const AD_SPEND_EVENT_TYPES = ['Seminar Offline', 'Webinar Online', 'Hybrid'] as const
 
 /** POST /api/ad-spend-reports — input spend baru. */
 export async function createAdSpend(context: RouteContext): Promise<Response> {
@@ -52,6 +56,7 @@ async function saveAdSpend(context: RouteContext, id: string | null) {
   const body = await readJsonObject(context.request)
   const productCode = (readString(body, 'product_code') ?? '').trim()
   const batch = normalizeBatch(readString(body, 'batch') ?? '')
+  const eventType = (readString(body, 'event_type') ?? '').trim()
   const dateFrom = (readString(body, 'date_from') ?? '').trim()
   const dateTo = (readString(body, 'date_to') ?? '').trim()
   const spend = readNumber(body, 'spend')
@@ -59,6 +64,9 @@ async function saveAdSpend(context: RouteContext, id: string | null) {
 
   if (productCode === '') throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih produk terlebih dahulu.')
   if (batch === '' || batch.length > MAX_BATCH_LENGTH) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Batch wajib diisi (maks 32 karakter).')
+  if (!(AD_SPEND_EVENT_TYPES as readonly string[]).includes(eventType)) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih jenis acara: Seminar Offline, Webinar Online, atau Hybrid.')
+  }
   if (!isDate(dateFrom) || !isDate(dateTo)) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Tanggal awal dan akhir wajib diisi.')
   if (dateTo < dateFrom) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Tanggal akhir tidak boleh sebelum tanggal awal.')
   if (spend === null || spend < 0 || spend > MAX_SPEND) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Biaya iklan harus berupa angka 0 atau lebih.')
@@ -69,6 +77,7 @@ async function saveAdSpend(context: RouteContext, id: string | null) {
     p_id: id,
     p_product_code: productCode,
     p_batch: batch,
+    p_event_type: eventType,
     p_date_from: dateFrom,
     p_date_to: dateTo,
     p_spend: roundMoney(spend),

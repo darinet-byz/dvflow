@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { OTS_MAX_QUANTITY, OTS_UNIT_PRICE_OPTIONS } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
 import { fetchOtsReferenceData, type OtsReferenceData } from '../../lib/queries'
-import { useAsyncData } from '../../lib/useAsyncData'
+import { useAsyncData, useDebouncedValue } from '../../lib/useAsyncData'
 import { formatMoney, formatTime } from '../../lib/format'
 import { Button } from '../../ui/Button'
 import { Combobox } from '../../ui/Combobox'
-import { Select, TextInput } from '../../ui/Field'
+import { SearchInput, Select, TextInput } from '../../ui/Field'
 import { ErrorState, SkeletonRows } from '../../ui/Feedback'
 import { Drawer } from '../../ui/Overlay'
+import { Pagination } from '../../ui/Pagination'
 import { useToast } from '../../ui/Toast'
 import { cn } from '../../ui/cn'
 
@@ -118,16 +119,30 @@ function priceLabel(value: number, legacy: boolean): string {
   return formatMoney(value)
 }
 
+type OtsListResponse = {
+  rows: OtsRow[]
+  total: number
+  page: number
+  pageSize: number
+}
+
+function wibToday(): string {
+  return new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10)
+}
+
 export function OtsDrawer({ open, onClose, canDelete }: { open: boolean; onClose: () => void; canDelete: boolean }) {
   return (
     <Drawer open={open} title="Peserta OTS (Bayar di Lokasi)" onClose={onClose}>
-      <OtsPanel open={open} canDelete={canDelete} />
+      <OtsPanel open={open} canDelete={canDelete} mode="today" />
     </Drawer>
   )
 }
 
-/** Isi pendaftaran OTS: dipakai drawer (web) dan layar penuh `/ots` (Tampilan Apps Lapangan, A30). */
-export function OtsPanel({ open, canDelete }: { open: boolean; canDelete: boolean }) {
+/**
+ * Isi pendaftaran OTS: dipakai drawer (web, `mode="today"`) dan layar penuh
+ * `/ots` (web + Tampilan Apps Lapangan, `mode="all"`).
+ */
+export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; canDelete: boolean; mode?: 'today' | 'all' }) {
   const toast = useToast()
   const [context, setContext] = useState<OtsContext>(initialContext)
   const [showContext, setShowContext] = useState(() => !isContextComplete(initialContext()))
@@ -145,6 +160,12 @@ export function OtsPanel({ open, canDelete }: { open: boolean; canDelete: boolea
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
   const [refresh, setRefresh] = useState(0)
+  const [query, setQuery] = useState('')
+  const debouncedQuery = useDebouncedValue(query)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [page, setPage] = useState(1)
+  const [pageSize, setPageSizeState] = useState(50)
 
   const references = useAsyncData<OtsReferenceData>(
     () => (open ? fetchOtsReferenceData() : Promise.resolve({ products: [], sessions: [] })),
@@ -154,10 +175,28 @@ export function OtsPanel({ open, canDelete }: { open: boolean; canDelete: boolea
     () => (open ? authorizedRequest<{ events: OtsEvent[] }>('/api/ots/events') : Promise.resolve({ events: [] })),
     [open],
   )
-  const list = useAsyncData<{ rows: OtsRow[] }>(
-    () => (open ? authorizedRequest<{ rows: OtsRow[] }>('/api/ots') : Promise.resolve({ rows: [] })),
-    [open, refresh],
+  const list = useAsyncData<OtsListResponse>(
+    () => {
+      if (!open) return Promise.resolve({ rows: [], total: 0, page: 1, pageSize })
+      const params = new URLSearchParams()
+      if (mode === 'today') params.set('date', wibToday())
+      else {
+        params.set('scope', 'all')
+        if (dateFrom !== '') params.set('from', dateFrom)
+        if (dateTo !== '') params.set('to', dateTo)
+      }
+      if (debouncedQuery.trim() !== '') params.set('q', debouncedQuery.trim())
+      params.set('page', String(page))
+      params.set('pageSize', String(pageSize))
+      return authorizedRequest<OtsListResponse>(`/api/ots?${params.toString()}`)
+    },
+    [open, mode, refresh, debouncedQuery, dateFrom, dateTo, page, pageSize],
   )
+
+  // Filter berubah: kembali ke halaman pertama, bukan halaman kosong dari hasil lama.
+  useEffect(() => {
+    setPage(1)
+  }, [mode, debouncedQuery, dateFrom, dateTo])
 
   const products = references.data?.products ?? []
   const sessions = references.data?.sessions ?? []
@@ -349,6 +388,7 @@ export function OtsPanel({ open, canDelete }: { open: boolean; canDelete: boolea
   }
 
   const rows = list.data?.rows ?? []
+  const totalRows = list.data?.total ?? rows.length
   const totalToday = rows.reduce((sum, row) => sum + row.gross_amount, 0)
   const contextReady = isContextComplete(context)
   const selectedProductName = context.productCode === '' ? '' : productNames.get(context.productCode) ?? context.productCode
@@ -524,13 +564,26 @@ export function OtsPanel({ open, canDelete }: { open: boolean; canDelete: boolea
       </form>
 
       <div className="mt-5 border-t border-line pt-4">
+        {mode === 'all' ? (
+          <div className="mb-3 flex flex-col gap-2">
+            <SearchInput id="ots-search" value={query} onChange={setQuery} placeholder="Cari nama, Order ID, atau No HP" />
+            <div className="grid grid-cols-2 gap-2">
+              <TextInput id="ots-from" label="Dari tanggal" type="date" value={dateFrom} onChange={setDateFrom} />
+              <TextInput id="ots-to" label="Sampai tanggal" type="date" value={dateTo} onChange={setDateTo} />
+            </div>
+          </div>
+        ) : null}
         <div className="flex items-baseline justify-between gap-2">
-          <p className="text-[13px] font-semibold text-ink">OTS hari ini</p>
-          <p className="text-[12px] text-ink-soft">{rows.length} peserta · {formatMoney(totalToday)}</p>
+          <p className="text-[13px] font-semibold text-ink">{mode === 'all' ? 'Semua OTS' : 'OTS hari ini'}</p>
+          <p className="text-[12px] text-ink-soft">{totalRows} peserta{totalRows > rows.length ? ' (halaman ini)' : ''} · {formatMoney(totalToday)}</p>
         </div>
         {list.error ? <ErrorState message={list.error} action={<Button onClick={list.reload}>Coba lagi</Button>} /> : null}
         {list.loading && list.data === null ? <SkeletonRows rows={3} /> : null}
-        {list.data !== null && rows.length === 0 ? <p className="mt-2 text-[12px] text-ink-soft">Belum ada pendaftaran OTS hari ini.</p> : null}
+        {list.data !== null && rows.length === 0 ? (
+          <p className="mt-2 text-[12px] text-ink-soft">
+            {mode === 'all' ? 'Belum ada pendaftaran OTS.' : 'Belum ada pendaftaran OTS hari ini.'}
+          </p>
+        ) : null}
         <ul className="mt-2 flex flex-col gap-2">
           {rows.map((row) => {
             const rowQuantity = Math.max(1, Number(row.quantity ?? 1))
@@ -558,6 +611,18 @@ export function OtsPanel({ open, canDelete }: { open: boolean; canDelete: boolea
             )
           })}
         </ul>
+        {list.data !== null && totalRows > 0 ? (
+          <Pagination
+            page={page}
+            pageSize={pageSize}
+            total={totalRows}
+            onPageChange={setPage}
+            onPageSizeChange={(size) => {
+              setPageSizeState(size)
+              setPage(1)
+            }}
+          />
+        ) : null}
       </div>
     </>
   )

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { logout } from '../lib/session'
+import { clearPersistedFilters } from '../lib/filter-storage'
 import { Skeleton } from '../ui/Feedback'
 import { LOGIN_PATH } from '../layout/navigation'
 
@@ -15,6 +16,8 @@ export function LogoutPage() {
 
   useEffect(() => {
     let active = true
+    // Filter adalah keadaan kerja tab ini; user berikutnya tidak boleh mewarisinya.
+    clearPersistedFilters()
     void logout().then(() => {
       if (active) setDone(true)
     })
