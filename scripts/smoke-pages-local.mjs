@@ -83,7 +83,8 @@ check('nosniff + anti-framing', root.headers.get('x-content-type-options') === '
 
 const qr = await request('/assets/ticket-qr.js')
 check('skrip QR halaman peserta tersedia', qr.status === 200 && qr.type.includes('javascript'))
-check('aset ber-hash di-cache lama', (qr.headers.get('cache-control') ?? '').includes('immutable'))
+// A63: ticket-qr.js TIDAK ber-hash, jadi harus selalu revalidasi.
+check('skrip QR selalu revalidasi', !(qr.headers.get('cache-control') ?? '').includes('immutable') && (qr.headers.get('cache-control') ?? '').includes('must-revalidate'))
 
 // 2. Prioritas routing --------------------------------------------------------
 console.log('\n2. Prioritas Functions vs fallback SPA (dulu ditunda, kini diuji)')
