@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { ReactElement } from 'react'
 
@@ -282,6 +282,7 @@ describe('tabel Presensi (PRD §103, §105)', () => {
   it('A61: filter status hanya menawarkan status peserta Paid', async () => {
     renderPage(<PresensiPage />)
 
+    fireEvent.click(await screen.findByRole('button', { name: /Filter Lain/ }))
     const select = await screen.findByLabelText('Filter status presensi')
     const values = Array.from((select as HTMLSelectElement).options).map((option) => option.value)
     expect(values).toContain('Reschedule')

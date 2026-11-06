@@ -23,7 +23,7 @@ export type TextInputProps = {
   ariaLabel?: string
   value: string
   onChange: (value: string) => void
-  type?: 'text' | 'password' | 'search' | 'email' | 'number' | 'date'
+  type?: 'text' | 'password' | 'search' | 'email' | 'number' | 'date' | 'datetime-local'
   placeholder?: string
   autoComplete?: string
   disabled?: boolean

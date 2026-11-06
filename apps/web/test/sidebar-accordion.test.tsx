@@ -40,31 +40,31 @@ describe('Sidebar accordion (A47)', () => {
     render(<MemoryRouter initialEntries={['/']}><Sidebar /></MemoryRouter>)
 
     expect(screen.getByText('Dashboard')).toBeTruthy()
-    const acara = screen.getByRole('button', { name: 'ACARA' })
+    const acara = screen.getByRole('button', { name: 'Acara' })
     expect(acara.getAttribute('aria-expanded')).toBe('false')
     expect(screen.queryByText('Scan QR')).toBeNull()
 
     fireEvent.click(acara)
     expect(acara.getAttribute('aria-expanded')).toBe('true')
     expect(screen.getByText('Scan QR')).toBeTruthy()
-    expect(window.localStorage.getItem('dvflow.sidebar.open')).toBe('ACARA')
+    expect(window.localStorage.getItem('dvflow.sidebar.open')).toBe('Acara')
   })
 
   it('membuka grup lain menutup grup sebelumnya', () => {
     render(<MemoryRouter initialEntries={['/']}><Sidebar /></MemoryRouter>)
 
-    fireEvent.click(screen.getByRole('button', { name: 'ACARA' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Acara' }))
     expect(screen.getByText('Scan QR')).toBeTruthy()
 
-    fireEvent.click(screen.getByRole('button', { name: 'ORDER' }))
-    expect(screen.getByText('Order')).toBeTruthy()
+    fireEvent.click(screen.getByRole('button', { name: 'Order' }))
+    expect(screen.getByRole('link', { name: 'Order' })).toBeTruthy()
     expect(screen.queryByText('Scan QR')).toBeNull()
   })
 
   it('grup halaman aktif otomatis terbuka', async () => {
     render(<MemoryRouter initialEntries={['/performa']}><Sidebar /></MemoryRouter>)
     expect(await screen.findByText('Performa / Analitik')).toBeTruthy()
-    expect(screen.getByRole('button', { name: /LAPORAN & PAJAK/ }).getAttribute('aria-expanded')).toBe('true')
+    expect(screen.getByRole('button', { name: /Laporan & Pajak/ }).getAttribute('aria-expanded')).toBe('true')
   })
 
   it('A55: anak menu accordion menjorok dengan garis pemandu, Dashboard tetap rata', () => {
@@ -73,7 +73,7 @@ describe('Sidebar accordion (A47)', () => {
     const dashboardList = screen.getByText('Dashboard').closest('li')!.parentElement!
     expect(dashboardList.className.split(/\s+/)).not.toContain('ml-2')
 
-    fireEvent.click(screen.getByRole('button', { name: 'ACARA' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Acara' }))
     const childList = screen.getByText('Scan QR').closest('li')!.parentElement!
     const childClasses = childList.className.split(/\s+/)
     expect(childClasses).toContain('ml-2')
@@ -89,10 +89,10 @@ describe('Sidebar accordion (A47)', () => {
     expect(active).not.toBeNull()
     const activeClasses = active!.className.split(/\s+/)
     expect(activeClasses).toContain('text-[12px]')
-    expect(activeClasses).toContain('uppercase')
+    expect(activeClasses).not.toContain('uppercase')
     expect(activeClasses).toContain('text-white')
 
-    const accordion = screen.getByRole('button', { name: 'ACARA' })
+    const accordion = screen.getByRole('button', { name: 'Acara' })
     const accordionClasses = accordion.className.split(/\s+/)
     expect(accordionClasses).toContain('text-[12px]')
     expect(accordionClasses).toContain('text-ink')

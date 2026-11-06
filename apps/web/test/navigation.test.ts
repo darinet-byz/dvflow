@@ -13,20 +13,20 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
     // A38: dikelompokkan per alur kerja; Dashboard berdiri sendiri tanpa judul.
     expect(NAV_SECTIONS.map((section) => section.title)).toEqual([
       undefined,
-      'ACARA',
-      'ORDER',
-      'STATUS',
-      'LAPORAN & PAJAK',
-      'PRODUK & ACARA',
-      'SISTEM',
-      'AKUN',
+      'Acara',
+      'Order',
+      'Status',
+      'Laporan & Pajak',
+      'Produk & Acara',
+      'Sistem',
+      'Akun',
     ])
 
     expect(flattenNavigation().map((item) => item.label)).toEqual([
       'Dashboard',
+      'OTS',
       'Scan QR',
       'Presensi Acara',
-      'Peserta OTS',
       'Order',
       'Order Refund',
       'Order Unmapped',

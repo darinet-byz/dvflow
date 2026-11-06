@@ -26,19 +26,22 @@ export const LOGIN_PATH = '/login'
 export const NAV_SECTIONS: NavSection[] = [
   // A38: Dashboard berdiri sendiri di paling atas, tanpa judul seksi.
   {
-    items: [{ label: 'Dashboard', path: DASHBOARD_PATH, icon: 'layout-dashboard' }],
+    items: [
+      { label: 'Dashboard', path: DASHBOARD_PATH, icon: 'layout-dashboard' },
+      // OTS kini menu utama tersendiri (permintaan pengguna 6 November 2026).
+      { label: 'OTS', path: '/ots', icon: 'clipboard-list', keywords: ['ots', 'bayar di lokasi', 'pendaftaran', 'registrasi', 'tiket'] },
+    ],
   },
   {
-    title: 'ACARA',
+    title: 'Acara',
     collapsible: true,
     items: [
       { label: 'Scan QR', path: OPERASIONAL_PATH, icon: 'scan-line', keywords: ['scan', 'kamera', 'checkin', 'tiket'] },
       { label: 'Presensi Acara', path: '/presensi', icon: 'user-check', keywords: ['kehadiran', 'hadir', 'peserta', 'seminar', 'webinar'] },
-      { label: 'Peserta OTS', path: '/ots', icon: 'clipboard-list', keywords: ['ots', 'bayar di lokasi', 'pendaftaran', 'registrasi'] },
     ],
   },
   {
-    title: 'ORDER',
+    title: 'Order',
     collapsible: true,
     items: [
       { label: 'Order', path: '/order', icon: 'receipt', keywords: ['pesanan', 'transaksi', 'order id'] },
@@ -48,7 +51,7 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'STATUS',
+    title: 'Status',
     collapsible: true,
     items: [
       { label: 'Status Produk', path: '/status-produk', icon: 'package-check' },
@@ -56,7 +59,7 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'LAPORAN & PAJAK',
+    title: 'Laporan & Pajak',
     collapsible: true,
     items: [
       { label: 'Report Spend Iklan', path: '/report-spend', icon: 'megaphone', keywords: ['laporan', 'iklan', 'spend', 'biaya', 'budget'] },
@@ -67,7 +70,7 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'PRODUK & ACARA',
+    title: 'Produk & Acara',
     collapsible: true,
     items: [
       { label: 'Konfigurasi Produk', path: '/konfigurasi-produk', icon: 'package', keywords: ['produk', 'alias', 'kode'] },
@@ -77,7 +80,7 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'SISTEM',
+    title: 'Sistem',
     collapsible: true,
     items: [
       { label: 'Add Team', path: '/add-team', icon: 'users', keywords: ['tim', 'anggota', 'user', 'akun'] },
@@ -87,7 +90,7 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    title: 'AKUN',
+    title: 'Akun',
     collapsible: true,
     items: [
       { label: 'Profil', path: '/profil', icon: 'user' },

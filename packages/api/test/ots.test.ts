@@ -74,6 +74,21 @@ describe('OTS (A29/A34)', () => {
     expect(body.data.events[0]).toMatchObject({ product_code: 'KM', batch: '392', session: 'S1', city: 'Solo', event_type: 'Seminar Offline' })
   })
 
+  it('laporan keuangan OTS: izin, validasi tanggal, dan respons agregat', async () => {
+    const { request } = await setup('admin', ['action.ots'])
+    expect((await request('GET', '/api/ots/report?from=2026-02-30')).status).toBe(400)
+    expect((await request('GET', '/api/ots/report?from=2026-11-08&to=2026-11-01')).status).toBe(400)
+    expect((await request('GET', '/api/ots/report?method=bad')).status).toBe(400)
+    const response = await request('GET', '/api/ots/report?from=2026-11-01&to=2026-11-30&method=ots_tunai')
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as { data: { summary: { transactions: number }; batches: unknown[]; sessions: unknown[] } }
+    expect(body.data.summary.transactions).toBe(0)
+    expect(body.data.batches).toEqual([])
+    expect(body.data.sessions).toEqual([])
+    const denied = await setup('member', [])
+    expect((await denied.request('GET', '/api/ots/report')).status).toBe(403)
+  })
+
   it('validasi form baru sebelum RPC', async () => {
     const { request } = await setup('admin', ['action.ots'])
     for (const bad of [

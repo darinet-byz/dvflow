@@ -36,7 +36,7 @@ function allItems(): SearchResult[] {
       results.push({ item, section: section.title ?? 'Dashboard', score: 0 })
     }
   }
-  for (const item of EXTRA_ITEMS) results.push({ item, section: 'ACARA', score: 0 })
+  for (const item of EXTRA_ITEMS) results.push({ item, section: 'Acara', score: 0 })
   return results
 }
 

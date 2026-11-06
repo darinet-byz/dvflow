@@ -15,9 +15,15 @@ import { createRole, deleteRole, getRole, listPermissions, listRoles, updateRole
 import { accessOrder, checkinByQr, checkinInfoPage } from './participant/handlers'
 import { getProfile, updateProfile } from './profile/handlers'
 import { scannerManualCheckin, scannerSearch } from './scanner/handlers'
-import { deleteOts, listOts, listOtsEvents, otsDuplicates, saveOts } from './ots/handlers'
+import { deleteOts, listOts, listOtsEvents, otsDuplicates, otsFinanceReport, saveOts } from './ots/handlers'
 import { cancelRefund, refundOrder, rescheduleOrder } from './orders/handlers'
 import { createAdSpend, deleteAdSpend, updateAdSpend } from './ad-spend/handlers'
+import {
+  archiveAdvertiserNote,
+  createAdvertiserNote,
+  listAdvertiserNotes,
+  updateAdvertiserNote,
+} from './advertiser-notes/handlers'
 import { orderOnlineWebhook } from './webhooks/handlers'
 import { batchRemapOrders, deleteAlias, deleteUnmappedOrders, listAliases, listUnmappedOrders, saveAlias } from './aliases/handlers'
 import { getDataSummary, purgeExpiredUnmapped, resetData } from './developer/handlers'
@@ -117,9 +123,15 @@ export const ROUTES: Route[] = [
   // A29: pendaftaran peserta OTS (bayar di lokasi).
   { method: 'GET', path: '/api/ots/duplicates', handler: otsDuplicates, auth: 'access' },
   { method: 'GET', path: '/api/ots/events', handler: listOtsEvents, auth: 'access' },
+  { method: 'GET', path: '/api/ots/report', handler: otsFinanceReport, auth: 'access' },
   { method: 'GET', path: '/api/ots', handler: listOts, auth: 'access' },
   { method: 'POST', path: '/api/ots', handler: saveOts, auth: 'access' },
   { method: 'DELETE', path: '/api/ots/:orderId', handler: deleteOts, auth: 'access' },
+  // Advertiser Notes: baca dan tulis lewat Worker karena RPC memakai service_role.
+  { method: 'GET', path: '/api/advertiser-notes', handler: listAdvertiserNotes, auth: 'access' },
+  { method: 'POST', path: '/api/advertiser-notes', handler: createAdvertiserNote, auth: 'access' },
+  { method: 'PATCH', path: '/api/advertiser-notes/:id', handler: updateAdvertiserNote, auth: 'access' },
+  { method: 'DELETE', path: '/api/advertiser-notes/:id', handler: archiveAdvertiserNote, auth: 'access' },
   // A37: Report Spend Iklan (tulis; laporan dibaca lewat RPC ad_spend_report).
   { method: 'POST', path: '/api/ad-spend-reports', handler: createAdSpend, auth: 'access' },
   { method: 'PATCH', path: '/api/ad-spend-reports/:id', handler: updateAdSpend, auth: 'access' },

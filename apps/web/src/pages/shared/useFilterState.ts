@@ -62,6 +62,36 @@ export function useFilterState<T extends CommonFilters>(
   const [page, setPage] = useState(1)
   const [pageSize, setPageSizeState] = useState<PageSize>(DEFAULT_PAGE_SIZE)
 
+  // Tautan dari panel Notes membawa filter lewat query string. Saat pengguna sudah
+  // berada di halaman yang sama, komponen tidak remount; sinkronkan query baru.
+  // Event khusus dipakai karena history.pushState tidak memicu `popstate`.
+  useEffect(() => {
+    const sync = () => {
+      const params = new URLSearchParams(window.location.search)
+      setFilters((current) => {
+        const next = { ...current }
+        let changed = false
+        for (const key of Object.keys(initial) as Array<keyof T>) {
+          const value = params.get(String(key))
+          if (value === null || (key === 'source' && !['', 'ots', 'orderonline'].includes(value))) continue
+          if (next[key] !== value) {
+            next[key] = value as T[keyof T]
+            changed = true
+          }
+        }
+        return changed ? next : current
+      })
+    }
+    window.addEventListener('popstate', sync)
+    window.addEventListener('dvflow:filter-from-url', sync)
+    return () => {
+      window.removeEventListener('popstate', sync)
+      window.removeEventListener('dvflow:filter-from-url', sync)
+    }
+    // `initial` sengaja tidak menjadi dependency: kunci filter stabil per halaman.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const debouncedSearch = useDebouncedValue(filters.search)
 
   const applied = useMemo(

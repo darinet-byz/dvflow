@@ -1,4 +1,6 @@
 import { Select, TextInput } from '../../ui/Field'
+import { SuggestInput } from '../../ui/SuggestInput'
+import { describeRecentBatch, useRecentBatches } from '../../lib/recent-batches'
 import type { CommonFilters } from '../../lib/filters'
 import { DateRangeField } from './DateRangeField'
 import type { ConfigLists } from '../../lib/queries'
@@ -11,7 +13,8 @@ import type { ConfigLists } from '../../lib/queries'
  *     konfigurasi — tidak diketik bebas dan tidak pernah di-hardcode
  *     (CLAUDE.md §4). Hanya konfigurasi aktif yang ditawarkan (05 §D02).
  *   * Batch, kota, dan payment method berupa teks: nilainya berasal dari order,
- *     dan dokumen tidak menentukan sumber daftar pilihannya.
+ *     dan dokumen tidak menentukan sumber daftar pilihannya. Sejak A65 batch
+ *     menampilkan saran 3 terbaru dari data order, tetapi tetap boleh diketik bebas.
  *   * Semua kontrol setinggi 36px tanpa label visual, supaya toolbar tetap
  *     rendah (PRD §46); labelnya tetap ada untuk pembaca layar.
  */
@@ -78,7 +81,7 @@ export function SessionFilter<T extends CommonFilters>(props: FilterControlsProp
       ariaLabel="Filter sesi"
       className={CONTROL_WIDTH}
       value={props.filters.session}
-      placeholder="Semua sesi"
+      placeholder="Semua Sesi"
       disabled={props.disabled === true}
       options={props.lists?.sessions ?? []}
       onChange={(value) => props.update('session' as keyof T, value)}
@@ -103,14 +106,20 @@ export function DateRangeFilters<T extends CommonFilters>(props: FilterControlsP
 }
 
 export function BatchFilter<T extends CommonFilters>(props: FilterControlsProps<T>) {
+  const { batches } = useRecentBatches(props.filters.productCode, props.filters.advertiserCode)
+  const options = batches.map((batch) => {
+    const described = describeRecentBatch(batch)
+    return { value: batch.batch, label: described.label, hint: described.hint }
+  })
   return (
-    <TextInput
+    <SuggestInput
       id="filter-batch"
       ariaLabel="Filter batch"
       className={CONTROL_WIDTH}
       value={props.filters.batch}
       disabled={props.disabled === true}
-      placeholder="Batch (mis. 392)"
+      placeholder={props.filters.productCode === '' ? 'Batch (pilih produk untuk saran)' : 'Batch (mis. 392)'}
+      options={options}
       onChange={(value) => props.update('batch' as keyof T, value)}
     />
   )
@@ -124,7 +133,7 @@ export function CityFilter<T extends CommonFilters>(props: FilterControlsProps<T
       className={CONTROL_WIDTH}
       value={props.filters.city}
       disabled={props.disabled === true}
-      placeholder="Kota (mis. Solo)"
+      placeholder="Semua Kota"
       onChange={(value) => props.update('city' as keyof T, value)}
     />
   )

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AD_SPEND_INPUT_PERMISSION } from '@dvflow/shared'
 import { ApiError } from '../../lib/api'
 import { presetRange } from '../../lib/date-range'
@@ -283,6 +283,7 @@ export function ReportSpendPage() {
   }, [appliedKey, refresh])
 
   const [form, setForm] = useState<FormState | null>(null)
+  const [showMore, setShowMore] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
   const [overlap, setOverlap] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -402,10 +403,38 @@ export function ReportSpendPage() {
   const lastOwn = rows.find((row) => row.own)
   const lastTaxPercent = lastOwn === undefined ? '' : String(Number(lastOwn.tax_percent))
 
+  // Tautan "Input Report Spend" dari panel Advertiser Notes membawa `new=1`.
+  useEffect(() => {
+    const openFromQuery = () => {
+      if (!canInput) return
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('new') !== '1') return
+      if (state.applied.productCode === '' || state.applied.batch.trim() === '') return
+      openForm({
+        id: null,
+        productCode: state.applied.productCode,
+        batch: state.applied.batch.trim(),
+        eventType: state.applied.eventType,
+        dateFrom: state.applied.dateFrom,
+        dateTo: state.applied.dateTo,
+        spend: '',
+        taxPercent: lastTaxPercent,
+      })
+      const url = new URL(window.location.href)
+      url.searchParams.delete('new')
+      window.history.replaceState({}, '', url)
+    }
+    openFromQuery()
+    window.addEventListener('dvflow:filter-from-url', openFromQuery)
+    return () => window.removeEventListener('dvflow:filter-from-url', openFromQuery)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [canInput, state.applied.productCode, state.applied.batch, state.applied.eventType, state.applied.dateFrom, state.applied.dateTo, lastTaxPercent])
+
   return (
     <>
       <PageHeader
         title="Report Spend Iklan"
+        description="Biaya iklan dan tiket dari OrderOnline. OTS tidak termasuk di laporan ini."
         action={canInput ? <Button variant="primary" onClick={() => openForm(emptyForm(lastTaxPercent))}>+ Input Biaya Iklan</Button> : undefined}
       />
 
@@ -413,14 +442,26 @@ export function ReportSpendPage() {
         <div className="filter-row flex min-w-0 flex-wrap items-center gap-2.5">
           <DateRangeFilters {...controls} />
           <ProductFilter {...controls} />
-          <AdvertiserFilter {...controls} />
-          <EventTypeFilter {...controls} />
           <BatchFilter {...controls} />
+          <AdvertiserFilter {...controls} />
         </div>
+        {showMore ? (
+          <div className="filter-row flex min-w-0 flex-wrap items-center gap-2.5">
+            <EventTypeFilter {...controls} />
+          </div>
+        ) : null}
         <div className="flex min-w-0 flex-wrap items-center gap-1.5">
           {chips.map((chip) => (
             <FilterChip key={chip.key} label={chip.label} onRemove={() => state.removeFilter(chip.key)} />
           ))}
+          <button
+            type="button"
+            onClick={() => setShowMore((value) => !value)}
+            aria-expanded={showMore}
+            className="rounded-full border border-line px-2.5 py-1 text-[12px] font-semibold text-ink-soft hover:border-primary/40 hover:text-ink"
+          >
+            {showMore ? 'Sembunyikan Filter' : 'Filter Lain'}
+          </button>
           <button
             type="button"
             onClick={clearAll}

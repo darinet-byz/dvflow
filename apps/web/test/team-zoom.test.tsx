@@ -148,12 +148,12 @@ describe('requested team, Zoom, and Barcode Ticket screens', () => {
       expect(screen.queryByText(name)).toBeNull()
     }
     // A47: grup menu dilipat; buka grup yang relevan sebelum memeriksa tautan.
-    fireEvent.click(screen.getByRole('button', { name: /PRODUK & ACARA/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Produk & Acara/ }))
     expect(screen.getByRole('link', { name: 'Konfigurasi Zoom' })).toBeDefined()
     expect(screen.getByRole('link', { name: 'Konfigurasi Barcode / Tiket' })).toBeDefined()
     expect(screen.getByRole('link', { name: 'Product Name Generator' })).toBeDefined()
     expect(screen.queryByRole('link', { name: 'Konfigurasi Produk' })).toBeNull()
-    fireEvent.click(screen.getByRole('button', { name: /ORDER/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Order/ }))
     expect(screen.getByRole('link', { name: 'Order' })).toBeDefined()
     expect(screen.getByText('Member')).toBeDefined()
   })

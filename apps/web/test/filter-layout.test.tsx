@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import type { ReactElement } from 'react'
 
-/** A28: susunan, urutan, dan lebar filter sama di Dashboard, Order, Presensi, Report Tax. */
+/** Susunan filter baru (6 November 2026): primary ringkas + Filter Lain yang dilipat. */
 vi.mock('../src/lib/queries', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/queries')>()),
   fetchConfigLists: vi.fn(async () => ({ products: [], advertisers: [], eventTypes: [], eventTypeNames: [], sessions: [], paymentMethods: [] })),
@@ -15,7 +15,7 @@ vi.mock('../src/lib/queries', async (importOriginal) => ({
 }))
 vi.mock('../src/lib/supabase-rest', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/supabase-rest')>()),
-  supabaseRpc: vi.fn(async () => ({ dimension: 'payment_method', summary: { transactions: 0, gross_amount: 0, tax_amount: 0, net_amount: 0 }, rows: [] })),
+  supabaseRpc: vi.fn(async () => ({ batches: [], dimension: 'payment_method', summary: { transactions: 0, gross_amount: 0, tax_amount: 0, net_amount: 0 }, rows: [] })),
 }))
 vi.mock('../src/ui/Toast', () => ({ useToast: () => ({ show: vi.fn() }) }))
 
@@ -25,7 +25,7 @@ const { PresensiPage } = await import('../src/pages/presensi/PresensiPage')
 const { ReportTaxPage } = await import('../src/pages/report-tax/ReportTaxPage')
 afterEach(cleanup)
 
-const COMMON = ['Filter produk', 'Filter pengiklan', 'Filter seminar atau webinar', 'Filter batch', 'Filter sesi', 'Filter kota']
+const SECONDARY = ['Filter sumber pendaftaran', 'Filter seminar atau webinar', 'Filter sesi', 'Filter kota']
 const pages: Array<[string, () => ReactElement, string[]]> = [
   ['Dashboard', () => <DashboardPage />, []],
   ['Order', () => <OrderPage />, ['Filter status', 'Filter payment method']],
@@ -33,20 +33,25 @@ const pages: Array<[string, () => ReactElement, string[]]> = [
   ['Report Tax', () => <ReportTaxPage />, []],
 ]
 
-describe('filter seragam (A28)', () => {
-  it.each(pages)('%s: baris 2 = Produk, Pengiklan, Seminar/Webinar, Batch, Sesi, Kota, lalu filter khusus', async (_name, page, extra) => {
+describe('filter ringkas (6 November 2026)', () => {
+  it.each(pages)('%s: baris utama Produk/Batch/Pengiklan; filter sekunder di Filter Lain', async (_name, page, extra) => {
     render(<MemoryRouter>{page()}</MemoryRouter>)
     const bar = await screen.findByTestId('standard-filter-bar')
+    const primary = bar.querySelector('[data-filter-row="primary"]') as HTMLElement
+    const primaryLabels = Array.from(primary.querySelectorAll('input, select')).map((el) => el.getAttribute('aria-label'))
+    expect(primaryLabels).toContain('Filter produk')
+    expect(primaryLabels).toContain('Filter batch')
+    expect(primaryLabels).toContain('Filter pengiklan')
+    expect(primary.textContent).toContain('Hari Ini')
+
+    // Baris sekunder tidak memaksa tampil; buka lewat tombol Filter Lain.
+    const toggle = screen.getByRole('button', { name: /Filter Lain|Sembunyikan Filter/ })
+    fireEvent.click(toggle)
     const row = bar.querySelector('[data-filter-row="filters"]') as HTMLElement
     const labels = Array.from(row.querySelectorAll('input, select')).map((el) => el.getAttribute('aria-label'))
-    expect(labels).toEqual([...COMMON, ...extra])
-    // Semua kontrol lebar yang sama.
+    expect(labels).toEqual([...SECONDARY, ...extra])
     for (const el of Array.from(row.querySelectorAll('input, select'))) {
       expect((el.closest('[class*="w-["]') as HTMLElement | null)?.className ?? (el as HTMLElement).className).toContain('w-[190px]')
     }
-    // Tanggal selalu di baris pertama; tidak ada "More Filters".
-    const primary = bar.querySelector('[data-filter-row="primary"]') as HTMLElement
-    expect(primary.textContent).toContain('Hari Ini')
-    expect(screen.queryByRole('button', { name: /More Filters/ })).toBeNull()
   })
 })

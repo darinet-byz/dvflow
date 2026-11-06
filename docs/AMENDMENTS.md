@@ -1307,6 +1307,8 @@ diperbarui. Tidak ada perubahan database.
 
 ## A53 — Sidebar uppercase (28 Oktober 2026)
 
+> Digantikan oleh A65 (6 November 2026): menu kembali ke Title Case.
+
 - Semua label menu dan header accordion memakai `uppercase`.
 - Font tetap 12px; label panjang boleh dua baris (`min-h-11`, `leading-tight`).
 - Warna, hover, dan item aktif tidak berubah.
@@ -1583,3 +1585,49 @@ Desktop `/ots`: rekap seluruh hasil, filter, tabel transaksi, tombol Tambah OTS 
 Pemeriksaan nomor HP menormalkan tanda baca dan awalan Indonesia 0/62, lalu mencocokkan produk dan acara efektif. Kandidat Online/OTS terlihat hanya dalam scope aktor. Petugas mengonfirmasi sebelum membuat OTS baru; order lama tidak berubah. Tidak ada penggabungan lead, pengalihan atribusi, atau status Pending OTS baru.
 
 Migrasi `20261106062419_ots_source_separation.sql`, schema_version 68, menambah argumen akhir opsional p_source pada RPC baca. Omitted/null/kosong tetap Semua. Tidak ada perubahan data historis. Ekspor umum mengikuti sumber; format Meta tetap baku. Report Spend/Performa tetap mengecualikan OTS. Link rekap membawa sumber, acara, dan status Paid.
+
+## A65 - Advertiser Notes, OTS sebagai menu utama, dan saran batch (6 November 2026)
+
+**Permintaan pengguna.**
+1. Semua menu memakai Capital Each Word, bukan kapital penuh. Ini menggantikan A53.
+2. OTS dipisahkan sebagai menu utama berisi pendaftaran, transaksi, dan laporan keuangan; rincian laporan sampai sesi + kota.
+3. Filter tiap menu terlalu banyak dan rawan salah saat satu pengiklan menjalankan banyak produk/batch. Solusi yang dipilih: filter sekunder dilipat, dan batch diberi saran dari data order (maksimal 3 batch terbaru), tetap boleh diketik manual.
+4. Advertiser Notes: papan tugas manajer ke atas untuk pengiklan, berisi apa/kapan/dimana/pengiklan/deadline, terhubung ke order dan report spend. Panel kanan dapat di-minimize ke tombol **Notes**, bukan menu sidebar.
+
+### Sidebar
+- Judul seksi dan item memakai Title Case: `Acara`, `Order`, `Status`, `Laporan & Pajak`, `Produk & Acara`, `Sistem`, `Akun`.
+- Class `uppercase` dihapus dari item dan header seksi. Akronim (QR, API, OTS, QRIS) tetap.
+- `OTS` menjadi menu utama setelah Dashboard. `Peserta OTS` dihapus dari Acara.
+- Filter bar: baris utama `Cari � Tanggal � Produk � Batch � Pengiklan`; filter sekunder (Sumber, Jenis Acara, Sesi, Kota, status/metode halaman) di balik `Filter Lain (n)`. Chip tetap terlihat; Clear All tidak menghapus pencarian.
+
+### Saran batch
+- RPC `recent_batches(p_product_code, p_advertiser_code, p_limit)` mengembalikan maksimal 3 batch berbeda dari order Online (`source = orderonline`), diurutkan berdasarkan aktivitas order terakhir (`max(created_at)`), dalam scope produk aktor.
+- Jika pengiklan dipilih, saran dipersempit ke pengiklan itu; jika tidak, saran menampilkan pengiklan dari order terbaru.
+- Saran hanya membantu: input batch tetap teks bebas. Sesi dan kota tidak diberi saran; placeholder `Semua Sesi` dan `Semua Kota`.
+- Dipakai di Dashboard, Order, Presensi, Refund, Report Tax, Report Spend, Performa, dan filter OTS.
+
+### OTS
+- `/ots` memiliki tab `Pendaftaran`, `Transaksi`, `Laporan` (desktop). Tampilan lapangan tetap memakai alur Pendaftaran/Riwayat.
+- `GET /api/ots/report` + RPC `ots_finance_report(p_actor, p_filters)`:
+  - ringkasan transaksi, tiket, omzet, rata-rata/tiket, tunai/transfer/QRIS, tiket hadir;
+  - rekap per produk + batch;
+  - rincian per sesi + kota;
+  - filter from/to, product_code, batch, session, city, method.
+- OTS tetap order sumber `ots`: tetap muncul di Presensi Acara, Order, Dashboard (saat sumber OTS/Semua), dan Report Tax. Report Spend/Performa tetap mengecualikan OTS.
+- OTS tidak memiliki PPN, fee, atau platform fee; omzet = uang diterima.
+
+### Advertiser Notes
+- Satu note = satu pengiklan + satu produk + batch opsional. Field: `title`, `description`, `event_at`, `location`, `monitor_from`, `deadline_at`, `status` (Draft/Aktif/Selesai/Dibatalkan), `created_by`, `updated_by`, `archived_at`.
+- Ringkasan order dan report spend dihitung live dari `orders` dan `ad_spend_reports`; tidak ada duplikasi data.
+- Status aktivitas otomatis: `Belum Ada Aktivitas`, `Order Masuk, Spend Belum`, `Spend Masuk`; note ditandai overdue bila deadline lewat dan belum ada report spend.
+- Panel kanan:
+  - lebar 380px (bisa di-resize 320-480), docked pada layar >=1440px;
+  - overlay 1024-1439px; full-screen di HP;
+  - dibuka lewat tombol pil **Notes** + badge jumlah note mendesak;
+  - pertama kali minimized; status buka dan lebar disimpan per perangkat;
+  - daftar, detail, dan form buat/edit berada di panel; tombol **Lihat Order**, **Lihat Report Spend**, dan **Input Report Spend** membuka halaman kiri dengan filter terisi.
+- Izin baru: `operasional.advertiser_notes` (lihat) dan `action.manage_advertiser_notes` (kelola). Default lihat: Manajer, Admin, Advertiser. Default kelola: Manajer, Admin. Owner/Developer otomatis. Pimpro/Staff/Member tidak melihat.
+- RLS/scope: note hanya terlihat bila produk ada dalam `user_product_access` aktor. Akun Advertiser hanya melihat note milik `users.advertiser_id`-nya dan tidak melihat status `Draft`. Advertiser lain di produk yang sama tidak melihat note tersebut.
+- Tidak ada menu sidebar, email, WA, atau push. Badge panel adalah penanda utama.
+
+**Implementasi.** Migrasi `20261106090000_advertiser_notes_and_recent_batches.sql` (schema_version 69); `packages/api` (`advertiser-notes/handlers.ts`, OTS report, routes, error code); `packages/shared` (izin); `apps/web` (navigation, Sidebar, StandardFilterBar, FilterControls, SuggestInput, OTS page/report, AdvertiserNotesWorkspace, AppShell). Tes web/API diperbarui.

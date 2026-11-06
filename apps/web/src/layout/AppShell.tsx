@@ -3,14 +3,16 @@ import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { FieldAppShell } from './FieldAppShell'
 import { GlobalSearchButton, GlobalSearchDialog } from './GlobalSearch'
+import { AdvertiserNotesWorkspace } from '../pages/notes/AdvertiserNotesWorkspace'
 import { useSession } from '../lib/useSession'
 import { canUseFieldApp, setPreferWebLayout, useIsPhone, usePreferWebLayout } from '../lib/field-app'
 
 /**
  * Kerangka aplikasi (guideline §7).
  *
- * Desktop-first: sidebar tetap 230px, konten maksimum 1440px dengan radius 24px
- * dan latar `bg-app` di atas `bg-page`. Di layar sempit sidebar berubah menjadi
+ * Desktop-first: sidebar tetap 230px, konten maksimum 1920px dengan radius 24px
+ * dan latar `bg-app` di atas `bg-page`; panel Advertiser Notes dapat menjadi kolom
+ * kedua di kanan pada layar lebar (A65). Di layar sempit sidebar berubah menjadi
  * panel yang dapat dibuka — aplikasi harus tetap terpakai di tablet/HP
  * (CLAUDE.md §13), terutama karena panitia memakai scanner dari ponsel.
  */
@@ -26,48 +28,52 @@ export function AppShell() {
   return (
     <div className="min-h-screen bg-page p-2 sm:p-4 md:p-8">
       <GlobalSearchDialog />
-      <div className="mx-auto flex min-h-[calc(100vh-32px)] w-full max-w-[1440px] overflow-hidden rounded-xl bg-app shadow-app md:min-h-[calc(100vh-64px)]">
-        {/* Sidebar tetap untuk md ke atas. */}
-        <div className="hidden md:flex">
-          <Sidebar />
-        </div>
-
-        {/* Panel sidebar untuk layar sempit. */}
-        {menuOpen ? (
-          <div className="fixed inset-0 z-40 flex bg-ink/30 md:hidden" role="presentation" onClick={() => setMenuOpen(false)}>
-            <div className="h-full bg-sidebar" onClick={(event) => event.stopPropagation()}>
-              <Sidebar onNavigate={() => setMenuOpen(false)} />
-            </div>
+      <div className="mx-auto flex w-full max-w-[1920px] items-stretch justify-center gap-3">
+        <div className="flex min-h-[calc(100vh-32px)] min-w-0 max-w-[1440px] flex-1 overflow-hidden rounded-xl bg-app shadow-app md:min-h-[calc(100vh-64px)]">
+          {/* Sidebar tetap untuk md ke atas. */}
+          <div className="hidden md:flex">
+            <Sidebar />
           </div>
-        ) : null}
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="flex items-center gap-3 border-b border-line px-4 py-3 md:hidden">
-            <button
-              type="button"
-              onClick={() => setMenuOpen(true)}
-              aria-label="Buka menu"
-              className="grid h-9 w-9 place-items-center rounded-sm border border-line bg-card text-ink-soft"
-            >
-              ☰
-            </button>
-            <p className="text-[14px] font-bold text-ink">DVFLOW</p>
-            <GlobalSearchButton compact className="ml-auto" />
-            {fieldEligible ? (
+          {/* Panel sidebar untuk layar sempit. */}
+          {menuOpen ? (
+            <div className="fixed inset-0 z-40 flex bg-ink/30 md:hidden" role="presentation" onClick={() => setMenuOpen(false)}>
+              <div className="h-full bg-sidebar" onClick={(event) => event.stopPropagation()}>
+                <Sidebar onNavigate={() => setMenuOpen(false)} />
+              </div>
+            </div>
+          ) : null}
+
+          <div className="flex min-w-0 flex-1 flex-col">
+            <header className="flex items-center gap-3 border-b border-line px-4 py-3 md:hidden">
               <button
                 type="button"
-                onClick={() => setPreferWebLayout(false)}
-                className="ml-auto rounded-sm border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-primary"
+                onClick={() => setMenuOpen(true)}
+                aria-label="Buka menu"
+                className="grid h-9 w-9 place-items-center rounded-sm border border-line bg-card text-ink-soft"
               >
-                Tampilan aplikasi
+                ☰
               </button>
-            ) : null}
-          </header>
+              <p className="text-[14px] font-bold text-ink">DVFLOW</p>
+              <GlobalSearchButton compact className="ml-auto" />
+              {fieldEligible ? (
+                <button
+                  type="button"
+                  onClick={() => setPreferWebLayout(false)}
+                  className="ml-auto rounded-sm border border-line bg-card px-2.5 py-1.5 text-[12px] font-semibold text-primary"
+                >
+                  Tampilan aplikasi
+                </button>
+              ) : null}
+            </header>
 
-          <main className="min-w-0 flex-1 p-3 sm:p-4 md:p-6">
-            <Outlet />
-          </main>
+            <main className="min-w-0 flex-1 p-3 sm:p-4 md:p-6">
+              <Outlet />
+            </main>
+          </div>
         </div>
+
+        <AdvertiserNotesWorkspace />
       </div>
     </div>
   )

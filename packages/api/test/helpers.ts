@@ -299,6 +299,30 @@ export function createFakeDb(state: FakeState): Db {
         } as T
       }
 
+      if (name === 'advertiser_notes_page') {
+        return {
+          rows: [], total: 0, page: 1, pageSize: 50,
+          summary: { total: 0, active: 0, overdue: 0, due_soon: 0, spend_missing: 0 },
+          badge: 0,
+        } as T
+      }
+
+      if (name === 'save_advertiser_note') {
+        return { action: 'created', note: { id: generatedUuid((nextId += 1)) } } as T
+      }
+
+      if (name === 'archive_advertiser_note') {
+        return { id: args['p_id'], archived: true } as T
+      }
+
+      if (name === 'ots_finance_report') {
+        return {
+          summary: { transactions: 0, tickets: 0, gross_amount: 0, avg_ticket: null, tunai: 0, transfer: 0, qris: 0, checked_in_tickets: 0 },
+          batches: [],
+          sessions: [],
+        } as T
+      }
+
       if (name === 'ots_registrations_page' || name === 'ots_duplicate_candidates') {
         const f = (args['p_filters'] ?? {}) as Record<string, string | number | null>
         const actor = state.users.find(user => user.id === args['p_actor'])

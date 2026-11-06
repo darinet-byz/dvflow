@@ -37,7 +37,9 @@ import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card, CardHeader, KpiCard } from '../../ui/Card'
 import { ComparisonChart } from '../../ui/ComparisonChart'
-import { Select, SearchInput, TextInput } from '../../ui/Field'
+import { Select, SearchInput } from '../../ui/Field'
+import { SuggestInput } from '../../ui/SuggestInput'
+import { describeRecentBatch, useRecentBatches } from '../../lib/recent-batches'
 import { EmptyState, ErrorState, SkeletonRows } from '../../ui/Feedback'
 import { FilterChip } from '../../ui/Filters'
 import { DataTable, TableCell, TableRow, type TableColumn } from '../../ui/Table'
@@ -173,6 +175,11 @@ export function PerformancePage() {
   const effectiveGranularity = resolveGranularity(granularityMode, filters.dateFrom, filters.dateTo)
   const periodKey = customPeriod ? 'custom' : currentPeriodKey(filters)
   const effectiveAdvertiserCode = ownScope ? ownAdvertiser : filters.advertiserCode
+  const { batches: recentBatches } = useRecentBatches(filters.productCode, effectiveAdvertiserCode)
+  const batchSuggestions = recentBatches.map((batch) => {
+    const described = describeRecentBatch(batch)
+    return { value: batch.batch, label: described.label, hint: described.hint }
+  })
 
   const appliedKey = JSON.stringify([filters, effectiveAdvertiserCode, effectiveGranularity])
   const { data, loading, error, reload } = useAsyncData<PerformanceDashboard | PerformanceDetail>(() => {
@@ -318,6 +325,24 @@ export function PerformancePage() {
   const controls = (
     <div className="filter-bar flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-card p-3.5">
       <div className="filter-row flex min-w-0 flex-wrap items-center gap-2.5">
+        <Select
+          id="filter-produk-performa"
+          ariaLabel="Filter produk"
+          className={CONTROL_WIDTH}
+          value={filters.productCode}
+          placeholder="Semua produk"
+          options={productOptions}
+          onChange={(value) => changeFilters({ productCode: value })}
+        />
+        <SuggestInput
+          id="filter-batch-performa"
+          ariaLabel="Filter batch"
+          className={CONTROL_WIDTH}
+          value={filters.batch}
+          placeholder={filters.productCode === '' ? 'Batch (pilih produk untuk saran)' : 'Batch (mis. 392)'}
+          options={batchSuggestions}
+          onChange={(value) => changeFilters({ batch: value })}
+        />
         {ownScope ? null : (
           <Select
             id="filter-pengiklan-performa"
@@ -329,23 +354,6 @@ export function PerformancePage() {
             onChange={(value) => changeFilters({ advertiserCode: value })}
           />
         )}
-        <Select
-          id="filter-produk-performa"
-          ariaLabel="Filter produk"
-          className={CONTROL_WIDTH}
-          value={filters.productCode}
-          placeholder="Semua produk"
-          options={productOptions}
-          onChange={(value) => changeFilters({ productCode: value })}
-        />
-        <TextInput
-          id="filter-batch-performa"
-          ariaLabel="Filter batch"
-          className={CONTROL_WIDTH}
-          value={filters.batch}
-          placeholder="Batch (mis. 392)"
-          onChange={(value) => changeFilters({ batch: value })}
-        />
         <Select
           id="filter-periode-performa"
           ariaLabel="Filter periode"
@@ -392,7 +400,7 @@ export function PerformancePage() {
     <>
       <PageHeader
         title="Performa / Analitik"
-        description="Track record tiap pengiklan: spend, omzet, profit, closing rate, tiket, dan ROAS."
+        description="Track record tiap pengiklan: spend, omzet, profit, closing rate, tiket, dan ROAS. Data iklan/online, tanpa OTS."
       />
 
       {controls}

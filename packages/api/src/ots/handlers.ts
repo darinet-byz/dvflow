@@ -115,6 +115,41 @@ function validDate(value: string): boolean {
   return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
 }
 
+/** GET /api/ots/report — laporan keuangan OTS per batch dan per sesi + kota. */
+export async function otsFinanceReport(context: RouteContext): Promise<Response> {
+  const actor = await requirePermission(context, 'action.ots')
+  const params = context.url.searchParams
+  const from = (params.get('from') ?? '').trim()
+  const to = (params.get('to') ?? '').trim()
+  for (const value of [from, to]) {
+    if (value && (!DATE_PATTERN.test(value) || !validDate(value))) {
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Tanggal tidak valid.')
+    }
+  }
+  if (from && to && from > to) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Rentang tanggal tidak valid.')
+  }
+  const method = (params.get('method') ?? '').trim()
+  if (method && !(OTS_METHODS as readonly string[]).includes(method)) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Metode bayar tidak valid.')
+  }
+  const filters: Record<string, unknown> = {
+    from: from || null,
+    to: to || null,
+    product_code: (params.get('product_code') ?? '').trim() || null,
+    batch: (params.get('batch') ?? '').trim() || null,
+    session: (params.get('session') ?? '').trim() || null,
+    city: (params.get('city') ?? '').trim() || null,
+    method: method || null,
+    collector: (params.get('collector') ?? '').trim() || null,
+  }
+  const result = await context.db.rpc<Record<string, unknown>>('ots_finance_report', {
+    p_actor: actor.id,
+    p_filters: filters,
+  })
+  return ok({ ...result, from: from || null, to: to || null })
+}
+
 export async function otsDuplicates(context: RouteContext): Promise<Response> {
   const actor = await requirePermission(context, 'action.ots')
   const args: Record<string, unknown> = { p_actor: actor.id }

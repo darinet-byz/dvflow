@@ -48,6 +48,10 @@ export const AD_SPEND_INPUT_ROLES: readonly string[] = ['advertiser']
  */
 export const ANALYTICS_PERMISSION = 'operasional.analytics'
 
+/** Advertiser Notes: manajer ke atas melihat/mengelola; Advertiser hanya membaca miliknya. */
+export const ADVERTISER_NOTES_VIEW_PERMISSION = 'operasional.advertiser_notes'
+export const ADVERTISER_NOTES_MANAGE_PERMISSION = 'action.manage_advertiser_notes'
+
 /** Izin yang hanya boleh dipegang role tertentu; role penuh (developer/owner) pun tidak. */
 const ROLE_RESTRICTED_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
   [FIELD_APP_PERMISSION]: FIELD_APP_ROLES,
@@ -75,6 +79,8 @@ export type AppPermissionKey =
   | 'operasional.report_spend'
   | 'operasional.analytics'
   | 'operasional.resume_batch'
+  | 'operasional.advertiser_notes'
+  | 'action.manage_advertiser_notes'
   | 'config.produk'
   | 'config.tax'
   | 'config.report_tax'

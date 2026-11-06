@@ -393,3 +393,31 @@ Recommended implementation:
 ## A64 - Sumber pendaftaran
 
 Gunakan orders.source yang sudah ada: orderonline/ots. Tidak ada backfill atau tabel OTS baru. Filter p_source diterapkan sebelum agregasi/pagination. Paid transaction = count Order ID Paid; tiket terjual = sum quantity Paid; hadir dan rasio mengikuti aturan presensi/retensi pada sumber yang sama. Semua = penjumlahan metrik aditif Online + OTS; rasio dihitung ulang. Fungsi internal service-role ots_registrations_page dan ots_duplicate_candidates memvalidasi izin aktor dan cakupan produk; tidak tersedia bagi anon/authenticated. Helper ots_phone_key hanya untuk normalisasi pencarian, bukan unique constraint.
+
+## A65 - Advertiser Notes dan saran batch
+
+### advertiser_notes
+Satu baris = satu tugas event untuk satu pengiklan + satu produk + batch opsional. Ringkasan order/report spend tidak disimpan; dihitung live oleh RPC.
+
+- id UUID PK
+- advertiser_id UUID NOT NULL FK advertisers(id) ON DELETE RESTRICT
+- product_id UUID NOT NULL FK products(id) ON DELETE RESTRICT
+- batch TEXT NULL CHECK (batch = normalize_batch(batch), tidak kosong)
+- title TEXT NOT NULL CHECK (tidak kosong, maks 200)
+- description TEXT NULL CHECK (maks 4000)
+- event_at TIMESTAMPTZ NOT NULL
+- location TEXT NULL CHECK (maks 200)
+- monitor_from DATE NOT NULL DEFAULT tanggal WIB hari ini
+- deadline_at TIMESTAMPTZ NOT NULL CHECK (tanggal WIB >= monitor_from)
+- status TEXT NOT NULL CHECK in ('Draft','Aktif','Selesai','Dibatalkan')
+- created_by / updated_by UUID NULL FK users(id) ON DELETE SET NULL
+- created_at / updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+- archived_at TIMESTAMPTZ NULL (soft delete)
+
+RLS aktif; tabel hanya dapat ditulis/dibaca service_role. Baca untuk pengguna melalui RPC `advertiser_notes_page(p_actor, p_filters)` yang menegakkan `operasional.advertiser_notes`, scope produk, dan `users.advertiser_id` bila akun memegang pengiklan. Akun Advertiser tidak melihat status Draft. Tulis melalui `save_advertiser_note` dan `archive_advertiser_note` (izin `action.manage_advertiser_notes`).
+
+### RPC recent_batches
+`recent_batches(p_product_code text, p_advertiser_code text default null, p_limit integer default 3)` mengembalikan `{batches:[{batch,product_code,product_name,advertiser_code,advertiser_name,last_activity,orders,tickets}]}`. Maksimal 3 batch berbeda dari order Online, urut aktivitas order terakhir, dalam scope `actor_can_product`. Ini hanya saran; filter batch tetap teks bebas.
+
+### RPC ots_finance_report
+`ots_finance_report(p_actor uuid, p_filters jsonb)` mengembalikan `summary`, `batches[]`, dan `sessions[]` untuk order `source='ots'`, `app_status='Paid'`, dalam scope aktor. Filter: from/to (WIB), product_code, batch, session, city, method. `checked_in_tickets` dibatasi quantity. Tidak ada tabel baru.

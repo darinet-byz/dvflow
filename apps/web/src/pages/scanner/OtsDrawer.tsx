@@ -1,6 +1,8 @@
 import { useIsPhone } from '../../lib/field-app'
 import { useEffect, useMemo, useState } from 'react'
 import { OTS_MAX_QUANTITY, OTS_UNIT_PRICE_OPTIONS } from '@dvflow/shared'
+import { describeRecentBatch, useRecentBatches } from '../../lib/recent-batches'
+import { SuggestInput } from '../../ui/SuggestInput'
 import { authorizedRequest } from '../../lib/session'
 import { fetchOtsReferenceData, type OtsReferenceData } from '../../lib/queries'
 import { useAsyncData, useDebouncedValue } from '../../lib/useAsyncData'
@@ -159,7 +161,7 @@ export function OtsDrawer({ open, onClose, canDelete }: { open: boolean; onClose
  * Isi pendaftaran OTS: dipakai drawer (web, `mode="today"`) dan layar penuh
  * `/ots` (web + Tampilan Apps Lapangan, `mode="all"`).
  */
-export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; canDelete: boolean; mode?: 'today' | 'all' }) {
+export function OtsPanel({ open, canDelete, mode = 'today', section = 'both' }: { open: boolean; canDelete: boolean; mode?: 'today' | 'all'; section?: 'both' | 'form' | 'history' }) {
   const toast = useToast()
   const desktop = !useIsPhone()
   const [formOpen, setFormOpen] = useState(false)
@@ -227,6 +229,11 @@ export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; c
 
   const products = references.data?.products ?? []
   const sessions = references.data?.sessions ?? []
+  const recentBatches = useRecentBatches(listFilters.product_code, '')
+  const batchSuggestions = recentBatches.batches.map((batch) => {
+    const described = describeRecentBatch(batch)
+    return { value: batch.batch, label: described.label, hint: described.hint }
+  })
   // A34: OTS hanya untuk seminar offline. Endpoint tetap mengembalikan Hybrid untuk
   // aplikasi lama; form baru menyaringnya supaya konteks tidak salah jenis acara.
   const eventList = useMemo(
@@ -627,10 +634,13 @@ export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; c
         {desktop || showFilters ? <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <TextInput id="ots-from" label="Dari tanggal (WIB)" type="date" value={dateFrom} onChange={setDateFrom} />
           <TextInput id="ots-to" label="Sampai tanggal (WIB)" type="date" value={dateTo} onChange={setDateTo} />
-          <Select id="ots-filter-product" label="Produk" value={listFilters.product_code} options={[{ value: '', label: 'Semua produk' }, ...products.map(product => ({ value: product.code, label: product.name }))]} onChange={value => setListFilters(current => ({ ...current, product_code: value }))} />
-          <TextInput id="ots-filter-batch" label="Batch" value={listFilters.batch} onChange={value => setListFilters(current => ({ ...current, batch: value }))} />
-          <Select id="ots-filter-session" label="Sesi" value={listFilters.session} options={[{ value: '', label: 'Semua sesi' }, ...sessionOptions]} onChange={value => setListFilters(current => ({ ...current, session: value }))} />
-          <TextInput id="ots-filter-city" label="Kota" value={listFilters.city} onChange={value => setListFilters(current => ({ ...current, city: value }))} />
+          <Select id="ots-filter-product" label="Produk" value={listFilters.product_code} options={[{ value: '', label: 'Semua Produk' }, ...products.map(product => ({ value: product.code, label: `${product.code} — ${product.name}` }))]} onChange={value => setListFilters(current => ({ ...current, product_code: value }))} />
+          <div>
+            <label htmlFor="ots-filter-batch" className="mb-1 block text-[12px] font-semibold text-ink-soft">Batch</label>
+            <SuggestInput id="ots-filter-batch" ariaLabel="Filter batch" value={listFilters.batch} placeholder={listFilters.product_code === '' ? 'Pilih produk untuk saran' : 'Batch'} options={batchSuggestions} onChange={value => setListFilters(current => ({ ...current, batch: value }))} />
+          </div>
+          <Select id="ots-filter-session" label="Sesi" value={listFilters.session} options={[{ value: '', label: 'Semua Sesi' }, ...sessionOptions]} onChange={value => setListFilters(current => ({ ...current, session: value }))} />
+          <TextInput id="ots-filter-city" label="Kota" value={listFilters.city} placeholder="Semua Kota" onChange={value => setListFilters(current => ({ ...current, city: value }))} />
           <Select id="ots-filter-method" label="Metode bayar" value={listFilters.method} options={[{ value: '', label: 'Semua metode' }, ...OTS_METHOD_OPTIONS]} onChange={value => setListFilters(current => ({ ...current, method: value }))} />
           <Select id="ots-filter-collector" label="Petugas" value={listFilters.collector} options={[{ value: '', label: 'Semua petugas' }, ...(list.data?.collectors ?? []).map(collector => ({ value: collector.id, label: collector.name ?? 'Petugas tidak tersedia' }))]} onChange={value => setListFilters(current => ({ ...current, collector: value }))} />
         </div> : null}
@@ -658,16 +668,22 @@ export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; c
   )
   return <>
     {mode === 'all' ? desktop ? <>
-      <div className="mb-4 flex justify-end"><Button variant="primary" onClick={() => { resetPerson(); setSuccess(null); setFormOpen(true) }}>Tambah OTS</Button></div>
-      {history}
+      {section === 'form' ? (
+        <div className="max-w-xl">{form}</div>
+      ) : (
+        <>
+          <div className="mb-4 flex justify-end"><Button variant="primary" onClick={() => { resetPerson(); setSuccess(null); setFormOpen(true) }}>Tambah OTS</Button></div>
+          {history}
+        </>
+      )}
       <Drawer open={formOpen} title={editingId ? 'Edit OTS' : 'Pendaftaran OTS'} onClose={() => { if (!busy) setFormOpen(false) }}>{form}</Drawer>
-    </> : <>
+    </> : section === 'form' ? form : section === 'history' ? history : <>
       <div className="mb-4 flex gap-2" role="tablist" aria-label="Peserta OTS">
         <Button role="tab" aria-selected={tab === 'registration'} variant={tab === 'registration' ? 'primary' : 'secondary'} onClick={() => setTab('registration')}>Pendaftaran</Button>
         <Button role="tab" aria-selected={tab === 'history'} variant={tab === 'history' ? 'primary' : 'secondary'} onClick={() => setTab('history')}>Riwayat</Button>
       </div>
       {tab === 'registration' ? form : history}
-    </> : <>{form}<div className="mt-5 border-t border-line pt-4">{history}</div></>}
+    </> : <>{section !== 'history' ? form : null}{section !== 'form' ? <div className="mt-5 border-t border-line pt-4">{history}</div> : null}</>}
     <Modal open={duplicates !== null} title="Nomor HP sudah terdaftar pada acara ini" onClose={() => { if (!busy) setDuplicates(null) }} footer={<>
       <Button disabled={busy} onClick={() => setDuplicates(null)}>Periksa kembali</Button>
       <Button variant="primary" loading={busy} onClick={() => void save(true)}>Tetap buat OTS baru</Button>

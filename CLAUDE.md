@@ -321,44 +321,49 @@ Do not add additional participant tokens unless the requirements are explicitly 
 
 Do not add, remove, rename, or reorder MVP navigation without a requirement change.
 
-Dashboard stands alone. Other sections are collapsible (A47):
+Dashboard stands alone. OTS is a standalone top-level menu. Other sections are collapsible (A47):
 
 ```text
-ACARA
+Dashboard
+OTS
+
+Acara
   Scan QR
   Presensi Acara
 
-ORDER
+Order
   Order
   Order Refund            (A58)
   Order Unmapped
 
-STATUS
+Status
   Status Produk
   Status Pengiklan
 
-LAPORAN & PAJAK
+Laporan & Pajak
   Report Spend Iklan
   Performa / Analitik
   Report Tax
   Konfigurasi Tax
 
-PRODUK & ACARA
+Produk & Acara
   Konfigurasi Produk
   Product Name Generator
   Konfigurasi Zoom
   Konfigurasi Barcode / Tiket
 
-SISTEM
+Sistem
   Add Team
   Konfigurasi Role
   API & Webhook
   Reset Data
 
-AKUN
+Akun
   Profil
   Logout
 ```
+
+Advertiser Notes is not a sidebar menu. It is the persistent right-side workspace opened from the floating **Notes** button (A65).
 
 MVP deliberately does NOT include:
 

@@ -58,6 +58,21 @@ export function formatDateTime(value: string | null | undefined): string {
   }).format(parsed)
 }
 
+/** Tanggal + jam WIB, dipakai catatan pengiklan yang deadlinenya disimpan sebagai timestamp. */
+export function formatWibDateTime(value: string | null | undefined): string {
+  if (value === null || value === undefined || value === '') return '-'
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return '-'
+  return new Intl.DateTimeFormat(LOCALE, {
+    timeZone: 'Asia/Jakarta',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(parsed)
+}
+
 /** Jam saja — dipakai daftar timestamp presensi (PRD §104). */
 export function formatTime(value: string | null | undefined): string {
   if (value === null || value === undefined || value === '') return '-'

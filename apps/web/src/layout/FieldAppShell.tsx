@@ -32,7 +32,7 @@ const TABS: Tab[] = [
 
 const TITLES: Record<string, string> = {
   '/presensi': 'Presensi',
-  '/ots': 'Peserta OTS',
+  '/ots': 'OTS',
   '/scan-qr': 'Scan Tiket',
   '/cari-peserta': 'Cari Peserta',
   '/profil': 'Akun',
