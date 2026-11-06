@@ -222,7 +222,7 @@ export function PresensiPage() {
               <DataTable
                 rowNumbers
                 rowNumberStart={(state.page - 1) * state.pageSize + 1}
-                exportConfig={{ filename: 'presensi', columns: [...COLUMNS, { key: 'checked_in_tickets', header: 'Tiket hadir' }, { key: 'app_status', header: 'Status order' }, { key: 'rescheduled', header: 'Reschedule' }, { key: 'original_batch', header: 'Batch asal' }, { key: 'original_session', header: 'Sesi asal' }, { key: 'original_city', header: 'Kota asal' }], loadRows: async () => {
+                exportConfig={{ filename: 'presensi', columns: [...COLUMNS, { key: 'source', header: 'Sumber Pendaftaran' }, { key: 'checked_in_tickets', header: 'Tiket hadir' }, { key: 'app_status', header: 'Status order' }, { key: 'rescheduled', header: 'Reschedule' }, { key: 'original_batch', header: 'Batch asal' }, { key: 'original_session', header: 'Sesi asal' }, { key: 'original_city', header: 'Kota asal' }], loadRows: async () => {
                   const rows = await collectPages(page => fetchPresensiPage(state.applied, { sort: sort.key, direction: sort.direction, page, pageSize: 100, exporting: true }))
                   return rows.map(row => ({
                     ...row,

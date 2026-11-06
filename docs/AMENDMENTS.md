@@ -1572,3 +1572,14 @@ Atas permintaan pengguna:
 7. **Dashboard Data per Sesi.** Kolom Pengiklan menampilkan nama-nama pengiklan (`Zul (01), Rina (02), ...`), bukan jumlah.
 
 **Implementasi.** `0067_ad_spend_event_type.sql`; `packages/shared` (konstanta sesi + versi aset QR); `packages/api` (ad-spend, OTS, participant pages/handlers, env); `apps/web` (filter storage, ticket QR, Report Spend, OTS, GlobalSearch, SessionSummaryCard, navigation); `apps/web/public/_headers`; tes web/API/pgTAP terkait.
+
+
+## A64 - Pemisahan sumber Online dan OTS (6 November 2026)
+
+OTS tetap transaksi lunas di lokasi dan seluruh quantity langsung hadir. Dashboard default Online (`orderonline`), dengan pilihan Online/OTS/Semua dan perbandingan per sumber mengikuti semua filter selain sumber. Online tidak berarti atribusi iklan. Order, Presensi, Refund, dan Report Tax default Semua. Clear All mengembalikan default sumber halaman dan Hari Ini; pilihan tersimpan selama tab terbuka. Filter pengiklan tetap berlaku pada OTS (hasil kosong, bukan diabaikan).
+
+Desktop `/ots`: rekap seluruh hasil, filter, tabel transaksi, tombol Tambah OTS membuka drawer. HP: Pendaftaran/Riwayat; form mengingat konteks meja. Jumlah Order ID disebut transaksi; quantity Paid disebut tiket. Omzet dan subtotal metode hanya Paid. Riwayat menampilkan presensi aktual termasuk retensi. Ringkasan dihitung sebelum pagination.
+
+Pemeriksaan nomor HP menormalkan tanda baca dan awalan Indonesia 0/62, lalu mencocokkan produk dan acara efektif. Kandidat Online/OTS terlihat hanya dalam scope aktor. Petugas mengonfirmasi sebelum membuat OTS baru; order lama tidak berubah. Tidak ada penggabungan lead, pengalihan atribusi, atau status Pending OTS baru.
+
+Migrasi `20261106062419_ots_source_separation.sql`, schema_version 68, menambah argumen akhir opsional p_source pada RPC baca. Omitted/null/kosong tetap Semua. Tidak ada perubahan data historis. Ekspor umum mengikuti sumber; format Meta tetap baku. Report Spend/Performa tetap mengecualikan OTS. Link rekap membawa sumber, acara, dan status Paid.

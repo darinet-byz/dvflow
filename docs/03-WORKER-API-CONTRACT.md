@@ -391,3 +391,12 @@ Infrastructure protection is allowed:
 - auth login: basic Cloudflare rate limit if configured;
 - webhook: Cloudflare/WAF optional.
 Do not add user-facing quota behavior.
+
+
+## A64 - Sumber pendaftaran dan rekap OTS
+
+RPC dashboard_summary, presensi_summary, orders_page/export_orders_page, presensi_page/export_presensi_page, tax_report, dashboard_session_summary, refund_page/export_refund_page menerima argumen akhir `p_source text default null`: `orderonline`, `ots`, atau null/kosong (Semua). Nilai lain ditolak DF011. Izin asli dan aturan retensi/refund tetap berlaku. Baris order/presensi/refund menyertakan `source`.
+
+`GET /api/ots` mempertahankan date/from/to/q/scope/page/pageSize dan default hari ini. Filter tambahan: product_code, batch, session, city, method (ots_tunai/ots_transfer/ots_qris), collector (ID petugas). Tanggal tidak valid atau from > to ditolak 400. Tanggal adalah waktu pendaftaran WIB; batas akhir eksklusif hari berikutnya. Respons menambah `summary: {transactions,tickets,gross_amount,ots_tunai,ots_transfer,ots_qris}` dan `collectors: [{id,name}]`. Ringkasan dihitung sebelum pagination. Transaksi mencakup seluruh hasil; tiket/omzet hanya Paid. Baris menambah app_status, checked_in_tickets, attendance_data_expired. RPC internal service-role `ots_registrations_page(p_actor,p_filters)` menegakkan action.ots dan actor_can_order.
+
+`GET /api/ots/duplicates?phone=...&product_code=...&batch=...&session=...&city=...`: semua parameter wajib; izin action.ots. Respons `{rows:[{order_id,source,name,app_status,quantity}]}`, maksimum 20 kecocokan terbaru. Nomor dinormalisasi (tanda baca dibuang; awalan 0/62 disamakan). Acara memakai effective_batch/session/city dan scope aktor. Pemeriksaan ini tidak mengubah order dan bukan bukti identitas unik. Form baru memerlukan konfirmasi ketika ada hasil; kontrak POST lama tetap kompatibel.

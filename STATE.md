@@ -7,7 +7,7 @@
 > Dokumen yang mengikat tetap `CLAUDE.md` + `docs/`. File ini hanya mencatat **sejauh mana**
 > pekerjaan sudah berjalan, bukan aturan baru.
 
-Terakhir diperbarui: 2026-11-02
+Terakhir diperbarui: 2026-11-06
 Repo: `C:\Users\MyBook Z Series\dvflow` (git `main`, sudah di-push ke `origin/main`; production live di https://dvflow.pages.dev)
 Rencana lengkap: `~/.claude/plans/baca-file-claude-md-dan-glowing-pike.md`
 Nama aplikasi: **dvflow** (`OrderOnline` tetap nama provider, bukan nama aplikasi)
@@ -42,17 +42,17 @@ tetap mengikuti blocker di dokumen Acceptance Tests/Runbook.
 # Tidak butuh Docker
 npm install
 npm run typecheck          # → PASS (shared, api, worker, functions, web)
-npm test                   # -> 643 test lulus (277 api + 133 shared + 233 web)
+npm test                   # -> 704 test lulus (304 api + 135 shared + 265 web)
 npm run build              # → aplikasi web + assets/ticket-qr.js
 npm run verify:ticket-qr   # → membuktikan artefak QR dapat dijalankan & dipindai
 npm audit                  # → 0 vulnerabilities
 
 # Database lokal (BUTUH Docker Desktop menyala)
 npm run db:start                      # supabase start
-npm run db:reset                      # migrasi 0001-0056 + seed.sql (untuk integration)
+npm run db:reset                      # migrasi 0001-0068 + seed.sql (untuk integration)
 npm run test:integration              # 37 test (butuh SUPABASE_URL/SECRET_KEY/DB_URL; skip bila kosong)
-npx supabase db reset --no-seed       # pgTAP mengasumsikan DB tanpa seed
-npm run test:db                       # pgTAP -> 639 test lulus / 27 berkas
+supabase db reset --no-seed           # pgTAP mengasumsikan DB tanpa seed
+npm run test:db                       # pgTAP -> 919 test lulus / 36 berkas
 
 # Tooling developer (butuh database hidup)
 npm run create-master-admin
@@ -525,3 +525,5 @@ sering terlanggar:
 | 2026-11-04 | - | Gate A63: typecheck PASS; unit 302 api + 135 shared + 262 web; pgTAP 887 PASS / 35 berkas; integration 37 PASS; build + verify QR PASS. |
 | 2026-11-04 | - | Deploy production A63: backup `prod-schema-before-0067.sql` + `prod-data-before-0067.sql`; migrasi `0067` diterapkan (`schema_version` = 67, PostgREST reload); commit `c1483eb` di-push dan workflow Deploy sukses. |
 | 2026-11-04 | - | Perbaikan header cache `ticket-qr.js`: wildcard `/assets/*` ternyata DIGABUNG Cloudflare dengan rule khusus, sehingga `immutable` tetap menang. Rule diubah ke `/assets/index-*`; commit `756e2f6` di-push dan deploy sukses. Header production sekarang `max-age=0, must-revalidate`. |
+| 2026-11-06 | A64 | Pemisahan sumber Online/OTS: filter **Sumber Pendaftaran** (Dashboard default Online; Order/Presensi/Refund/Report Tax default Semua), ringkasan per sumber, rekap OTS desktop/mobile + filter dan riwayat, konfirmasi nomor HP duplikat. Migrasi `20261106062419_ots_source_separation.sql` (`schema_version` 68) menambah argumen akhir opsional `p_source` pada 10 RPC baca, plus RPC service-only `ots_registrations_page`/`ots_duplicate_candidates`. Gate: typecheck PASS; unit 304 api + 135 shared + 265 web; pgTAP 919 PASS / 36 berkas; integration 37 PASS; browser PASS (desktop/mobile, duplikat, reset sumber); build + verify QR PASS. |
+| 2026-11-06 | - | Gate A64 sempat berhenti karena test `36_ots_source_separation.sql` memanggil RPC service-only sebagai `authenticated` → segfault PostgreSQL 17.6 lokal (K63). Diganti dengan `has_function_privilege`; skrip `test-rbac-db.mjs` kini memakai port Supabase lokal `54691` (atau `RBAC_DB_URL`), sehingga tidak perlu container verifikasi ad hoc. |

@@ -55,6 +55,7 @@ export type AttendanceStatus =
 
 /** Satu baris Master Order (PRD §45 + data snapshot untuk drawer). */
 export type OrderRow = {
+  source?: 'orderonline' | 'ots'
   id: string
   order_id: string
   name: string | null
@@ -125,6 +126,7 @@ export type OrderSortKey =
 
 /** Baris presensi (PRD §103). `timestamps` sudah 10 terbaru dari database. */
 export type PresensiRow = {
+  source?: 'orderonline' | 'ots'
   order_id: string
   name: string | null
   phone: string | null

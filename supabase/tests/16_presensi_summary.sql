@@ -23,7 +23,7 @@ delete from public.app_role_permissions where role_id = 'presensi_only';
 set local role authenticated;
 select throws_ok('select public.presensi_summary()', 'DF006', 'FORBIDDEN', 'tanpa izin Presensi ditolak');
 reset role;
-select is(has_function_privilege('anon','public.presensi_summary(text,date,date,text,text,text,text,text,text)','execute'), false, 'anon tidak bisa');
+select is(has_function_privilege('anon','public.presensi_summary(text,date,date,text,text,text,text,text,text,text)','execute'), false, 'anon tidak bisa');
 
 select * from finish();
 rollback;

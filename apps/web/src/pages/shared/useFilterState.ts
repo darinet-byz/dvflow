@@ -51,7 +51,13 @@ export function useFilterState<T extends CommonFilters>(
   // Filter awal tanpa tanggal berarti "pakai default Hari Ini"; "Semua tanggal" tetap bisa dipilih manual.
   const [filters, setFilters] = useState<T>(() => {
     const base = initial.dateFrom === '' && initial.dateTo === '' ? withDefaultDates(initial) : initial
-    return options.storageKey === undefined ? base : readPersistedFilters(options.storageKey, base)
+    const saved = options.storageKey === undefined ? base : readPersistedFilters(options.storageKey, base)
+    const params = new URLSearchParams(window.location.search)
+    for (const key of Object.keys(base) as Array<keyof T>) {
+      const value = params.get(String(key))
+      if (value !== null && (key !== 'source' || ['', 'ots', 'orderonline'].includes(value))) saved[key] = value as T[keyof T]
+    }
+    return saved
   })
   const [page, setPage] = useState(1)
   const [pageSize, setPageSizeState] = useState<PageSize>(DEFAULT_PAGE_SIZE)
@@ -87,6 +93,6 @@ export function useFilterState<T extends CommonFilters>(
     update: (key, value) => setFilters((current) => ({ ...current, [key]: value })),
     removeFilter: (key) => setFilters((current) => clearFilter(current, key)),
     // Clear All kembali ke Hari Ini, bukan ke semua data.
-    clearAll: () => setFilters((current) => withDefaultDates(clearAllFilters(current))),
+    clearAll: () => setFilters((current) => withDefaultDates({ ...clearAllFilters(current), source: initial.source })),
   }
 }

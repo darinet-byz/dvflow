@@ -41,7 +41,7 @@ describe('Dashboard: urutan kartu (A59)', () => {
     render(<MemoryRouter><DashboardPage /></MemoryRouter>)
     await screen.findByText('Gross')
     const headings = screen.getAllByRole('heading', { level: 2 }).map((heading) => heading.textContent)
-    expect(headings).toEqual(['Finansial', 'Order', 'Data per Sesi', 'Kehadiran'])
+    expect(headings).toEqual(['Ringkasan per Sumber', 'Finansial - Online', 'Order - Online', 'Data per Sesi', 'Kehadiran - Online'])
   })
 })
 

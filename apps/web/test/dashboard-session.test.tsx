@@ -15,6 +15,7 @@ const { SessionSummaryCard, advertiserLabel, sessionLabel } = await import(
 const { fetchDashboardSessionSummary } = await import('../src/lib/queries')
 
 const FILTERS: CommonFilters = {
+  source: '',
   search: '',
   dateFrom: '2026-10-01',
   dateTo: '2026-10-31',

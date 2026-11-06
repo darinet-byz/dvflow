@@ -38,6 +38,7 @@ export function readPersistedFilters<T extends CommonFilters>(key: string, fallb
       const value = saved[field as string]
       if (typeof value === 'string') merged[field] = value as T[keyof T]
     }
+    if (!['', 'ots', 'orderonline'].includes(merged.source)) merged.source = fallback.source
     return merged
   } catch {
     return fallback

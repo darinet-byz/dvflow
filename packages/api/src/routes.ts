@@ -15,7 +15,7 @@ import { createRole, deleteRole, getRole, listPermissions, listRoles, updateRole
 import { accessOrder, checkinByQr, checkinInfoPage } from './participant/handlers'
 import { getProfile, updateProfile } from './profile/handlers'
 import { scannerManualCheckin, scannerSearch } from './scanner/handlers'
-import { deleteOts, listOts, listOtsEvents, saveOts } from './ots/handlers'
+import { deleteOts, listOts, listOtsEvents, otsDuplicates, saveOts } from './ots/handlers'
 import { cancelRefund, refundOrder, rescheduleOrder } from './orders/handlers'
 import { createAdSpend, deleteAdSpend, updateAdSpend } from './ad-spend/handlers'
 import { orderOnlineWebhook } from './webhooks/handlers'
@@ -115,6 +115,7 @@ export const ROUTES: Route[] = [
   { method: 'POST', path: '/api/orders/:orderId/refund/cancel', handler: cancelRefund, auth: 'access' },
   { method: 'POST', path: '/api/orders/:orderId/refund', handler: refundOrder, auth: 'access' },
   // A29: pendaftaran peserta OTS (bayar di lokasi).
+  { method: 'GET', path: '/api/ots/duplicates', handler: otsDuplicates, auth: 'access' },
   { method: 'GET', path: '/api/ots/events', handler: listOtsEvents, auth: 'access' },
   { method: 'GET', path: '/api/ots', handler: listOts, auth: 'access' },
   { method: 'POST', path: '/api/ots', handler: saveOts, auth: 'access' },

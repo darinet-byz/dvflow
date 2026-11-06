@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { CommonFilters } from '../../lib/filters'
 import { formatCount, formatText } from '../../lib/format'
 import {
@@ -53,6 +53,8 @@ export function SessionSummaryCard({ filters }: { filters: CommonFilters }) {
   const city = useDebouncedValue(filters.city.trim())
   const ready = filters.productCode.trim() !== '' && batch !== ''
   const [selected, setSelected] = useState<SessionSummaryRow | null>(null)
+  const filterKey = JSON.stringify(filters)
+  useEffect(() => { setSelected(null) }, [filterKey])
 
   const { data, loading, error, reload } = useAsyncData(
     () =>
@@ -61,6 +63,7 @@ export function SessionSummaryCard({ filters }: { filters: CommonFilters }) {
         : Promise.resolve(null),
     [
       ready,
+      filters.source,
       filters.productCode,
       filters.advertiserCode,
       filters.eventType,
@@ -126,7 +129,7 @@ export function SessionSummaryCard({ filters }: { filters: CommonFilters }) {
                         key={`${item.ots ? 'ots' : ''}|${item.advertiser_code ?? ''}`}
                         className="flex items-center justify-between gap-3 px-3 py-2"
                       >
-                        <span className="min-w-0 truncate">{advertiserLabel(item)}</span>
+                        <a className="min-w-0 truncate text-primary underline" href={`/order?${new URLSearchParams({ ...filters, appStatus: 'Paid', source: item.ots ? 'ots' : 'orderonline', advertiserCode: item.advertiser_code ?? '', session: selected.session ?? '', city: selected.city ?? '', eventType: selected.event_type ?? '' })}`}>{advertiserLabel(item)}</a>
                         <span className="font-semibold">{formatCount(item.tickets)}</span>
                       </li>
                     ))}

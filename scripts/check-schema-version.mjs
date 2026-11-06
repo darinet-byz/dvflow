@@ -8,12 +8,14 @@
  *
  * Env: VITE_SUPABASE_URL, VITE_SUPABASE_PUBLISHABLE_KEY (nilai publik yang sama dengan build web).
  */
-import { readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 
+// Read the declared schema version, including CLI-generated timestamp migrations.
 const required = Math.max(...readdirSync('supabase/migrations')
-  .map((name) => /^(\d{4})_.*\.sql$/.exec(name)?.[1])
-  .filter(Boolean)
-  .map(Number))
+  .filter(name => name.endsWith('.sql'))
+  .flatMap(name => [...readFileSync(`supabase/migrations/${name}`, 'utf8')
+    .matchAll(/function public\.schema_version\(\)[\s\S]*?select (\d+)\s*\$\$/gi)]
+    .map(match => Number(match[1]))))
 
 const url = process.env.VITE_SUPABASE_URL
 const key = process.env.VITE_SUPABASE_PUBLISHABLE_KEY

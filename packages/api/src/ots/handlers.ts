@@ -1,6 +1,6 @@
 import { roundMoney } from '@dvflow/shared'
 import { ApiFailure } from '../http/errors'
-import { buildIlikeOrFilter, sanitizeSearchTerm } from '../http/postgrest-filter'
+import { sanitizeSearchTerm } from '../http/postgrest-filter'
 import { ok, readJsonObject, readString } from '../http/response'
 import type { RouteContext } from '../router'
 import { productAccess, productFilter, requirePermission } from '../permissions'
@@ -63,32 +63,17 @@ export async function listOtsEvents(context: RouteContext): Promise<Response> {
   return ok({ events: sorted })
 }
 
-type OtsRow = {
-  order_id: string
-  name: string | null
-  phone: string | null
-  product_code: string | null
-  product_name: string | null
-  batch: string | null
-  session: string | null
-  city: string | null
-  event_type: string | null
-  quantity: number | string | null
-  gross_amount: number | string
-  payment_method: string | null
-  created_at: string
-  ots_collected_by: string | null
-}
-
 /** GET /api/ots?date=YYYY-MM-DD — pendaftaran OTS pada hari itu (WIB; default hari ini). */
 export async function listOts(context: RouteContext): Promise<Response> {
   const actor = await requirePermission(context, 'action.ots')
-  const access = await productAccess(context, actor)
   const params = context.url.searchParams
   const requestedDate = params.get('date')?.trim() ?? ''
   const requestedFrom = params.get('from')?.trim() ?? ''
   const requestedTo = params.get('to')?.trim() ?? ''
   const term = sanitizeSearchTerm(params.get('q'))
+  for (const value of [requestedDate, requestedFrom, requestedTo]) {
+    if (value && (!DATE_PATTERN.test(value) || !validDate(value))) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Tanggal tidak valid.')
+  }
   const requestedDateValue = DATE_PATTERN.test(requestedDate) ? requestedDate : null
   const requestedFromValue = DATE_PATTERN.test(requestedFrom) ? requestedFrom : null
   const requestedToValue = DATE_PATTERN.test(requestedTo) ? requestedTo : null
@@ -111,55 +96,34 @@ export async function listOts(context: RouteContext): Promise<Response> {
     ? Math.min(requestedPageSize, 200)
     : 50
 
-  const query: Record<string, string> = {
-    ...productFilter(access),
-    source: 'eq.ots',
-    order: 'created_at.desc',
-    limit: String(pageSize),
-    offset: String((page - 1) * pageSize),
+  if (from && !validDate(from) || to && !validDate(to) || from && to && from > to) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Rentang tanggal tidak valid.')
   }
-
-  if (from !== null || to !== null) {
-    const start = from === null ? null : startOfWibDate(from)
-    const end = to === null ? null : new Date(startOfWibDate(to).getTime() + 24 * 60 * 60 * 1000)
-    const bounds: string[] = []
-    // Nilai di dalam `and` perlu tanda kutip: timestamp mengandung `:` dan `.`
-    // yang bagi parser PostgREST adalah karakter struktural.
-    if (start !== null) bounds.push(`created_at.gte."${start.toISOString()}"`)
-    if (end !== null) bounds.push(`created_at.lt."${end.toISOString()}"`)
-    query['and'] = `(${bounds.join(',')})`
+  const filters: Record<string, unknown> = { from, to, q: term, page, pageSize }
+  for (const key of ['product_code', 'batch', 'session', 'city', 'method', 'collector']) {
+    filters[key] = params.get(key)?.trim() || null
   }
-
-  if (term !== null) query['or'] = buildIlikeOrFilter(['order_id', 'name', 'phone'], term)
-
-  const [rows, total] = await Promise.all([
-    context.db.selectRows<OtsRow>('orders', query, 'order_id,name,phone,product_code,product_name,batch,session,city,event_type,quantity,gross_amount,payment_method,created_at,ots_collected_by'),
-    context.db.countRows('orders', query),
-  ])
-
-  const collectorIds = [...new Set(rows.map((row) => row.ots_collected_by).filter((id): id is string => !!id))]
-  const collectors = collectorIds.length === 0 ? [] : await context.db.selectRows<{ id: string; display_name: string }>(
-    'users', { id: `in.(${collectorIds.join(',')})` }, 'id,display_name',
-  )
-  const names = new Map(collectors.map((user) => [user.id, user.display_name]))
-  return ok({
-    date,
-    from,
-    to,
-    page,
-    pageSize,
-    total,
-    rows: rows.map(({ ots_collected_by, ...row }) => ({
-      ...row,
-      quantity: Number(row.quantity ?? 1),
-      gross_amount: Number(row.gross_amount),
-      collected_by: ots_collected_by ? names.get(ots_collected_by) ?? null : null,
-    })),
-  })
+  if (filters.method && !OTS_METHODS.includes(filters.method as typeof OTS_METHODS[number])) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Metode bayar tidak valid.')
+  }
+  const result = await context.db.rpc<Record<string, unknown>>('ots_registrations_page', { p_actor: actor.id, p_filters: filters })
+  return ok({ ...result, date, from, to })
 }
 
-function startOfWibDate(date: string): Date {
-  return new Date(`${date}T00:00:00+07:00`)
+function validDate(value: string): boolean {
+  const date = new Date(`${value}T00:00:00Z`)
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+}
+
+export async function otsDuplicates(context: RouteContext): Promise<Response> {
+  const actor = await requirePermission(context, 'action.ots')
+  const args: Record<string, unknown> = { p_actor: actor.id }
+  for (const key of ['phone', 'product_code', 'batch', 'session', 'city']) {
+    const value = context.url.searchParams.get(key)?.trim()
+    if (!value) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Lengkapi nomor HP dan acara.')
+    args[`p_${key}`] = value
+  }
+  return ok(await context.db.rpc('ots_duplicate_candidates', args))
 }
 
 function wibDate(now: Date): string {

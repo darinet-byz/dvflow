@@ -78,7 +78,7 @@ select throws_ok($$select public.dashboard_session_summary('AAAA','58')$$, 'DF00
   'tanpa izin Dashboard ditolak');
 reset role;
 
-select is(has_function_privilege('anon','public.dashboard_session_summary(text,text,text,text,date,date,text,text,text)','execute'), false,
+select is(has_function_privilege('anon','public.dashboard_session_summary(text,text,text,text,date,date,text,text,text,text)','execute'), false,
   'dashboard_session_summary tidak bisa dipanggil anon');
 select is(has_function_privilege('anon','public.batch_session_summary(text,text,text)','execute'), false,
   'wrapper lama juga tidak bisa dipanggil anon');

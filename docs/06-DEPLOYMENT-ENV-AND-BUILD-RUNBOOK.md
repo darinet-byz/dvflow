@@ -168,3 +168,13 @@ Before a payment method goes live:
 - run calculation fixture;
 - ensure identifier uniqueness;
 - do not edit historical order manually to "sync" fee changes.
+
+
+## A64 - Peluncuran pemisahan Online / OTS
+
+1. Jalankan typecheck, unit tests, build, `node scripts/test-rbac-db.mjs --integration` dan `--browser` pada database disposable. Skrip memakai PostgreSQL lokal dari `supabase start` (port `54691`) dan membuat database sementara; `RBAC_DB_URL` dapat menunjuk instance lain.
+2. Tinjau daftar migrasi remote; terapkan source_separation (schema_version 68) sebelum kode baru. Tidak ada perubahan pembayaran/presensi historis.
+3. Gate check-schema-version membaca deklarasi versi SQL, termasuk nama migrasi timestamp dari CLI.
+4. Deploy artifact Cloudflare Pages berisi Functions backend dan frontend bersama. Backend menerima parameter lama; klien lama tanpa p_source masih Semua.
+5. Smoke: default Online, source selector/reset, rekap OTS, filter/ekspor, dan akses petugas. Rekonsiliasi Online + OTS = Semua untuk count/tiket/uang/hadir; rasio dihitung ulang.
+6. Rollback UI/Functions dapat mempertahankan migrasi kompatibel. Jangan rollback data transaksi atau menghapus presensi; gunakan forward fix database.

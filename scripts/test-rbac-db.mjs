@@ -7,7 +7,9 @@ import { createServer } from 'node:http'
 import { resolve } from 'node:path'
 
 const database = `dvflow_rbac_test_${Date.now()}`
-const base = 'postgresql://postgres:postgres@127.0.0.1:54322/'
+// Mengikuti port Supabase lokal di supabase/config.toml (54691), bukan port default 54322.
+// Bisa ditimpa lewat RBAC_DB_URL bila memakai database disposable lain.
+const base = (process.env.RBAC_DB_URL ?? 'postgresql://postgres:postgres@127.0.0.1:54691/').replace(/\/?$/, '/')
 const admin = new Client({ connectionString: base + 'postgres' })
 let client
 let created = false
@@ -76,8 +78,13 @@ try {
     const tokenBody = `${encode({ alg: 'HS256', typ: 'JWT', kid: 'service' })}.${encode({ role: 'service_role', exp: Math.floor(Date.now()/1000)+3600 })}`
     const token = `${tokenBody}.${createHmac('sha256',secret).update(tokenBody).digest('base64url')}`
     restContainer = `${database}_rest`
+    const adminUrl = new URL(base)
+    const restDbHost = ['127.0.0.1', 'localhost'].includes(adminUrl.hostname) ? 'host.docker.internal' : adminUrl.hostname
+    const restDbPort = adminUrl.port || '5432'
+    const restUser = adminUrl.username || 'postgres'
+    const restPassword = adminUrl.password || 'postgres'
     execFileSync('docker', ['run','--rm','-d','--name',restContainer,'-p','127.0.0.1:55431:3000',
-      '-e',`PGRST_DB_URI=postgresql://postgres:postgres@host.docker.internal:54322/${database}`,
+      '-e',`PGRST_DB_URI=postgresql://${restUser}:${restPassword}@${restDbHost}:${restDbPort}/${database}`,
       '-e',`PGRST_JWT_SECRET=${JSON.stringify(jwks)}`,'-e','PGRST_DB_ANON_ROLE=anon',
       'public.ecr.aws/supabase/postgrest:v14.8'], { stdio: 'pipe' })
     proxy = createServer(async (req,res) => {

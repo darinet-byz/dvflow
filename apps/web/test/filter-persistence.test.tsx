@@ -11,6 +11,20 @@ describe('penyimpanan filter', () => {
   beforeEach(() => window.sessionStorage.clear())
   afterEach(cleanup)
 
+  it('dashboard default Online, pilihan tersimpan, Clear All kembali Online', () => {
+    const defaults = { ...EMPTY_ORDER_FILTERS, source: 'orderonline' }
+    const first = renderHook(() => useFilterState(defaults, { storageKey: 'dashboard-source' }))
+    expect(first.result.current.filters.source).toBe('orderonline')
+    act(() => first.result.current.update('source', 'ots'))
+    first.unmount()
+    const second = renderHook(() => useFilterState(defaults, { storageKey: 'dashboard-source' }))
+    expect(second.result.current.filters.source).toBe('ots')
+    act(() => second.result.current.clearAll())
+    expect(second.result.current.filters.source).toBe('orderonline')
+    window.sessionStorage.setItem('dvflow.filters.dashboard-source', JSON.stringify({ source: 'invalid' }))
+    expect(readPersistedFilters('dashboard-source', defaults).source).toBe('orderonline')
+  })
+
   it('membaca kembali filter yang disimpan dan mengabaikan bentuk rusak', () => {
     persistFilters('contoh', { ...EMPTY_ORDER_FILTERS, batch: '392' })
     expect(readPersistedFilters('contoh', EMPTY_ORDER_FILTERS).batch).toBe('392')

@@ -1,14 +1,15 @@
+import { useIsPhone } from '../../lib/field-app'
 import { useEffect, useMemo, useState } from 'react'
 import { OTS_MAX_QUANTITY, OTS_UNIT_PRICE_OPTIONS } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
 import { fetchOtsReferenceData, type OtsReferenceData } from '../../lib/queries'
 import { useAsyncData, useDebouncedValue } from '../../lib/useAsyncData'
-import { formatMoney, formatTime } from '../../lib/format'
+import { formatMoney } from '../../lib/format'
 import { Button } from '../../ui/Button'
 import { Combobox } from '../../ui/Combobox'
 import { SearchInput, Select, TextInput } from '../../ui/Field'
 import { ErrorState, SkeletonRows } from '../../ui/Feedback'
-import { Drawer } from '../../ui/Overlay'
+import { Drawer, Modal } from '../../ui/Overlay'
 import { Pagination } from '../../ui/Pagination'
 import { useToast } from '../../ui/Toast'
 import { cn } from '../../ui/cn'
@@ -43,6 +44,9 @@ type OtsRow = {
   session: string | null
   city: string | null
   event_type: string | null
+  checked_in_tickets?: number
+  attendance_data_expired?: boolean
+  app_status?: string
   quantity?: number
   gross_amount: number
   payment_method: string | null
@@ -119,7 +123,20 @@ function priceLabel(value: number, legacy: boolean): string {
   return formatMoney(value)
 }
 
+type DuplicateCandidate = { order_id: string; source: string; name: string; app_status: string; quantity: number }
+type OtsSummary = { transactions: number; tickets: number; gross_amount: number; ots_tunai: number; ots_transfer: number; ots_qris: number }
+const EMPTY_SUMMARY: OtsSummary = { transactions: 0, tickets: 0, gross_amount: 0, ots_tunai: 0, ots_transfer: 0, ots_qris: 0 }
+const EMPTY_LIST_FILTERS = { product_code: '', batch: '', session: '', city: '', method: '', collector: '' }
+function otsDate(value: string): string {
+  return new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value)) + ' WIB'
+}
+function attendanceLabel(row: OtsRow): string {
+  if (row.attendance_data_expired) return 'Data presensi tidak tersedia'
+  return `${row.checked_in_tickets ?? 0}/${row.quantity ?? 1} hadir`
+}
 type OtsListResponse = {
+  summary?: OtsSummary
+  collectors?: { id: string; name: string | null }[]
   rows: OtsRow[]
   total: number
   page: number
@@ -144,6 +161,15 @@ export function OtsDrawer({ open, onClose, canDelete }: { open: boolean; onClose
  */
 export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; canDelete: boolean; mode?: 'today' | 'all' }) {
   const toast = useToast()
+  const desktop = !useIsPhone()
+  const [formOpen, setFormOpen] = useState(false)
+  const [tab, setTab] = useState<'registration' | 'history'>('registration')
+  const [showFilters, setShowFilters] = useState(false)
+  const [listFilters, setListFilters] = useState(EMPTY_LIST_FILTERS)
+  const filterKey = JSON.stringify(listFilters)
+  const [duplicates, setDuplicates] = useState<DuplicateCandidate[] | null>(null)
+  const [editingOriginal, setEditingOriginal] = useState<OtsRow | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [context, setContext] = useState<OtsContext>(initialContext)
   const [showContext, setShowContext] = useState(() => !isContextComplete(initialContext()))
   const [pickerVersion, setPickerVersion] = useState(0)
@@ -186,17 +212,18 @@ export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; c
         if (dateTo !== '') params.set('to', dateTo)
       }
       if (debouncedQuery.trim() !== '') params.set('q', debouncedQuery.trim())
+      for (const [key, value] of Object.entries(listFilters)) if (value) params.set(key, value)
       params.set('page', String(page))
       params.set('pageSize', String(pageSize))
       return authorizedRequest<OtsListResponse>(`/api/ots?${params.toString()}`)
     },
-    [open, mode, refresh, debouncedQuery, dateFrom, dateTo, page, pageSize],
+    [open, mode, refresh, debouncedQuery, dateFrom, dateTo, page, pageSize, filterKey],
   )
 
   // Filter berubah: kembali ke halaman pertama, bukan halaman kosong dari hasil lama.
   useEffect(() => {
     setPage(1)
-  }, [mode, debouncedQuery, dateFrom, dateTo])
+  }, [mode, debouncedQuery, dateFrom, dateTo, filterKey])
 
   const products = references.data?.products ?? []
   const sessions = references.data?.sessions ?? []
@@ -240,7 +267,7 @@ export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; c
     return () => window.clearTimeout(timer)
     // Sengaja hanya saat open: jangan memindahkan fokus ketika operator sedang mengetik konteks.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open])
+  }, [open, formOpen, tab])
 
   const sessionOptions = useMemo(() => {
     const options = sessions.map((session) => ({ value: session.code, label: `${session.code} — ${session.name}` }))
@@ -305,7 +332,7 @@ export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; c
     setQuantityText(String(Math.min(OTS_MAX_QUANTITY, Math.max(1, next))))
   }
 
-  async function save(): Promise<void> {
+  async function save(confirmedDuplicate = false): Promise<void> {
     if (busy) return
     setFailure(null)
     if (!isContextComplete(context)) {
@@ -320,7 +347,13 @@ export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; c
 
     setBusy(true)
     try {
-      await authorizedRequest('/api/ots', {
+      if (!editingId && !confirmedDuplicate) {
+        const params = new URLSearchParams({ phone: phone.trim(), product_code: context.productCode, batch: context.batch.trim(), session: context.session.trim(), city: context.city.trim() })
+        const candidates = await authorizedRequest<{ rows: DuplicateCandidate[] }>(`/api/ots/duplicates?${params}`)
+        if (candidates.rows.length) { setDuplicates(candidates.rows); return }
+      }
+      setDuplicates(null)
+      const saved = await authorizedRequest<{ order_id: string }>('/api/ots', {
         method: 'POST',
         body: {
           ...(editingId ? { order_id: editingId } : {}),
@@ -337,7 +370,10 @@ export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; c
       })
       const ticketText = quantity === 1 ? '1 tiket' : `${quantity} tiket`
       const amountText = formatMoney((total ?? 0))
-      toast.show(editingId ? 'Data OTS diperbarui.' : `OTS tersimpan · ${ticketText} · ${amountText} · peserta hadir`, 'success')
+      const message = `OTS tersimpan: ${saved.order_id} - ${ticketText} - ${amountText} - ${quantity} tiket hadir`
+      toast.show(message, 'success')
+      setSuccess(message)
+      if (editingId) setFormOpen(false)
       const nextDeskPrice = unitPrice !== null && (OTS_UNIT_PRICE_OPTIONS as readonly number[]).includes(unitPrice) ? unitPrice : deskPrice
       if (nextDeskPrice !== deskPrice) setDeskPrice(nextDeskPrice)
       resetPerson(nextDeskPrice)
@@ -352,6 +388,10 @@ export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; c
   }
 
   function startEdit(row: OtsRow): void {
+    setEditingOriginal(row)
+    setFormOpen(true)
+    setTab('registration')
+    setSuccess(null)
     const rowQuantity = Math.max(1, Number(row.quantity ?? 1))
     const savedUnit = Math.round((Number(row.gross_amount) / rowQuantity) * 100) / 100
     setContext({
@@ -373,7 +413,7 @@ export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; c
   }
 
   async function remove(row: OtsRow): Promise<void> {
-    if (busy || !window.confirm(`Hapus pendaftaran OTS ${row.name ?? row.order_id}?`)) return
+    if (busy || !window.confirm(`Hapus transaksi OTS ${row.name ?? row.order_id} beserta seluruh presensinya?`)) return
     setBusy(true)
     try {
       await authorizedRequest(`/api/ots/${encodeURIComponent(row.order_id)}`, { method: 'DELETE' })
@@ -389,14 +429,14 @@ export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; c
 
   const rows = list.data?.rows ?? []
   const totalRows = list.data?.total ?? rows.length
-  const totalToday = rows.reduce((sum, row) => sum + row.gross_amount, 0)
+  const summary = list.data?.summary ?? EMPTY_SUMMARY
   const contextReady = isContextComplete(context)
   const selectedProductName = context.productCode === '' ? '' : productNames.get(context.productCode) ?? context.productCode
   const contextSummary = contextReady
     ? [selectedProductName, `Batch ${context.batch}`, context.session, context.city].filter(Boolean).join(' · ')
     : 'Acara meja belum lengkap'
 
-  return (
+  const form = (
     <>
       <div className="rounded-md border border-line bg-soft p-2.5">
         <div className="flex items-start justify-between gap-2">
@@ -554,6 +594,9 @@ export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; c
           </div>
         </div>
 
+        {validQuantity && unitPrice !== null ? <p className="text-[13px] font-semibold text-ink">Pembayaran sudah diterima. Seluruh {quantity} tiket akan langsung ditandai Hadir.</p> : null}
+        {editingId && editingOriginal ? <p className="text-[12px] text-ink-soft">Perubahan: {editingOriginal.quantity ?? 1} - {quantity} tiket hadir; {formatMoney(editingOriginal.gross_amount)} - {formatMoney(total)}. Presensi ikut disesuaikan.</p> : null}
+        {success ? <p role="status" className="text-[13px] text-success">{success}</p> : null}
         {failure ? <p role="alert" className="text-[12px] text-danger">{failure}</p> : null}
         <div className="flex gap-2">
           <Button type="submit" variant="primary" loading={busy} className="flex-1 sm:flex-none">
@@ -562,68 +605,76 @@ export function OtsPanel({ open, canDelete, mode = 'today' }: { open: boolean; c
           {editingId ? <Button disabled={busy} onClick={() => resetPerson()}>Batal edit</Button> : null}
         </div>
       </form>
-
-      <div className="mt-5 border-t border-line pt-4">
-        {mode === 'all' ? (
-          <div className="mb-3 flex flex-col gap-2">
-            <SearchInput id="ots-search" value={query} onChange={setQuery} placeholder="Cari nama, Order ID, atau No HP" />
-            <div className="grid grid-cols-2 gap-2">
-              <TextInput id="ots-from" label="Dari tanggal" type="date" value={dateFrom} onChange={setDateFrom} />
-              <TextInput id="ots-to" label="Sampai tanggal" type="date" value={dateTo} onChange={setDateTo} />
-            </div>
-          </div>
-        ) : null}
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="text-[13px] font-semibold text-ink">{mode === 'all' ? 'Semua OTS' : 'OTS hari ini'}</p>
-          <p className="text-[12px] text-ink-soft">{totalRows} peserta{totalRows > rows.length ? ' (halaman ini)' : ''} · {formatMoney(totalToday)}</p>
-        </div>
-        {list.error ? <ErrorState message={list.error} action={<Button onClick={list.reload}>Coba lagi</Button>} /> : null}
-        {list.loading && list.data === null ? <SkeletonRows rows={3} /> : null}
-        {list.data !== null && rows.length === 0 ? (
-          <p className="mt-2 text-[12px] text-ink-soft">
-            {mode === 'all' ? 'Belum ada pendaftaran OTS.' : 'Belum ada pendaftaran OTS hari ini.'}
-          </p>
-        ) : null}
-        <ul className="mt-2 flex flex-col gap-2">
-          {rows.map((row) => {
-            const rowQuantity = Math.max(1, Number(row.quantity ?? 1))
-            const rowUnit = Number(row.gross_amount) / rowQuantity
-            return (
-              <li key={row.order_id} className={cn('rounded-md border border-line p-2.5', editingId === row.order_id && 'border-primary')}>
-                <div className="flex items-start justify-between gap-2">
-                  <div className="min-w-0">
-                    <p className="truncate text-[13px] font-semibold text-ink">{row.name ?? '-'}</p>
-                    <p className="truncate text-[11px] text-ink-soft">{describeEvent({ ...row, product_code: row.product_code ?? '' })}</p>
-                    <p className="text-[11px] text-ink-soft">
-                      {rowQuantity > 1
-                        ? `${rowQuantity} tiket × ${formatMoney(rowUnit)} = ${formatMoney(row.gross_amount)}`
-                        : formatMoney(row.gross_amount)}
-                      {' · '}{METHOD_LABEL[row.payment_method ?? ''] ?? row.payment_method} · {formatTime(row.created_at)}
-                      {row.collected_by ? ` · ${row.collected_by}` : ''}
-                    </p>
-                  </div>
-                  <div className="flex shrink-0 gap-1.5">
-                    <Button size="sm" disabled={busy} onClick={() => startEdit(row)}>Edit</Button>
-                    {canDelete ? <Button size="sm" variant="danger" disabled={busy} onClick={() => void remove(row)}>Hapus</Button> : null}
-                  </div>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-        {list.data !== null && totalRows > 0 ? (
-          <Pagination
-            page={page}
-            pageSize={pageSize}
-            total={totalRows}
-            onPageChange={setPage}
-            onPageSizeChange={(size) => {
-              setPageSizeState(size)
-              setPage(1)
-            }}
-          />
-        ) : null}
-      </div>
     </>
   )
+
+  const actions = (row: OtsRow) => <div className="flex gap-2">
+    <Button size="sm" disabled={busy} onClick={() => startEdit(row)}>Edit</Button>
+    {canDelete ? <Button size="sm" variant="danger" disabled={busy} onClick={() => void remove(row)}>Hapus</Button> : null}
+  </div>
+  const activeFilters = Object.values(listFilters).filter(Boolean).length + Number(!!dateFrom || !!dateTo)
+  const history = (
+    <section className="space-y-4" aria-label="Riwayat OTS">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {[['Transaksi', String(summary.transactions)], ['Tiket OTS (Paid)', String(summary.tickets)], ['Omzet OTS (Paid)', formatMoney(summary.gross_amount)]].map(([label, value]) => <div className="rounded-md bg-soft p-3" key={label}><p className="text-[12px] text-ink-soft">{label}</p><p className="text-xl font-semibold">{list.loading ? 'Memuat...' : list.error ? '-' : value}</p></div>)}
+      </div>
+      <p className="text-[12px] text-ink-soft">Seluruh hasil filter: {OTS_METHOD_OPTIONS.map(option => `${option.label}: ${formatMoney(summary[option.value])}`).join(' - ')}</p>
+      {mode === 'all' ? <>
+        <div className="flex flex-wrap items-center gap-2"><SearchInput id="ots-search" value={query} onChange={setQuery} placeholder="Cari nama, Order ID, atau No HP" />
+          {!desktop ? <Button onClick={() => setShowFilters(value => !value)}>Filter ({activeFilters})</Button> : null}
+          <Button onClick={() => { setListFilters(EMPTY_LIST_FILTERS); setDateFrom(''); setDateTo('') }}>Clear All</Button>
+        </div>
+        {desktop || showFilters ? <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <TextInput id="ots-from" label="Dari tanggal (WIB)" type="date" value={dateFrom} onChange={setDateFrom} />
+          <TextInput id="ots-to" label="Sampai tanggal (WIB)" type="date" value={dateTo} onChange={setDateTo} />
+          <Select id="ots-filter-product" label="Produk" value={listFilters.product_code} options={[{ value: '', label: 'Semua produk' }, ...products.map(product => ({ value: product.code, label: product.name }))]} onChange={value => setListFilters(current => ({ ...current, product_code: value }))} />
+          <TextInput id="ots-filter-batch" label="Batch" value={listFilters.batch} onChange={value => setListFilters(current => ({ ...current, batch: value }))} />
+          <Select id="ots-filter-session" label="Sesi" value={listFilters.session} options={[{ value: '', label: 'Semua sesi' }, ...sessionOptions]} onChange={value => setListFilters(current => ({ ...current, session: value }))} />
+          <TextInput id="ots-filter-city" label="Kota" value={listFilters.city} onChange={value => setListFilters(current => ({ ...current, city: value }))} />
+          <Select id="ots-filter-method" label="Metode bayar" value={listFilters.method} options={[{ value: '', label: 'Semua metode' }, ...OTS_METHOD_OPTIONS]} onChange={value => setListFilters(current => ({ ...current, method: value }))} />
+          <Select id="ots-filter-collector" label="Petugas" value={listFilters.collector} options={[{ value: '', label: 'Semua petugas' }, ...(list.data?.collectors ?? []).map(collector => ({ value: collector.id, label: collector.name ?? 'Petugas tidak tersedia' }))]} onChange={value => setListFilters(current => ({ ...current, collector: value }))} />
+        </div> : null}
+      </> : <h3 className="font-semibold">OTS hari ini</h3>}
+      {list.error ? <ErrorState message={list.error} action={<Button onClick={list.reload}>Coba lagi</Button>} /> : list.loading ? <SkeletonRows rows={3} /> : <>
+        {!rows.length ? <p className="py-4 text-[13px] text-ink-soft">Belum ada transaksi OTS untuk filter ini.</p> : desktop && mode === 'all' ? <div className="overflow-x-auto">
+          <table className="w-full text-left text-[12px]"><thead><tr>{['Waktu (WIB)', 'Order ID', 'Nama / HP', 'Acara', 'Tiket', 'Harga satuan', 'Total', 'Metode', 'Kehadiran', 'Petugas', 'Tindakan'].map(label => <th className="whitespace-nowrap p-2" key={label}>{label}</th>)}</tr></thead><tbody>
+            {rows.map(row => <tr key={row.order_id} className="border-t border-line align-top">
+              <td className="p-2">{otsDate(row.created_at)}</td><td className="p-2">{row.order_id}</td><td className="p-2">{row.name}<br />{row.phone}</td>
+              <td className="min-w-[180px] p-2">{describeEvent({ ...row, product_code: row.product_code ?? '' })}</td><td className="p-2">{row.quantity ?? 1}</td>
+              <td className="whitespace-nowrap p-2">{formatMoney(row.gross_amount / Math.max(1, row.quantity ?? 1))}</td><td className="whitespace-nowrap p-2">{formatMoney(row.gross_amount)}<br />{row.app_status}</td>
+              <td className="p-2">{METHOD_LABEL[row.payment_method ?? ''] ?? '-'}</td><td className="p-2">{attendanceLabel(row)}</td><td className="p-2">{row.collected_by ?? '-'}</td><td className="p-2">{actions(row)}</td>
+            </tr>)}
+          </tbody></table>
+        </div> : <ul className="space-y-3">{rows.map(row => <li key={row.order_id} className="rounded-md border border-line p-3">
+          <p className="font-semibold">{row.name} <span className="text-[11px] text-ink-soft">{row.order_id}</span></p>
+          <p className="text-[12px]">{row.phone} - {describeEvent({ ...row, product_code: row.product_code ?? '' })}</p>
+          <p className="my-2 text-[13px] font-semibold">{row.quantity ?? 1} tiket - {formatMoney(row.gross_amount)} - {attendanceLabel(row)}</p>
+          <p className="mb-2 text-[11px] text-ink-soft">{METHOD_LABEL[row.payment_method ?? '']} - {otsDate(row.created_at)} - {row.collected_by ?? '-'}</p>
+          {actions(row)}
+        </li>)}</ul>}
+        {totalRows > 0 ? <Pagination page={page} pageSize={pageSize} total={totalRows} onPageChange={setPage} onPageSizeChange={size => { setPageSizeState(size); setPage(1) }} /> : null}
+      </>}
+    </section>
+  )
+  return <>
+    {mode === 'all' ? desktop ? <>
+      <div className="mb-4 flex justify-end"><Button variant="primary" onClick={() => { resetPerson(); setSuccess(null); setFormOpen(true) }}>Tambah OTS</Button></div>
+      {history}
+      <Drawer open={formOpen} title={editingId ? 'Edit OTS' : 'Pendaftaran OTS'} onClose={() => { if (!busy) setFormOpen(false) }}>{form}</Drawer>
+    </> : <>
+      <div className="mb-4 flex gap-2" role="tablist" aria-label="Peserta OTS">
+        <Button role="tab" aria-selected={tab === 'registration'} variant={tab === 'registration' ? 'primary' : 'secondary'} onClick={() => setTab('registration')}>Pendaftaran</Button>
+        <Button role="tab" aria-selected={tab === 'history'} variant={tab === 'history' ? 'primary' : 'secondary'} onClick={() => setTab('history')}>Riwayat</Button>
+      </div>
+      {tab === 'registration' ? form : history}
+    </> : <>{form}<div className="mt-5 border-t border-line pt-4">{history}</div></>}
+    <Modal open={duplicates !== null} title="Nomor HP sudah terdaftar pada acara ini" onClose={() => { if (!busy) setDuplicates(null) }} footer={<>
+      <Button disabled={busy} onClick={() => setDuplicates(null)}>Periksa kembali</Button>
+      <Button variant="primary" loading={busy} onClick={() => void save(true)}>Tetap buat OTS baru</Button>
+    </>}>
+      <p>Nomor yang sama bisa digunakan beberapa peserta. Periksa transaksi berikut sebelum melanjutkan.</p>
+      <ul className="my-3 space-y-2">{duplicates?.map(row => <li key={row.order_id}><strong>{row.order_id}</strong> - {row.source === 'ots' ? 'OTS' : 'Online'} - {row.name} - {row.app_status} - {row.quantity} tiket</li>)}</ul>
+      <p>Order lama tidak berubah. OTS menjadi transaksi terpisah; order Online Pending tetap dihitung sebagai lead Online.</p>
+    </Modal>
+  </>
 }

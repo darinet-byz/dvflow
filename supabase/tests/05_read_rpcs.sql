@@ -236,9 +236,9 @@ select is((select (public.tax_report('city') -> 'summary' ->> 'tax_amount')::num
 -- (lihat supabase/tests/README.md).
 reset role;
 
-select is(has_function_privilege('anon', 'public.dashboard_summary(text, date, date, text, text, text, text, text, text)', 'execute'),
+select is(has_function_privilege('anon', 'public.dashboard_summary(text, date, date, text, text, text, text, text, text,text)', 'execute'),
   false, 'anon tidak dapat memanggil dashboard_summary');
-select is(has_function_privilege('anon', 'public.tax_report(text, text, date, date, text, text, text, text, text, text)', 'execute'),
+select is(has_function_privilege('anon', 'public.tax_report(text, text, date, date, text, text, text, text, text, text,text)', 'execute'),
   false, 'anon tidak dapat memanggil tax_report');
 select is(has_function_privilege('anon', 'public.app_role()', 'execute'),
   false, 'anon tidak dapat memanggil helper app_role');

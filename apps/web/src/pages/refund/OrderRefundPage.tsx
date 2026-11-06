@@ -169,7 +169,7 @@ export function OrderRefundPage() {
               rowNumberStart={(state.page - 1) * state.pageSize + 1}
               exportConfig={{
                 filename: 'order-refund',
-                columns: COLUMNS.filter((column) => column.key !== 'actions'),
+                columns: [...COLUMNS.filter((column) => column.key !== 'actions'), { key: 'source', header: 'Sumber Pendaftaran' }],
                 loadRows: async () => {
                   const rows = await collectPages((page) =>
                     fetchRefundPage(state.applied, {

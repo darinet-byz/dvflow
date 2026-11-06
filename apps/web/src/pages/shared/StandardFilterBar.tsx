@@ -1,3 +1,4 @@
+import { Select } from '../../ui/Field'
 import type { ReactNode } from 'react'
 import { activeCommonFilters, type CommonFilters } from '../../lib/filters'
 import type { ConfigLists } from '../../lib/queries'
@@ -49,6 +50,7 @@ export function StandardFilterBar<T extends CommonFilters>({
   return (
     <div className="filter-bar flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-card p-3.5" data-testid="standard-filter-bar">
       <div className="filter-row flex min-w-0 flex-wrap items-center gap-2.5" data-filter-row="primary">
+        <Select id="source-filter" label="Sumber Pendaftaran" value={filters.source} onChange={(value) => update('source', value)} options={[{ value: '', label: 'Semua' }, { value: 'orderonline', label: 'Online' }, { value: 'ots', label: 'OTS' }]} />
         {search}
         <DateRangeFilters {...controls} />
         {viewControls}

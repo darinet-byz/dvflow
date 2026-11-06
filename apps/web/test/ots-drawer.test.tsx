@@ -37,6 +37,7 @@ beforeEach(() => {
     sessions: [{ code: 'S1', name: 'Sesi 1' }, { code: 'S2', name: 'Sesi 2' }],
   })
   vi.mocked(authorizedRequest).mockImplementation(async (path, init) => {
+    if (path.startsWith('/api/ots/duplicates?')) return { rows: [] }
     if (path === '/api/ots/events') return { events: [EVENT] }
     if (path === '/api/ots' && init?.method === 'POST') return { order_id: 'OTS-000008', action: 'created', quantity: 2, gross_amount: 300000, checked_in_at: null }
     if (path === '/api/ots' && init?.method === 'DELETE') return {}
@@ -46,7 +47,7 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 
-const { OtsDrawer } = await import('../src/pages/scanner/OtsDrawer')
+const { OtsDrawer, OtsPanel } = await import('../src/pages/scanner/OtsDrawer')
 
 async function chooseEvent(): Promise<void> {
   const picker = screen.getByLabelText('Cari produk atau acara')
@@ -56,6 +57,37 @@ async function chooseEvent(): Promise<void> {
 }
 
 describe('OtsDrawer', () => {
+  it('nomor sama meminta konfirmasi sebelum membuat order baru', async () => {
+    const implementation = vi.mocked(authorizedRequest).getMockImplementation()!
+    vi.mocked(authorizedRequest).mockImplementation(async (path, init) => path.startsWith('/api/ots/duplicates?')
+      ? { rows: [{ order_id: 'ONLINE-12', name: 'Siti', source: 'orderonline', app_status: 'Pending', quantity: 2 }] }
+      : implementation(path, init))
+    render(<OtsDrawer open onClose={() => {}} canDelete={false} />)
+    await chooseEvent()
+    fireEvent.change(screen.getByLabelText('Nama peserta'), { target: { value: 'Siti' } })
+    fireEvent.change(screen.getByLabelText('No HP'), { target: { value: '081234567890' } })
+    fireEvent.click(screen.getByRole('radio', { name: '150rb' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan & Check-in' }))
+    await screen.findByText('ONLINE-12')
+    expect(vi.mocked(authorizedRequest).mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: 'Tetap buat OTS baru' }))
+    await waitFor(() => expect(vi.mocked(authorizedRequest).mock.calls.filter(([, init]) => init?.method === 'POST')).toHaveLength(1))
+    expect(screen.queryByText('ONLINE-12')).toBeNull()
+  })
+
+  it('desktop mengutamakan rekap seluruh hasil dan form dibuka lewat Tambah OTS', async () => {
+    const implementation = vi.mocked(authorizedRequest).getMockImplementation()!
+    vi.mocked(authorizedRequest).mockImplementation(async (path, init) => path.startsWith('/api/ots?')
+      ? { rows: [ROW], total: 80, page: 1, pageSize: 50, summary: { transactions: 80, tickets: 160, gross_amount: 24000000, ots_tunai: 0, ots_transfer: 0, ots_qris: 24000000 } }
+      : implementation(path, init))
+    render(<OtsPanel open canDelete={false} mode="all" />)
+    await screen.findByText('160')
+    expect(screen.getAllByText(/24\.000\.000/).length).toBeGreaterThan(0)
+    expect(screen.queryByLabelText('Nama peserta')).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Tambah OTS' }))
+    expect(screen.getByLabelText('Nama peserta')).toBeTruthy()
+  })
+
   it('pilih acara terakhir -> konteks terisi; simpan 2 tiket x 150rb = 300rb', async () => {
     render(<OtsDrawer open onClose={() => {}} canDelete={false} />)
     await chooseEvent()
@@ -164,7 +196,8 @@ describe('OtsDrawer', () => {
 
   it('harga OTS lama di luar preset tampil sebagai opsi tersimpan', async () => {
     vi.mocked(authorizedRequest).mockImplementation(async (path, init) => {
-      if (path === '/api/ots/events') return { events: [EVENT] }
+      if (path.startsWith('/api/ots/duplicates?')) return { rows: [] }
+    if (path === '/api/ots/events') return { events: [EVENT] }
       if (path.startsWith('/api/ots?')) return { rows: [{ ...ROW, quantity: 1, gross_amount: 175000 }], total: 1, page: 1, pageSize: 50 }
       if (init?.method === 'POST') return { order_id: 'OTS-000007', action: 'updated', checked_in_at: null }
       return {}

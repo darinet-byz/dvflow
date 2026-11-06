@@ -53,6 +53,7 @@ describe('pemetaan filter ke argumen RPC', () => {
       'p_product_code',
       'p_search',
       'p_session',
+      'p_source',
     ])
   })
 

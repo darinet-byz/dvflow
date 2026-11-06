@@ -12,6 +12,7 @@ import { describeRange } from './date-range'
  */
 
 export type CommonFilters = {
+  source: string
   search: string
   dateFrom: string
   dateTo: string
@@ -33,6 +34,7 @@ export type PresensiFilters = CommonFilters & {
 }
 
 export const EMPTY_COMMON_FILTERS: CommonFilters = {
+  source: '',
   search: '',
   dateFrom: '',
   dateTo: '',
@@ -96,6 +98,7 @@ export function toFilterArgs(filters: CommonFilters): Record<string, unknown> {
     p_batch: emptyToNull(filters.batch),
     p_session: emptyToNull(filters.session),
     p_city: emptyToNull(filters.city),
+    p_source: emptyToNull(filters.source),
   }
 }
 
@@ -124,6 +127,7 @@ export function toPresensiArgs(filters: PresensiFilters): Record<string, unknown
  */
 export function toCommonFilters(filters: CommonFilters): CommonFilters {
   return {
+    source: filters.source,
     search: filters.search,
     dateFrom: filters.dateFrom,
     dateTo: filters.dateTo,
@@ -160,6 +164,7 @@ export function activeCommonFilters(filters: CommonFilters, labels: FilterLabels
   if (filters.dateFrom.trim() !== '' || filters.dateTo.trim() !== '') {
     chips.push({ key: DATE_RANGE_CHIP, label: `Tanggal: ${describeRange(filters.dateFrom, filters.dateTo)}` })
   }
+  push('source', 'Sumber: ', filters.source, filters.source === 'ots' ? 'OTS' : 'Online')
   push('productCode', 'Produk: ', filters.productCode, labels.product ?? filters.productCode)
   push('advertiserCode', 'Pengiklan: ', filters.advertiserCode, labels.advertiser ?? filters.advertiserCode)
   push('eventType', 'Jenis: ', filters.eventType)

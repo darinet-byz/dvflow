@@ -388,3 +388,8 @@ Recommended implementation:
 - no plaintext password;
 - no `role` free-text values outside allowed enum/check;
 - no hard-delete config from UI.
+
+
+## A64 - Sumber pendaftaran
+
+Gunakan orders.source yang sudah ada: orderonline/ots. Tidak ada backfill atau tabel OTS baru. Filter p_source diterapkan sebelum agregasi/pagination. Paid transaction = count Order ID Paid; tiket terjual = sum quantity Paid; hadir dan rasio mengikuti aturan presensi/retensi pada sumber yang sama. Semua = penjumlahan metrik aditif Online + OTS; rasio dihitung ulang. Fungsi internal service-role ots_registrations_page dan ots_duplicate_candidates memvalidasi izin aktor dan cakupan produk; tidak tersedia bagi anon/authenticated. Helper ots_phone_key hanya untuk normalisasi pencarian, bukan unique constraint.

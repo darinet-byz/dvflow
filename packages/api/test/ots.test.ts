@@ -36,6 +36,30 @@ const valid = {
 }
 
 describe('OTS (A29/A34)', () => {
+  it('rekap seluruh hasil tidak berubah saat pagination dan filter metode', async () => {
+    const { request } = await setup('developer')
+    await request('POST', '/api/ots', valid)
+    await request('POST', '/api/ots', { ...valid, name: 'Kedua', quantity: 3, method: 'ots_qris' })
+    for (const page of [1, 2]) {
+      const { data } = await (await request('GET', `/api/ots?scope=all&pageSize=1&page=${page}`)).json() as { data: { total: number; rows: unknown[]; summary: Record<string, number> } }
+      expect(data.rows).toHaveLength(1)
+      expect(data.total).toBe(2)
+      expect(data.summary).toMatchObject({ transactions: 2, tickets: 5, gross_amount: 750000, ots_qris: 450000 })
+    }
+    const { data } = await (await request('GET', '/api/ots?scope=all&method=ots_qris')).json() as { data: { summary: Record<string, number> } }
+    expect(data.summary).toMatchObject({ transactions: 1, tickets: 3, gross_amount: 450000 })
+  })
+
+  it('validasi tanggal, metode, dan akses pemeriksaan duplikasi', async () => {
+    const { request } = await setup('developer')
+    for (const query of ['from=2026-02-30', 'from=2026-11-08&to=2026-11-01', 'date=bad', 'method=bad']) {
+      expect((await request('GET', `/api/ots?${query}`)).status).toBe(400)
+    }
+    expect((await request('GET', '/api/ots/duplicates?phone=0812')).status).toBe(400)
+    const denied = await setup('member', [])
+    expect((await denied.request('GET', '/api/ots/duplicates?phone=0812')).status).toBe(403)
+  })
+
   it('tanpa izin action.ots ditolak di semua rute', async () => {
     const { request } = await setup('member', ['operasional.scan_qr'])
     expect((await request('GET', '/api/ots/events')).status).toBe(403)

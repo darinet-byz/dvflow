@@ -299,6 +299,27 @@ export function createFakeDb(state: FakeState): Db {
         } as T
       }
 
+      if (name === 'ots_registrations_page' || name === 'ots_duplicate_candidates') {
+        const f = (args['p_filters'] ?? {}) as Record<string, string | number | null>
+        const actor = state.users.find(user => user.id === args['p_actor'])
+        const accessible = state.orders.filter(row => actor?.has_all_product_access || isMasterAdminRole(actor?.role ?? '') || state.userProductAccess.some(access => access['user_id'] === actor?.id && access['product_code'] === row['product_code']))
+        if (name === 'ots_duplicate_candidates') {
+          const phoneKey = (value: unknown) => String(value ?? '').replace(/[^0-9]/g, '').replace(/^(62|0)/, '')
+          const rows = accessible.filter(row => phoneKey(row['phone']) === phoneKey(args['p_phone']) && ['product_code', 'batch', 'session', 'city'].every(key => String(row[key] ?? '').toLowerCase() === String(args[`p_${key}`] ?? '').toLowerCase()))
+          return { rows } as T
+        }
+        const rows = accessible.filter(row => row['source'] === 'ots'
+          && (!f.from || String(row['created_at']) >= new Date(`${f.from}T00:00:00+07:00`).toISOString())
+          && (!f.to || String(row['created_at']) < new Date(new Date(`${f.to}T00:00:00+07:00`).getTime() + 86400000).toISOString())
+          && (!f.q || [row['name'], row['phone'], row['order_id']].some(value => String(value ?? '').toLowerCase().includes(String(f.q).toLowerCase())))
+          && ['product_code', 'batch', 'session', 'city'].every(key => !f[key] || String(row[key]).toLowerCase() === String(f[key]).toLowerCase())
+          && (!f.method || row['payment_method'] === f.method) && (!f.collector || row['ots_collected_by'] === f.collector))
+        const paid = rows.filter(row => row['app_status'] === 'Paid')
+        const summary = { transactions: rows.length, tickets: paid.reduce((n, row) => n + Number(row['quantity'] ?? 1), 0), gross_amount: paid.reduce((n, row) => n + Number(row['gross_amount']), 0), ...Object.fromEntries(['ots_tunai', 'ots_transfer', 'ots_qris'].map(method => [method, paid.filter(row => row['payment_method'] === method).reduce((n, row) => n + Number(row['gross_amount']), 0)])) }
+        const start = (Number(f.page) - 1) * Number(f.pageSize)
+        return { rows: rows.slice(start, start + Number(f.pageSize)).map(row => ({ ...row, collected_by: state.users.find(user => user.id === row['ots_collected_by'])?.display_name ?? null })), total: rows.length, summary, collectors: [], page: f.page, pageSize: f.pageSize } as T
+      }
+
       if (name === 'save_webinar_destination') {
         const key = 'webinar_destination::' + String(args['p_product_raw'])
         const row = { key, value_text: args['p_destination'], updated_by: args['p_actor'] }
