@@ -121,6 +121,16 @@ export type FakeState = {
   userProductAccess: Array<Record<string, unknown>>
   orderonlineConnections: Array<Record<string, unknown>>
   productAliases: Array<Record<string, unknown>>
+  /** Fitur 3.0: WA Admin Bot. */
+  waBotSettings: Array<Record<string, unknown>>
+  waReminderGroups: Array<Record<string, unknown>>
+  waReminderTemplates: Array<Record<string, unknown>>
+  waReminderSchedules: Array<Record<string, unknown>>
+  waReminderLogs: Array<Record<string, unknown>>
+  /** Task yang dikembalikan tiruan `wa_reminder_claim`. */
+  waClaimTasks?: Array<Record<string, unknown>>
+  /** Override hasil `wa_reminder_preview` bila test perlu bentuk tertentu. */
+  waPreview?: Record<string, unknown>
   /** Semua panggilan RPC, untuk memastikan handler tidak melewati database. */
   rpcCalls: Array<{ name: string; args: Record<string, unknown> }>
 }
@@ -159,6 +169,11 @@ export function createFakeState(
     userProductAccess: seed.userProductAccess ?? [],
     orderonlineConnections: [],
     productAliases: [],
+    waBotSettings: [],
+    waReminderGroups: [],
+    waReminderTemplates: [],
+    waReminderSchedules: [],
+    waReminderLogs: [],
     rpcCalls: [],
   }
 }
@@ -794,6 +809,62 @@ export function createFakeDb(state: FakeState): Db {
         } as T
       }
 
+      if (name === 'wa_reminder_claim') {
+        const tasks = (state.waClaimTasks ?? []).map((task) => ({ ...task }))
+        for (const task of tasks) {
+          state.waReminderLogs.push({
+            id: task['log_id'],
+            advertiser_id: task['advertiser_id'],
+            advertiser_name: task['advertiser_name'],
+            product_code: task['product_code'],
+            product_name: task['product_name'],
+            group_id: task['group_id'],
+            message: task['message'],
+            status: 'queued',
+            attempts: 1,
+            claimed_at: args['p_now'],
+            created_at: args['p_now'],
+            reminder_date: String(args['p_now']).slice(0, 10),
+          })
+        }
+        return tasks as T
+      }
+
+      if (name === 'wa_reminder_mark') {
+        const log = state.waReminderLogs.find((row) => row['id'] === args['p_id'])
+        if (log === undefined || log['status'] !== 'queued') return { updated: false } as T
+        log['status'] = args['p_status']
+        log['fonnte_message_id'] = args['p_fonnte_message_id'] ?? null
+        log['error'] = args['p_error'] ?? null
+        log['sent_at'] = args['p_status'] === 'sent' ? '2026-10-13T08:00:00.000Z' : null
+        return { updated: true } as T
+      }
+
+      if (name === 'wa_reminder_preview') {
+        if (state.waPreview !== undefined) return { ...state.waPreview } as T
+        const advertiser = state.config.advertisers.find((row) => String(row['code']).toUpperCase() === String(args['p_advertiser_code']).toUpperCase())
+        const template = state.waReminderTemplates.find((row) => row['id'] === args['p_template_id'])
+        const group = state.waReminderGroups.find((row) => row['advertiser_id'] === advertiser?.['id'] && row['is_active'] !== false)
+        if (!advertiser || !template || !group) return { found: false, reason: !group ? 'GROUP_NOT_FOUND' : 'TEMPLATE_NOT_FOUND' } as T
+        return {
+          found: true,
+          group_id: group['fonnte_group_id'],
+          message: String(template['message_content'])
+            .replaceAll('{{mention}}', `@${group['pic_phone']}`)
+            .replaceAll('{{store_name}}', String(advertiser['name']))
+            .replaceAll('{{product_name}}', String(args['p_product_code']))
+            .replaceAll('{{leads}}', '5')
+            .replaceAll('{{paid}}', '2')
+            .replaceAll('{{report_url}}', `${args['p_base_url']}/report-spend?advertiserCode=${advertiser['code']}&productCode=${args['p_product_code']}`),
+          leads: 5,
+          paid: 2,
+          advertiser_name: advertiser['name'],
+          product_code: args['p_product_code'],
+          product_name: args['p_product_code'],
+          reminder_date: String(args['p_now']).slice(0, 10),
+        } as T
+      }
+
       throw new Error(`RPC tidak dikenal di tiruan: ${name}`)
     },
 
@@ -920,6 +991,16 @@ function rowsOf(state: FakeState, table: string): Array<Record<string, unknown>>
       return state.productAliases
     case 'user_product_access':
       return state.userProductAccess
+    case 'wa_bot_settings':
+      return state.waBotSettings
+    case 'wa_reminder_groups':
+      return state.waReminderGroups
+    case 'wa_reminder_templates':
+      return state.waReminderTemplates
+    case 'wa_reminder_schedules':
+      return state.waReminderSchedules
+    case 'wa_reminder_logs':
+      return state.waReminderLogs
     default:
       throw new Error(`tabel tidak dikenal di tiruan: ${table}`)
   }

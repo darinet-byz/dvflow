@@ -52,6 +52,15 @@ Required:
 Optional:
 - ALLOW_MASTER_ADMIN_CREATE_MASTER=false
 
+Fitur 3.0 (WA Admin Bot):
+- WA_CRON_SECRET (wajib bila fitur dipakai; harus sama dengan secret `apps/wa-cron`)
+- WA_BATCH_LIMIT (opsional, default 10, maks. 25)
+- WA_SEND_DELAY_MS (opsional, default 1500)
+- WA_FONNTE_BASE_URL (opsional, untuk uji lokal)
+
+Cron Worker `apps/wa-cron` membutuhkan secret `WA_CRON_SECRET` dan var
+`APP_BASE_URL`; token Fonnte TIDAK dipasang di Worker (diisi dari dashboard).
+
 ## 5. Local seed
 Seed only stable config:
 - Event Type: Seminar Offline / SO / seminar

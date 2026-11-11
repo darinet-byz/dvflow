@@ -34,6 +34,7 @@ export const PATH_PERMISSION_MAP: Record<string, string> = {
   '/konfigurasi-zoom': 'config.zoom',
   '/konfigurasi-tiket': 'config.tiket',
   '/integrasi': 'config.integrasi',
+  '/wa-bot': 'config.wa_bot',
   '/konfigurasi-role': 'config.roles',
   '/add-team': 'team.manage',
   '/profil': 'account.profile',

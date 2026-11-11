@@ -87,6 +87,8 @@ export type AppPermissionKey =
   | 'config.zoom'
   | 'config.tiket'
   | 'config.integrasi'
+  | 'config.wa_bot'
+  | 'action.wa_bot_send'
   | 'config.roles'
   | 'team.manage'
   | 'account.profile'

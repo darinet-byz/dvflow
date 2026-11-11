@@ -7,7 +7,7 @@
 > Dokumen yang mengikat tetap `CLAUDE.md` + `docs/`. File ini hanya mencatat **sejauh mana**
 > pekerjaan sudah berjalan, bukan aturan baru.
 
-Terakhir diperbarui: 2026-11-06
+Terakhir diperbarui: 2026-11-11
 Repo: `C:\Users\MyBook Z Series\dvflow` (git `main`, sudah di-push ke `origin/main`; production live di https://dvflow.pages.dev)
 Rencana lengkap: `~/.claude/plans/baca-file-claude-md-dan-glowing-pike.md`
 Nama aplikasi: **dvflow** (`OrderOnline` tetap nama provider, bukan nama aplikasi)
@@ -42,17 +42,18 @@ tetap mengikuti blocker di dokumen Acceptance Tests/Runbook.
 # Tidak butuh Docker
 npm install
 npm run typecheck          # → PASS (shared, api, worker, functions, web)
-npm test                   # -> 704 test lulus (304 api + 135 shared + 265 web)
+npm test                   # -> 737 test lulus (320 api + 142 shared + 3 wa-cron + 272 web)
 npm run build              # → aplikasi web + assets/ticket-qr.js
 npm run verify:ticket-qr   # → membuktikan artefak QR dapat dijalankan & dipindai
-npm audit                  # → 0 vulnerabilities
+npm run deploy:wa-cron     # → deploy Worker cron WA Admin Bot (Fitur 3.0)
+npm audit                  # → 0 vulnerabilities produksi (dev deps punya advisory lama)
 
 # Database lokal (BUTUH Docker Desktop menyala)
 npm run db:start                      # supabase start
-npm run db:reset                      # migrasi 0001-0068 + seed.sql (untuk integration)
-npm run test:integration              # 37 test (butuh SUPABASE_URL/SECRET_KEY/DB_URL; skip bila kosong)
+npm run db:reset                      # seluruh migrasi + seed.sql (untuk integration)
+npm run test:integration              # 39 test (butuh SUPABASE_URL/SECRET_KEY/DB_URL; skip bila kosong)
 supabase db reset --no-seed           # pgTAP mengasumsikan DB tanpa seed
-npm run test:db                       # pgTAP -> 919 test lulus / 36 berkas
+npm run test:db                       # pgTAP -> 950 test lulus / 37 berkas
 
 # Tooling developer (butuh database hidup)
 npm run create-master-admin
@@ -513,7 +514,7 @@ sering terlanggar:
 | 2026-10-29 | F2.0 | A57 (0062): Performa/Analitik - legenda tanpa "(kanan)"; grafik per batch & per produk semuanya batang berkelompok (Total Spend + Omzet sumbu kiri, Tiket sumbu kanan); Per Batch wajib pilih produk lalu menampilkan 5 batch terakhir berdasarkan tanggal aktivitas terbaru (kolom Aktivitas Terakhir); Per Produk memakai 2 batch terakhir tiap produk untuk grafik dan tabel |
 | 2026-10-29 | - | Gate A57: typecheck PASS; unit test web 244 PASS (36 berkas); pgTAP 755 PASS (31 berkas, termasuk 24 assertion baru); build PASS |
 | 2026-10-29 | - | Deploy production A57: migrasi `0062` diterapkan (`schema_version` = 62); commit `6d0b685` di-push; GitHub Actions **Deploy to Cloudflare Pages** sukses; https://dvflow.pages.dev live (aset `index-BZd0Qbc9.js` / `index-DtWlV-rp.css`) |
-| 2026-10-29 | - | Dev lokal: port Supabase digeser ke `54690`-`54696` karena Windows/Hyper-V memblokir `54320`-`54329` (excluded port range). `apps/web/.env` dan `.dev.vars` ikut disesuaikan (keduanya tidak di-commit). Kalau port default dibebaskan, cukup kembalikan `supabase/config.toml` |
+| 2026-10-29 | - | Dev lokal: port Supabase digeser ke `55100`-`55106` karena Windows/Hyper-V memblokir `54320`-`54329` dan kemudian `54690`-`54696` (excluded port range). `apps/web/.env` dan `.dev.vars` ikut disesuaikan (keduanya tidak di-commit). Kalau port default dibebaskan, cukup kembalikan `supabase/config.toml` |
 | 2026-10-29 | A58 | Reschedule & Refund selesai: status order `Refund` (penuh, dapat dibatalkan dengan audit), acara efektif reschedule (`event_*` + generated `effective_*`) tanpa mengubah omzet/atribusi, menu **Order Refund**, izin `operasional.order_refund`/`action.reschedule`/`action.refund`, kolom Presensi baru (status + timestamp paling kanan). Migrasi `0063`, pgTAP 31, unit API, dan render test web lulus |
 | 2026-10-29 | A59 | Dashboard: menu/judul "Dashboard Resume" -> "Dashboard"; Resume Batch dilebur jadi kartu **Data per Sesi** di antara Order dan Kehadiran; produk+batch wajib (tabel kosong + pesan "Pilih spesifik produk dan batch"), seluruh filter Dashboard berlaku; izin `operasional.resume_batch` dihapus dan card memakai `operasional.dashboard`; `/resume-batch` redirect ke `/`. Migrasi `0064`, pgTAP 32, unit/render web, build, dan QR PASS |
 | 2026-10-29 | A60 | Status Produk: kolom pengiklan sekarang menampilkan nama (bukan kode), dengan tooltip kode — nama; Status Pengiklan tetap menampilkan kode produk. Tanpa migrasi |
@@ -530,3 +531,6 @@ sering terlanggar:
 | 2026-11-06 | - | Deploy production A64: backup `prod-schema-before-0068.sql` + `prod-data-before-0068.sql`; migrasi `20261106062419` diterapkan (`schema_version` = 68, riwayat migrasi dicatat, PostgREST reload). `supabase link` gagal karena token tidak punya `project_admin_read`, jadi migrasi dijalankan langsung via `psql` dengan `SUPABASE_DB_URL` + CA. Commit `3d090d4` di-push; workflow Deploy sukses; smoke production 23/23 lulus; order uji smoke dihapus kembali. |
 | 2026-11-06 | A65 | Advertiser Notes + OTS utama + filter ringkas: sidebar Title Case (menggantikan A53), OTS jadi menu utama dengan tab Pendaftaran/Transaksi/Laporan (rincian sesi+kota), saran 3 batch terbaru dari data order (produk+pengiklan, tetap boleh diketik), filter sekunder dilipat ke `Filter Lain`, dan panel kanan Advertiser Notes (minimize ke tombol Notes, docked >=1440px, form di panel, advertiser read-only sesuai produk). Migrasi `20261106090000_advertiser_notes_and_recent_batches.sql` (`schema_version` 69), izin `operasional.advertiser_notes` + `action.manage_advertiser_notes`. Gate: typecheck PASS; lint PASS; unit 309 api + 135 shared + 269 web; build PASS. pgTAP/integration belum dijalankan karena Supabase lokal tidak aktif. |
 | 2026-11-06 | - | Deploy production A65: migrasi `20261106090000_advertiser_notes_and_recent_batches.sql` diterapkan ke Supabase produksi (`schema_version` 69); `check-schema-version` OK; commit `9e5a313` di-push dan workflow **Deploy to Cloudflare Pages** sukses; bundle production memuat Advertiser Notes, saran batch, dan laporan OTS. |
+| 2026-11-11 | A66 | **WA Admin Bot** (Fitur 3.0) selesai di kode: tabel `wa_bot_settings`/`wa_reminder_groups`/`wa_reminder_templates`/`wa_reminder_schedules`/`wa_reminder_logs` + RPC `wa_reminder_claim`/`mark`/`preview` (migrasi `20261111120000_wa_admin_bot.sql`, `schema_version` 70), izin `config.wa_bot` + `action.wa_bot_send`, backend `packages/api/src/wa-bot/*`, cron Worker `apps/wa-cron` (`* * * * *`, secret header), halaman `/wa-bot` (5 kartu), dan workflow `deploy-wa-cron.yml`. Aturan: grup per pengiklan, cek laporan per produk tanpa batch, satu pesan per produk, token Fonnte terenkripsi di DB, idempoten per jadwal/produk/tanggal, retry maks 3. Gate: typecheck PASS; unit **737** (320 api + 142 shared + 3 wa-cron + 272 web); build PASS. **pgTAP belum dijalankan** karena Docker Desktop tidak aktif. |
+| 2026-11-11 | - | Langkah produksi A66: terapkan migrasi (`supabase db push`), set `WA_CRON_SECRET` di Pages + Worker, isi token Fonnte & ID grup dari halaman WA Admin Bot, deploy Worker (`npm run deploy:wa-cron`), lalu smoke test satu pesan + pastikan tidak ada pesan kedua. Runbook: `docs/Fitur 3.0 (WA Admin Bot)/07-RUNBOOK-DEPLOY-DAN-OPERASIONAL.md`. |
+| 2026-11-11 | - | Gate A66 di database nyata: `supabase db reset --no-seed` menerapkan seluruh migrasi termasuk `20261111120000` (schema_version 70); **pgTAP 950 PASS / 37 berkas** (37_wa_admin_bot: 31 assertion), `supabase db reset` + **integration 39 PASS / 5 berkas** (termasuk `wa-bot.e2e.test.ts`), dijalankan dua kali tanpa reset. Port lokal digeser ke `55100`-`55106` karena excluded range Windows mencakup `54690`-`54696`. |

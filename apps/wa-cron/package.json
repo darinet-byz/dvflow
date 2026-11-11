@@ -1,0 +1,18 @@
+{
+  "name": "@dvflow/wa-cron",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cron trigger untuk WA Admin Bot (memanggil endpoint internal dvflow).",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "dev": "wrangler dev -c wrangler.toml --test-scheduled",
+    "deploy": "wrangler deploy -c wrangler.toml"
+  },
+  "devDependencies": {
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

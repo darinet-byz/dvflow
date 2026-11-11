@@ -1,0 +1,38 @@
+name: Deploy WA cron worker
+
+# Worker terpisah karena Cloudflare Pages tidak punya cron trigger (Fitur 3.0).
+# Workflow ini sengaja terpisah dari deploy Pages: kegagalan Worker tidak boleh
+# menahan rilis aplikasi utama.
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'apps/wa-cron/**'
+      - '.github/workflows/deploy-wa-cron.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cloudflare-wa-cron
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm -w @dvflow/wa-cron run typecheck
+      - run: npm -w @dvflow/wa-cron test
+      - name: Deploy worker
+        run: npx --no-install wrangler deploy -c apps/wa-cron/wrangler.toml
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}

@@ -7,9 +7,9 @@ import { createServer } from 'node:http'
 import { resolve } from 'node:path'
 
 const database = `dvflow_rbac_test_${Date.now()}`
-// Mengikuti port Supabase lokal di supabase/config.toml (54691), bukan port default 54322.
+// Mengikuti port Supabase lokal di supabase/config.toml (55101), bukan port default 54322.
 // Bisa ditimpa lewat RBAC_DB_URL bila memakai database disposable lain.
-const base = (process.env.RBAC_DB_URL ?? 'postgresql://postgres:postgres@127.0.0.1:54691/').replace(/\/?$/, '/')
+const base = (process.env.RBAC_DB_URL ?? 'postgresql://postgres:postgres@127.0.0.1:55101/').replace(/\/?$/, '/')
 const admin = new Client({ connectionString: base + 'postgres' })
 let client
 let created = false

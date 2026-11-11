@@ -1,5 +1,6 @@
 import { TeamPage } from './pages/team/TeamPage'
 import { IntegrationsPage } from './pages/config/IntegrationsPage'
+import { WaBotPage } from './pages/wa-bot/WaBotPage'
 import { ZoomPage } from './pages/config/ZoomPage'
 import { TicketConfigPage } from './pages/config/TicketConfigPage'
 import { canAccessPath, PATH_PERMISSION_MAP } from './lib/roles'
@@ -101,6 +102,7 @@ export function App() {
           <Route path="/konfigurasi-zoom" element={<ZoomPage />} />
           <Route path="/konfigurasi-tiket" element={<TicketConfigPage />} />
           <Route path="/integrasi" element={<RoleGuard path="/integrasi"><IntegrationsPage /></RoleGuard>} />
+          <Route path="/wa-bot" element={<RoleGuard path="/wa-bot"><WaBotPage /></RoleGuard>} />
           <Route path="/konfigurasi-role" element={<RoleGuard path="/konfigurasi-role"><RoleConfigPage /></RoleGuard>} />
           <Route path="/reset-data" element={<RoleGuard path="/reset-data"><ResetDataPage /></RoleGuard>} />
           <Route path="/profil" element={<ProfilePage />} />

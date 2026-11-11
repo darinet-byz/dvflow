@@ -1,0 +1,21 @@
+# Cron Worker untuk WA Admin Bot (Fitur 3.0).
+#
+# Cloudflare Pages TIDAK punya cron trigger, jadi pengingat dijalankan Worker
+# terpisah yang hanya memanggil endpoint internal dvflow. Seluruh logika
+# penjadwalan, pengecekan laporan, perakitan pesan, dan pengiriman Fonnte ada di
+# backend — Worker ini sengaja tidak menyimpan token Fonnte.
+#
+# Deploy:
+#   npx wrangler secret put WA_CRON_SECRET -c apps/wa-cron/wrangler.toml
+#   npx wrangler deploy -c apps/wa-cron/wrangler.toml
+name = "dvflow-wa-cron"
+main = "src/index.ts"
+compatibility_date = "2026-09-01"
+
+[triggers]
+# Setiap menit. Backend mengecek jadwal WIB dan hanya mengirim yang due; jeda
+# satu menit membuat sisa antrean (batch) cepat habis.
+crons = ["* * * * *"]
+
+[vars]
+APP_BASE_URL = "https://dvflow.pages.dev"

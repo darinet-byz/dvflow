@@ -51,6 +51,7 @@ if (apiUrl === undefined || secretKey === undefined) {
 }
 
 const webhookSecret = `secret-lokal-webhook-${Math.random().toString(36).slice(2, 10)}`
+const waCronSecret = `secret-lokal-wa-cron-${randomBytes(8).toString('hex')}`
 
 /**
  * Nilai ditulis dengan `JSON.stringify`, yaitu bentuk dotenv yang sah: satu
@@ -69,6 +70,8 @@ const vars = [
   `APP_JWT_KEY_ID=${JSON.stringify(keyId)}`,
   `APP_JWT_PRIVATE_KEY=${JSON.stringify(privatePem)}`,
   `ORDERONLINE_WEBHOOK_SECRET=${JSON.stringify(webhookSecret)}`,
+  // Fitur 3.0: dipakai `apps/wa-cron` saat uji `wrangler dev --test-scheduled`.
+  `WA_CRON_SECRET=${JSON.stringify(waCronSecret)}`,
   // Dev server Vite berjalan di origin berbeda, dan backend memeriksa
   // same-origin (K19). Tanpa origin ini, refresh session dari `npm run dev:web`
   // akan ditolak 403 dan halaman terus meminta login.

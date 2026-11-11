@@ -1631,3 +1631,34 @@ Migrasi `20261106062419_ots_source_separation.sql`, schema_version 68, menambah 
 - Tidak ada menu sidebar, email, WA, atau push. Badge panel adalah penanda utama.
 
 **Implementasi.** Migrasi `20261106090000_advertiser_notes_and_recent_batches.sql` (schema_version 69); `packages/api` (`advertiser-notes/handlers.ts`, OTS report, routes, error code); `packages/shared` (izin); `apps/web` (navigation, Sidebar, StandardFilterBar, FilterControls, SuggestInput, OTS page/report, AdvertiserNotesWorkspace, AppShell). Tes web/API diperbarui.
+
+---
+
+## A66 - WA Admin Bot: pengingat laporan iklan harian (11 November 2026)
+
+Permintaan pengguna: sistem otomasi reminder WhatsApp untuk laporan iklan harian, dengan grup, template, dan jadwal yang dikelola dari dashboard.
+
+### Keputusan
+
+- Satu grup WhatsApp mewakili **satu pengiklan** (`advertisers`). Tidak ada tabel "store" baru.
+- Pengingat diperiksa **per produk** dan **batch diabaikan**: bila produk A sudah punya report spend yang rentang tanggalnya mencakup kemarin, produk A tidak diingatkan; produk B yang belum punya report tetap diingatkan.
+- Pesan dikirim **satu per (pengiklan, produk)** yang belum lapor. Satu grup dapat menerima beberapa pesan bila beberapa produk belum dilaporkan.
+- Hanya order `source = 'orderonline'` yang dihitung. Order OTS tidak memicu pengingat.
+- Template mendukung placeholder `{{mention}}`, `{{store_name}}`, `{{product_name}}`, `{{leads}}`, `{{paid}}`, `{{report_url}}`. Placeholder asing ditolak saat simpan.
+- `{{report_url}}` menuju `/report-spend?advertiserCode=<kode>&productCode=<kode>`.
+- Token device Fonnte disimpan **terenkripsi** di `wa_bot_settings` (AES-256-GCM dengan `INTEGRATION_ENCRYPTION_KEY`) dan dapat diganti dari dashboard. Token tidak pernah dikirim ke browser dan tidak disimpan di Worker.
+- Pengiriman dilakukan **backend**, bukan cron Worker. Worker (`apps/wa-cron`) hanya memanggil `POST /api/internal/wa-reminders/run` dengan header `X-WA-Cron-Secret`. Alasan: token tidak perlu disalin ke Worker, log/retry terpusat, dan backend tetap pemilik aturan bisnis.
+- Cloudflare Pages tidak memiliki cron trigger; karena itu Worker terpisah dengan `crons = ["* * * * *"]`.
+- Cron < 1 jam dibatasi ±30 detik wall-clock. Backend mengirim maksimal 10 pesan per run (dapat diatur `WA_BATCH_LIMIT`, maks. 25) dengan jeda 1,5 detik (`WA_SEND_DELAY_MS`). Sisa antrean dihabiskan run berikutnya.
+- Evaluasi jadwal memakai **Asia/Jakarta** dengan jendela 60 menit. Satu pesan per `(schedule_id, advertiser_id, product_code, reminder_date)` dijaga unique index parsial; status `failed` boleh dicoba ulang maksimal 3 kali per hari.
+- Log pengiriman disimpan 90 hari dan dapat difilter; baris gagal dapat dikirim ulang manual.
+
+### Izin
+
+- `config.wa_bot` - konfigurasi WA Admin Bot.
+- `action.wa_bot_send` - kirim tes dan kirim ulang.
+- Default: Manajer dan Admin. Developer/Owner otomatis.
+
+### Implementasi
+
+Migrasi `20261111120000_wa_admin_bot.sql` (schema_version 70); tabel `wa_bot_settings`, `wa_reminder_groups`, `wa_reminder_templates`, `wa_reminder_schedules`, `wa_reminder_logs`; RPC `wa_reminder_claim`, `wa_reminder_mark`, `wa_reminder_preview`; `packages/shared/src/domain/wa-reminder.ts`; `packages/api/src/wa-bot/*`; `apps/wa-cron/*`; halaman `/wa-bot`; workflow `deploy-wa-cron.yml`.

@@ -30,6 +30,7 @@
     "dev:vars": "node scripts/write-dev-vars.mjs",
     "smoke:local": "node scripts/smoke-pages-local.mjs",
     "deploy": "npm run build && wrangler pages deploy",
+    "deploy:wa-cron": "wrangler deploy -c apps/wa-cron/wrangler.toml",
     "create-master-admin": "node scripts/create-master-admin.mjs",
     "rotate-jwt-key": "node scripts/rotate-jwt-key.mjs"
   },

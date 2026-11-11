@@ -23,7 +23,7 @@ export type TextInputProps = {
   ariaLabel?: string
   value: string
   onChange: (value: string) => void
-  type?: 'text' | 'password' | 'search' | 'email' | 'number' | 'date' | 'datetime-local'
+  type?: 'text' | 'password' | 'search' | 'email' | 'number' | 'date' | 'time' | 'datetime-local'
   placeholder?: string
   autoComplete?: string
   disabled?: boolean
@@ -121,6 +121,58 @@ export function SearchInput({
         >
           ×
         </button>
+      )}
+    </div>
+  )
+}
+
+export type TextareaProps = {
+  id: string
+  label?: string
+  value: string
+  onChange: (value: string) => void
+  placeholder?: string
+  disabled?: boolean
+  rows?: number
+  maxLength?: number
+  error?: string | null
+}
+
+/** Textarea bersama; dipakai editor template WA dan form panjang lain. */
+export function Textarea({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  disabled = false,
+  rows = 6,
+  maxLength,
+  error = null,
+}: TextareaProps) {
+  return (
+    <div className="min-w-0 max-w-full">
+      {label === undefined ? null : <FieldLabel htmlFor={id}>{label}</FieldLabel>}
+      <textarea
+        id={id}
+        value={value}
+        rows={rows}
+        placeholder={placeholder}
+        disabled={disabled}
+        maxLength={maxLength}
+        aria-invalid={error !== null}
+        aria-describedby={error === null ? undefined : `${id}-error`}
+        onChange={(event: ChangeEvent<HTMLTextAreaElement>) => onChange(event.target.value)}
+        className={cn(
+          'w-full min-w-0 max-w-full rounded-sm border bg-card px-3 py-2 text-[13px] text-ink placeholder:text-ink-muted',
+          'focus:border-primary focus:outline-none disabled:bg-soft disabled:text-ink-muted',
+          error === null ? 'border-line' : 'border-danger',
+        )}
+      />
+      {error === null ? null : (
+        <p id={`${id}-error`} className="mt-1 text-[12px] text-danger">
+          {error}
+        </p>
       )}
     </div>
   )

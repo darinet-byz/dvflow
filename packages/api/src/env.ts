@@ -29,6 +29,17 @@ export type Env = {
   ALLOW_MASTER_ADMIN_CREATE_MASTER?: string
   /** Daftar origin tambahan yang diizinkan, dipisah koma (opsional). */
   APP_ALLOWED_ORIGINS?: string
+  /**
+   * Secret pemicu cron WA Admin Bot. Header `X-WA-Cron-Secret` harus sama.
+   * Bila kosong, endpoint internal ditolak 404 (gagal-tertutup).
+   */
+  WA_CRON_SECRET?: string
+  /** Override base URL Fonnte; dipakai test dan bila gateway memakai domain lain. */
+  WA_FONNTE_BASE_URL?: string
+  /** Maksimum pesan per pemanggilan cron (default 10, dibatasi 25). */
+  WA_BATCH_LIMIT?: string
+  /** Jeda antar pesan dalam satu run (default 1500 ms). */
+  WA_SEND_DELAY_MS?: string
   /** Commit deploy Cloudflare Pages; dipakai sebagai versi cache aset skrip QR. */
   CF_PAGES_COMMIT_SHA?: string
 }

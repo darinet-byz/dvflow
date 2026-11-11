@@ -86,6 +86,8 @@ export const NAV_SECTIONS: NavSection[] = [
       { label: 'Add Team', path: '/add-team', icon: 'users', keywords: ['tim', 'anggota', 'user', 'akun'] },
       { label: 'Konfigurasi Role', path: '/konfigurasi-role', icon: 'shield', keywords: ['role', 'hak akses', 'permission'] },
       { label: 'API & Webhook', path: '/integrasi', icon: 'plug', keywords: ['api', 'webhook', 'integrasi', 'orderonline'] },
+      // Fitur 3.0: pengingat laporan iklan lewat grup WhatsApp (Fonnte).
+      { label: 'WA Admin Bot', path: '/wa-bot', icon: 'message-circle', keywords: ['whatsapp', 'wa', 'fonnte', 'pengingat', 'reminder', 'grup'] },
       { label: 'Reset Data', path: '/reset-data', icon: 'trash-2', keywords: ['hapus', 'reset', 'bersihkan'] },
     ],
   },

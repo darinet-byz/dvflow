@@ -43,6 +43,7 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
       'Add Team',
       'Konfigurasi Role',
       'API & Webhook',
+      'WA Admin Bot',
       'Reset Data',
       'Profil',
       'Logout',
