@@ -3,12 +3,13 @@ name: Deploy WA cron worker
 # Worker terpisah karena Cloudflare Pages tidak punya cron trigger (Fitur 3.0).
 # Workflow ini sengaja terpisah dari deploy Pages: kegagalan Worker tidak boleh
 # menahan rilis aplikasi utama.
+#
+# MANUAL SAJA: token Cloudflare yang dipakai Pages belum tentu punya izin
+# Workers Scripts:Edit (akun Worker saat ini berbeda dari akun Pages). Jalankan
+# workflow ini hanya setelah `CLOUDFLARE_API_TOKEN` di repo memiliki izin
+# tersebut; bila tidak, deploy lewat `npm run deploy:wa-cron` dengan akun OAuth
+# yang berhak.
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'apps/wa-cron/**'
-      - '.github/workflows/deploy-wa-cron.yml'
   workflow_dispatch:
 
 permissions:

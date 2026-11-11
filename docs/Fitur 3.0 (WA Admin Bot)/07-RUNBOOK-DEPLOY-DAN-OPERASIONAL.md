@@ -64,9 +64,15 @@ Manual:
 npm run deploy:wa-cron
 ```
 
-Otomatis: `.github/workflows/deploy-wa-cron.yml` berjalan saat ada perubahan di
-`apps/wa-cron/**` pada branch `main`. Workflow memakai secret GitHub
-`CLOUDFLARE_ACCOUNT_ID` dan `CLOUDFLARE_API_TOKEN` yang sudah dipakai Pages.
+Workflow `.github/workflows/deploy-wa-cron.yml` bersifat **manual**
+(`workflow_dispatch`) karena deploy Pages memakai akun/token Cloudflare yang
+belum tentu punya izin Workers Scripts:Edit. Jalankan manual hanya bila secret
+repo `CLOUDFLARE_API_TOKEN` sudah memiliki izin Workers pada akun Worker;
+selain itu gunakan perintah di atas dengan akun OAuth yang berhak.
+
+Catatan lingkungan saat ini: Pages berada di akun `d8737f6c…` (token API),
+sedangkan Worker `dvflow-wa-cron` di akun `e85eb36d…` (OAuth). Worker hanya
+memanggil URL publik Pages, jadi perbedaan akun tidak masalah.
 
 Setelah deploy, pastikan:
 
