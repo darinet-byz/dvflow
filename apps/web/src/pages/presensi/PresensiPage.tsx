@@ -113,6 +113,7 @@ export function PresensiPage() {
   })
   const [selected, setSelected] = useState<PresensiRow | null>(null)
   const [dateMode, setDateMode] = useState<PresensiDateMode>(readDateMode)
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null)
   const realtime = dateMode === 'attendance'
   const dateLabel = realtime ? 'Tanggal presensi' : 'Tanggal order'
 
@@ -158,15 +159,33 @@ export function PresensiPage() {
     [`${appliedKey}:kpi`, dateMode],
   )
 
-  // A68: tab Realtime dipakai saat acara berjalan; muat ulang diam-diam tiap 30 detik.
+  // A68: tab Realtime dipakai saat acara berjalan. Polling 5 detik cukup untuk
+  // volume sekarang; tab yang tidak terlihat tidak perlu memanggil server.
   useEffect(() => {
     if (!realtime) return
-    const timer = setInterval(() => {
+    const refresh = () => {
+      if (document.visibilityState !== 'visible') return
+      // Jangan menumpuk permintaan bila tick sebelumnya belum selesai.
+      if (table.loading || summary.loading) return
       table.reload()
       summary.reload()
-    }, 30_000)
-    return () => clearInterval(timer)
-  }, [realtime, table.reload, summary.reload])
+    }
+    const timer = setInterval(refresh, 5_000)
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      clearInterval(timer)
+      document.removeEventListener('visibilitychange', onVisibility)
+    }
+  }, [realtime, table.loading, table.reload, summary.loading, summary.reload])
+
+  // Waktu pembaruan terakhir membantu operator tahu data memang bergerak.
+  useEffect(() => {
+    if (!realtime || table.data === null || summary.data === null) return
+    setLastUpdated(new Date())
+  }, [realtime, table.data, summary.data])
 
   function toggleSort(key: string): void {
     const typed = key as PresensiSortKey
@@ -206,7 +225,7 @@ export function PresensiPage() {
       </div>
       <p className="mb-3 text-[13px] text-ink-soft">
         {realtime
-          ? 'Tanggal filter = tanggal scan/check-in. Hanya peserta yang sudah hadir pada rentang itu yang tampil. Data diperbarui otomatis tiap 30 detik.'
+          ? `Tanggal filter = tanggal scan/check-in. Hanya peserta yang sudah hadir pada rentang itu yang tampil. Data diperbarui otomatis tiap 5 detik${lastUpdated === null ? '' : ` · terakhir ${formatTime(lastUpdated.toISOString())}`}.`
           : 'Tanggal filter = tanggal order. Status presensi dihitung dari seluruh check-in peserta.'}
       </p>
 

@@ -1700,10 +1700,10 @@ Permintaan pengguna: filter tanggal di halaman Presensi masih memakai tanggal or
 - Ringkasan Realtime memakai himpunan peserta yang hadir pada rentang, sehingga KPI dan daftar konsisten.
 - **KPI Berdasarkan Order**: Jumlah Tiket, Jumlah Hadir, Belum Hadir. Attendance Rate tetap ditampilkan pada hint kartu Jumlah Hadir.
 - **KPI Realtime Presensi**: Total Peserta Hari Ini (atau "Total Peserta (rentang)"), Order Hadir, dan Sisa Tiket.
-- Kartu Jumlah Hadir dan Total Peserta menampilkan rincian **Online X · OTS Y**, sehingga angka tiket Online + OTS tidak perlu dijumlah manual.
+- Kartu Jumlah Hadir dan Total Peserta menampilkan rincian **Online X ï¿½ OTS Y**, sehingga angka tiket Online + OTS tidak perlu dijumlah manual.
 - `presensi_summary` menambah `paid_tickets_online`, `paid_tickets_ots`, `sudah_hadir_online`, `sudah_hadir_ots`, dan `attending_orders`.
 - Baris presensi menambah `checked_in_in_range`; `checked_in_tickets` tetap total sepanjang waktu dan tetap dipakai drawer koreksi manual.
-- Halaman Realtime memuat ulang data otomatis tiap 30 detik.
+- Halaman Realtime memuat ulang data otomatis tiap 5 detik. Polling berhenti saat tab browser tidak terlihat dan langsung menyegarkan saat tab kembali aktif; permintaan tidak ditumpuk bila tick sebelumnya belum selesai.
 
 ### Implementasi
 

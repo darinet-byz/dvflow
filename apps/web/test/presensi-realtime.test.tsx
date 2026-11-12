@@ -73,6 +73,7 @@ describe('A68: tab Presensi Acara', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Realtime Presensi' }))
 
     expect(await screen.findByText('Total Peserta Hari Ini')).toBeDefined()
+    expect(screen.getByText(/tiap 5 detik/)).toBeDefined()
     expect(queries.fetchPresensiPage).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), 'attendance')
     expect(queries.fetchPresensiSummary).toHaveBeenLastCalledWith(expect.anything(), 'attendance')
   })
