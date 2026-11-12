@@ -1708,3 +1708,33 @@ Permintaan pengguna: filter tanggal di halaman Presensi masih memakai tanggal or
 ### Implementasi
 
 Migrasi `20261112150000_presensi_realtime_dan_total_kehadiran.sql` (`schema_version` 72): `presensi_page`, `export_presensi_page`, dan `presensi_summary` menerima argumen akhir `p_date_mode text default 'order'` (`order`/`attendance`), dengan grant/revoke yang sama. Web: `apps/web/src/lib/filters.ts`, `apps/web/src/lib/queries.ts`, halaman Presensi, `StandardFilterBar`/`FilterControls`/`DateRangeField`. Tes: `supabase/tests/38_presensi_realtime.sql`, `apps/web/test/presensi-realtime.test.tsx`; tes pgTAP 16/33/37 diperbarui.
+
+## A69 - Status koneksi Fonnte dan perbaikan redirect Workers (12 November 2026)
+
+Permintaan pengguna: setelah token Fonnte disimpan tidak ada tanda bahwa device benar-benar terhubung, dan tombol **Kirim Tes** terasa tidak bisa dipakai.
+
+### Keputusan
+
+- Token tersimpan bukan bukti device terhubung. Endpoint `POST /api/wa-bot/settings/verify` memanggil `POST https://api.fonnte.com/device` memakai token terenkripsi di server dan mengembalikan `has_token`, `reachable`, `connected`, `status`, `device` (nomor, nama, paket, kuota, masa aktif), `error`, dan `detail`. Token tidak pernah ikut respons.
+- Halaman Koneksi menampilkan badge **Terhubung / Device terputus / Fonnte tak terjangkau / Token ditolak / Memeriksa / Status tidak diketahui**, memeriksa otomatis setiap token berubah, dan menyediakan tombol **Cek Ulang**.
+- **Kirim Tes** tidak lagi disabled diam-diam: tombol selalu dapat diklik dan memberi tahu prasyarat yang kurang (token, grup produk, template, nomor pengiklan); akun tanpa `action.wa_bot_send` mendapat keterangan bahwa tombolnya memang disembunyikan.
+- Runtime Cloudflare **menolak `redirect: 'error'`** pada `fetch` ("Invalid redirect value"). Nilai itu dipakai di pengiriman Fonnte, cron Worker, dan tes koneksi OrderOnline sehingga semua panggilan keluar gagal sebelum koneksi. Semua diganti ke default `follow`. Error jaringan kini menyertakan alasannya.
+
+### Implementasi
+
+`packages/api/src/wa-bot/fonnte.ts` (`checkFonnteDevice`, detail error), `packages/api/src/wa-bot/handlers.ts` + `routes.ts` (endpoint verify), `apps/web/src/pages/wa-bot/ConnectionSection.tsx`, `apps/wa-cron/src/index.ts`, `packages/api/src/integrations/handlers.ts`. Tanpa migrasi. Verifikasi production: device `6285887711009` (Galuh) `connect`.
+
+## A70 - Placeholder mention memakai nama pengiklan (12 November 2026)
+
+Permintaan pengguna: di grup WhatsApp, `@628xxx` hanya tampil sebagai nomor HP biasa, bukan tag.
+
+### Keputusan
+
+- API Fonnte tidak memiliki parameter mention/tag di semua paket; `@nomor` selalu terkirim sebagai teks. Ini bukan cacat aplikasi dan tidak dapat diperbaiki dari sisi kode selama pengirimnya Fonnte.
+- Placeholder `{{mention}}` sekarang dirender sebagai **`@Nama Pengiklan`** (`advertisers.name`), bukan `@nomor`. Nomor tetap disimpan sebagai kontak dan syarat aktivasi bot, tetapi tidak lagi muncul di pesan grup.
+- Signature `wa_render_reminder` tidak berubah: `p_mention` dipertahankan agar `wa_reminder_claim`/`wa_reminder_preview` tidak perlu dibuat ulang, tetapi nilainya tidak dipakai.
+- Template baru tidak lagi menambahkan `({{advertiser_name}})` di samping `{{mention}}` agar nama tidak tampil dua kali.
+
+### Implementasi
+
+Migrasi `20261112170000_wa_mention_advertiser_name.sql` (`schema_version` 73). Tes: `supabase/tests/37_wa_admin_bot.sql`, `packages/api/test/wa-bot.test.ts`, `packages/api/test/integration/wa-bot.e2e.test.ts`, `apps/web/test/wa-bot.test.tsx`. UI: `TemplateSection`, `AdvertiserPhoneSection`, dan `waMention` di `packages/shared`.

@@ -5,7 +5,7 @@ begin;
 set local search_path = public, extensions, pg_catalog;
 select no_plan();
 
-select is(public.schema_version(), 72, 'schema version 72');
+select is(public.schema_version(), 73, 'schema version 73');
 
 -- ---------------------------------------------------------------------------
 -- Fixture
@@ -89,8 +89,8 @@ select is((select distinct t->>'group_id' from jsonb_array_elements((select resu
 
 select is((select message from public.wa_reminder_logs
             where advertiser_id = 'aa000000-0000-0000-0000-000000000001' and event_type = 'Webinar Online'),
-  'Halo @628111111111, laporan Advertiser Satu produk Produk Satu Webinar Online tanggal 2026-11-10 belum diisi. Leads 1, Paid 1. https://app.example.com/report-spend?advertiserCode=91&productCode=WAAA&eventType=Webinar%20Online',
-  'placeholder dan mention dirender dari data nyata');
+  'Halo @Advertiser Satu, laporan Advertiser Satu produk Produk Satu Webinar Online tanggal 2026-11-10 belum diisi. Leads 1, Paid 1. https://app.example.com/report-spend?advertiserCode=91&productCode=WAAA&eventType=Webinar%20Online',
+  'placeholder dan mention nama pengiklan dirender dari data nyata');
 select is((select count(*)::int from public.wa_reminder_logs where status = 'queued'), 2, 'klaim menulis dua log queued');
 select is((select reminder_date::text from public.wa_reminder_logs limit 1), '2026-11-11', 'tanggal reminder = tanggal jalan WIB');
 

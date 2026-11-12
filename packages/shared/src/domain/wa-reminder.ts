@@ -123,9 +123,9 @@ export function normalizeWhatsAppPhone(value: string): string | null {
   return normalized.length >= 10 && normalized.length <= 15 ? normalized : null
 }
 
-/** `@628xxx` untuk mention di grup. */
-export function waMention(phone: string): string {
-  return `@${phone}`
+/** `@Nama` untuk sapaan di grup (Fonnte tidak mendukung tag WhatsApp). */
+export function waMention(name: string): string {
+  return `@${name}`
 }
 
 /** Nama hari untuk tampilan jadwal (0 = Minggu, mengikuti PostgreSQL DOW). */

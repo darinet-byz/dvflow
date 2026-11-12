@@ -26,7 +26,7 @@ Sistem ini membutuhkan antarmuka di Dashboard Admin yang mencakup modul-modul be
 *   **Tujuan:** Menghubungkan toko/brand di OrderOnline dengan grup WhatsApp dan nomor PIC.
 *   **Fitur Input:**
     *   Pilih Toko/Brand (dari data OrderOnline).
-    *   Input Nama Advertiser & Nomor WhatsApp (format: `628xxx` untuk tag mention).
+    *   Input Nama Advertiser & Nomor WhatsApp (format `628xxx`; kontak, bukan target tag).
     *   Input ID Grup WhatsApp Fonnte (`12xxx@g.us`).
     *   Toggle Status (Aktif/Nonaktifkan bot untuk grup tertentu).
 
@@ -35,7 +35,7 @@ Sistem ini membutuhkan antarmuka di Dashboard Admin yang mencakup modul-modul be
 *   **Fitur Input:**
     *   Nama Template (Contoh: "Template Pagi", "Template Eskalasi").
     *   Teks Editor dengan dukungan **Variabel Placeholder**:
-        *   `{{mention}}` : Akan diganti menjadi `@628xxx`.
+        *   `{{mention}}` : Akan diganti menjadi `@Nama Pengiklan` (Fonnte tidak mendukung tag WhatsApp).
         *   `{{store_name}}` : Nama toko/brand.
         *   `{{leads}}` : Total leads kemarin.
         *   `{{paid}}` : Total paid kemarin.

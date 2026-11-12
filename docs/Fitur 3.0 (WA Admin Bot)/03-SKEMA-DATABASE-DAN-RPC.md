@@ -48,6 +48,8 @@ Nomor `pic_phone` di-backfill ke `advertisers.wa_phone` saat migrasi.
 Placeholder yang ditawarkan: `{{mention}}`, `{{advertiser_name}}`,
 `{{advertiser_code}}`, `{{product_name}}`, `{{product_code}}`, `{{event_type}}`,
 `{{date}}`, `{{report_url}}`.
+`{{mention}}` dirender sebagai `@Nama Pengiklan` (bukan `@nomor`): Fonnte tidak
+memiliki parameter tag WhatsApp, sehingga nomor hanya akan tampil sebagai teks.
 Warisan yang tetap dirender: `{{store_name}}`, `{{leads}}`, `{{paid}}`.
 Divalidasi backend + `packages/shared`.
 
@@ -125,7 +127,8 @@ tersedia untuk operator.
 
 ### `wa_render_reminder(...)`
 Fungsi murni pengganti placeholder, dipakai klaim & preview agar isi pesan
-tidak pernah berbeda antara dua jalur.
+tidak pernah berbeda antara dua jalur. `{{mention}}` memakai
+`p_advertiser_name`; argumen `p_mention` dipertahankan hanya demi signature.
 
 ## 3. Izin
 

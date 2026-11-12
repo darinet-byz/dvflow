@@ -107,7 +107,7 @@ describe.skipIf(!configured)('WA Admin Bot end-to-end', () => {
     expect(first).toHaveLength(1)
     expect(first[0]?.product_code).toBe('ZZWA')
     expect(first[0]?.group_id).toBe('999@g.us')
-    expect(first[0]?.message).toContain('Halo @628999999999 E2E WA E2E WA A Seminar Offline 2/1')
+    expect(first[0]?.message).toContain('Halo @E2E WA E2E WA E2E WA A Seminar Offline 2/1')
     expect(first[0]?.message).toContain('report-spend?advertiserCode=97&productCode=ZZWA&eventType=Seminar%20Offline')
 
     const second = await db.rpc<Task[]>('wa_reminder_claim', {
@@ -138,6 +138,6 @@ describe.skipIf(!configured)('WA Admin Bot end-to-end', () => {
     expect(preview.found).toBe(true)
     expect(preview.leads).toBe(2)
     expect(preview.paid).toBe(1)
-    expect(preview.message).toContain('@628999999999')
+    expect(preview.message).toContain('@E2E WA')
   })
 })

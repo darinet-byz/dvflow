@@ -251,7 +251,7 @@ describe('WA Admin Bot — pengiriman', () => {
     const body = (await response.json()) as { data: { found: boolean; message: string; group_id: string } }
     expect(body.data.found).toBe(true)
     expect(body.data.group_id).toBe('111@g.us')
-    expect(body.data.message).toContain('@628111111111')
+    expect(body.data.message).toContain('@Zul')
     expect(body.data.message).toContain('Webinar Online')
     expect(body.data.message).toContain('eventType=Webinar%20Online')
     expect(fetchMock).not.toHaveBeenCalled()

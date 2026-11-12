@@ -98,7 +98,7 @@ export function AdvertiserPhoneSection({ overview, reload }: { overview: WaOverv
       <div className="mb-3">
         <h2 className="text-[15px] font-semibold text-ink">Nomor WA Pengiklan</h2>
         <p className="mt-0.5 text-[12px] text-ink-soft">
-          Nomor ini dipakai untuk tag <code>@628xxx</code> di grup produk. Wajib diisi untuk semua pengiklan aktif.
+          Nomor ini adalah kontak pengiklan dan syarat mengaktifkan bot untuk sebuah produk. Pesan grup menyapa lewat nama pengiklan, bukan nomor.
         </p>
       </div>
 

@@ -868,7 +868,7 @@ export function createFakeDb(state: FakeState): Db {
           found: true,
           group_id: group['fonnte_group_id'],
           message: String(template['message_content'])
-            .replaceAll('{{mention}}', `@${advertiser['wa_phone']}`)
+            .replaceAll('{{mention}}', `@${advertiser['name']}`)
             .replaceAll('{{advertiser_name}}', String(advertiser['name']))
             .replaceAll('{{store_name}}', String(advertiser['name']))
             .replaceAll('{{advertiser_code}}', String(advertiser['code']))

@@ -49,7 +49,9 @@ Permission ditegakkan di backend dan RPC, bukan hanya dengan menyembunyikan menu
 ### 4.3 Nomor WA Pengiklan
 - Satu nomor per pengiklan di `advertisers.wa_phone`.
 - Wajib untuk pengiklan aktif; dinormalisasi `08xxx` → `628xxx`.
-- Nomor dipakai untuk mention `@628xxx` di pesan.
+- Nomor adalah kontak pengiklan dan syarat aktivasi bot; pesan grup menyapa
+  lewat **nama** pengiklan (`{{mention}}` = `@Nama`), bukan nomor. Fonnte tidak
+  mendukung tag/mention WhatsApp, jadi `@nomor` hanya akan tampil sebagai teks.
 
 ### 4.4 Template pesan
 - Nama unik (tanpa membedakan besar/kecil huruf).

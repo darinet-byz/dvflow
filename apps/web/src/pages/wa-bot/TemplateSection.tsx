@@ -24,7 +24,7 @@ const COLUMNS: readonly TableColumn[] = [
 ]
 
 const PREVIEW_VALUES = {
-  mention: '@628123456789',
+  mention: '@Zul',
   advertiser_name: 'Zul',
   advertiser_code: '01',
   product_name: 'Kuliner Masteri',
@@ -38,7 +38,7 @@ const PREVIEW_VALUES = {
 }
 
 const DEFAULT_CONTENT =
-  '{{mention}} mohon input Report Spend {{event_type}} produk {{product_name}} ({{advertiser_name}}) untuk tanggal {{date}}.\n{{report_url}}'
+  '{{mention}} mohon input Report Spend {{event_type}} produk {{product_name}} untuk tanggal {{date}}.\n{{report_url}}'
 
 type FormState = { id: string | null; name: string; content: string; isActive: boolean }
 const EMPTY: FormState = { id: null, name: '', content: DEFAULT_CONTENT, isActive: true }

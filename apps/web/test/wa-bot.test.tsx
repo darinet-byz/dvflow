@@ -69,7 +69,7 @@ let overviewResponse: typeof overview = overview
 const preview = {
   found: true,
   group_id: '111@g.us',
-  message: 'Halo @628111111111, Zul Kuliner Masteri Seminar Offline 2026-11-10.',
+  message: 'Halo @Zul, Kuliner Masteri Seminar Offline 2026-11-10.',
   leads: 2,
   paid: 1,
   advertiser_id: 'adv-1',

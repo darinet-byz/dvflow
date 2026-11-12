@@ -173,7 +173,7 @@ Body sama dengan preview. Respons:
   "log_id": "uuid",
   "sent": true,
   "error": null,
-  "message": "Halo @628111111111 …",
+  "message": "Halo @Zul …",
   "group_id": "111@g.us",
   "event_type": "Seminar Offline"
 }
