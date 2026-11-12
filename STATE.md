@@ -42,7 +42,7 @@ tetap mengikuti blocker di dokumen Acceptance Tests/Runbook.
 # Tidak butuh Docker
 npm install
 npm run typecheck          # → PASS (shared, api, worker, functions, web)
-npm test                   # -> 746 test lulus (323 api + 143 shared + 3 wa-cron + 277 web)
+npm test                   # -> 747 test lulus (323 api + 143 shared + 3 wa-cron + 278 web)
 npm run build              # → aplikasi web + assets/ticket-qr.js
 npm run verify:ticket-qr   # → membuktikan artefak QR dapat dijalankan & dipindai
 npm run deploy:wa-cron     # → deploy Worker cron WA Admin Bot (Fitur 3.0)
@@ -53,7 +53,7 @@ npm run db:start                      # supabase start
 npm run db:reset                      # seluruh migrasi + seed.sql (untuk integration)
 npm run test:integration              # 39 test (butuh SUPABASE_URL/SECRET_KEY/DB_URL; skip bila kosong)
 supabase db reset --no-seed           # pgTAP mengasumsikan DB tanpa seed
-npm run test:db                       # pgTAP -> 992 test lulus / 38 berkas
+npm run test:db                       # pgTAP -> 1000 test lulus / 38 berkas
 
 # Tooling developer (butuh database hidup)
 npm run create-master-admin
@@ -546,3 +546,5 @@ sering terlanggar:
 | 2026-11-12 | A70 | **Mention memakai nama pengiklan**: Fonnte tidak punya parameter tag WhatsApp, jadi placeholder `{{mention}}` dirender `@Nama Pengiklan` (bukan `@nomor`); signature `wa_render_reminder` tidak berubah dan `p_mention` diabaikan; template baru tidak lagi menduplikasi `{{advertiser_name}}`. Migrasi `20261112170000_wa_mention_advertiser_name.sql` (`schema_version` 73) diterapkan ke produksi via `supabase db push`; commit `4a02ffb`; deploy Pages run `43182999115` sukses. Verifikasi production: preview KMXX/Alfa -> "Mas @Alfa, sampai malam ini..." tanpa nomor HP. |
 | 2026-11-12 | A71 | **Nomor HP dihapus + mention seluruh pengiklan per grup**: kolom `advertisers.wa_phone`, endpoint `PATCH /api/wa-bot/advertisers/:id`, tab **Nomor WA Pengiklan**, dan validasi nomor dihapus. Pengingat kini **satu pesan per produk + jenis acara** yang menyebut semua pengiklan beraktivitas kemarin (`Mas @Andre, @Yosef, ...`), dengan gate `only_if_missing_report` tetap (kirim bila minimal satu belum lapor). Idempotensi pindah ke `(schedule_id, product_code, event_type, reminder_date)` untuk baris grup (`advertiser_id` null). `wa_reminder_preview` berubah signature (tanpa pengiklan) dan mengembalikan `advertisers[]`; Kirim Tes tidak lagi memilih pengiklan; filter pengiklan di Riwayat dihapus. Migrasi `20261112180000_wa_group_mentions.sql` (`schema_version` 74) diterapkan ke produksi. Gate: typecheck PASS; unit **746** (323 api + 143 shared + 3 wa-cron + 277 web); pgTAP **992 PASS / 38 berkas**; integration **39 PASS**; build PASS. |
 | 2026-11-12 | - | Deploy production A71: commit `4318749`; workflow **Deploy to Cloudflare Pages** run `43185893985` sukses. Verifikasi production: `schema_version` = 74; `GET /api/wa-bot` tidak lagi memuat `wa_phone`; preview KMXX/Webinar -> "Mas @Andre, @Yosef, sampai malam ini belum ada report masuk yaa.." (menyebut semua pengiklan yang beraktivitas). |
+| 2026-11-12 | A72 | **Audiens per jadwal**: kolom `wa_reminder_schedules.mention_scope` (`all` default / `missing`). Jadwal pagi bisa menyebut semua pengiklan beraktivitas; jadwal siang/sore hanya yang belum lapor. Mode `missing` memaksa `only_if_missing_report=true` dan tidak mengirim bila semua sudah lapor. `wa_reminder_claim` memilih daftar nama sesuai mode; `wa_reminder_preview` menerima `p_mention_scope` dan mengembalikan `mention_scope`/`NO_MISSING_REPORT`. UI: Select **Siapa yang disebut** di modal Jadwal dan Kirim Tes; kolom Aturan menampilkan mode. Migrasi `20261112190000_wa_schedule_mention_scope.sql` (`schema_version` 75) diterapkan ke produksi. Gate: typecheck PASS; unit **747** (323 api + 143 shared + 3 wa-cron + 278 web); pgTAP **1000 PASS / 38 berkas**; integration **39 PASS**; build PASS. |
+| 2026-11-12 | - | Deploy production A72: commit `221a981`; workflow **Deploy to Cloudflare Pages** run `43189791794` sukses. Verifikasi production: schedule 11:00 = `all`; preview KMXX/Webinar mode `all` -> Andre, Yosef; mode `missing` -> Yosef saja (Andre sudah lapor). |
