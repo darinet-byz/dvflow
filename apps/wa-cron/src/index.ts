@@ -23,9 +23,9 @@ export async function runScheduled(
   if (base === '') throw new Error('APP_BASE_URL belum diatur.')
   if (!env.WA_CRON_SECRET) throw new Error('WA_CRON_SECRET belum diatur.')
 
+  // Cloudflare Workers menolak `redirect: 'error'`; pakai default `follow`.
   const response = await fetchImpl(`${base}${RUN_PATH}`, {
     method: 'POST',
-    redirect: 'error',
     signal: AbortSignal.timeout(TIMEOUT_MS),
     headers: {
       'x-wa-cron-secret': env.WA_CRON_SECRET,

@@ -12,6 +12,8 @@ describe('WA cron worker', () => {
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe('https://dvflow.pages.dev/api/internal/wa-reminders/run')
     expect(init.method).toBe('POST')
+    // Regresi: Workers menolak `redirect: 'error'`; cron tidak pernah jalan.
+    expect(init.redirect).toBeUndefined()
     expect((init.headers as Record<string, string>)['x-wa-cron-secret']).toBe('cron-secret')
   })
 

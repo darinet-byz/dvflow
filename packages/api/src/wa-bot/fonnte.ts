@@ -33,6 +33,11 @@ export type FonnteDeviceCheck =
   | { reachable: true; error: string; detail: null; device: null }
   | { reachable: false; error: 'NETWORK'; detail: string; device: null }
 
+/**
+ * Fonnte tidak mengalihkan (redirect) endpoint ini; jangan memakai
+ * `redirect: 'error'` — runtime Cloudflare Workers menolak nilai itu
+ * ("Invalid redirect value") sehingga setiap fetch gagal sebelum koneksi.
+ */
 const SEND_TIMEOUT_MS = 15_000
 
 export async function sendWhatsAppMessage(
@@ -48,7 +53,6 @@ export async function sendWhatsAppMessage(
   try {
     response = await fetch(`${base}/send`, {
       method: 'POST',
-      redirect: 'error',
       signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       headers: {
         authorization: token,
@@ -106,7 +110,6 @@ export async function checkFonnteDevice(
   try {
     response = await fetch(`${base}/device`, {
       method: 'POST',
-      redirect: 'error',
       signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       headers: { authorization: token, accept: 'application/json' },
     })

@@ -121,7 +121,7 @@ describe('WA Admin Bot — akses & konfigurasi', () => {
     await request('PUT', '/api/wa-bot/settings', { fonnte_token: 'token-rahasia-panjang' })
 
     const deviceUrls: string[] = []
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
       deviceUrls.push(String(input))
       return new Response(JSON.stringify({ status: false, reason: 'token invalid' }), {
         status: 200,
@@ -137,6 +137,7 @@ describe('WA Admin Bot — akses & konfigurasi', () => {
     expect(rejectedBody.data).toMatchObject({ has_token: true, reachable: true, connected: false, error: 'token invalid' })
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(deviceUrls[0]).toContain('/device')
+    expect((fetchMock.mock.calls[0]?.[1] as RequestInit | undefined)?.redirect).toBeUndefined()
     expect(JSON.stringify(rejectedBody)).not.toContain('token-rahasia-panjang')
 
     vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
@@ -277,6 +278,8 @@ describe('WA Admin Bot — pengiriman', () => {
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
     expect(url).toBe('https://fonnte.test/send')
+    // Regresi: Workers menolak `redirect: 'error'` dan membuat semua kirim gagal.
+    expect(init.redirect).toBeUndefined()
     expect((init.headers as Record<string, string>)['authorization']).toBe('token-rahasia-panjang')
     expect(String(init.body)).toContain('target=111%40g.us')
     expect(String(init.body)).toContain('message=Halo')

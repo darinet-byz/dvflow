@@ -64,6 +64,12 @@ pesan per run** dengan jeda 1,5 detik (dapat diatur `WA_BATCH_LIMIT` /
 tidak melewati 20 detik; sisa antrean dihabiskan run berikutnya (satu menit
 kemudian).
 
+Batas platform lain: runtime Cloudflare **menolak `redirect: 'error'`** pada
+`fetch` ("Invalid redirect value"); nilai yang sah hanya `follow`/`manual`.
+Semua panggilan keluar (Worker → backend, backend → Fonnte) memakai default
+`follow`. Bug 12 Nov 2026: nilai itu membuat cron dan cek device selalu gagal
+`NETWORK` tanpa pernah membuka koneksi.
+
 ## 4. Idempotensi
 
 Satu-satunya penjaga pesan ganda adalah unique index parsial:

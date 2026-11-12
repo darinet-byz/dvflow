@@ -79,7 +79,8 @@ export async function testConnection(context: RouteContext): Promise<Response> {
   if (!row.active || !row.api_token_encrypted) throw new ApiFailure('INVALID_ARGUMENT')
   const token = await decrypt(row.api_token_encrypted, context.env.INTEGRATION_ENCRYPTION_KEY)
   try {
-    const response = await fetch('https://api.orderonline.id/v1/auth', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(10000), headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ token }) })
+    // Runtime Workers menolak `redirect: 'error'`; biarkan default `follow`.
+    const response = await fetch('https://api.orderonline.id/v1/auth', { method: 'POST', signal: AbortSignal.timeout(10000), headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ token }) })
     const body = await response.json() as { error_code?: number; data?: { access_token?: string } }
     const connected = response.ok && body.error_code === 0 && typeof body.data?.access_token === 'string' && body.data.access_token.length > 0
     return ok({ connected, message: connected ? 'Token API berhasil terhubung ke OrderOnline.' : 'Token ditolak OrderOnline. Periksa personal access token dan status akun.' })
