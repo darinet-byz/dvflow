@@ -143,7 +143,7 @@ Catatan: jalankan Worker pada port yang berbeda dari backend, dan samakan
 | `skipped: NO_TOKEN` | Token belum diisi | Simpan token di dashboard. |
 | Badge **Token ditolak** | Fonnte menolak token (dicabut/salah salin) | Ambil token baru di dashboard Fonnte, simpan ulang. |
 | Badge **Device terputus** | Device logout dari WhatsApp meski token valid | Buka WhatsApp di ponsel Fonnte, sambungkan ulang, klik **Cek Ulang**. |
-| Badge **Status tidak diketahui** | Fonnte tidak dapat dihubungi dari Worker/Pages | Cek koneksi keluar, lalu **Cek Ulang**; token tetap tersimpan. |
+| Badge **Fonnte tak terjangkau** | `fetch` dari Pages Functions ke `api.fonnte.com` gagal (DNS/koneksi/TLS); detail teknis tampil di panel status | Cek **Cek Ulang**; bila tetap, catat detailnya dan uji koneksi keluar dari Worker. Pesan juga akan gagal dengan `NETWORK: …`. |
 | `skipped: TOKEN_UNREADABLE` | `INTEGRATION_ENCRYPTION_KEY` berubah/hilang | Kembalikan kunci lama atau simpan ulang token. |
 | `failed` dengan `token invalid` | Token Fonnte dicabut | Ambil token baru dari dashboard Fonnte, simpan ulang. |
 | `target invalid` / pesan tidak sampai | ID grup salah atau device tidak tergabung | Salin ulang ID grup dari Fonnte. |

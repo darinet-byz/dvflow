@@ -75,6 +75,8 @@ export type WaDeviceCheck = {
   status: string | null
   device: WaDeviceInfo | null
   error: string | null
+  /** Alasan teknis saat `error: "NETWORK"` (DNS/koneksi/TLS). */
+  detail: string | null
 }
 
 export type WaLog = {

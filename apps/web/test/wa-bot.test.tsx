@@ -61,6 +61,7 @@ const deviceCheck = {
     expired: '18 November 2029',
   },
   error: null,
+  detail: null,
 }
 
 let overviewResponse: typeof overview = overview

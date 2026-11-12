@@ -316,14 +316,14 @@ export async function verifyWaBotSettings(context: RouteContext): Promise<Respon
     'id,fonnte_token_encrypted,updated_at',
   )
   if (!settings?.fonnte_token_encrypted) {
-    return ok({ has_token: false, reachable: false, connected: false, status: null, device: null, error: null })
+    return ok({ has_token: false, reachable: false, connected: false, status: null, device: null, error: null, detail: null })
   }
 
   let token: string
   try {
     token = await decrypt(settings.fonnte_token_encrypted, context.env.INTEGRATION_ENCRYPTION_KEY)
   } catch {
-    return ok({ has_token: true, reachable: true, connected: false, status: null, device: null, error: 'TOKEN_UNREADABLE' })
+    return ok({ has_token: true, reachable: true, connected: false, status: null, device: null, error: 'TOKEN_UNREADABLE', detail: null })
   }
 
   const result = await checkFonnteDevice(context.env, token)
@@ -336,6 +336,7 @@ export async function verifyWaBotSettings(context: RouteContext): Promise<Respon
     status: deviceStatus,
     device: result.device,
     error: result.error,
+    detail: result.detail,
   })
 }
 

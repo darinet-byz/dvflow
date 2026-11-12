@@ -29,9 +29,9 @@ export type FonnteDeviceInfo = {
 }
 
 export type FonnteDeviceCheck =
-  | { reachable: true; error: null; device: FonnteDeviceInfo }
-  | { reachable: true; error: string; device: null }
-  | { reachable: false; error: string; device: null }
+  | { reachable: true; error: null; detail: null; device: FonnteDeviceInfo }
+  | { reachable: true; error: string; detail: null; device: null }
+  | { reachable: false; error: 'NETWORK'; detail: string; device: null }
 
 const SEND_TIMEOUT_MS = 15_000
 
@@ -57,8 +57,8 @@ export async function sendWhatsAppMessage(
       },
       body: body.toString(),
     })
-  } catch {
-    return { sent: false, error: 'NETWORK' }
+  } catch (error) {
+    return { sent: false, error: `NETWORK: ${networkReason(error)}` }
   }
 
   const parsed = await readJson(response)
@@ -110,19 +110,20 @@ export async function checkFonnteDevice(
       signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
       headers: { authorization: token, accept: 'application/json' },
     })
-  } catch {
-    return { reachable: false, error: 'NETWORK', device: null }
+  } catch (error) {
+    return { reachable: false, error: 'NETWORK', detail: networkReason(error), device: null }
   }
 
   const parsed = await readJson(response)
   const status = parsed?.['status'] ?? parsed?.['Status']
   if (!response.ok || status !== true) {
-    return { reachable: true, error: providerReason(parsed, response.status), device: null }
+    return { reachable: true, error: providerReason(parsed, response.status), detail: null, device: null }
   }
 
   return {
     reachable: true,
     error: null,
+    detail: null,
     device: {
       number: asText(parsed?.['device']),
       name: asText(parsed?.['name']),
@@ -137,6 +138,18 @@ export async function checkFonnteDevice(
 function providerReason(parsed: Record<string, unknown> | null, status: number): string {
   const reason = parsed?.['reason'] ?? parsed?.['detail']
   return typeof reason === 'string' && reason.trim() !== '' ? reason.trim().slice(0, 300) : `HTTP_${status}`
+}
+
+/**
+ * Alasan kegagalan jaringan apa adanya (dipotong).
+ *
+ * Tanpa ini, "NETWORK" saja tidak dapat dibedakan antara DNS gagal, koneksi
+ * ditolak, atau TLS ditolak — dan ketiganya berujung pada perbaikan berbeda.
+ */
+function networkReason(error: unknown): string {
+  const message = error instanceof Error ? error.message : 'unknown network error'
+  const cause = error instanceof Error && error.cause instanceof Error ? ` / ${error.cause.message}` : ''
+  return `${message}${cause}`.slice(0, 200)
 }
 
 function asText(value: unknown): string | null {

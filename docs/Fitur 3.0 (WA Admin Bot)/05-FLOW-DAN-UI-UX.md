@@ -37,9 +37,9 @@ halaman OTS. Komponen lain memakai design system: `Card`, `TextInput`,
 ## 3. Koneksi Fonnte
 
 - Badge status **device**, bukan sekadar penanda token:
-  `Terhubung` (hijau) / `Device terputus` (kuning) / `Token ditolak` (merah) /
-  `Memeriksa…` (netral) / `Status tidak diketahui` (kuning) /
-  `Token belum diatur` (kuning).
+  `Terhubung` (hijau) / `Device terputus` (kuning) / `Fonnte tak terjangkau`
+  (kuning) / `Token ditolak` (merah) / `Memeriksa…` (netral) /
+  `Status tidak diketahui` (kuning) / `Token belum diatur` (kuning).
 - Panel status di bawah judul menampilkan nomor device, nama, paket, kuota, dan
   masa aktif saat terhubung; saat gagal menampilkan alasan dari Fonnte.
   Status diperiksa otomatis setiap kali token disimpan dan lewat tombol

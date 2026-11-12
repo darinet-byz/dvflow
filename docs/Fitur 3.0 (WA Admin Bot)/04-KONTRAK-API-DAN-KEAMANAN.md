@@ -81,11 +81,13 @@ server-side). Token tidak pernah ikut di respons.
     "number": "6282227097005", "name": "Fonnte admin", "status": "connect",
     "quota": "78", "package": "Reguler", "expired": "18 November 2029"
   },
-  "error": null
+  "error": null,
+  "detail": null
 }
 ```
 
-- `reachable: false` — Fonnte tidak menjawab (jaringan/timeout), `error: "NETWORK"`.
+- `reachable: false` — Fonnte tidak menjawab (jaringan/timeout), `error: "NETWORK"`
+  dan `detail` memuat alasan teknis (DNS/koneksi/TLS) yang dipotong 200 karakter.
 - `reachable: true, error: "token invalid"` — Fonnte menolak token.
 - `reachable: true, error: null, status: "disconnect"` — token valid, tetapi
   device sedang logout dari WhatsApp.

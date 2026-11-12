@@ -165,8 +165,8 @@ describe('WA Admin Bot — akses & konfigurasi', () => {
 
     const response = await request('POST', '/api/wa-bot/settings/verify')
     expect(response.status).toBe(200)
-    expect(((await response.json()) as { data: { reachable: boolean; error: string; connected: boolean } }).data)
-      .toMatchObject({ reachable: false, connected: false, error: 'NETWORK' })
+    expect(((await response.json()) as { data: { reachable: boolean; error: string; connected: boolean; detail: string } }).data)
+      .toMatchObject({ reachable: false, connected: false, error: 'NETWORK', detail: 'offline' })
   })
 
   it('template menolak placeholder asing dan nama ganda', async () => {

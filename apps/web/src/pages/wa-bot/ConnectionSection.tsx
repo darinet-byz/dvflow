@@ -98,6 +98,14 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
         </div>
       )
     }
+    if (check.error === 'NETWORK') {
+      return (
+        <p className="text-warning">
+          Fonnte tidak dapat dihubungi dari server{check.detail === null ? ' (jaringan/timeout)' : `: ${check.detail}`}.
+          {' '}Token tetap tersimpan; klik <strong>Cek Ulang</strong> beberapa saat lagi.
+        </p>
+      )
+    }
     if (check.error === null) {
       return <p className="text-warning">Token diterima, tetapi device sedang terputus ({check.status ?? 'disconnect'}). Sambungkan ulang WhatsApp di ponsel Fonnte, lalu klik <strong>Cek Ulang</strong>.</p>
     }
@@ -344,11 +352,11 @@ function connectionState(
   if (check === null) return { tone: 'neutral', label: 'Token terpasang' }
   if (check.connected) return { tone: 'success', label: 'Terhubung' }
   if (check.error === null) return { tone: 'warning', label: 'Device terputus' }
+  if (check.error === 'NETWORK') return { tone: 'warning', label: 'Fonnte tak terjangkau' }
   return { tone: 'danger', label: 'Token ditolak' }
 }
 
 function describeFonnteError(error: string): string {
   if (error === 'TOKEN_UNREADABLE') return 'token tersimpan tidak dapat dibaca (kunci enkripsi berubah)'
-  if (error === 'NETWORK') return 'Fonnte tidak dapat dihubungi (jaringan/timeout)'
   return error
 }
