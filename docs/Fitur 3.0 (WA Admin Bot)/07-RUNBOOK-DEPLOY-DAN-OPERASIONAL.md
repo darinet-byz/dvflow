@@ -141,6 +141,9 @@ Catatan: jalankan Worker pada port yang berbeda dari backend, dan samakan
 |---|---|---|
 | Riwayat kosong padahal jadwal lewat | `WA_CRON_SECRET` beda antara Pages dan Worker | Samakan secret, cek log Worker. |
 | `skipped: NO_TOKEN` | Token belum diisi | Simpan token di dashboard. |
+| Badge **Token ditolak** | Fonnte menolak token (dicabut/salah salin) | Ambil token baru di dashboard Fonnte, simpan ulang. |
+| Badge **Device terputus** | Device logout dari WhatsApp meski token valid | Buka WhatsApp di ponsel Fonnte, sambungkan ulang, klik **Cek Ulang**. |
+| Badge **Status tidak diketahui** | Fonnte tidak dapat dihubungi dari Worker/Pages | Cek koneksi keluar, lalu **Cek Ulang**; token tetap tersimpan. |
 | `skipped: TOKEN_UNREADABLE` | `INTEGRATION_ENCRYPTION_KEY` berubah/hilang | Kembalikan kunci lama atau simpan ulang token. |
 | `failed` dengan `token invalid` | Token Fonnte dicabut | Ambil token baru dari dashboard Fonnte, simpan ulang. |
 | `target invalid` / pesan tidak sampai | ID grup salah atau device tidak tergabung | Salin ulang ID grup dari Fonnte. |

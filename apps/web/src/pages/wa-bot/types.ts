@@ -58,6 +58,25 @@ export type WaOverview = {
   schedules: WaSchedule[]
 }
 
+/** Ringkasan device dari `POST /api/wa-bot/settings/verify` (token tidak ikut). */
+export type WaDeviceInfo = {
+  number: string | null
+  name: string | null
+  status: string | null
+  quota: string | null
+  package: string | null
+  expired: string | null
+}
+
+export type WaDeviceCheck = {
+  has_token: boolean
+  reachable: boolean
+  connected: boolean
+  status: string | null
+  device: WaDeviceInfo | null
+  error: string | null
+}
+
 export type WaLog = {
   id: string
   schedule_id: string | null

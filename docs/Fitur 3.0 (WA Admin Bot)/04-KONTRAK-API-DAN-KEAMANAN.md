@@ -13,6 +13,7 @@ Semua respons memakai envelope standar:
 |---|---|---|---|
 | GET | `/api/wa-bot` | `config.wa_bot` | Seluruh konfigurasi + status token. |
 | PUT | `/api/wa-bot/settings` | `config.wa_bot` | Simpan/ganti token Fonnte. |
+| POST | `/api/wa-bot/settings/verify` | `config.wa_bot` | Cek token ke Fonnte dan kembalikan status device (tanpa token). |
 | POST | `/api/wa-bot/product-groups` | `config.wa_bot` | Tambah mapping grup produk. |
 | PATCH | `/api/wa-bot/product-groups/:id` | `config.wa_bot` | Edit mapping grup produk. |
 | DELETE | `/api/wa-bot/product-groups/:id` | `config.wa_bot` | Hapus mapping grup produk. |
@@ -62,7 +63,35 @@ Semua respons memakai envelope standar:
 ```
 
 Token 8–512 karakter. Respons `{ "has_token": true }`. Token dienkripsi sebelum
-disimpan; nilai lama ditimpa.
+disimpan; nilai lama ditimpa. Menyimpan token **tidak** membuktikan device
+terhubung; gunakan endpoint verify di bawah.
+
+### POST /api/wa-bot/settings/verify
+
+Memanggil `POST https://api.fonnte.com/device` memakai token tersimpan (dekripsi
+server-side). Token tidak pernah ikut di respons.
+
+```json
+{
+  "has_token": true,
+  "reachable": true,
+  "connected": true,
+  "status": "connect",
+  "device": {
+    "number": "6282227097005", "name": "Fonnte admin", "status": "connect",
+    "quota": "78", "package": "Reguler", "expired": "18 November 2029"
+  },
+  "error": null
+}
+```
+
+- `reachable: false` — Fonnte tidak menjawab (jaringan/timeout), `error: "NETWORK"`.
+- `reachable: true, error: "token invalid"` — Fonnte menolak token.
+- `reachable: true, error: null, status: "disconnect"` — token valid, tetapi
+  device sedang logout dari WhatsApp.
+- `error: "TOKEN_UNREADABLE"` — kunci enkripsi berubah; simpan ulang token.
+- Tanpa token: `has_token: false`, `connected: false`.
+
 
 ### POST/PATCH product-group
 

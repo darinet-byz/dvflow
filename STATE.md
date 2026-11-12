@@ -7,7 +7,7 @@
 > Dokumen yang mengikat tetap `CLAUDE.md` + `docs/`. File ini hanya mencatat **sejauh mana**
 > pekerjaan sudah berjalan, bukan aturan baru.
 
-Terakhir diperbarui: 2026-11-11
+Terakhir diperbarui: 2026-11-12
 Repo: `C:\Users\MyBook Z Series\dvflow` (git `main`, sudah di-push ke `origin/main`; production live di https://dvflow.pages.dev)
 Rencana lengkap: `~/.claude/plans/baca-file-claude-md-dan-glowing-pike.md`
 Nama aplikasi: **dvflow** (`OrderOnline` tetap nama provider, bukan nama aplikasi)
@@ -42,7 +42,7 @@ tetap mengikuti blocker di dokumen Acceptance Tests/Runbook.
 # Tidak butuh Docker
 npm install
 npm run typecheck          # → PASS (shared, api, worker, functions, web)
-npm test                   # -> 743 test lulus (322 api + 144 shared + 3 wa-cron + 274 web)
+npm test                   # -> 749 test lulus (324 api + 144 shared + 3 wa-cron + 278 web)
 npm run build              # → aplikasi web + assets/ticket-qr.js
 npm run verify:ticket-qr   # → membuktikan artefak QR dapat dijalankan & dipindai
 npm run deploy:wa-cron     # → deploy Worker cron WA Admin Bot (Fitur 3.0)
@@ -540,3 +540,4 @@ sering terlanggar:
 | 2026-11-12 | A68 | Presensi Acara punya 2 tab: **Berdasarkan Order** (tanggal order) dan **Realtime Presensi** (tanggal scan/check-in, hanya peserta yang sudah hadir pada rentang). KPI per tiket: Jumlah Tiket/Jumlah Hadir/Belum Hadir pada tab Order; Total Peserta Hari Ini/Order Hadir/Sisa Tiket pada tab Realtime. Kartu kehadiran menampilkan rincian **Online X � OTS Y**; `presensi_summary` menambah `paid_tickets_online`/`paid_tickets_ots`/`sudah_hadir_online`/`sudah_hadir_ots`/`attending_orders`. Migrasi `20261112150000_presensi_realtime_dan_total_kehadiran.sql` (`schema_version` 72) menambah `p_date_mode` pada `presensi_page`/`export_presensi_page`/`presensi_summary`. Gate: typecheck PASS; lint PASS; unit 745 (322 api + 144 shared + 3 wa-cron + 276 web); build PASS; pgTAP **38 berkas / 990 PASS**; integration **39 PASS**. |
 | 2026-11-12 | - | Deploy production A68: backup `prod-schema-before-0072.sql` + `prod-data-before-0072.sql`; migrasi `20261112150000_presensi_realtime_dan_total_kehadiran.sql` diterapkan via `supabase db push --db-url` (`schema_version` 72, riwayat remote tercatat); commit `7cf3894` di-push; workflow **Deploy to Cloudflare Pages** run `43172714058` sukses; aset produksi `index-C5__Bk7o.js` memuat **Realtime Presensi**, **Berdasarkan Order**, **Total Peserta Hari Ini**, dan **Tanggal presensi**; `check-schema-version` OK. |
 | 2026-11-12 | - | Realtime Presensi: polling dipercepat dari 30 detik menjadi **5 detik**, berhenti saat tab browser tidak terlihat, langsung refresh saat tab aktif kembali, dan tidak menumpuk permintaan bila tick sebelumnya belum selesai; teks **terakhir HH:MM:SS** ditambahkan. Commit `28de596`; workflow **Deploy to Cloudflare Pages** run `43174611522` sukses; aset produksi `index-C6NNX7AW.js` memuat teks "tiap 5 detik" dan teks 30 detik sudah hilang. |
+| 2026-11-12 | A69 | **Status koneksi Fonnte yang sebenarnya**: endpoint `POST /api/wa-bot/settings/verify` memanggil `POST api.fonnte.com/device` (token didekripsi server-side, tidak pernah dikirim ke browser) dan mengembalikan `has_token/reachable/connected/status/device/error`. Halaman WA Admin Bot menampilkan badge **Terhubung / Device terputus / Token ditolak / Memeriksa / Status tidak diketahui** + nomor, nama, paket, kuota, masa aktif device, tombol **Cek Ulang**, dan memeriksa otomatis setiap token disimpan. Tombol **Kirim Tes** tidak lagi disabled diam-diam: selalu bisa diklik dan memberi tahu prasyarat yang kurang (token / grup produk / template / nomor pengiklan). Gate: typecheck PASS; unit **324 api + 278 web** (749 total); build PASS. Tanpa migrasi. |

@@ -47,6 +47,24 @@ const overview = {
 
 const logs = { rows: [], total: 0, page: 1, pageSize: 50 }
 
+const deviceCheck = {
+  has_token: true,
+  reachable: true,
+  connected: true,
+  status: 'connect',
+  device: {
+    number: '6282227097005',
+    name: 'Fonnte admin',
+    status: 'connect',
+    quota: '78',
+    package: 'Reguler',
+    expired: '18 November 2029',
+  },
+  error: null,
+}
+
+let overviewResponse: typeof overview = overview
+
 const preview = {
   found: true,
   group_id: '111@g.us',
@@ -68,10 +86,11 @@ vi.mock('../src/lib/session', async (importOriginal) => {
     ...actual,
     authorizedRequest: vi.fn(async (path: string, options?: { method?: string; body?: unknown }) => {
       if (path.startsWith('/api/wa-bot/logs')) return logs
+      if (path === '/api/wa-bot/settings/verify') return deviceCheck
       if (path === '/api/wa-bot/test-preview') return preview
       if (path === '/api/wa-bot/test-send') return { sent: true, error: null, message: preview.message, group_id: preview.group_id }
       if (path.startsWith('/api/wa-bot/advertisers/') && options?.method === 'PATCH') return { id: 'adv-1', wa_phone: '6281234567890' }
-      if (path === '/api/wa-bot' && options?.method === undefined) return overview
+      if (path === '/api/wa-bot' && options?.method === undefined) return overviewResponse
       throw new Error(`Unexpected request: ${options?.method ?? 'GET'} ${path}`)
     }),
   }
@@ -83,6 +102,7 @@ const { authorizedRequest } = await import('../src/lib/session')
 afterEach(() => {
   cleanup()
   vi.clearAllMocks()
+  overviewResponse = overview
 })
 
 function renderPage() {
@@ -99,7 +119,7 @@ describe('WA Admin Bot page', () => {
   it('menampilkan koneksi, grup per produk, jadwal, dan riwayat lewat tab', async () => {
     renderPage()
     expect(await screen.findByText('WA Admin Bot')).toBeTruthy()
-    expect(screen.getByText('Token terpasang')).toBeTruthy()
+    expect(await screen.findByText('Terhubung')).toBeTruthy()
 
     fireEvent.click(screen.getByRole('tab', { name: 'Produk & Grup' }))
     expect(await screen.findByText('Grup WhatsApp per Produk')).toBeTruthy()
@@ -125,6 +145,23 @@ describe('WA Admin Bot page', () => {
     await waitFor(() => {
       expect(authorizedRequest).not.toHaveBeenCalledWith('/api/wa-bot/templates', expect.anything())
     })
+  })
+
+  it('menampilkan status device Fonnte, bukan hanya penanda token tersimpan', async () => {
+    renderPage()
+    expect(await screen.findByText('Terhubung')).toBeTruthy()
+    expect(screen.getByText(/Terhubung ke WhatsApp 6282227097005/)).toBeTruthy()
+    expect(screen.getByText(/Kuota 78/)).toBeTruthy()
+    expect(authorizedRequest).toHaveBeenCalledWith('/api/wa-bot/settings/verify', { method: 'POST' })
+  })
+
+  it('menjelaskan kenapa Kirim Tes belum bisa dipakai saat belum ada grup produk', async () => {
+    overviewResponse = { ...overview, products: [] }
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Kirim Tes' }))
+
+    expect(await screen.findByText(/Belum ada produk dengan grup WhatsApp aktif/)).toBeTruthy()
+    expect(screen.queryByRole('dialog', { name: 'Kirim Pesan Tes' })).toBeNull()
   })
 
   it('menampilkan form kirim tes dengan pilihan produk dan pengiklan', async () => {

@@ -12,6 +12,27 @@ export type FonnteSendResult =
   | { sent: true; messageId: string | null }
   | { sent: false; error: string }
 
+/**
+ * Ringkasan device dari `POST /device`.
+ *
+ * `status` di sini adalah `device_status` milik Fonnte: `connect` atau
+ * `disconnect`. Menyimpan token BUKAN berarti device terhubung — device bisa
+ * terputus dari WhatsApp, dan hanya panggilan ini yang dapat membedakannya.
+ */
+export type FonnteDeviceInfo = {
+  number: string | null
+  name: string | null
+  status: string | null
+  quota: string | null
+  package: string | null
+  expired: string | null
+}
+
+export type FonnteDeviceCheck =
+  | { reachable: true; error: null; device: FonnteDeviceInfo }
+  | { reachable: true; error: string; device: null }
+  | { reachable: false; error: string; device: null }
+
 const SEND_TIMEOUT_MS = 15_000
 
 export async function sendWhatsAppMessage(
@@ -64,4 +85,61 @@ async function readJson(response: Response): Promise<Record<string, unknown> | n
   } catch {
     return null
   }
+}
+
+/**
+ * Status device lewat `POST /device` (API Device Profile Fonnte).
+ *
+ * Hasil dibedakan tiga tingkat supaya UI tidak menebak:
+ *   * `reachable: false` — Fonnte tidak menjawab (jaringan/timeout);
+ *   * `reachable: true, error` — Fonnte menjawab tetapi menolak token;
+ *   * `reachable: true, error: null` — token diterima; `device.status` yang
+ *     menentukan `connect`/`disconnect`.
+ */
+export async function checkFonnteDevice(
+  env: Pick<Env, 'WA_FONNTE_BASE_URL'>,
+  token: string,
+): Promise<FonnteDeviceCheck> {
+  const base = (env.WA_FONNTE_BASE_URL ?? 'https://api.fonnte.com').replace(/\/$/, '')
+
+  let response: Response
+  try {
+    response = await fetch(`${base}/device`, {
+      method: 'POST',
+      redirect: 'error',
+      signal: AbortSignal.timeout(SEND_TIMEOUT_MS),
+      headers: { authorization: token, accept: 'application/json' },
+    })
+  } catch {
+    return { reachable: false, error: 'NETWORK', device: null }
+  }
+
+  const parsed = await readJson(response)
+  const status = parsed?.['status'] ?? parsed?.['Status']
+  if (!response.ok || status !== true) {
+    return { reachable: true, error: providerReason(parsed, response.status), device: null }
+  }
+
+  return {
+    reachable: true,
+    error: null,
+    device: {
+      number: asText(parsed?.['device']),
+      name: asText(parsed?.['name']),
+      status: asText(parsed?.['device_status']),
+      quota: asText(parsed?.['quota']),
+      package: asText(parsed?.['package']),
+      expired: asText(parsed?.['expired']),
+    },
+  }
+}
+
+function providerReason(parsed: Record<string, unknown> | null, status: number): string {
+  const reason = parsed?.['reason'] ?? parsed?.['detail']
+  return typeof reason === 'string' && reason.trim() !== '' ? reason.trim().slice(0, 300) : `HTTP_${status}`
+}
+
+function asText(value: unknown): string | null {
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null
 }

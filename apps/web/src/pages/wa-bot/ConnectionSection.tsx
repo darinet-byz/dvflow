@@ -1,20 +1,23 @@
-import { useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { WA_EVENT_TYPES } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
 import { formatDateTime } from '../../lib/format'
-import { Badge } from '../../ui/Badge'
+import { Badge, type BadgeTone } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Select, TextInput } from '../../ui/Field'
 import { Modal } from '../../ui/Overlay'
 import { useToast } from '../../ui/Toast'
-import type { WaOverview, WaPreview } from './types'
+import type { WaDeviceCheck, WaOverview, WaPreview } from './types'
 
 export function ConnectionSection({ overview, reload, canSend }: { overview: WaOverview; reload: () => void; canSend: boolean }) {
   const toast = useToast()
   const [token, setToken] = useState('')
   const [busy, setBusy] = useState(false)
   const [failure, setFailure] = useState<string | null>(null)
+  const [check, setCheck] = useState<WaDeviceCheck | null>(null)
+  const [checking, setChecking] = useState(false)
+  const [checkFailure, setCheckFailure] = useState<string | null>(null)
   const [testOpen, setTestOpen] = useState(false)
   const [productCode, setProductCode] = useState('')
   const [advertiserCode, setAdvertiserCode] = useState('')
@@ -39,6 +42,68 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
     [selectedProduct],
   )
 
+  const runCheck = useCallback(async () => {
+    setChecking(true)
+    setCheckFailure(null)
+    try {
+      setCheck(await authorizedRequest<WaDeviceCheck>('/api/wa-bot/settings/verify', { method: 'POST' }))
+    } catch (error) {
+      setCheck(null)
+      setCheckFailure(error instanceof Error ? error.message : 'Status koneksi tidak dapat diperiksa.')
+    } finally {
+      setChecking(false)
+    }
+  }, [])
+
+  // Status device ikut diperiksa ulang setiap token berubah (termasuk setelah
+  // "Simpan Token"): menyimpan token bukan bukti device terhubung.
+  useEffect(() => {
+    if (!overview.settings.has_token) {
+      setCheck(null)
+      setCheckFailure(null)
+      return
+    }
+    void runCheck()
+  }, [overview.settings.has_token, overview.settings.updated_at, runCheck])
+
+  const connection = connectionState(overview.settings.has_token, checking, check, checkFailure)
+  const device = check?.device ?? null
+  const statusDetail = (() => {
+    if (!overview.settings.has_token) {
+      return <p className="text-ink-soft">Tempel token device Fonnte lalu klik <strong>Simpan Token</strong>. Status device akan diperiksa otomatis setelah token tersimpan.</p>
+    }
+    if (checking && check === null) {
+      return <p className="text-ink-soft">Memeriksa status device ke Fonnte…</p>
+    }
+    if (checkFailure !== null) {
+      return <p className="text-warning">Status tidak dapat diperiksa: {checkFailure}</p>
+    }
+    if (check === null) {
+      return <p className="text-ink-soft">Token tersimpan, status device belum diperiksa.</p>
+    }
+    if (check.connected) {
+      return (
+        <div>
+          <p className="font-semibold text-[#28a95b]">
+            Terhubung ke WhatsApp {device?.number ?? '(nomor tidak dilaporkan)'}
+          </p>
+          <p className="mt-0.5 text-ink-soft">
+            {[
+              device?.name,
+              device?.package === null || device?.package === undefined ? null : `Paket ${device.package}`,
+              device?.quota === null || device?.quota === undefined ? null : `Kuota ${device.quota}`,
+              device?.expired === null || device?.expired === undefined ? null : `Aktif s/d ${device.expired}`,
+            ].filter((part) => part !== null && part !== undefined && part !== '').join(' · ')}
+          </p>
+        </div>
+      )
+    }
+    if (check.error === null) {
+      return <p className="text-warning">Token diterima, tetapi device sedang terputus ({check.status ?? 'disconnect'}). Sambungkan ulang WhatsApp di ponsel Fonnte, lalu klik <strong>Cek Ulang</strong>.</p>
+    }
+    return <p className="text-danger">Fonnte menolak token: {describeFonnteError(check.error)}. Ambil token baru di dashboard Fonnte, lalu simpan ulang di sini.</p>
+  })()
+
   async function saveToken() {
     if (busy) return
     if (token.trim() === '') { setFailure('Token wajib diisi.'); return }
@@ -48,7 +113,7 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
       await authorizedRequest('/api/wa-bot/settings', { method: 'PUT', body: { fonnte_token: token.trim() } })
       setToken('')
       reload()
-      toast.show('Token Fonnte disimpan terenkripsi.', 'success')
+      toast.show('Token Fonnte disimpan. Memeriksa koneksi device…', 'success')
     } catch (error) {
       setFailure(error instanceof Error ? error.message : 'Token gagal disimpan.')
     } finally {
@@ -57,6 +122,14 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
   }
 
   function openTest() {
+    if (!overview.settings.has_token) {
+      toast.show('Simpan token Fonnte dulu sebelum mengirim tes.', 'danger')
+      return
+    }
+    if (readyProducts.length === 0) {
+      toast.show('Belum ada produk dengan grup WhatsApp aktif. Atur di tab Produk & Grup.', 'danger')
+      return
+    }
     const firstProduct = readyProducts[0] ?? null
     const firstAdvertiser = firstProduct?.advertisers.find((advertiser) => advertiser.active && advertiser.wa_phone !== null) ?? null
     setProductCode(firstProduct?.code ?? '')
@@ -132,16 +205,17 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
             Token device disimpan terenkripsi di database dan tidak pernah dikirim ke browser.
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge tone={overview.settings.has_token ? 'success' : 'warning'}>
-            {overview.settings.has_token ? 'Token terpasang' : 'Token belum diatur'}
-          </Badge>
-          {canSend ? (
-            <Button onClick={openTest} disabled={!overview.settings.has_token || readyProducts.length === 0}>
-              Kirim Tes
-            </Button>
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <Badge tone={connection.tone}>{connection.label}</Badge>
+          {overview.settings.has_token ? (
+            <Button size="sm" variant="ghost" loading={checking} onClick={() => void runCheck()}>Cek Ulang</Button>
           ) : null}
+          {canSend ? <Button onClick={openTest}>Kirim Tes</Button> : null}
         </div>
+      </div>
+
+      <div className="mt-3 rounded-sm border border-line bg-soft px-2.5 py-2 text-[12px]">
+        {statusDetail}
       </div>
 
       <div className="mt-3 grid grid-cols-1 items-end gap-2 sm:grid-cols-[1fr_auto]">
@@ -164,6 +238,18 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
         {' '}Jika WhatsApp terputus, ganti token di sini tanpa deploy ulang.
       </p>
       {failure ? <p role="alert" className="mt-1 text-[12px] text-danger">{failure}</p> : null}
+      {!canSend ? (
+        <p className="mt-1 text-[11px] text-ink-soft">
+          Akun ini tidak memegang izin <strong>Kirim Pesan WA</strong>, jadi tombol Kirim Tes tidak ditampilkan.
+        </p>
+      ) : null}
+      {canSend && (!overview.settings.has_token || readyProducts.length === 0) ? (
+        <p className="mt-1 text-[11px] text-warning">
+          {!overview.settings.has_token
+            ? 'Kirim Tes aktif setelah token Fonnte disimpan.'
+            : 'Kirim Tes memerlukan minimal satu produk dengan grup WhatsApp aktif (tab Produk & Grup).'}
+        </p>
+      ) : null}
 
       <Modal
         open={testOpen}
@@ -222,6 +308,9 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
           {selectedProduct !== null && advertiserOptions.length === 0 ? (
             <p className="text-[12px] text-warning">Produk ini belum punya pengiklan dengan nomor WA.</p>
           ) : null}
+          {overview.templates.length === 0 ? (
+            <p className="text-[12px] text-warning">Belum ada template pesan. Tambahkan dulu di tab Template.</p>
+          ) : null}
           {preview !== null ? (
             <div className="rounded-sm border border-line bg-soft p-2.5">
               <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
@@ -234,4 +323,32 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
       </Modal>
     </Card>
   )
+}
+
+/**
+ * Label status koneksi.
+ *
+ * "Token tersimpan" dan "device terhubung" sengaja dibedakan: token bisa valid
+ * sementara WhatsApp di ponsel sudah logout, dan saat itu pengingat tidak akan
+ * pernah sampai meski semuanya tampak hijau.
+ */
+function connectionState(
+  hasToken: boolean,
+  checking: boolean,
+  check: WaDeviceCheck | null,
+  failure: string | null,
+): { tone: BadgeTone; label: string } {
+  if (!hasToken) return { tone: 'warning', label: 'Token belum diatur' }
+  if (checking && check === null) return { tone: 'neutral', label: 'Memeriksa…' }
+  if (failure !== null) return { tone: 'warning', label: 'Status tidak diketahui' }
+  if (check === null) return { tone: 'neutral', label: 'Token terpasang' }
+  if (check.connected) return { tone: 'success', label: 'Terhubung' }
+  if (check.error === null) return { tone: 'warning', label: 'Device terputus' }
+  return { tone: 'danger', label: 'Token ditolak' }
+}
+
+function describeFonnteError(error: string): string {
+  if (error === 'TOKEN_UNREADABLE') return 'token tersimpan tidak dapat dibaca (kunci enkripsi berubah)'
+  if (error === 'NETWORK') return 'Fonnte tidak dapat dihubungi (jaringan/timeout)'
+  return error
 }

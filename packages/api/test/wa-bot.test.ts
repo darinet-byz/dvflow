@@ -113,6 +113,62 @@ describe('WA Admin Bot — akses & konfigurasi', () => {
     expect(String(stored?.['fonnte_token_encrypted'])).toContain('.')
   })
 
+  it('verify membedakan token ditolak, device terputus, dan device terhubung', async () => {
+    const { request } = await setup()
+    const noToken = await request('POST', '/api/wa-bot/settings/verify')
+    expect(((await noToken.json()) as { data: { has_token: boolean } }).data.has_token).toBe(false)
+
+    await request('PUT', '/api/wa-bot/settings', { fonnte_token: 'token-rahasia-panjang' })
+
+    const deviceUrls: string[] = []
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      deviceUrls.push(String(input))
+      return new Response(JSON.stringify({ status: false, reason: 'token invalid' }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    const rejected = await request('POST', '/api/wa-bot/settings/verify')
+    expect(rejected.status).toBe(200)
+    const rejectedBody = (await rejected.json()) as {
+      data: { has_token: boolean; reachable: boolean; connected: boolean; error: string | null }
+    }
+    expect(rejectedBody.data).toMatchObject({ has_token: true, reachable: true, connected: false, error: 'token invalid' })
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(deviceUrls[0]).toContain('/device')
+    expect(JSON.stringify(rejectedBody)).not.toContain('token-rahasia-panjang')
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      status: true, device: '6282227097005', device_status: 'disconnect', name: 'Fonnte admin', quota: '78',
+    }), { status: 200, headers: { 'content-type': 'application/json' } })))
+    const disconnected = await request('POST', '/api/wa-bot/settings/verify')
+    expect(((await disconnected.json()) as { data: { connected: boolean; status: string } }).data)
+      .toMatchObject({ connected: false, status: 'disconnect' })
+
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({
+      status: true, device: '6282227097005', device_status: 'connect', name: 'Fonnte admin', quota: '78',
+      package: 'Reguler', expired: '18 November 2029',
+    }), { status: 200, headers: { 'content-type': 'application/json' } })))
+    const connected = await request('POST', '/api/wa-bot/settings/verify')
+    const connectedBody = (await connected.json()) as {
+      data: { connected: boolean; device: { number: string; name: string; quota: string } }
+    }
+    expect(connectedBody.data.connected).toBe(true)
+    expect(connectedBody.data.device).toMatchObject({ number: '6282227097005', name: 'Fonnte admin', quota: '78' })
+  })
+
+  it('verify melaporkan Fonnte tidak dapat dihubungi tanpa menggagalkan permintaan', async () => {
+    const { request } = await setup()
+    await request('PUT', '/api/wa-bot/settings', { fonnte_token: 'token-rahasia-panjang' })
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('offline') }))
+
+    const response = await request('POST', '/api/wa-bot/settings/verify')
+    expect(response.status).toBe(200)
+    expect(((await response.json()) as { data: { reachable: boolean; error: string; connected: boolean } }).data)
+      .toMatchObject({ reachable: false, connected: false, error: 'NETWORK' })
+  })
+
   it('template menolak placeholder asing dan nama ganda', async () => {
     const { request } = await setup()
     const bad = await request('POST', '/api/wa-bot/templates', { name: 'Salah', message_content: 'Halo {{lead}}' })

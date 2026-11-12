@@ -36,18 +36,29 @@ halaman OTS. Komponen lain memakai design system: `Card`, `TextInput`,
 
 ## 3. Koneksi Fonnte
 
-- Badge: `Token terpasang` (hijau) / `Token belum diatur` (kuning).
+- Badge status **device**, bukan sekadar penanda token:
+  `Terhubung` (hijau) / `Device terputus` (kuning) / `Token ditolak` (merah) /
+  `Memeriksa…` (netral) / `Status tidak diketahui` (kuning) /
+  `Token belum diatur` (kuning).
+- Panel status di bawah judul menampilkan nomor device, nama, paket, kuota, dan
+  masa aktif saat terhubung; saat gagal menampilkan alasan dari Fonnte.
+  Status diperiksa otomatis setiap kali token disimpan dan lewat tombol
+  **Cek Ulang** (`POST /api/wa-bot/settings/verify`).
 - Input `type=password`, tombol **Simpan Token**. Nilai tidak pernah
   dikembalikan setelah disimpan.
 - Keterangan waktu perubahan terakhir + pengingat bahwa WA putus cukup ganti token.
-- Tombol **Kirim Tes** (hanya pemegang `action.wa_bot_send`) membuka modal:
+- Tombol **Kirim Tes** (hanya pemegang `action.wa_bot_send`) selalu dapat diklik
+  dan menjelaskan lewat toast bila prasyarat belum lengkap: token belum disimpan
+  atau belum ada produk dengan grup aktif. Saat prasyarat lengkap modal berisi:
   - pilih produk yang punya grup aktif,
   - pilih pengiklan yang ditugaskan + punya nomor,
   - pilih jenis acara,
   - pilih template,
   - **Preview** menampilkan grup tujuan + isi pesan final tanpa mengirim,
   - **Kirim ke Grup** baru benar-benar mengirim.
-- Modal menjelaskan bahwa preview tidak mengirim apa pun.
+- Modal menjelaskan bahwa preview tidak mengirim apa pun, dan memberi tahu bila
+  belum ada template atau pengiklan tanpa nomor.
+
 
 ## 4. Produk & Grup
 

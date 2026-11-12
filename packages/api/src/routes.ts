@@ -38,6 +38,7 @@ import {
   saveWaBotSchedule,
   saveWaBotSettings,
   saveWaBotTemplate,
+  verifyWaBotSettings,
   waBotLogs,
   waBotOverview,
   waBotResend,
@@ -156,6 +157,7 @@ export const ROUTES: Route[] = [
   // Fitur 3.0: WA Admin Bot (seluruh data lewat backend; token tidak pernah dikirim).
   { method: 'GET', path: '/api/wa-bot', handler: waBotOverview, auth: 'access' },
   { method: 'PUT', path: '/api/wa-bot/settings', handler: saveWaBotSettings, auth: 'access' },
+  { method: 'POST', path: '/api/wa-bot/settings/verify', handler: verifyWaBotSettings, auth: 'access' },
   { method: 'POST', path: '/api/wa-bot/product-groups', handler: saveWaBotProductGroup, auth: 'access' },
   { method: 'PATCH', path: '/api/wa-bot/product-groups/:id', handler: saveWaBotProductGroup, auth: 'access' },
   { method: 'DELETE', path: '/api/wa-bot/product-groups/:id', handler: deleteWaBotProductGroup, auth: 'access' },

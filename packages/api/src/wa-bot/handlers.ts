@@ -12,7 +12,7 @@ import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
 import { requirePermission } from '../permissions'
 import type { RouteContext } from '../router'
-import { sendWhatsAppMessage } from './fonnte'
+import { checkFonnteDevice, sendWhatsAppMessage } from './fonnte'
 
 /**
  * WA Admin Bot — seluruh akses lewat backend.
@@ -300,6 +300,43 @@ export async function saveWaBotSettings(context: RouteContext): Promise<Response
   }
 
   return ok({ has_token: true })
+}
+
+/**
+ * POST /api/wa-bot/settings/verify — tanya Fonnte apakah device benar-benar
+ * terhubung. Token disimpan terenkripsi, jadi tidak pernah dikirim ke browser;
+ * yang dikembalikan hanya ringkasan device + alasan bila ditolak.
+ */
+export async function verifyWaBotSettings(context: RouteContext): Promise<Response> {
+  await requirePermission(context, 'config.wa_bot')
+
+  const [settings] = await context.db.selectRows<SettingsRow>(
+    'wa_bot_settings',
+    { id: 'eq.1' },
+    'id,fonnte_token_encrypted,updated_at',
+  )
+  if (!settings?.fonnte_token_encrypted) {
+    return ok({ has_token: false, reachable: false, connected: false, status: null, device: null, error: null })
+  }
+
+  let token: string
+  try {
+    token = await decrypt(settings.fonnte_token_encrypted, context.env.INTEGRATION_ENCRYPTION_KEY)
+  } catch {
+    return ok({ has_token: true, reachable: true, connected: false, status: null, device: null, error: 'TOKEN_UNREADABLE' })
+  }
+
+  const result = await checkFonnteDevice(context.env, token)
+  const deviceStatus = result.device?.status ?? null
+
+  return ok({
+    has_token: true,
+    reachable: result.reachable,
+    connected: deviceStatus !== null && deviceStatus.toLowerCase() === 'connect',
+    status: deviceStatus,
+    device: result.device,
+    error: result.error,
+  })
 }
 
 // ---------------------------------------------------------------------------
