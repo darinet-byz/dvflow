@@ -107,23 +107,11 @@ export function renderWaTemplate(content: string, values: Partial<WaTemplateValu
 }
 
 /**
- * Nomor WA dinormalisasi ke format `628xxx` (dokumen Fitur 3.0 §2.1).
- * Menerima `08…`, `8…`, `628…`, dan bentuk bertanda baca.
+ * Sapaan mention untuk grup.
+ *
+ * Fonnte tidak punya parameter tag WhatsApp, jadi ini hanya teks `@Nama`.
+ * Daftar semua pengiklan dirakit di SQL (`wa_reminder_claim`/`wa_reminder_preview`).
  */
-export function normalizeWhatsAppPhone(value: string): string | null {
-  const digits = value.replace(/\D/g, '')
-  if (digits === '') return null
-
-  let normalized: string
-  if (digits.startsWith('62')) normalized = digits
-  else if (digits.startsWith('0')) normalized = `62${digits.slice(1)}`
-  else if (digits.startsWith('8')) normalized = `62${digits}`
-  else return null
-
-  return normalized.length >= 10 && normalized.length <= 15 ? normalized : null
-}
-
-/** `@Nama` untuk sapaan di grup (Fonnte tidak mendukung tag WhatsApp). */
 export function waMention(name: string): string {
   return `@${name}`
 }

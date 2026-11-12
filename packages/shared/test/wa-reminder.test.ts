@@ -3,9 +3,9 @@ import {
   formatWaDays,
   isWaEventType,
   listWaTemplatePlaceholders,
-  normalizeWhatsAppPhone,
   renderWaTemplate,
   validateWaTemplate,
+  waMention,
   WA_LOG_RETENTION_DAYS,
 } from '../src'
 
@@ -69,18 +69,10 @@ describe('WA Admin Bot — jenis acara & retensi', () => {
   })
 })
 
-describe('WA Admin Bot — nomor PIC', () => {
-  it('menormalisasi bentuk yang lazim ke 62', () => {
-    expect(normalizeWhatsAppPhone('0812-3456-7890')).toBe('6281234567890')
-    expect(normalizeWhatsAppPhone('81234567890')).toBe('6281234567890')
-    expect(normalizeWhatsAppPhone('+62 812 3456 7890')).toBe('6281234567890')
-    expect(normalizeWhatsAppPhone('6281234567890')).toBe('6281234567890')
-  })
-
-  it('menolak nomor yang tidak masuk akal', () => {
-    expect(normalizeWhatsAppPhone('')).toBeNull()
-    expect(normalizeWhatsAppPhone('12345')).toBeNull()
-    expect(normalizeWhatsAppPhone('1234567890')).toBeNull()
+describe('WA Admin Bot — sapaan mention', () => {
+  it('memakai nama pengiklan, bukan nomor', () => {
+    expect(waMention('Zul')).toBe('@Zul')
+    expect(waMention('Advertiser Satu')).toBe('@Advertiser Satu')
   })
 })
 

@@ -16,13 +16,6 @@ Perubahan level produk: `supabase/migrations/20261112090000_wa_bot_product_level
 | `updated_by` | uuid → users | Pelaku perubahan terakhir. |
 | `updated_at` | timestamptz | Waktu perubahan. |
 
-### `advertisers.wa_phone`
-| Kolom | Tipe | Keterangan |
-|---|---|---|
-| `wa_phone` | text null | CHECK `^62[0-9]{8,13}$`; wajib di level aplikasi untuk pengiklan aktif. |
-
-Nomor lama dari `wa_reminder_groups.pic_phone` di-backfill saat migrasi.
-
 ### `wa_product_groups`
 | Kolom | Tipe | Keterangan |
 |---|---|---|
@@ -35,7 +28,7 @@ Nomor lama dari `wa_reminder_groups.pic_phone` di-backfill saat migrasi.
 ### `wa_reminder_groups` (legacy)
 Tabel lama per pengiklan. Tidak dibaca kode baru dan tidak dihapus agar data
 konfigurasi lama tetap ada; sudah diberi komentar database sebagai legacy.
-Nomor `pic_phone` di-backfill ke `advertisers.wa_phone` saat migrasi.
+Sejak A71 tidak ada nomor HP yang disalin dari tabel ini.
 
 ### `wa_reminder_templates`
 | Kolom | Tipe | Keterangan |
@@ -66,7 +59,7 @@ Divalidasi backend + `packages/shared`.
 | Kolom | Keterangan |
 |---|---|
 | `schedule_id` | Null untuk kirim tes; `ON DELETE SET NULL`. |
-| `advertiser_id`, `advertiser_name` | Snapshot agar riwayat tetap terbaca. |
+| `advertiser_id`, `advertiser_name` | Snapshot agar riwayat tetap terbaca. Untuk pesan grup sejak A71, `advertiser_id` null dan `advertiser_name` berisi daftar nama yang disebut. |
 | `product_code`, `product_name` | Produk yang diingatkan. |
 | `event_type` | `Seminar Offline` / `Webinar Online` / `Hybrid`. |
 | `reminder_date` | Tanggal WIB saat pengingat dijalankan. |
@@ -80,7 +73,8 @@ Divalidasi backend + `packages/shared`.
 
 Index:
 - `wa_reminder_logs_once_idx` — unique parsial
-  `(schedule_id, advertiser_id, product_code, event_type, reminder_date)`.
+  `(schedule_id, product_code, event_type, reminder_date)`
+  untuk baris grup (`advertiser_id is null`).
 - `wa_reminder_logs_created_idx`, `wa_reminder_logs_advertiser_idx`.
 - `orders_wa_reminder_activity_idx` — expression index untuk pencarian order
   kemarin per pengiklan + produk.
@@ -92,34 +86,39 @@ Index:
 Semua RPC `SECURITY DEFINER`, `EXECUTE` hanya untuk `service_role`.
 
 ### `wa_reminder_claim(p_now timestamptz, p_base_url text, p_limit integer)`
-Mengembalikan array JSON task siap kirim:
-`{ log_id, group_id, message, advertiser_id, advertiser_name, product_code, product_name, event_type }`.
+Mengembalikan array JSON task siap kirim — **satu task per grup + jenis acara**:
+`{ log_id, group_id, message, advertiser_id (null), advertiser_name (daftar), product_code, product_name, event_type }`.
 
 Langkah:
 1. Purge log lebih tua dari 3 hari (`wa_reminder_purge`).
 2. Tandai klaim `queued` lebih dari 10 menit sebagai `failed` (`CLAIM_TIMEOUT`).
 3. Pilih jadwal aktif yang template-nya aktif, hari cocok (`days @> dow`), dan
    `now` berada di `[jam, jam+60 menit)` WIB.
-4. Ambil produk dengan grup aktif, lalu pengiklan yang ditugaskan ke produk itu
-   (`product_advertisers`) dan punya `wa_phone`.
+4. Ambil produk dengan grup aktif, lalu pengiklan aktif yang ditugaskan ke produk
+   itu (`product_advertisers`) dan punya order kemarin.
 5. Hitung order kemarin per pengiklan + produk + **jenis acara**:
-   `source = 'orderonline'`, batas hari WIB, `leads`/`paid`.
-6. Buang grup yang tidak punya order kemarin.
-7. Buang yang sudah punya `ad_spend_reports` untuk **jenis acara yang sama**
-   (kecuali `only_if_missing_report = false`). Batch diabaikan.
-8. Buang yang sudah 3× `failed` pada tanggal itu untuk kunci yang sama.
-9. Render template lewat `wa_render_reminder`.
-10. Insert `queued` dengan `on conflict do nothing`, batasi `p_limit`.
+   `source = 'orderonline'`, batas hari WIB, `leads`/`paid`, plus penanda
+   `has_missing` (belum ada `ad_spend_reports` untuk jenis acara sama).
+6. Gabungkan per produk + jenis acara: daftar nama, daftar kode, total leads/paid.
+7. Buang grup yang tidak punya order kemarin.
+8. Bila `only_if_missing_report = true`, kirim hanya jika **minimal satu**
+   pengiklan di grup itu belum lapor. Daftar mention tetap memuat semua
+   pengiklan yang beraktivitas (permintaan pengguna A71).
+9. Buang yang sudah 3× `failed` pada tanggal itu untuk kunci grup yang sama.
+10. Render template lewat `wa_render_reminder` (`{{mention}}` = `@A, @B`).
+11. Insert satu `queued` per grup + jenis acara dengan `on conflict do nothing`,
+    batasi `p_limit`.
 
 ### `wa_reminder_mark(p_id uuid, p_status text, p_fonnte_message_id text, p_error text)`
 Mengubah baris `queued` menjadi `sent`/`failed`. Baris yang sudah bukan `queued`
 tidak berubah (`updated: false`) — mencegah penandaan ganda.
 
-### `wa_reminder_preview(p_now, p_advertiser_code, p_product_code, p_template_id, p_event_type, p_base_url)`
-Menghasilkan pesan final + angka kemarin untuk **Kirim Tes**. Bila `p_event_type`
-kosong, dipakai jenis acara order terbaru kemarin. Mengembalikan
-`{found:false, reason}` bila template/pengiklan/produk/grup tidak ada, pengiklan
-tidak ditugaskan, nomor kosong, atau tidak ada order untuk jenis acara itu.
+### `wa_reminder_preview(p_now, p_product_code, p_template_id, p_event_type, p_base_url)`
+Menghasilkan pesan final + angka kemarin untuk **Kirim Tes**, menyebut seluruh
+pengiklan yang beraktivitas di produk itu. Bila `p_event_type` kosong, dipakai
+jenis acara order terbaru kemarin. Mengembalikan `{found:false, reason}` bila
+template/produk/grup tidak ada atau tidak ada order untuk jenis acara itu.
+Respons sukses memuat `advertisers: [{ code, name }]`.
 
 ### `wa_reminder_purge(p_now timestamptz, p_keep_days integer)`
 Menghapus log lebih tua dari `p_keep_days` (default 3). Dipanggil klaim dan
@@ -127,8 +126,9 @@ tersedia untuk operator.
 
 ### `wa_render_reminder(...)`
 Fungsi murni pengganti placeholder, dipakai klaim & preview agar isi pesan
-tidak pernah berbeda antara dua jalur. `{{mention}}` memakai
-`p_advertiser_name`; argumen `p_mention` dipertahankan hanya demi signature.
+tidak pernah berbeda antara dua jalur. `{{mention}}` memakai `p_mention` (daftar
+`@A, @B` yang dirakit pemanggil); `{{advertiser_name}}` dan
+`{{advertiser_code}}` juga menerima daftar.
 
 ## 3. Izin
 

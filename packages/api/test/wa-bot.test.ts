@@ -26,7 +26,6 @@ function baseState(role = 'admin', permissions: string[] = ['config.wa_bot', 'ac
   config.advertisers = config.advertisers.map((row) => ({
     ...row,
     code_normalized: String(row['code'] ?? '').trim().toUpperCase(),
-    wa_phone: '628111111111',
   }))
   const state = createFakeState({
     users: [fakeUser({ role })],
@@ -180,19 +179,8 @@ describe('WA Admin Bot — akses & konfigurasi', () => {
     expect(created.status).toBe(201)
   })
 
-  it('nomor WA pengiklan wajib dan dinormalisasi', async () => {
-    const { state, request } = await setup()
-    const saved = await request('PATCH', `/api/wa-bot/advertisers/${ADVERTISER_ID}`, { wa_phone: '0812-3456-7890' })
-    expect(saved.status).toBe(200)
-    expect(state.config.advertisers[0]?.['wa_phone']).toBe('6281234567890')
-
-    expect((await request('PATCH', `/api/wa-bot/advertisers/${ADVERTISER_ID}`, { wa_phone: '12345' })).status).toBe(400)
-    expect((await request('PATCH', `/api/wa-bot/advertisers/${ADVERTISER_ID}`, { wa_phone: '' })).status).toBe(400)
-    expect((await request('PATCH', '/api/wa-bot/advertisers/99999999-9999-4999-8999-999999999999', { wa_phone: '081234567890' })).status).toBe(404)
-  })
-
-  it('satu produk hanya boleh punya satu grup dan grup aktif butuh nomor pengiklan', async () => {
-    const { state, request } = await setup()
+  it('satu produk hanya boleh punya satu grup', async () => {
+    const { request } = await setup()
 
     const created = await request('POST', '/api/wa-bot/product-groups', {
       product_id: SECOND_PRODUCT_ID,
@@ -208,17 +196,6 @@ describe('WA Admin Bot — akses & konfigurasi', () => {
     })
     expect(duplicate.status).toBe(400)
 
-    // Pengiklan yang ditugaskan belum punya nomor: grup aktif harus ditolak.
-    state.config.advertisers[0]!['wa_phone'] = null
-    const blocked = await request('PATCH', `/api/wa-bot/product-groups/${PRODUCT_GROUP_ID}`, {
-      product_id: PRODUCT_ID,
-      fonnte_group_id: '111@g.us',
-      is_active: true,
-    })
-    expect(blocked.status).toBe(400)
-    expect((await blocked.json() as { error: { message: string } }).error.message).toContain('Lengkapi nomor WA')
-
-    // Nonaktif tetap boleh disimpan walau nomor belum lengkap.
     const inactive = await request('PATCH', `/api/wa-bot/product-groups/${PRODUCT_GROUP_ID}`, {
       product_id: PRODUCT_ID,
       fonnte_group_id: '111@g.us',
@@ -242,7 +219,6 @@ describe('WA Admin Bot — pengiriman', () => {
     const { request } = await setup()
 
     const response = await request('POST', '/api/wa-bot/test-preview', {
-      advertiser_code: '01',
       product_code: 'KM',
       template_id: TEMPLATE_ID,
       event_type: 'Webinar Online',
@@ -264,7 +240,6 @@ describe('WA Admin Bot — pengiriman', () => {
 
     await request('PUT', '/api/wa-bot/settings', { fonnte_token: 'token-rahasia-panjang' })
     const response = await request('POST', '/api/wa-bot/test-send', {
-      advertiser_code: '01',
       product_code: 'KM',
       template_id: TEMPLATE_ID,
       event_type: 'Seminar Offline',
@@ -287,6 +262,8 @@ describe('WA Admin Bot — pengiriman', () => {
     expect(state.waReminderLogs[0]?.['status']).toBe('sent')
     expect(state.waReminderLogs[0]?.['schedule_id']).toBeNull()
     expect(state.waReminderLogs[0]?.['event_type']).toBe('Seminar Offline')
+    expect(state.waReminderLogs[0]?.['advertiser_id']).toBeNull()
+    expect(state.waReminderLogs[0]?.['advertiser_name']).toBe('Zul')
   })
 
   it('cron gagal-tertutup tanpa secret yang benar', async () => {

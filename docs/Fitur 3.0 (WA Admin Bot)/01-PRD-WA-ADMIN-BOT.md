@@ -14,8 +14,8 @@ laporan untuk hari sebelumnya.
 ## 2. Tujuan
 
 1. Menagih laporan tanpa harus diingat manual.
-2. Pesan men-tag pengiklan yang benar lewat nomor WA master.
-3. Admin dapat mengubah grup, nomor, template, dan jam **tanpa deploy ulang**.
+2. Pesan menyebut **semua pengiklan** di grup lewat nama, dalam satu pesan per grup.
+3. Admin dapat mengubah grup, template, dan jam **tanpa deploy ulang**.
 4. Tidak ada pesan ganda saat cron berjalan berulang.
 5. Seminar dan webinar dicek terpisah: pengiklan yang menjalankan keduanya tetap
    diingatkan untuk jenis acara yang belum dilaporkan.
@@ -44,14 +44,15 @@ Permission ditegakkan di backend dan RPC, bukan hanya dengan menyembunyikan menu
 - Input: produk, ID grup Fonnte (`12xxx@g.us`), status aktif.
 - Penerima **otomatis**: pengiklan yang ditugaskan ke produk lewat
   `product_advertisers` dan masih aktif.
-- Produk dengan pengiklan tanpa nomor WA tidak boleh diaktifkan.
+- Pengiklan tidak menyimpan nomor HP; semua pengiklan aktif yang ditugaskan ke
+  produk otomatis disebut namanya di pesan grup.
 
-### 4.3 Nomor WA Pengiklan
-- Satu nomor per pengiklan di `advertisers.wa_phone`.
-- Wajib untuk pengiklan aktif; dinormalisasi `08xxx` → `628xxx`.
-- Nomor adalah kontak pengiklan dan syarat aktivasi bot; pesan grup menyapa
-  lewat **nama** pengiklan (`{{mention}}` = `@Nama`), bukan nomor. Fonnte tidak
-  mendukung tag/mention WhatsApp, jadi `@nomor` hanya akan tampil sebagai teks.
+### 4.3 Mention pengiklan
+- Mention memakai **nama** pengiklan, bukan nomor: `{{mention}}` menjadi
+  `@Nama`. Fonnte tidak punya parameter tag WhatsApp, jadi mention ini adalah
+  teks sapaan, bukan tag yang memberi notifikasi.
+- Satu pesan grup menyebut **semua** pengiklan yang beraktivitas kemarin untuk
+  jenis acara itu: `Pagi Mas @A, @B, @C. Jangan lupa report kemarin ya.`
 
 ### 4.4 Template pesan
 - Nama unik (tanpa membedakan besar/kecil huruf).
@@ -84,16 +85,17 @@ Permission ditegakkan di backend dan RPC, bukan hanya dengan menyembunyikan menu
    (batas hari WIB, konvensi A24). OTS tidak dihitung karena tidak berasal dari iklan.
 2. **Sudah lapor** = ada `ad_spend_reports` untuk pengiklan + produk + jenis acara
    yang rentang tanggalnya mencakup kemarin. Batch tidak diperiksa (W2).
-3. **Satu pesan per (pengiklan, produk, jenis acara)** yang belum lapor. Satu grup
-   produk dapat menerima beberapa pesan bila beberapa pengiklan belum lapor.
-4. **Idempoten**: kunci unik `(schedule_id, advertiser_id, product_code,
-   event_type, reminder_date)` untuk status `queued`/`sent`.
-5. **Retry**: maksimal 3 percobaan otomatis untuk pengiklan+produk+jenis acara+
-   jadwal+tanggal yang sama.
+3. **Satu pesan per (produk, jenis acara)** yang punya pengiklan belum lapor.
+   Pesan menyebut **semua** pengiklan yang beraktivitas kemarin untuk jenis acara
+   itu (`@A, @B, …`), sesuai permintaan pengguna.
+4. **Idempoten**: kunci unik `(schedule_id, product_code, event_type,
+   reminder_date)` untuk status `queued`/`sent`. Baris grup ditandai
+   `advertiser_id is null`.
+5. **Retry**: maksimal 3 percobaan otomatis untuk produk+jenis acara+jadwal+tanggal
+   yang sama.
 6. **Gagal-tertutup**: endpoint cron menolak 404 bila `WA_CRON_SECRET` kosong/salah.
 7. **Tidak ada pesan ganda** meski Worker berjalan setiap menit.
-8. **Tanpa nomor = tidak dikirim**: pengiklan tanpa `wa_phone` dilewati, bukan
-   dikirim tanpa tag.
+8. **Tanpa nomor**: pengiklan tidak lagi menyimpan nomor HP; mention memakai nama.
 
 ## 6. Non-goals
 

@@ -21,10 +21,10 @@ Bot pengingat laporan iklan harian ke grup WhatsApp per produk melalui Fonnte.
 | W3 | Pengiriman = **satu pesan per (pengiklan, produk, jenis acara)** yang belum lapor. |
 | W4 | Bot **outbound saja**; tidak ada webhook masuk/perintah. |
 | W5 | Token Fonnte disimpan **terenkripsi di database** dan dapat diganti dari dashboard. |
-| W6 | Menu **Sistem → WA Admin Bot**, satu halaman dengan enam tab. |
+| W6 | Menu **Sistem → WA Admin Bot**, satu halaman dengan lima tab. |
 | W7 | Pengiriman dilakukan **backend**, bukan cron Worker; Worker hanya pemicu. |
 | W8 | Cron Worker terpisah (`apps/wa-cron`) karena Cloudflare Pages tidak punya cron trigger. |
-| W9 | Penerima = pengiklan di `product_advertisers`; nomor tag dari `advertisers.wa_phone` (wajib). |
+| W9 | Penerima = pengiklan di `product_advertisers`; satu pesan per grup menyebut seluruh nama pengiklan yang beraktivitas. |
 | W10 | Log pengiriman disimpan **3 hari**, lalu dihapus otomatis. |
 
 ## Berkas utama
@@ -42,5 +42,5 @@ Bot pengingat laporan iklan harian ke grup WhatsApp per produk melalui Fonnte.
 
 Implementasi kode selesai dan lolos typecheck, lint, unit test, build, serta
 pgTAP. Yang masih perlu dilakukan di lingkungan nyata: terapkan migrasi 71 ke
-produksi, isi token Fonnte, nomor WA pengiklan, dan grup per produk, set
+produksi, isi token Fonnte dan grup per produk, set
 `WA_CRON_SECRET`, lalu deploy Worker. Lihat dokumen 07.

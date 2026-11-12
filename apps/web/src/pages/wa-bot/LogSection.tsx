@@ -39,7 +39,6 @@ export function LogSection({ overview, canSend }: { overview: WaOverview; canSen
   const [pageSize, setPageSize] = useState<PageSize>(50)
   const [status, setStatus] = useState('')
   const [product, setProduct] = useState('')
-  const [advertiser, setAdvertiser] = useState('')
   const [eventType, setEventType] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
@@ -50,7 +49,6 @@ export function LogSection({ overview, canSend }: { overview: WaOverview; canSen
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
   if (status !== '') params.set('status', status)
   if (product !== '') params.set('product', product)
-  if (advertiser !== '') params.set('advertiser', advertiser)
   if (eventType !== '') params.set('event_type', eventType)
   if (dateFrom !== '') params.set('date_from', dateFrom)
   if (dateTo !== '') params.set('date_to', dateTo)
@@ -99,13 +97,6 @@ export function LogSection({ overview, canSend }: { overview: WaOverview; canSen
           value={product}
           options={[{ value: '', label: 'Semua produk' }, ...overview.products.map((row) => ({ value: row.code, label: `${row.code} — ${row.name}` }))]}
           onChange={changeFilter(setProduct)}
-        />
-        <Select
-          id="wa-log-advertiser"
-          ariaLabel="Pengiklan"
-          value={advertiser}
-          options={[{ value: '', label: 'Semua pengiklan' }, ...overview.advertisers.map((row) => ({ value: row.code, label: `${row.code} — ${row.name}` }))]}
-          onChange={changeFilter(setAdvertiser)}
         />
         <Select
           id="wa-log-event-type"

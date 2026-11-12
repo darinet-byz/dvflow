@@ -17,7 +17,6 @@ Semua respons memakai envelope standar:
 | POST | `/api/wa-bot/product-groups` | `config.wa_bot` | Tambah mapping grup produk. |
 | PATCH | `/api/wa-bot/product-groups/:id` | `config.wa_bot` | Edit mapping grup produk. |
 | DELETE | `/api/wa-bot/product-groups/:id` | `config.wa_bot` | Hapus mapping grup produk. |
-| PATCH | `/api/wa-bot/advertisers/:id` | `config.wa_bot` | Simpan nomor WA pengiklan. |
 | POST | `/api/wa-bot/templates` | `config.wa_bot` | Tambah template. |
 | PATCH | `/api/wa-bot/templates/:id` | `config.wa_bot` | Edit template. |
 | DELETE | `/api/wa-bot/templates/:id` | `config.wa_bot` | Hapus template (ditolak bila dipakai jadwal). |
@@ -40,10 +39,10 @@ Semua respons memakai envelope standar:
       "id": "…", "product_id": "…", "fonnte_group_id": "111@g.us",
       "is_active": true, "created_at": "…", "updated_at": "…"
     },
-    "advertisers": [{ "id": "…", "code": "01", "name": "Zul", "active": true, "wa_phone": "628111111111" }]
+    "advertisers": [{ "id": "…", "code": "01", "name": "Zul", "active": true }]
   }],
   "advertisers": [{
-    "id": "…", "code": "01", "name": "Zul", "active": true, "wa_phone": "628111111111",
+    "id": "…", "code": "01", "name": "Zul", "active": true,
     "products": [{ "code": "KM", "name": "Kuliner Masteri" }]
   }],
   "templates": [{ "id": "…", "name": "Pagi", "message_content": "…", "is_active": true }],
@@ -105,18 +104,9 @@ server-side). Token tidak pernah ikut di respons.
 }
 ```
 
-Validasi: produk ada, belum punya grup lain, grup tidak kosong ≤100. Saat
-mengaktifkan, semua pengiklan aktif yang ditugaskan ke produk wajib sudah punya
-`wa_phone`; bila belum, respons 400 menyebut nama pengiklan yang kurang.
-
-### PATCH advertiser
-
-```json
-{ "wa_phone": "0812-3456-7890" }
-```
-
-Nomor dinormalisasi ke `628…`; kosong/format salah ditolak 400. Respons
-`{ "id": "…", "wa_phone": "6281234567890" }`.
+Validasi: produk ada, belum punya grup lain, grup tidak kosong ≤100.
+Penerima diturunkan otomatis dari `product_advertisers`; tidak ada nomor yang
+perlu dilengkapi.
 
 ### POST/PATCH template
 
@@ -144,16 +134,16 @@ Waktu dinormalisasi menjadi `HH:MM:00`; minimal satu hari; template harus ada.
 ### GET /api/wa-bot/logs
 
 Query: `page`, `pageSize` (maks. 100), `status` (`queued|sent|failed`),
-`product` (kode), `advertiser` (kode), `event_type`
+`product` (kode), `event_type`
 (`Seminar Offline|Webinar Online|Hybrid`), `date_from`, `date_to`
 (`YYYY-MM-DD`). Respons: `{ rows, total, page, pageSize }`. Baris memuat
-`event_type`.
+`event_type`; `advertiser_id` null dan `advertiser_name` berisi daftar nama
+untuk pesan grup.
 
 ### POST /api/wa-bot/test-preview
 
 ```json
 {
-  "advertiser_code": "01",
   "product_code": "KM",
   "template_id": "uuid",
   "event_type": "Seminar Offline"
@@ -161,7 +151,8 @@ Query: `page`, `pageSize` (maks. 100), `status` (`queued|sent|failed`),
 ```
 
 Respons sama dengan data preview: `group_id`, `message`, `leads`, `paid`,
-`advertiser_id`, `advertiser_name`, `product_code`, `product_name`, `event_type`.
+`advertisers: [{code,name}]`, `product_code`, `product_name`, `event_type`.
+Pesan menyebut seluruh pengiklan yang beraktivitas kemarin untuk jenis acara itu.
 Tidak mengirim apa pun dan tidak menulis log.
 
 ### POST /api/wa-bot/test-send
@@ -210,7 +201,7 @@ Respons normal:
 | Kode | Status | Kapan |
 |---|---|---|
 | `FORBIDDEN` | 403 | Tidak punya permission. |
-| `INVALID_ARGUMENT` | 400 | Validasi form/grup/produk/nomor/template/jadwal/token. |
+| `INVALID_ARGUMENT` | 400 | Validasi form/grup/produk/template/jadwal/token. |
 | `RESOURCE_NOT_FOUND` | 404 | Produk-group/template/schedule/advertiser tidak ada. |
 | `WA_LOG_NOT_FOUND` | 404 | Log kirim ulang tidak ada. |
 | `MASTER_IN_USE` | 409 | Template masih dipakai jadwal. |

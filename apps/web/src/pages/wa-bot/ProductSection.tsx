@@ -45,9 +45,6 @@ export function ProductSection({ overview, reload }: { overview: WaOverview; rel
     }))
 
   const selectedProduct = overview.products.find((product) => product.id === form?.productId) ?? null
-  const missingPhoneCount = overview.advertisers.filter(
-    (advertiser) => advertiser.active && !advertiser.wa_phone && advertiser.products.length > 0,
-  ).length
 
   function openCreate() {
     setFailure(null)
@@ -114,21 +111,14 @@ export function ProductSection({ overview, reload }: { overview: WaOverview; rel
         <div>
           <h2 className="text-[15px] font-semibold text-ink">Grup WhatsApp per Produk</h2>
           <p className="mt-0.5 text-[12px] text-ink-soft">
-            Satu produk satu grup. Pengiklan yang ditugaskan ke produk otomatis menjadi penerima dan di-tag sesuai nomornya.
+            Satu produk satu grup. Pengiklan yang ditugaskan ke produk otomatis disebut namanya di pesan.
           </p>
         </div>
         <Button variant="primary" onClick={openCreate}>+ Atur Produk</Button>
       </div>
 
-      {missingPhoneCount > 0 ? (
-        <p className="mb-3 rounded-sm border border-warning/40 bg-warning-soft px-2.5 py-1.5 text-[12px] text-ink">
-          {missingPhoneCount} pengiklan belum punya nomor WA. Lengkapi di tab <strong>Nomor WA Pengiklan</strong> sebelum mengaktifkan produknya.
-        </p>
-      ) : null}
-
       <DataTable columns={COLUMNS} maxRows={null}>
         {overview.products.map((product) => {
-          const missing = product.advertisers.filter((advertiser) => advertiser.active && !advertiser.wa_phone)
           return (
             <TableRow key={product.id}>
               <TableCell>
@@ -152,15 +142,10 @@ export function ProductSection({ overview, reload }: { overview: WaOverview; rel
                 ) : (
                   <div className="flex flex-wrap gap-1">
                     {product.advertisers.map((advertiser) => (
-                      <Badge key={advertiser.id} tone={advertiser.wa_phone ? 'neutral' : 'danger'}>
-                        {advertiser.name}{advertiser.wa_phone ? ` · ${advertiser.wa_phone}` : ' · tanpa nomor'}
-                      </Badge>
+                      <Badge key={advertiser.id} tone="neutral">{advertiser.name}</Badge>
                     ))}
                   </div>
                 )}
-                {missing.length > 0 ? (
-                  <p className="mt-1 text-[11px] text-danger">{missing.length} pengiklan belum bisa di-tag.</p>
-                ) : null}
               </TableCell>
               <TableCell>
                 {product.group === null ? (
@@ -230,9 +215,7 @@ export function ProductSection({ overview, reload }: { overview: WaOverview; rel
               ) : (
                 <div className="flex flex-wrap gap-1">
                   {selectedProduct.advertisers.map((advertiser) => (
-                    <Badge key={advertiser.id} tone={advertiser.wa_phone ? 'neutral' : 'danger'}>
-                      {advertiser.name}{advertiser.wa_phone ? ` · ${advertiser.wa_phone}` : ' · tanpa nomor'}
-                    </Badge>
+                    <Badge key={advertiser.id} tone="neutral">{advertiser.name}</Badge>
                   ))}
                 </div>
               )}

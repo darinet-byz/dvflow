@@ -2,12 +2,12 @@
 
 ## 1. Prasyarat
 
-- Migrasi `20261111120000_wa_admin_bot.sql` dan
-  `20261112090000_wa_bot_product_level.sql` diterapkan ke Supabase produksi.
+- Migrasi `20261111120000_wa_admin_bot.sql`,
+  `20261112090000_wa_bot_product_level.sql`, dan
+  `20261112180000_wa_group_mentions.sql` diterapkan ke Supabase produksi.
 - `INTEGRATION_ENCRYPTION_KEY` sudah ada (dipakai integrasi OrderOnline).
 - Token device Fonnte.
 - ID grup WhatsApp per produk (`12xxx@g.us`).
-- Nomor WA pengiklan (`08xxx`/`628xxx`).
 
 ## 2. Variabel & secret
 
@@ -51,18 +51,18 @@ Jangan memakai `supabase db reset` di produksi. Deploy aplikasi ditahan
 Verifikasi cepat di SQL editor:
 
 ```sql
-select public.schema_version();                      -- 71
+select public.schema_version();                      -- 74
 select count(*) from public.app_permissions
  where key in ('config.wa_bot', 'action.wa_bot_send'); -- 2
 select jobname from cron.job
  where jobname = 'dvflow_wa_reminder_logs_retention';  -- 1 baris
-select count(*) from public.advertisers where active and wa_phone is null;
- -- harus 0 sebelum mengaktifkan grup produk (isi dari tab Nomor WA Pengiklan)
+select count(*) from information_schema.columns
+ where table_schema = 'public' and table_name = 'advertisers'
+   and column_name = 'wa_phone';                       -- 0 (kolom sudah dihapus)
 ```
 
-Migrasi 71 mem-backfill `advertisers.wa_phone` dari
-`wa_reminder_groups.pic_phone` lama. Tabel `wa_reminder_groups` dibiarkan sebagai
-legacy (tidak dibaca kode baru); konfigurasi grup produk dimulai dari nol.
+Tabel `wa_reminder_groups` dibiarkan sebagai legacy (tidak dibaca kode baru);
+konfigurasi grup produk dimulai dari nol.
 
 ## 4. Deploy Worker cron
 
@@ -114,13 +114,11 @@ Catatan: jalankan Worker pada port yang berbeda dari backend, dan samakan
 1. Login sebagai Manajer/Admin (atau Developer/Owner).
 2. **Sistem → WA Admin Bot**.
 3. **Koneksi Fonnte**: tempel token device, klik **Simpan Token**.
-4. **Nomor WA Pengiklan**: isi nomor `08xxx` untuk semua pengiklan aktif.
-   Nomor lama dari konfigurasi per pengiklan sudah di-backfill bila ada.
-5. **Produk & Grup**: `+ Atur Produk`; pilih produk, isi ID grup, aktifkan.
-   Pengiklan yang ditugaskan ke produk otomatis menjadi penerima.
-6. **Template**: buat minimal satu template, gunakan chip placeholder.
-7. **Jadwal**: tambah jam (WIB), pilih template, pilih hari, aktifkan.
-8. **Kirim Tes** → **Preview** → **Kirim ke Grup** untuk membuktikan token,
+4. **Produk & Grup**: `+ Atur Produk`; pilih produk, isi ID grup, aktifkan.
+   Semua pengiklan yang ditugaskan ke produk otomatis disebut namanya.
+5. **Template**: buat minimal satu template, gunakan chip placeholder.
+6. **Jadwal**: tambah jam (WIB), pilih template, pilih hari, aktifkan.
+7. **Kirim Tes** → **Preview** → **Kirim ke Grup** untuk membuktikan token,
    grup, dan nomor tag benar.
 
 ## 7. Smoke test produksi
@@ -149,9 +147,8 @@ Catatan: jalankan Worker pada port yang berbeda dari backend, dan samakan
 | `target invalid` / pesan tidak sampai | ID grup salah atau device tidak tergabung | Salin ulang ID grup dari Fonnte. |
 | Pesan masuk tetapi status `failed` | Respons Fonnte tidak berstatus `true` | Lihat kolom Keterangan; kirim ulang setelah token benar. |
 | Semua produk diingatkan padahal sudah lapor | Rentang tanggal report tidak mencakup kemarin, atau jenis acaranya beda | Periksa tanggal + jenis acara report; batch memang diabaikan. |
-| Pengiklan tidak di-tag | Nomor WA kosong atau formatnya bukan `62…` | Isi di tab **Nomor WA Pengiklan**. |
+| Pengiklan tidak disebut | Pengiklan tidak ditugaskan ke produk, nonaktif, atau tidak punya order kemarin untuk jenis acara itu | Cek mapping `product_advertisers`, status aktif, dan order D-1. Tag WhatsApp memang tidak tersedia di Fonnte; yang muncul hanya teks `@Nama`. |
 | Produk tidak diingatkan | Tidak ada order kemarin, grup produk nonaktif, atau pengiklan tidak ditugaskan | Cek order D-1, status grup, dan mapping `product_advertisers`. |
-| Produk tidak bisa diaktifkan | Ada pengiklan penerima tanpa nomor WA | Lengkapi nomor, lalu simpan ulang. |
 | Log lama masih terlihat | `pg_cron` tidak tersedia dan cron belum berjalan | Panggil `select public.wa_reminder_purge(now(), 3);` atau biarkan klaim berikutnya membersihkan. |
 | Tidak ada pesan sama sekali | Cron Worker belum deploy / `APP_BASE_URL` salah | Cek trigger & deployment Worker. |
 

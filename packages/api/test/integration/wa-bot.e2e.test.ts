@@ -46,7 +46,7 @@ describe.skipIf(!configured)('WA Admin Bot end-to-end', () => {
     await client.connect()
     await cleanup()
 
-    await client.query("insert into public.advertisers (id, name, code, wa_phone) values ($1, 'E2E WA', '97', '628999999999')", [ADVERTISER])
+    await client.query("insert into public.advertisers (id, name, code) values ($1, 'E2E WA', '97')", [ADVERTISER])
     await client.query("insert into public.products (id, name, code) values ($1, 'E2E WA A', 'ZZWA'), ($2, 'E2E WA B', 'ZZWB')", [PRODUCT_A, PRODUCT_B])
     await client.query(
       "insert into public.product_advertisers (product_id, advertiser_id) values ($1, $3), ($2, $3)",
@@ -108,7 +108,7 @@ describe.skipIf(!configured)('WA Admin Bot end-to-end', () => {
     expect(first[0]?.product_code).toBe('ZZWA')
     expect(first[0]?.group_id).toBe('999@g.us')
     expect(first[0]?.message).toContain('Halo @E2E WA E2E WA E2E WA A Seminar Offline 2/1')
-    expect(first[0]?.message).toContain('report-spend?advertiserCode=97&productCode=ZZWA&eventType=Seminar%20Offline')
+    expect(first[0]?.message).toContain('report-spend?productCode=ZZWA&eventType=Seminar%20Offline')
 
     const second = await db.rpc<Task[]>('wa_reminder_claim', {
       p_now: NOW,
@@ -129,7 +129,6 @@ describe.skipIf(!configured)('WA Admin Bot end-to-end', () => {
   it('preview menghitung leads/paid kemarin untuk uji kirim', async () => {
     const preview = await db.rpc<{ found: boolean; leads: number; paid: number; message: string }>('wa_reminder_preview', {
       p_now: NOW,
-      p_advertiser_code: '97',
       p_product_code: 'ZZWA',
       p_template_id: TEMPLATE,
       p_event_type: 'Seminar Offline',

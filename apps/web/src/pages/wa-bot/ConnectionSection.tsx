@@ -20,7 +20,6 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
   const [checkFailure, setCheckFailure] = useState<string | null>(null)
   const [testOpen, setTestOpen] = useState(false)
   const [productCode, setProductCode] = useState('')
-  const [advertiserCode, setAdvertiserCode] = useState('')
   const [eventType, setEventType] = useState('Seminar Offline')
   const [templateId, setTemplateId] = useState('')
   const [preview, setPreview] = useState<WaPreview | null>(null)
@@ -31,17 +30,6 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
     () => overview.products.filter((product) => product.group !== null && product.group.is_active),
     [overview.products],
   )
-  const selectedProduct = readyProducts.find((product) => product.code === productCode) ?? null
-  const advertiserOptions = useMemo(
-    () => (selectedProduct?.advertisers ?? [])
-      .filter((advertiser) => advertiser.active && advertiser.wa_phone !== null)
-      .map((advertiser) => ({
-        value: advertiser.code,
-        label: `${advertiser.code} — ${advertiser.name} (${advertiser.wa_phone})`,
-      })),
-    [selectedProduct],
-  )
-
   const runCheck = useCallback(async () => {
     setChecking(true)
     setCheckFailure(null)
@@ -139,9 +127,7 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
       return
     }
     const firstProduct = readyProducts[0] ?? null
-    const firstAdvertiser = firstProduct?.advertisers.find((advertiser) => advertiser.active && advertiser.wa_phone !== null) ?? null
     setProductCode(firstProduct?.code ?? '')
-    setAdvertiserCode(firstAdvertiser?.code ?? '')
     setEventType('Seminar Offline')
     setTemplateId(overview.templates.find((template) => template.is_active)?.id ?? '')
     setPreview(null)
@@ -150,16 +136,12 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
 
   function changeProduct(value: string) {
     setProductCode(value)
-    const product = readyProducts.find((row) => row.code === value)
-    const firstAdvertiser = product?.advertisers.find((advertiser) => advertiser.active && advertiser.wa_phone !== null) ?? null
-    setAdvertiserCode(firstAdvertiser?.code ?? '')
     setPreview(null)
   }
 
   function body() {
     return {
       product_code: productCode,
-      advertiser_code: advertiserCode,
       template_id: templateId,
       event_type: eventType,
     }
@@ -167,8 +149,8 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
 
   async function loadPreview() {
     if (previewBusy) return
-    if (productCode === '' || advertiserCode === '' || templateId === '') {
-      toast.show('Pilih produk, pengiklan, dan template terlebih dahulu.', 'danger')
+    if (productCode === '' || templateId === '') {
+      toast.show('Pilih produk dan template terlebih dahulu.', 'danger')
       return
     }
     setPreviewBusy(true)
@@ -185,8 +167,8 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
 
   async function sendTest() {
     if (sendBusy) return
-    if (productCode === '' || advertiserCode === '' || templateId === '') {
-      toast.show('Pilih produk, pengiklan, dan template terlebih dahulu.', 'danger')
+    if (productCode === '' || templateId === '') {
+      toast.show('Pilih produk dan template terlebih dahulu.', 'danger')
       return
     }
     setSendBusy(true)
@@ -288,15 +270,6 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
             onChange={changeProduct}
           />
           <Select
-            id="wa-test-advertiser"
-            label="Pengiklan"
-            value={advertiserCode}
-            options={advertiserOptions}
-            placeholder={selectedProduct === null ? 'Pilih produk dulu' : 'Pilih pengiklan'}
-            disabled={previewBusy || sendBusy || selectedProduct === null}
-            onChange={(value) => { setAdvertiserCode(value); setPreview(null) }}
-          />
-          <Select
             id="wa-test-event-type"
             label="Jenis Acara"
             value={eventType}
@@ -313,9 +286,6 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
             disabled={previewBusy || sendBusy}
             onChange={(value) => { setTemplateId(value); setPreview(null) }}
           />
-          {selectedProduct !== null && advertiserOptions.length === 0 ? (
-            <p className="text-[12px] text-warning">Produk ini belum punya pengiklan dengan nomor WA.</p>
-          ) : null}
           {overview.templates.length === 0 ? (
             <p className="text-[12px] text-warning">Belum ada template pesan. Tambahkan dulu di tab Template.</p>
           ) : null}
@@ -323,6 +293,9 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
             <div className="rounded-sm border border-line bg-soft p-2.5">
               <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
                 Tujuan {preview.group_id} · {preview.event_type}
+              </p>
+              <p className="mb-1 text-[11px] text-ink-soft">
+                Disebut: {preview.advertisers.map((row) => row.name).join(', ')}
               </p>
               <pre className="whitespace-pre-wrap text-[12px] text-ink">{preview.message}</pre>
             </div>

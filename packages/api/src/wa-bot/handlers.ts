@@ -1,7 +1,6 @@
 import {
   isWaEventType,
   normalizeCode,
-  normalizeWhatsAppPhone,
   validateWaTemplate,
   WA_GROUP_ID_MAX_LENGTH,
   WA_TEMPLATE_NAME_MAX_LENGTH,
@@ -18,9 +17,9 @@ import { checkFonnteDevice, sendWhatsAppMessage } from './fonnte'
  * WA Admin Bot — seluruh akses lewat backend.
  *
  * Konfigurasi grup berada di level PRODUK (`wa_product_groups`). Penerima
- * diturunkan dari `product_advertisers`, dan nomor tag dibaca dari master
- * `advertisers.wa_phone`. Tabel `wa_reminder_*` sengaja tidak punya grant SELECT
- * untuk browser: baris log memuat nomor/isi pesan, dan `wa_bot_settings` memuat
+ * diturunkan dari `product_advertisers`; satu pesan per grup menyebut nama
+ * seluruh pengiklan yang beraktivitas. Tabel `wa_reminder_*` sengaja tidak punya grant SELECT
+ * untuk browser: baris log memuat daftar nama/isi pesan, dan `wa_bot_settings` memuat
  * token Fonnte. Backend memakai service key (K11), dengan permission
  * `config.wa_bot` sebagai gerbang tindakan pengguna.
  */
@@ -39,7 +38,6 @@ type AdvertiserRow = {
   code: string
   name: string
   active: boolean
-  wa_phone: string | null
 }
 type ProductGroupRow = {
   id: string
@@ -72,7 +70,7 @@ type SettingsRow = { id: number; fonnte_token_encrypted: string | null; updated_
 type LogRow = {
   id: string
   schedule_id: string | null
-  advertiser_id: string
+  advertiser_id: string | null
   advertiser_name: string
   product_code: string
   product_name: string | null
@@ -93,7 +91,7 @@ type ClaimTask = {
   log_id: string
   group_id: string
   message: string
-  advertiser_id: string
+  advertiser_id: string | null
   advertiser_name: string
   product_code: string
   product_name: string | null
@@ -107,9 +105,7 @@ type PreviewResult =
       message: string
       leads: number
       paid: number
-      advertiser_id: string
-      advertiser_name: string
-      advertiser_code: string
+      advertisers: Array<{ code: string; name: string }>
       product_code: string
       product_name: string
       event_type: string
@@ -117,7 +113,7 @@ type PreviewResult =
     }
 
 const PRODUCT_COLUMNS = 'id,code,name,active'
-const ADVERTISER_COLUMNS = 'id,code,name,active,wa_phone'
+const ADVERTISER_COLUMNS = 'id,code,name,active'
 const PRODUCT_GROUP_COLUMNS = 'id,product_id,fonnte_group_id,is_active,created_at,updated_at'
 const TEMPLATE_COLUMNS = 'id,name,message_content,is_active,created_at,updated_at'
 const SCHEDULE_COLUMNS = 'id,execution_time,template_id,days,only_if_missing_report,is_active,created_at,updated_at'
@@ -183,7 +179,6 @@ export async function waBotOverview(context: RouteContext): Promise<Response> {
             code: advertiser.code,
             name: advertiser.name,
             active: advertiser.active,
-            wa_phone: advertiser.wa_phone,
           }))
           .sort((left, right) => left.code.localeCompare(right.code, 'id')),
       }))
@@ -194,7 +189,6 @@ export async function waBotOverview(context: RouteContext): Promise<Response> {
         code: row.code,
         name: row.name,
         active: row.active,
-        wa_phone: row.wa_phone,
         products: (productsByAdvertiser.get(row.id) ?? [])
           .map((product) => ({ code: product.code, name: product.name }))
           .sort((left, right) => left.code.localeCompare(right.code, 'id')),
@@ -219,7 +213,6 @@ export async function waBotLogs(context: RouteContext): Promise<Response> {
   const page = Math.max(1, Number.parseInt(params.get('page') ?? '1', 10) || 1)
   const pageSize = Math.min(100, Math.max(1, Number.parseInt(params.get('pageSize') ?? '50', 10) || 50))
   const status = (params.get('status') ?? '').trim()
-  const advertiserCode = (params.get('advertiser') ?? '').trim()
   const productCode = (params.get('product') ?? '').trim()
   const eventType = (params.get('event_type') ?? '').trim()
   const dateFrom = parseDate(params.get('date_from'))
@@ -240,14 +233,6 @@ export async function waBotLogs(context: RouteContext): Promise<Response> {
   const filters: Record<string, string> = {}
   if (status !== '') filters['status'] = `eq.${status}`
   if (eventType !== '') filters['event_type'] = `eq.${eventType}`
-  if (advertiserCode !== '') {
-    const [advertiser] = await context.db.selectRows<{ id: string }>(
-      'advertisers',
-      { code_normalized: `eq.${normalizeCode(advertiserCode)}` },
-      'id',
-    )
-    filters['advertiser_id'] = advertiser ? `eq.${advertiser.id}` : 'eq.__NONE__'
-  }
   if (productCode !== '') {
     const [product] = await context.db.selectRows<{ code: string }>(
       'products',
@@ -369,27 +354,6 @@ export async function saveWaBotProductGroup(context: RouteContext): Promise<Resp
 
   const isActive = readBoolean(body, 'is_active', existing?.is_active ?? true)
 
-  // Pengiklan penerima wajib punya nomor WA. Produk tanpa pengiklan boleh
-  // disimpan (belum ada yang perlu diingatkan), tetapi UI menandainya.
-  if (isActive) {
-    const links = await context.db.selectRows<LinkRow>('product_advertisers', { product_id: `eq.${productId}` }, 'advertiser_id')
-    const advertiserIds = [...new Set(links.map((row) => row.advertiser_id))]
-    if (advertiserIds.length > 0) {
-      const assigned = await context.db.selectRows<AdvertiserRow>(
-        'advertisers',
-        { id: `in.(${advertiserIds.join(',')})` },
-        'id,name,active,wa_phone',
-      )
-      const missing = assigned
-        .filter((row) => row.active && !row.wa_phone)
-        .map((row) => row.name)
-        .sort((left, right) => left.localeCompare(right, 'id'))
-      if (missing.length > 0) {
-        throw new ApiFailure('INVALID_ARGUMENT', undefined, `Lengkapi nomor WA pengiklan: ${missing.join(', ')}.`)
-      }
-    }
-  }
-
   const row = {
     product_id: productId,
     fonnte_group_id: groupId,
@@ -411,27 +375,6 @@ export async function deleteWaBotProductGroup(context: RouteContext): Promise<Re
   if (existing === null) throw new ApiFailure('RESOURCE_NOT_FOUND')
   await context.db.deleteRows('wa_product_groups', { id: `eq.${id}` })
   return ok({ deleted: id })
-}
-
-// ---------------------------------------------------------------------------
-// Nomor WA pengiklan
-// ---------------------------------------------------------------------------
-
-/** PATCH /api/wa-bot/advertisers/:id — nomor wajib; boleh diketik 08xxx. */
-export async function saveWaBotAdvertiserPhone(context: RouteContext): Promise<Response> {
-  await requirePermission(context, 'config.wa_bot')
-  const id = requireUuid(context)
-  const [advertiser] = await context.db.selectRows<{ id: string }>('advertisers', { id: `eq.${id}` }, 'id')
-  if (!advertiser) throw new ApiFailure('RESOURCE_NOT_FOUND')
-
-  const body = await readJsonObject(context.request)
-  const phone = normalizeWhatsAppPhone(readString(body, 'wa_phone') ?? '')
-  if (phone === null) {
-    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nomor WA pengiklan wajib format 628xxx (boleh diketik 08xxx).')
-  }
-
-  await context.db.updateRows('advertisers', { id: `eq.${id}` }, { wa_phone: phone })
-  return ok({ id, wa_phone: phone })
 }
 
 // ---------------------------------------------------------------------------
@@ -539,7 +482,6 @@ export async function deleteWaBotSchedule(context: RouteContext): Promise<Respon
 // ---------------------------------------------------------------------------
 
 type TestTarget = {
-  advertiserCode: string
   productCode: string
   templateId: string
   eventType: string | null
@@ -563,8 +505,8 @@ export async function waBotTestSend(context: RouteContext): Promise<Response> {
   const result = await sendWhatsAppMessage(context.env, token, preview.group_id, preview.message)
   const log = await context.db.insertRow<{ id: string }>('wa_reminder_logs', {
     schedule_id: null,
-    advertiser_id: preview.advertiser_id,
-    advertiser_name: preview.advertiser_name,
+    advertiser_id: null,
+    advertiser_name: preview.advertisers.map((row) => row.name).join(', '),
     product_code: preview.product_code,
     product_name: preview.product_name,
     reminder_date: preview.reminder_date,
@@ -690,20 +632,18 @@ function readBoolean(body: Record<string, unknown>, key: string, fallback: boole
 }
 
 function readTestTarget(body: Record<string, unknown>): TestTarget {
-  const advertiserCode = (readString(body, 'advertiser_code') ?? '').trim()
   const productCode = (readString(body, 'product_code') ?? '').trim()
   const templateId = (readString(body, 'template_id') ?? '').trim()
   const rawEventType = (readString(body, 'event_type') ?? '').trim()
 
-  if (advertiserCode === '' || productCode === '' || !UUID_PATTERN.test(templateId)) {
-    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih pengiklan, produk, dan template untuk kirim tes.')
+  if (productCode === '' || !UUID_PATTERN.test(templateId)) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih produk dan template untuk kirim tes.')
   }
   if (rawEventType !== '' && !isWaEventType(rawEventType)) {
     throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Jenis acara tidak valid.')
   }
 
   return {
-    advertiserCode,
     productCode,
     templateId,
     eventType: rawEventType === '' ? null : rawEventType,
@@ -713,7 +653,6 @@ function readTestTarget(body: Record<string, unknown>): TestTarget {
 async function readTestPreview(context: RouteContext, target: TestTarget): Promise<Extract<PreviewResult, { found: true }>> {
   const preview = await context.db.rpc<PreviewResult>('wa_reminder_preview', {
     p_now: context.now.toISOString(),
-    p_advertiser_code: target.advertiserCode,
     p_product_code: target.productCode,
     p_template_id: target.templateId,
     p_event_type: target.eventType,
@@ -769,16 +708,10 @@ function previewMessage(reason: string): string {
   switch (reason) {
     case 'TEMPLATE_NOT_FOUND':
       return 'Template pesan tidak ditemukan.'
-    case 'ADVERTISER_NOT_FOUND':
-      return 'Pengiklan tidak ditemukan.'
     case 'PRODUCT_NOT_FOUND':
       return 'Produk tidak ditemukan.'
-    case 'ADVERTISER_NOT_ASSIGNED':
-      return 'Pengiklan ini tidak ditugaskan ke produk tersebut.'
-    case 'ADVERTISER_PHONE_MISSING':
-      return 'Nomor WA pengiklan belum diisi.'
     case 'EVENT_TYPE_NOT_FOUND':
-      return 'Belum ada order kemarin untuk pengiklan, produk, dan jenis acara tersebut.'
+      return 'Belum ada order kemarin untuk produk dan jenis acara tersebut.'
     case 'GROUP_NOT_FOUND':
       return 'Produk ini belum punya grup WhatsApp yang aktif.'
     default:

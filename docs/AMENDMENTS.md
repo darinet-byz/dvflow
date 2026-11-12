@@ -1738,3 +1738,21 @@ Permintaan pengguna: di grup WhatsApp, `@628xxx` hanya tampil sebagai nomor HP b
 ### Implementasi
 
 Migrasi `20261112170000_wa_mention_advertiser_name.sql` (`schema_version` 73). Tes: `supabase/tests/37_wa_admin_bot.sql`, `packages/api/test/wa-bot.test.ts`, `packages/api/test/integration/wa-bot.e2e.test.ts`, `apps/web/test/wa-bot.test.tsx`. UI: `TemplateSection`, `AdvertiserPhoneSection`, dan `waMention` di `packages/shared`.
+
+## A71 - Nomor HP dihapus dan mention seluruh pengiklan per grup (12 November 2026)
+
+Permintaan pengguna: field nomor HP pengiklan tidak berguna karena Fonnte tidak bisa men-tag nomor; pengingat harus menyebut **semua** pengiklan di grup dalam satu pesan, mis. "Pagi Mas @A, @B, @C. Jangan lupa report kemarin ya."
+
+### Keputusan
+
+- Kolom `advertisers.wa_phone`, endpoint `PATCH /api/wa-bot/advertisers/:id`, tab **Nomor WA Pengiklan**, dan seluruh validasi nomor dihapus. Nomor HP bukan lagi syarat aktivasi grup produk.
+- Pengingat berubah dari **satu pesan per pengiklan** menjadi **satu pesan per grup + jenis acara**. Pesan menyebut semua pengiklan aktif yang ditugaskan ke produk dan punya order kemarin untuk jenis acara itu.
+- `only_if_missing_report` tetap menjadi gerbang kirim: pesan hanya dikirim bila minimal satu pengiklan di grup itu belum lapor. Daftar mention tetap memuat semua pengiklan yang beraktivitas (sesuai permintaan).
+- `{{mention}}` menjadi daftar `@A, @B`; `{{advertiser_name}}` dan `{{advertiser_code}}` menjadi daftar dipisah koma; `{{leads}}`/`{{paid}}` menjadi total grup. `{{report_url}}` menjadi tautan tingkat produk (`productCode` + `eventType`, tanpa `advertiserCode`).
+- Idempotensi pindah ke `(schedule_id, product_code, event_type, reminder_date)` untuk baris grup (`advertiser_id is null`). Log lama tetap tersimpan; `advertiser_name` menyimpan daftar nama.
+- `wa_reminder_preview` berubah signature: `(p_now, p_product_code, p_template_id, p_event_type, p_base_url)` dan mengembalikan `advertisers: [{code,name}]`. Kirim Tes tidak lagi memilih pengiklan.
+- Filter pengiklan di Riwayat dihapus (baris kini per grup); kolom Pengiklan menampilkan daftar nama.
+
+### Implementasi
+
+Migrasi `20261112180000_wa_group_mentions.sql` (`schema_version` 74): drop `wa_phone`, `advertiser_id` nullable, unique index baru, `wa_render_reminder`, `wa_reminder_claim`, `wa_reminder_preview` versi grup. Backend `packages/api/src/wa-bot/handlers.ts` + `routes.ts`; web `ConnectionSection`, `ProductSection`, `LogSection`, `WaBotPage`, `types`; shared menghapus `normalizeWhatsAppPhone`. Tes: `37_wa_admin_bot.sql` (47 assertion), unit API/web, integration 39.

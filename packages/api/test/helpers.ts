@@ -847,31 +847,35 @@ export function createFakeDb(state: FakeState): Db {
 
       if (name === 'wa_reminder_preview') {
         if (state.waPreview !== undefined) return { ...state.waPreview } as T
-        const advertiser = state.config.advertisers.find((row) => String(row['code']).toUpperCase() === String(args['p_advertiser_code']).toUpperCase())
         const product = state.config.products.find((row) => String(row['code']).toUpperCase() === String(args['p_product_code']).toUpperCase())
         const template = state.waReminderTemplates.find((row) => row['id'] === args['p_template_id'])
-        if (!advertiser || !product || !template) {
-          return { found: false, reason: !advertiser ? 'ADVERTISER_NOT_FOUND' : !product ? 'PRODUCT_NOT_FOUND' : 'TEMPLATE_NOT_FOUND' } as T
+        if (!product || !template) {
+          return { found: false, reason: !product ? 'PRODUCT_NOT_FOUND' : 'TEMPLATE_NOT_FOUND' } as T
         }
-        const assigned = state.productAdvertisers.some(
-          (link) => link['product_id'] === product['id'] && link['advertiser_id'] === advertiser['id'],
-        )
-        if (!assigned) return { found: false, reason: 'ADVERTISER_NOT_ASSIGNED' } as T
-        if (!advertiser['wa_phone']) return { found: false, reason: 'ADVERTISER_PHONE_MISSING' } as T
         const group = state.waProductGroups.find(
           (row) => row['product_id'] === product['id'] && row['is_active'] !== false,
         )
         if (!group) return { found: false, reason: 'GROUP_NOT_FOUND' } as T
+        const assignedIds = state.productAdvertisers
+          .filter((link) => link['product_id'] === product['id'])
+          .map((link) => link['advertiser_id'])
+        const advertisers = state.config.advertisers
+          .filter((row) => assignedIds.includes(row['id']) && row['active'] !== false)
+          .map((row) => ({ code: String(row['code']), name: String(row['name']) }))
+          .sort((left, right) => left.name.localeCompare(right.name, 'id') || left.code.localeCompare(right.code, 'id'))
+        if (advertisers.length === 0) return { found: false, reason: 'EVENT_TYPE_NOT_FOUND' } as T
         const eventType = String(args['p_event_type'] ?? '') === '' ? 'Seminar Offline' : String(args['p_event_type'])
-        const reportUrl = `${args['p_base_url']}/report-spend?advertiserCode=${advertiser['code']}&productCode=${product['code']}&eventType=${eventType.replaceAll(' ', '%20')}`
+        const names = advertisers.map((row) => row.name)
+        const codes = advertisers.map((row) => row.code)
+        const reportUrl = `${args['p_base_url']}/report-spend?productCode=${product['code']}&eventType=${eventType.replaceAll(' ', '%20')}`
         return {
           found: true,
           group_id: group['fonnte_group_id'],
           message: String(template['message_content'])
-            .replaceAll('{{mention}}', `@${advertiser['name']}`)
-            .replaceAll('{{advertiser_name}}', String(advertiser['name']))
-            .replaceAll('{{store_name}}', String(advertiser['name']))
-            .replaceAll('{{advertiser_code}}', String(advertiser['code']))
+            .replaceAll('{{mention}}', `@${names.join(', @')}`)
+            .replaceAll('{{advertiser_name}}', names.join(', '))
+            .replaceAll('{{store_name}}', names.join(', '))
+            .replaceAll('{{advertiser_code}}', codes.join(', '))
             .replaceAll('{{product_name}}', String(product['name']))
             .replaceAll('{{product_code}}', String(product['code']))
             .replaceAll('{{event_type}}', eventType)
@@ -881,9 +885,7 @@ export function createFakeDb(state: FakeState): Db {
             .replaceAll('{{report_url}}', reportUrl),
           leads: 5,
           paid: 2,
-          advertiser_id: advertiser['id'],
-          advertiser_name: advertiser['name'],
-          advertiser_code: advertiser['code'],
+          advertisers,
           product_code: product['code'],
           product_name: product['name'],
           event_type: eventType,

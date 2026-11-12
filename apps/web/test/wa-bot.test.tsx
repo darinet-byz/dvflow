@@ -29,10 +29,10 @@ const overview = {
       id: 'group-1', product_id: 'prod-1', fonnte_group_id: '111@g.us',
       is_active: true, created_at: '2026-11-11T01:00:00Z', updated_at: '2026-11-11T01:00:00Z',
     },
-    advertisers: [{ id: 'adv-1', code: '01', name: 'Zul', active: true, wa_phone: '628111111111' }],
+    advertisers: [{ id: 'adv-1', code: '01', name: 'Zul', active: true }],
   }],
   advertisers: [{
-    id: 'adv-1', code: '01', name: 'Zul', active: true, wa_phone: '628111111111',
+    id: 'adv-1', code: '01', name: 'Zul', active: true,
     products: [{ code: 'KM', name: 'Kuliner Masteri' }],
   }],
   templates: [{
@@ -69,12 +69,10 @@ let overviewResponse: typeof overview = overview
 const preview = {
   found: true,
   group_id: '111@g.us',
-  message: 'Halo @Zul, Kuliner Masteri Seminar Offline 2026-11-10.',
+  message: 'Pagi Mas @Zul, jangan lupa report kemarin ya.',
   leads: 2,
   paid: 1,
-  advertiser_id: 'adv-1',
-  advertiser_name: 'Zul',
-  advertiser_code: '01',
+  advertisers: [{ code: '01', name: 'Zul' }],
   product_code: 'KM',
   product_name: 'Kuliner Masteri',
   event_type: 'Seminar Offline',
@@ -90,7 +88,6 @@ vi.mock('../src/lib/session', async (importOriginal) => {
       if (path === '/api/wa-bot/settings/verify') return deviceCheck
       if (path === '/api/wa-bot/test-preview') return preview
       if (path === '/api/wa-bot/test-send') return { sent: true, error: null, message: preview.message, group_id: preview.group_id }
-      if (path.startsWith('/api/wa-bot/advertisers/') && options?.method === 'PATCH') return { id: 'adv-1', wa_phone: '6281234567890' }
       if (path === '/api/wa-bot' && options?.method === undefined) return overviewResponse
       throw new Error(`Unexpected request: ${options?.method ?? 'GET'} ${path}`)
     }),
@@ -165,27 +162,12 @@ describe('WA Admin Bot page', () => {
     expect(screen.queryByRole('dialog', { name: 'Kirim Pesan Tes' })).toBeNull()
   })
 
-  it('menampilkan form kirim tes dengan pilihan produk dan pengiklan', async () => {
+  it('menampilkan form kirim tes dengan pilihan produk dan jenis acara', async () => {
     renderPage()
     fireEvent.click(await screen.findByRole('button', { name: 'Kirim Tes' }))
     expect(await screen.findByRole('dialog', { name: 'Kirim Pesan Tes' })).toBeTruthy()
     expect(screen.getByText('KM — Kuliner Masteri')).toBeTruthy()
-    expect(screen.getByRole('option', { name: '01 — Zul (628111111111)' })).toBeTruthy()
-  })
-
-  it('menyimpan nomor WA pengiklan dari tab khusus', async () => {
-    renderPage()
-    fireEvent.click(await screen.findByRole('tab', { name: 'Nomor WA Pengiklan' }))
-    const input = await screen.findByLabelText('Nomor WA Zul')
-    fireEvent.change(input, { target: { value: '0812-3456-7890' } })
-    fireEvent.click(screen.getByRole('button', { name: 'Simpan' }))
-
-    await waitFor(() => {
-      expect(authorizedRequest).toHaveBeenCalledWith('/api/wa-bot/advertisers/adv-1', {
-        method: 'PATCH',
-        body: { wa_phone: '0812-3456-7890' },
-      })
-    })
+    expect(screen.getByLabelText('Jenis Acara')).toBeTruthy()
   })
 
   it('preview tidak mengirim pesan', async () => {
@@ -193,6 +175,8 @@ describe('WA Admin Bot page', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Kirim Tes' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Preview' }))
     expect(await screen.findByText(/Tujuan 111@g.us/)).toBeTruthy()
+    expect(await screen.findByText(/Disebut: Zul/)).toBeTruthy()
+    expect(screen.getByText(/Pagi Mas @Zul/)).toBeTruthy()
     expect(authorizedRequest).toHaveBeenCalledWith('/api/wa-bot/test-preview', expect.anything())
     expect(authorizedRequest).not.toHaveBeenCalledWith('/api/wa-bot/test-send', expect.anything())
   })

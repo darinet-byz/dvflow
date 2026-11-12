@@ -4,7 +4,6 @@ export type WaAdvertiser = {
   code: string
   name: string
   active: boolean
-  wa_phone: string | null
 }
 
 export type WaProductRef = { code: string; name: string }
@@ -82,7 +81,7 @@ export type WaDeviceCheck = {
 export type WaLog = {
   id: string
   schedule_id: string | null
-  advertiser_id: string
+  advertiser_id: string | null
   advertiser_name: string
   product_code: string
   product_name: string | null
@@ -108,9 +107,7 @@ export type WaPreview = {
   message: string
   leads: number
   paid: number
-  advertiser_id: string
-  advertiser_name: string
-  advertiser_code: string
+  advertisers: Array<{ code: string; name: string }>
   product_code: string
   product_name: string
   event_type: string

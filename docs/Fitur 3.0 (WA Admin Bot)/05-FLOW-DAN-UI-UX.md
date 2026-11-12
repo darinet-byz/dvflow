@@ -20,14 +20,13 @@ Sistem
 
 ## 2. Struktur halaman
 
-Satu halaman dengan **tab** agar tidak perlu menggulir lima kartu:
+Satu halaman dengan **tab** agar tidak perlu menggulir kartu:
 
 1. **Koneksi**
 2. **Produk & Grup**
-3. **Nomor WA Pengiklan**
-4. **Template**
-5. **Jadwal**
-6. **Riwayat**
+3. **Template**
+4. **Jadwal**
+5. **Riwayat**
 
 Tab memakai `Button` dengan `role="tab"` / `aria-selected`, konsisten dengan
 halaman OTS. Komponen lain memakai design system: `Card`, `TextInput`,
@@ -51,45 +50,34 @@ halaman OTS. Komponen lain memakai design system: `Card`, `TextInput`,
   dan menjelaskan lewat toast bila prasyarat belum lengkap: token belum disimpan
   atau belum ada produk dengan grup aktif. Saat prasyarat lengkap modal berisi:
   - pilih produk yang punya grup aktif,
-  - pilih pengiklan yang ditugaskan + punya nomor,
   - pilih jenis acara,
   - pilih template,
-  - **Preview** menampilkan grup tujuan + isi pesan final tanpa mengirim,
+  - **Preview** menampilkan grup tujuan, daftar pengiklan yang disebut, dan
+    isi pesan final tanpa mengirim,
   - **Kirim ke Grup** baru benar-benar mengirim.
 - Modal menjelaskan bahwa preview tidak mengirim apa pun, dan memberi tahu bila
-  belum ada template atau pengiklan tanpa nomor.
+  belum ada template.
 
 
 ## 4. Produk & Grup
 
-Tabel: Produk (nama + kode), Grup WhatsApp, Pengiklan (chip nama + nomor),
-Status, Aksi.
+Tabel: Produk (nama + kode), Grup WhatsApp, Pengiklan (chip nama), Status, Aksi.
 
 Form modal:
 - Produk (hanya yang belum punya grup; saat edit, produk dikunci).
 - ID Grup Fonnte.
-- Daftar **penerima otomatis** (read-only) dengan badge merah bila nomor kosong.
+- Daftar **penerima otomatis** (read-only, chip nama).
 - Checkbox “Bot aktif untuk produk ini”.
 
-Aktivasi ditolak server bila ada pengiklan aktif yang ditugaskan tetapi belum
-punya nomor. Banner di atas tabel menghitung pengiklan yang belum punya nomor.
+Semua pengiklan aktif yang ditugaskan ke produk otomatis disebut namanya di
+pesan grup; tidak ada nomor yang perlu dilengkapi.
 
 Hapus memakai modal konfirmasi; riwayat pengiriman tetap disimpan.
 
 Keadaan kosong: “Belum ada produk. Tambahkan produk di Konfigurasi Produk
 terlebih dahulu.”
 
-## 5. Nomor WA Pengiklan
-
-Tabel: Pengiklan (nama + kode), Produk, Nomor WA (input inline), Status, Aksi.
-
-- Setiap baris punya tombol **Simpan** sendiri.
-- Nomor boleh diketik `08xxx`; server menyimpan `628xxx`.
-- Banner: “X pengiklan aktif belum punya nomor WA.” atau “Semua pengiklan aktif
-  sudah punya nomor WA.”
-- Kolom Produk hanya menampilkan kode produk yang ditugaskan (label).
-
-## 6. Template Pesan
+## 5. Template Pesan
 
 Tabel: Nama, cuplikan isi (2 baris), Status, Aksi.
 
@@ -107,7 +95,7 @@ tidak lagi ditawarkan di picker.
 
 Hapus ditolak bila template masih dipakai jadwal.
 
-## 7. Jadwal
+## 6. Jadwal
 
 Tabel: Jam (WIB), Template, Hari, Aturan, Status, Aksi.
 
@@ -121,13 +109,13 @@ Modal:
 Catatan di header kartu: pengingat hanya untuk produk yang punya order kemarin
 dan belum lapor.
 
-## 8. Riwayat Pengiriman
+## 7. Riwayat Pengiriman
 
-Filter: status, produk, pengiklan, jenis acara, tanggal awal/akhir. Perubahan
+Filter: status, produk, jenis acara, tanggal awal/akhir. Perubahan
 filter mereset halaman ke 1.
 
-Tabel: Waktu, Produk, Pengiklan, Jenis Acara, Grup, Status (+ jumlah percobaan),
-Keterangan error, Aksi.
+Tabel: Waktu, Produk, Pengiklan (daftar nama yang disebut), Jenis Acara, Grup,
+Status (+ jumlah percobaan), Keterangan error, Aksi.
 - **Lihat** membuka modal isi pesan + error.
 - **Kirim Ulang** hanya muncul untuk baris `failed` dan pemegang
   `action.wa_bot_send`.
@@ -138,7 +126,7 @@ tetap ada di aplikasi WhatsApp.”
 Pagination server-side (50/100). Keadaan kosong: “Belum ada riwayat pengiriman
 pada filter ini.”
 
-## 9. Keadaan loading/error
+## 8. Keadaan loading/error
 
 | Keadaan | Tampilan |
 |---|---|
@@ -148,7 +136,7 @@ pada filter ini.”
 | Validasi form | Teks galat di dalam modal, bukan `alert`. |
 | Preview/kirim tes | Preview di modal; hasil kirim lewat toast. |
 
-## 10. Responsif
+## 9. Responsif
 
 - Kartu dan form satu kolom di layar sempit.
 - Tab membungkus (`flex-wrap`) di layar sempit.

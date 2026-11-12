@@ -6,7 +6,6 @@ import { useAsyncData } from '../../lib/useAsyncData'
 import { PageHeader } from '../../layout/PageHeader'
 import { Button } from '../../ui/Button'
 import { ErrorState, SkeletonRows } from '../../ui/Feedback'
-import { AdvertiserPhoneSection } from './AdvertiserPhoneSection'
 import { ConnectionSection } from './ConnectionSection'
 import { LogSection } from './LogSection'
 import { ProductSection } from './ProductSection'
@@ -17,7 +16,6 @@ import type { WaOverview } from './types'
 const TABS = [
   { id: 'connection', label: 'Koneksi' },
   { id: 'products', label: 'Produk & Grup' },
-  { id: 'advertisers', label: 'Nomor WA Pengiklan' },
   { id: 'templates', label: 'Template' },
   { id: 'schedules', label: 'Jadwal' },
   { id: 'logs', label: 'Riwayat' },
@@ -68,7 +66,6 @@ export function WaBotPage() {
 
           {tab === 'connection' ? <ConnectionSection overview={data} reload={reload} canSend={canSend} /> : null}
           {tab === 'products' ? <ProductSection overview={data} reload={reload} /> : null}
-          {tab === 'advertisers' ? <AdvertiserPhoneSection overview={data} reload={reload} /> : null}
           {tab === 'templates' ? <TemplateSection overview={data} reload={reload} /> : null}
           {tab === 'schedules' ? <ScheduleSection overview={data} reload={reload} /> : null}
           {tab === 'logs' ? <LogSection overview={data} canSend={canSend} /> : null}
