@@ -51,6 +51,7 @@ halaman OTS. Komponen lain memakai design system: `Card`, `TextInput`,
   atau belum ada produk dengan grup aktif. Saat prasyarat lengkap modal berisi:
   - pilih produk yang punya grup aktif,
   - pilih jenis acara,
+  - pilih **Siapa yang disebut** (semua pengiklan / hanya yang belum lapor),
   - pilih template,
   - **Preview** menampilkan grup tujuan, daftar pengiklan yang disebut, dan
     isi pesan final tanpa mengirim,
@@ -102,12 +103,19 @@ Tabel: Jam (WIB), Template, Hari, Aturan, Status, Aksi.
 Modal:
 - `input type=time` (HH:MM).
 - Select template.
+- Select **Siapa yang disebut**: “Semua pengiklan yang beraktivitas kemarin”
+  atau “Hanya pengiklan yang belum lapor”.
 - Checkbox tujuh hari.
-- Checkbox “Kirim hanya jika laporan D-1 untuk produk tersebut belum diisi”.
+- Checkbox “Kirim hanya jika laporan D-1 untuk produk tersebut belum diisi”
+  (otomatis tercentang dan tidak bisa diubah saat mode “hanya yang belum lapor”).
 - Checkbox aktif.
 
-Catatan di header kartu: pengingat hanya untuk produk yang punya order kemarin
-dan belum lapor.
+Contoh pemakaian: jadwal 09:00 memakai mode **semua**, jadwal 13:00/17:00
+memakai mode **hanya yang belum lapor**. Mode terakhir tidak mengirim pesan bila
+semua sudah lapor.
+
+Catatan di header kartu: setiap jadwal bisa menyebut semua pengiklan atau hanya
+yang belum lapor.
 
 ## 7. Riwayat Pengiriman
 

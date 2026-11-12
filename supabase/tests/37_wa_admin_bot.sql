@@ -5,7 +5,7 @@ begin;
 set local search_path = public, extensions, pg_catalog;
 select no_plan();
 
-select is(public.schema_version(), 74, 'schema version 74');
+select is(public.schema_version(), 75, 'schema version 75');
 
 -- ---------------------------------------------------------------------------
 -- Fixture
@@ -172,6 +172,39 @@ select is(jsonb_array_length(public.wa_reminder_claim('2026-11-11 09:20:00+07', 
   'klaim basi ditandai gagal lalu dicoba lagi selama batas retry belum habis');
 
 -- ---------------------------------------------------------------------------
+-- Audiens per jadwal: mention_scope 'all' vs 'missing'
+-- ---------------------------------------------------------------------------
+delete from public.wa_reminder_logs;
+update public.wa_reminder_schedules set mention_scope = 'missing'
+ where id = 'aa000000-0000-0000-0000-000000000041';
+select is(jsonb_array_length(public.wa_reminder_claim('2026-11-11 09:00:00+07', 'https://app.example.com', 10)), 2,
+  'mode missing tetap mengirim seminar dan webinar');
+select is((select message from public.wa_reminder_logs where event_type = 'Seminar Offline'),
+  'Halo @Advertiser Dua, laporan Advertiser Dua produk Produk Satu Seminar Offline tanggal 2026-11-10 belum diisi. Leads 1, Paid 1. https://app.example.com/report-spend?productCode=WAAA&eventType=Seminar%20Offline',
+  'mode missing hanya menyebut pengiklan yang belum lapor');
+select is((select advertiser_name from public.wa_reminder_logs where event_type = 'Seminar Offline'),
+  'Advertiser Dua', 'daftar nama pada log mengikuti mode missing');
+select is((select message from public.wa_reminder_logs where event_type = 'Webinar Online'),
+  'Halo @Advertiser Satu, laporan Advertiser Satu produk Produk Satu Webinar Online tanggal 2026-11-10 belum diisi. Leads 1, Paid 1. https://app.example.com/report-spend?productCode=WAAA&eventType=Webinar%20Online',
+  'webinar hanya menyebut A1 pada mode missing');
+
+-- Semua sudah lapor -> mode missing tidak menghasilkan pesan.
+insert into public.ad_spend_reports (advertiser_id, product_id, batch, event_type, date_from, date_to, spend, tax_percent) values
+  ('aa000000-0000-0000-0000-000000000002', 'aa000000-0000-0000-0000-000000000011', '998', 'Seminar Offline',
+   '2026-11-10', '2026-11-10', 10000, 0),
+  ('aa000000-0000-0000-0000-000000000001', 'aa000000-0000-0000-0000-000000000011', '998', 'Webinar Online',
+   '2026-11-10', '2026-11-10', 10000, 0);
+delete from public.wa_reminder_logs;
+select is(jsonb_array_length(public.wa_reminder_claim('2026-11-11 09:30:00+07', 'https://app.example.com', 10)), 0,
+  'semua sudah lapor: mode missing tidak mengirim apa pun');
+select is((public.wa_reminder_preview('2026-11-11 09:00:00+07', 'WAAA',
+  'aa000000-0000-0000-0000-000000000031', 'Seminar Offline', 'https://app.example.com', 'missing'))->>'reason',
+  'NO_MISSING_REPORT', 'preview missing melaporkan semua sudah lapor');
+delete from public.ad_spend_reports where batch = '998';
+update public.wa_reminder_schedules set mention_scope = 'all'
+ where id = 'aa000000-0000-0000-0000-000000000041';
+
+-- ---------------------------------------------------------------------------
 -- Preview / uji kirim
 -- ---------------------------------------------------------------------------
 select is((public.wa_reminder_preview('2026-11-11 09:00:00+07', 'WAAA',
@@ -190,6 +223,13 @@ select is((public.wa_reminder_preview('2026-11-11 09:00:00+07', 'WAAA',
 select is(jsonb_array_length((public.wa_reminder_preview('2026-11-11 09:00:00+07', 'WAAA',
   'aa000000-0000-0000-0000-000000000031', 'Seminar Offline', 'https://app.example.com'))->'advertisers'),
   2, 'preview mengembalikan daftar pengiklan yang disebut');
+select is((public.wa_reminder_preview('2026-11-11 09:00:00+07', 'WAAA',
+  'aa000000-0000-0000-0000-000000000031', 'Seminar Offline', 'https://app.example.com', 'missing'))->>'message',
+  'Halo @Advertiser Dua, laporan Advertiser Dua produk Produk Satu Seminar Offline tanggal 2026-11-10 belum diisi. Leads 1, Paid 1. https://app.example.com/report-spend?productCode=WAAA&eventType=Seminar%20Offline',
+  'preview mode missing hanya menyebut yang belum lapor');
+select is(jsonb_array_length((public.wa_reminder_preview('2026-11-11 09:00:00+07', 'WAAA',
+  'aa000000-0000-0000-0000-000000000031', 'Seminar Offline', 'https://app.example.com', 'missing'))->'advertisers'),
+  1, 'preview mode missing mengembalikan satu pengiklan');
 select is((public.wa_reminder_preview('2026-11-11 09:00:00+07', 'WAAA',
   'aa000000-0000-0000-0000-000000000031', null, 'https://app.example.com'))->>'event_type',
   'Webinar Online', 'tanpa jenis acara, preview memakai aktivitas terbaru');
@@ -226,7 +266,7 @@ select is(has_function_privilege('authenticated', 'public.wa_reminder_claim(time
   'browser tidak bisa klaim reminder');
 select is(has_function_privilege('authenticated', 'public.wa_reminder_mark(uuid,text,text,text)', 'execute'), false,
   'browser tidak bisa menandai reminder');
-select is(has_function_privilege('authenticated', 'public.wa_reminder_preview(timestamptz,text,uuid,text,text)', 'execute'), false,
+select is(has_function_privilege('authenticated', 'public.wa_reminder_preview(timestamptz,text,uuid,text,text,text)', 'execute'), false,
   'browser tidak bisa preview dengan data service');
 select is(has_function_privilege('authenticated', 'public.wa_reminder_purge(timestamptz,integer)', 'execute'), false,
   'browser tidak bisa menghapus log');

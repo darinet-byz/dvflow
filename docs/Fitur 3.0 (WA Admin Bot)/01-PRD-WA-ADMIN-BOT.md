@@ -86,8 +86,9 @@ Permission ditegakkan di backend dan RPC, bukan hanya dengan menyembunyikan menu
 2. **Sudah lapor** = ada `ad_spend_reports` untuk pengiklan + produk + jenis acara
    yang rentang tanggalnya mencakup kemarin. Batch tidak diperiksa (W2).
 3. **Satu pesan per (produk, jenis acara)** yang punya pengiklan belum lapor.
-   Pesan menyebut **semua** pengiklan yang beraktivitas kemarin untuk jenis acara
-   itu (`@A, @B, …`), sesuai permintaan pengguna.
+   Setiap jadwal memilih audiens: **semua** pengiklan yang beraktivitas kemarin,
+   atau **hanya yang belum lapor**. Contoh: pagi menyebut semua, siang/sore hanya
+   yang belum lapor.
 4. **Idempoten**: kunci unik `(schedule_id, product_code, event_type,
    reminder_date)` untuk status `queued`/`sent`. Baris grup ditandai
    `advertiser_id is null`.

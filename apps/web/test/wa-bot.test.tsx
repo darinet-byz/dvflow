@@ -41,7 +41,8 @@ const overview = {
   }],
   schedules: [{
     id: 'sch-1', execution_time: '09:00:00', template_id: 'tpl-1', template_name: 'Pagi', days: [0, 1, 2, 3, 4, 5, 6],
-    only_if_missing_report: true, is_active: true, created_at: '2026-11-11T01:00:00Z', updated_at: '2026-11-11T01:00:00Z',
+    only_if_missing_report: true, mention_scope: 'all', is_active: true,
+    created_at: '2026-11-11T01:00:00Z', updated_at: '2026-11-11T01:00:00Z',
   }],
 }
 
@@ -73,6 +74,7 @@ const preview = {
   leads: 2,
   paid: 1,
   advertisers: [{ code: '01', name: 'Zul' }],
+  mention_scope: 'all',
   product_code: 'KM',
   product_name: 'Kuliner Masteri',
   event_type: 'Seminar Offline',
@@ -129,6 +131,14 @@ describe('WA Admin Bot page', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Riwayat' }))
     expect(await screen.findByText('Riwayat Pengiriman')).toBeTruthy()
     expect(screen.getByText(/Disimpan 3 hari/)).toBeTruthy()
+  })
+
+  it('jadwal punya pilihan audiens semua atau hanya yang belum lapor', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: 'Jadwal' }))
+    fireEvent.click(await screen.findByRole('button', { name: '+ Tambah Jadwal' }))
+    expect(await screen.findByLabelText('Siapa yang disebut')).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Hanya pengiklan yang belum lapor' })).toBeTruthy()
   })
 
   it('menolak placeholder asing sebelum memanggil server', async () => {

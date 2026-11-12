@@ -25,11 +25,20 @@ type FormState = {
   templateId: string
   days: number[]
   onlyIfMissing: boolean
+  mentionScope: 'all' | 'missing'
   isActive: boolean
 }
 
 const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6]
-const EMPTY: FormState = { id: null, time: '09:00', templateId: '', days: [...ALL_DAYS], onlyIfMissing: true, isActive: true }
+const EMPTY: FormState = {
+  id: null, time: '09:00', templateId: '', days: [...ALL_DAYS],
+  onlyIfMissing: true, mentionScope: 'all', isActive: true,
+}
+
+const SCOPE_OPTIONS = [
+  { value: 'all', label: 'Semua pengiklan yang beraktivitas kemarin' },
+  { value: 'missing', label: 'Hanya pengiklan yang belum lapor' },
+]
 
 export function ScheduleSection({ overview, reload }: { overview: WaOverview; reload: () => void }) {
   const toast = useToast()
@@ -56,6 +65,7 @@ export function ScheduleSection({ overview, reload }: { overview: WaOverview; re
       templateId: schedule.template_id,
       days: [...schedule.days],
       onlyIfMissing: schedule.only_if_missing_report,
+      mentionScope: schedule.mention_scope,
       isActive: schedule.is_active,
     })
   }
@@ -84,6 +94,7 @@ export function ScheduleSection({ overview, reload }: { overview: WaOverview; re
           template_id: form.templateId,
           days: form.days,
           only_if_missing_report: form.onlyIfMissing,
+          mention_scope: form.mentionScope,
           is_active: form.isActive,
         },
       })
@@ -118,7 +129,7 @@ export function ScheduleSection({ overview, reload }: { overview: WaOverview; re
         <div>
           <h2 className="text-[15px] font-semibold text-ink">Jadwal Pengingat</h2>
           <p className="mt-0.5 text-[12px] text-ink-soft">
-            Jam dibaca sebagai WIB. Pengingat hanya untuk produk yang punya order kemarin dan belum lapor.
+            Jam dibaca sebagai WIB. Tiap jadwal bisa menyebut semua pengiklan atau hanya yang belum lapor.
           </p>
         </div>
         <Button variant="primary" onClick={openCreate}>+ Tambah Jadwal</Button>
@@ -131,7 +142,11 @@ export function ScheduleSection({ overview, reload }: { overview: WaOverview; re
             <TableCell>{schedule.template_name ?? '-'}</TableCell>
             <TableCell className="text-[12px]">{formatWaDays(schedule.days)}</TableCell>
             <TableCell className="text-[12px]">
-              {schedule.only_if_missing_report ? 'Kirim jika laporan D-1 belum diisi' : 'Selalu kirim untuk produk beraktivitas'}
+              {schedule.mention_scope === 'missing'
+                ? 'Sebut hanya yang belum lapor'
+                : schedule.only_if_missing_report
+                  ? 'Sebut semua · kirim jika ada yang belum lapor'
+                  : 'Sebut semua · selalu kirim'}
             </TableCell>
             <TableCell>
               <Badge tone={schedule.is_active ? 'success' : 'neutral'}>{schedule.is_active ? 'Aktif' : 'Nonaktif'}</Badge>
@@ -179,6 +194,23 @@ export function ScheduleSection({ overview, reload }: { overview: WaOverview; re
             onChange={(value) => setForm((current) => current === null ? current : { ...current, templateId: value })}
           />
           <div>
+            <Select
+              id="wa-schedule-scope"
+              label="Siapa yang disebut"
+              value={form?.mentionScope ?? 'all'}
+              options={SCOPE_OPTIONS}
+              disabled={busy}
+              onChange={(value) => setForm((current) => current === null ? current : {
+                ...current,
+                mentionScope: value === 'missing' ? 'missing' : 'all',
+                onlyIfMissing: value === 'missing' ? true : current.onlyIfMissing,
+              })}
+            />
+            <p className="mt-1 text-[11px] text-ink-soft">
+              Contoh: jadwal pagi memakai “semua pengiklan”, jadwal siang/sore memakai “hanya yang belum lapor”.
+            </p>
+          </div>
+          <div>
             <p className="mb-1 text-[12px] font-semibold text-ink-soft">Hari Pengiriman</p>
             <div className="flex flex-wrap gap-2">
               {ALL_DAYS.map((day) => (
@@ -198,12 +230,17 @@ export function ScheduleSection({ overview, reload }: { overview: WaOverview; re
             <input
               type="checkbox"
               className="mt-0.5"
-              checked={form?.onlyIfMissing ?? true}
-              disabled={busy}
+              checked={form?.mentionScope === 'missing' ? true : (form?.onlyIfMissing ?? true)}
+              disabled={busy || form?.mentionScope === 'missing'}
               onChange={(event) => setForm((current) => current === null ? current : { ...current, onlyIfMissing: event.target.checked })}
             />
             Kirim hanya jika laporan D-1 untuk produk tersebut belum diisi
           </label>
+          {form?.mentionScope === 'missing' ? (
+            <p className="-mt-1 text-[11px] text-ink-soft">
+              Mode “hanya yang belum lapor” otomatis tidak mengirim apa pun bila semua pengiklan sudah lapor.
+            </p>
+          ) : null}
           <label className="flex items-center gap-2 text-[13px]">
             <input
               type="checkbox"

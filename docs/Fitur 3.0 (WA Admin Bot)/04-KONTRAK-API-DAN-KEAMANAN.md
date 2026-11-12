@@ -121,15 +121,19 @@ tidak dikenal.
 
 ```json
 {
-  "execution_time": "09:00",
+  "execution_time": "13:00",
   "template_id": "uuid",
   "days": [1,2,3,4,5],
+  "mention_scope": "missing",
   "only_if_missing_report": true,
   "is_active": true
 }
 ```
 
-Waktu dinormalisasi menjadi `HH:MM:00`; minimal satu hari; template harus ada.
+`mention_scope` (`all` default / `missing`) menentukan siapa yang disebut:
+semua pengiklan beraktivitas atau hanya yang belum lapor. Waktu dinormalisasi
+menjadi `HH:MM:00`; minimal satu hari; template harus ada. Mode `missing`
+memaksa `only_if_missing_report = true` di server.
 
 ### GET /api/wa-bot/logs
 
@@ -146,13 +150,16 @@ untuk pesan grup.
 {
   "product_code": "KM",
   "template_id": "uuid",
-  "event_type": "Seminar Offline"
+  "event_type": "Seminar Offline",
+  "mention_scope": "missing"
 }
 ```
 
-Respons sama dengan data preview: `group_id`, `message`, `leads`, `paid`,
-`advertisers: [{code,name}]`, `product_code`, `product_name`, `event_type`.
-Pesan menyebut seluruh pengiklan yang beraktivitas kemarin untuk jenis acara itu.
+`mention_scope` opsional (`all` default). Respons sama dengan data preview:
+`group_id`, `message`, `leads`, `paid`, `advertisers: [{code,name}]`,
+`mention_scope`, `product_code`, `product_name`, `event_type`.
+Mode `missing` mengembalikan `INVALID_ARGUMENT` dengan pesan "semua sudah
+melaporkan" bila tidak ada yang belum lapor.
 Tidak mengirim apa pun dan tidak menulis log.
 
 ### POST /api/wa-bot/test-send

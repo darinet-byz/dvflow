@@ -117,7 +117,9 @@ Catatan: jalankan Worker pada port yang berbeda dari backend, dan samakan
 4. **Produk & Grup**: `+ Atur Produk`; pilih produk, isi ID grup, aktifkan.
    Semua pengiklan yang ditugaskan ke produk otomatis disebut namanya.
 5. **Template**: buat minimal satu template, gunakan chip placeholder.
-6. **Jadwal**: tambah jam (WIB), pilih template, pilih hari, aktifkan.
+6. **Jadwal**: tambah jam (WIB), pilih template, pilih hari, pilih **Siapa yang
+   disebut** (semua pengiklan untuk pagi; hanya yang belum lapor untuk siang/sore),
+   lalu aktifkan.
 7. **Kirim Tes** → **Preview** → **Kirim ke Grup** untuk membuktikan token,
    grup, dan nomor tag benar.
 

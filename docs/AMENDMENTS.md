@@ -1756,3 +1756,21 @@ Permintaan pengguna: field nomor HP pengiklan tidak berguna karena Fonnte tidak 
 ### Implementasi
 
 Migrasi `20261112180000_wa_group_mentions.sql` (`schema_version` 74): drop `wa_phone`, `advertiser_id` nullable, unique index baru, `wa_render_reminder`, `wa_reminder_claim`, `wa_reminder_preview` versi grup. Backend `packages/api/src/wa-bot/handlers.ts` + `routes.ts`; web `ConnectionSection`, `ProductSection`, `LogSection`, `WaBotPage`, `types`; shared menghapus `normalizeWhatsAppPhone`. Tes: `37_wa_admin_bot.sql` (47 assertion), unit API/web, integration 39.
+
+## A72 - Audiens per jadwal: semua pengiklan atau hanya yang belum lapor (12 November 2026)
+
+Permintaan pengguna: satu hari bisa punya beberapa pengingat. Pagi menyebut semua pengiklan; pengingat berikutnya hanya menyebut pengiklan yang belum lapor.
+
+### Keputusan
+
+- Pengaturan audiens melekat pada **jadwal**, bukan template: satu template boleh dipakai beberapa jadwal dengan audiens berbeda.
+- Kolom baru `wa_reminder_schedules.mention_scope` (`all` default / `missing`).
+  - `all`: sebut semua pengiklan yang punya order kemarin untuk jenis acara itu.
+  - `missing`: sebut hanya pengiklan yang belum punya `ad_spend_reports` untuk produk + jenis acara + tanggal kemarin.
+- Mode `missing` otomatis tidak mengirim apa pun bila semua sudah lapor; `only_if_missing_report` dipaksa `true` di server untuk mode ini.
+- `wa_reminder_preview` menerima `p_mention_scope` (default `all`) dan mengembalikan `mention_scope`; bila mode `missing` tetapi semua sudah lapor, respons `NO_MISSING_REPORT`.
+- UI: Select **Siapa yang disebut** di modal Jadwal dan modal Kirim Tes; tabel jadwal menampilkan aturan audiens.
+
+### Implementasi
+
+Migrasi `20261112190000_wa_schedule_mention_scope.sql` (`schema_version` 75): kolom + constraint, `wa_reminder_claim` dan `wa_reminder_preview` versi baru. Backend `handlers.ts` (simpan/validasi `mention_scope`, teruskan ke preview). Web `ScheduleSection`, `ConnectionSection`, `types`. Tes: `37_wa_admin_bot.sql` (53 assertion), unit API/web, integration 39.

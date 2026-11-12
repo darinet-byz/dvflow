@@ -44,6 +44,7 @@ export type WaSchedule = {
   template_name: string | null
   days: number[]
   only_if_missing_report: boolean
+  mention_scope: 'all' | 'missing'
   is_active: boolean
   created_at: string
   updated_at: string
@@ -108,6 +109,7 @@ export type WaPreview = {
   leads: number
   paid: number
   advertisers: Array<{ code: string; name: string }>
+  mention_scope: 'all' | 'missing'
   product_code: string
   product_name: string
   event_type: string

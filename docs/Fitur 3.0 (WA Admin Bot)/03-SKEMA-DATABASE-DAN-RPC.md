@@ -52,7 +52,8 @@ Divalidasi backend + `packages/shared`.
 | `execution_time` | time | Jam WIB. |
 | `template_id` | uuid → templates | `ON DELETE RESTRICT`. |
 | `days` | smallint[] | 0 = Minggu; default semua hari; tidak boleh kosong. |
-| `only_if_missing_report` | boolean | Default true. |
+| `only_if_missing_report` | boolean | Default true. Gerbang kirim: bila false, pesan mode `all` selalu dikirim untuk produk beraktivitas. |
+| `mention_scope` | text | `all` (default) = sebut semua pengiklan beraktivitas; `missing` = sebut hanya yang belum lapor. |
 | `is_active` | boolean | |
 
 ### `wa_reminder_logs`
@@ -101,9 +102,10 @@ Langkah:
    `has_missing` (belum ada `ad_spend_reports` untuk jenis acara sama).
 6. Gabungkan per produk + jenis acara: daftar nama, daftar kode, total leads/paid.
 7. Buang grup yang tidak punya order kemarin.
-8. Bila `only_if_missing_report = true`, kirim hanya jika **minimal satu**
-   pengiklan di grup itu belum lapor. Daftar mention tetap memuat semua
-   pengiklan yang beraktivitas (permintaan pengguna A71).
+8. Bila `mention_scope = 'missing'`, pakai hanya pengiklan dengan
+   `has_missing`; bila tidak ada, grup itu tidak menghasilkan task. Bila
+   `mention_scope = 'all'`, pakai semua pengiklan beraktivitas dan
+   `only_if_missing_report` menentukan apakah grup dikirim.
 9. Buang yang sudah 3× `failed` pada tanggal itu untuk kunci grup yang sama.
 10. Render template lewat `wa_render_reminder` (`{{mention}}` = `@A, @B`).
 11. Insert satu `queued` per grup + jenis acara dengan `on conflict do nothing`,
@@ -113,12 +115,13 @@ Langkah:
 Mengubah baris `queued` menjadi `sent`/`failed`. Baris yang sudah bukan `queued`
 tidak berubah (`updated: false`) — mencegah penandaan ganda.
 
-### `wa_reminder_preview(p_now, p_product_code, p_template_id, p_event_type, p_base_url)`
-Menghasilkan pesan final + angka kemarin untuk **Kirim Tes**, menyebut seluruh
-pengiklan yang beraktivitas di produk itu. Bila `p_event_type` kosong, dipakai
-jenis acara order terbaru kemarin. Mengembalikan `{found:false, reason}` bila
-template/produk/grup tidak ada atau tidak ada order untuk jenis acara itu.
-Respons sukses memuat `advertisers: [{ code, name }]`.
+### `wa_reminder_preview(p_now, p_product_code, p_template_id, p_event_type, p_base_url, p_mention_scope)`
+Menghasilkan pesan final + angka kemarin untuk **Kirim Tes**, menyebut pengiklan
+sesuai `p_mention_scope` (`all` default / `missing`). Bila `p_event_type` kosong,
+dipakai jenis acara order terbaru kemarin. Mengembalikan `{found:false, reason}`
+bila template/produk/grup tidak ada, tidak ada order untuk jenis acara itu, atau
+mode `missing` tetapi semua sudah lapor (`NO_MISSING_REPORT`).
+Respons sukses memuat `advertisers: [{ code, name }]` dan `mention_scope`.
 
 ### `wa_reminder_purge(p_now timestamptz, p_keep_days integer)`
 Menghapus log lebih tua dari `p_keep_days` (default 3). Dipanggil klaim dan

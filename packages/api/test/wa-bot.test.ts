@@ -51,6 +51,7 @@ function baseState(role = 'admin', permissions: string[] = ['config.wa_bot', 'ac
     template_id: TEMPLATE_ID,
     days: [0, 1, 2, 3, 4, 5, 6],
     only_if_missing_report: true,
+    mention_scope: 'all',
     is_active: true,
   })
   return state
@@ -204,11 +205,22 @@ describe('WA Admin Bot — akses & konfigurasi', () => {
     expect(inactive.status).toBe(200)
   })
 
-  it('jadwal memvalidasi jam, template, dan hari', async () => {
-    const { request } = await setup()
+  it('jadwal memvalidasi jam, template, hari, dan pilihan audiens', async () => {
+    const { state, request } = await setup()
     expect((await request('POST', '/api/wa-bot/schedules', { execution_time: '25:00', template_id: TEMPLATE_ID })).status).toBe(400)
     expect((await request('POST', '/api/wa-bot/schedules', { execution_time: '09:30', template_id: '99999999-9999-4999-8999-999999999999' })).status).toBe(400)
-    expect((await request('POST', '/api/wa-bot/schedules', { execution_time: '9:30', template_id: TEMPLATE_ID, days: [1, 1, 3] })).status).toBe(201)
+    expect((await request('POST', '/api/wa-bot/schedules', {
+      execution_time: '9:30', template_id: TEMPLATE_ID, days: [1, 1, 3],
+      mention_scope: 'semua',
+    })).status).toBe(400)
+    expect((await request('POST', '/api/wa-bot/schedules', {
+      execution_time: '9:30', template_id: TEMPLATE_ID, days: [1, 1, 3],
+      mention_scope: 'missing', only_if_missing_report: false,
+    })).status).toBe(201)
+    const created = state.waReminderSchedules.at(-1)
+    expect(created?.['mention_scope']).toBe('missing')
+    // Mode "missing" selalu mematikan pesan bila semua sudah lapor.
+    expect(created?.['only_if_missing_report']).toBe(true)
   })
 })
 
@@ -216,21 +228,24 @@ describe('WA Admin Bot — pengiriman', () => {
   it('preview merender pesan tanpa mengirim apa pun', async () => {
     const fetchMock = vi.fn(async () => okSend())
     vi.stubGlobal('fetch', fetchMock)
-    const { request } = await setup()
+    const { request, state } = await setup()
 
     const response = await request('POST', '/api/wa-bot/test-preview', {
       product_code: 'KM',
       template_id: TEMPLATE_ID,
       event_type: 'Webinar Online',
+      mention_scope: 'missing',
     })
     expect(response.status).toBe(200)
-    const body = (await response.json()) as { data: { found: boolean; message: string; group_id: string } }
+    const body = (await response.json()) as { data: { found: boolean; message: string; group_id: string; mention_scope: string } }
     expect(body.data.found).toBe(true)
     expect(body.data.group_id).toBe('111@g.us')
+    expect(body.data.mention_scope).toBe('missing')
     expect(body.data.message).toContain('@Zul')
     expect(body.data.message).toContain('Webinar Online')
     expect(body.data.message).toContain('eventType=Webinar%20Online')
     expect(fetchMock).not.toHaveBeenCalled()
+    expect(state.rpcCalls.at(-1)?.args['p_mention_scope']).toBe('missing')
   })
 
   it('kirim tes memakai token tersimpan dan mencatat log', async () => {

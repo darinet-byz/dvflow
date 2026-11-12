@@ -865,12 +865,14 @@ export function createFakeDb(state: FakeState): Db {
           .sort((left, right) => left.name.localeCompare(right.name, 'id') || left.code.localeCompare(right.code, 'id'))
         if (advertisers.length === 0) return { found: false, reason: 'EVENT_TYPE_NOT_FOUND' } as T
         const eventType = String(args['p_event_type'] ?? '') === '' ? 'Seminar Offline' : String(args['p_event_type'])
+        const mentionScope = args['p_mention_scope'] === 'missing' ? 'missing' : 'all'
         const names = advertisers.map((row) => row.name)
         const codes = advertisers.map((row) => row.code)
         const reportUrl = `${args['p_base_url']}/report-spend?productCode=${product['code']}&eventType=${eventType.replaceAll(' ', '%20')}`
         return {
           found: true,
           group_id: group['fonnte_group_id'],
+          mention_scope: mentionScope,
           message: String(template['message_content'])
             .replaceAll('{{mention}}', `@${names.join(', @')}`)
             .replaceAll('{{advertiser_name}}', names.join(', '))

@@ -62,6 +62,7 @@ type ScheduleRow = {
   template_id: string
   days: number[]
   only_if_missing_report: boolean
+  mention_scope: 'all' | 'missing'
   is_active: boolean
   created_at: string
   updated_at: string
@@ -106,6 +107,7 @@ type PreviewResult =
       leads: number
       paid: number
       advertisers: Array<{ code: string; name: string }>
+      mention_scope: 'all' | 'missing'
       product_code: string
       product_name: string
       event_type: string
@@ -116,7 +118,7 @@ const PRODUCT_COLUMNS = 'id,code,name,active'
 const ADVERTISER_COLUMNS = 'id,code,name,active'
 const PRODUCT_GROUP_COLUMNS = 'id,product_id,fonnte_group_id,is_active,created_at,updated_at'
 const TEMPLATE_COLUMNS = 'id,name,message_content,is_active,created_at,updated_at'
-const SCHEDULE_COLUMNS = 'id,execution_time,template_id,days,only_if_missing_report,is_active,created_at,updated_at'
+const SCHEDULE_COLUMNS = 'id,execution_time,template_id,days,only_if_missing_report,mention_scope,is_active,created_at,updated_at'
 const LOG_COLUMNS =
   'id,schedule_id,advertiser_id,advertiser_name,product_code,product_name,reminder_date,group_id,template_id,event_type,message,status,attempts,fonnte_message_id,error,claimed_at,sent_at,created_at'
 
@@ -451,12 +453,16 @@ export async function saveWaBotSchedule(context: RouteContext): Promise<Response
   if (!template) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Template pesan tidak ditemukan.')
 
   const days = readDays(body['days'], existing?.days ?? [0, 1, 2, 3, 4, 5, 6])
+  const mentionScope = readMentionScope(body, existing?.mention_scope ?? 'all')
 
   const row = {
     execution_time: executionTime,
     template_id: templateId,
     days,
-    only_if_missing_report: readBoolean(body, 'only_if_missing_report', existing?.only_if_missing_report ?? true),
+    only_if_missing_report: mentionScope === 'missing'
+      ? true
+      : readBoolean(body, 'only_if_missing_report', existing?.only_if_missing_report ?? true),
+    mention_scope: mentionScope,
     is_active: readBoolean(body, 'is_active', existing?.is_active ?? true),
   }
 
@@ -485,6 +491,7 @@ type TestTarget = {
   productCode: string
   templateId: string
   eventType: string | null
+  mentionScope: 'all' | 'missing'
 }
 
 /** POST /api/wa-bot/test-preview — render pesan tanpa mengirim apa pun. */
@@ -631,6 +638,15 @@ function readBoolean(body: Record<string, unknown>, key: string, fallback: boole
   return typeof value === 'boolean' ? value : fallback
 }
 
+function readMentionScope(body: Record<string, unknown>, fallback: 'all' | 'missing'): 'all' | 'missing' {
+  const value = (readString(body, 'mention_scope') ?? '').trim()
+  if (value === '') return fallback
+  if (value !== 'all' && value !== 'missing') {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilihan pengiklan yang disebut tidak valid.')
+  }
+  return value
+}
+
 function readTestTarget(body: Record<string, unknown>): TestTarget {
   const productCode = (readString(body, 'product_code') ?? '').trim()
   const templateId = (readString(body, 'template_id') ?? '').trim()
@@ -647,6 +663,7 @@ function readTestTarget(body: Record<string, unknown>): TestTarget {
     productCode,
     templateId,
     eventType: rawEventType === '' ? null : rawEventType,
+    mentionScope: readMentionScope(body, 'all'),
   }
 }
 
@@ -657,6 +674,7 @@ async function readTestPreview(context: RouteContext, target: TestTarget): Promi
     p_template_id: target.templateId,
     p_event_type: target.eventType,
     p_base_url: context.url.origin,
+    p_mention_scope: target.mentionScope,
   })
 
   if (!preview.found) throw new ApiFailure('INVALID_ARGUMENT', undefined, previewMessage(preview.reason))
@@ -712,6 +730,8 @@ function previewMessage(reason: string): string {
       return 'Produk tidak ditemukan.'
     case 'EVENT_TYPE_NOT_FOUND':
       return 'Belum ada order kemarin untuk produk dan jenis acara tersebut.'
+    case 'NO_MISSING_REPORT':
+      return 'Semua pengiklan sudah melaporkan jenis acara itu untuk kemarin.'
     case 'GROUP_NOT_FOUND':
       return 'Produk ini belum punya grup WhatsApp yang aktif.'
     default:

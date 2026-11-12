@@ -10,6 +10,11 @@ import { Modal } from '../../ui/Overlay'
 import { useToast } from '../../ui/Toast'
 import type { WaDeviceCheck, WaOverview, WaPreview } from './types'
 
+const MENTION_SCOPE_OPTIONS = [
+  { value: 'all', label: 'Semua pengiklan yang beraktivitas' },
+  { value: 'missing', label: 'Hanya yang belum lapor' },
+]
+
 export function ConnectionSection({ overview, reload, canSend }: { overview: WaOverview; reload: () => void; canSend: boolean }) {
   const toast = useToast()
   const [token, setToken] = useState('')
@@ -21,6 +26,7 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
   const [testOpen, setTestOpen] = useState(false)
   const [productCode, setProductCode] = useState('')
   const [eventType, setEventType] = useState('Seminar Offline')
+  const [mentionScope, setMentionScope] = useState<'all' | 'missing'>('all')
   const [templateId, setTemplateId] = useState('')
   const [preview, setPreview] = useState<WaPreview | null>(null)
   const [previewBusy, setPreviewBusy] = useState(false)
@@ -129,6 +135,7 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
     const firstProduct = readyProducts[0] ?? null
     setProductCode(firstProduct?.code ?? '')
     setEventType('Seminar Offline')
+    setMentionScope('all')
     setTemplateId(overview.templates.find((template) => template.is_active)?.id ?? '')
     setPreview(null)
     setTestOpen(true)
@@ -144,6 +151,7 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
       product_code: productCode,
       template_id: templateId,
       event_type: eventType,
+      mention_scope: mentionScope,
     }
   }
 
@@ -276,6 +284,14 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
             options={WA_EVENT_TYPES.map((type) => ({ value: type, label: type }))}
             disabled={previewBusy || sendBusy}
             onChange={(value) => { setEventType(value); setPreview(null) }}
+          />
+          <Select
+            id="wa-test-mention-scope"
+            label="Siapa yang disebut"
+            value={mentionScope}
+            options={MENTION_SCOPE_OPTIONS}
+            disabled={previewBusy || sendBusy}
+            onChange={(value) => { setMentionScope(value === 'missing' ? 'missing' : 'all'); setPreview(null) }}
           />
           <Select
             id="wa-test-template"
