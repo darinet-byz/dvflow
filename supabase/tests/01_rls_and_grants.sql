@@ -121,10 +121,10 @@ select is(has_function_privilege('authenticated', 'public.app_role()', 'execute'
 select is(has_function_privilege('authenticated', 'public.is_app_user()', 'execute'),
   true, 'helper is_app_user dapat dijalankan authenticated');
 select is(has_function_privilege('authenticated',
-    'public.presensi_page(text, date, date, text, text, text, text, text, text, text, text, text, integer, integer,text)',
+    'public.presensi_page(text, date, date, text, text, text, text, text, text, text, text, text, integer, integer, text, text)',
     'execute'),
   true, 'RPC baca presensi terbuka untuk authenticated');
-select is(has_function_privilege('anon', 'public.presensi_page(text, date, date, text, text, text, text, text, text, text, text, text, integer, integer,text)',
+select is(has_function_privilege('anon', 'public.presensi_page(text, date, date, text, text, text, text, text, text, text, text, text, integer, integer, text, text)',
     'execute'),
   false, 'RPC baca presensi tertutup untuk anon');
 select is(has_function_privilege('authenticated', 'public.set_updated_at()', 'execute'),

@@ -1685,3 +1685,26 @@ Permintaan pengguna: konfigurasi WA Admin Bot dipindah ke **level produk** (kare
 ### Implementasi
 
 Migrasi `20261112090000_wa_bot_product_level.sql` (schema_version 71); tabel `wa_product_groups`, kolom `advertisers.wa_phone`, kolom `wa_reminder_logs.event_type`; RPC `wa_render_reminder`, `wa_reminder_purge`, versi baru `wa_reminder_claim` dan `wa_reminder_preview`; endpoint `product-groups`, `advertisers/:id`, `test-preview`; halaman `/wa-bot` bertab; test `supabase/tests/37_wa_admin_bot.sql`, `packages/api/test/wa-bot.test.ts`, `apps/web/test/wa-bot.test.tsx`.
+
+## A68 - Presensi Realtime, tanggal presensi, dan total tiket + OTS (12 November 2026)
+
+Permintaan pengguna: filter tanggal di halaman Presensi masih memakai tanggal order, sehingga peserta yang membeli lebih awal (termasuk yang reschedule) tidak terlihat pada hari acara; total kehadiran tiket + OTS juga belum pernah tampil sebagai satu angka.
+
+### Keputusan
+
+- Halaman **Presensi Acara** punya dua tab:
+  - **Berdasarkan Order**: filter tanggal = tanggal order (perilaku lama). Roster berisi semua peserta Paid yang cocok filter.
+  - **Realtime Presensi**: filter tanggal = tanggal scan/check-in (`attendance_events.clicked_at`, batas WIB). Hanya peserta yang sudah hadir pada rentang itu yang tampil.
+- Pilihan tab disimpan di `sessionStorage` selama tab browser terbuka. Default tetap **Berdasarkan Order**.
+- Semua kehadiran dihitung **per tiket**, bukan per Order ID (melanjutkan A61). Webinar: satu klik dalam rentang membuat seluruh `quantity` dianggap hadir.
+- Ringkasan Realtime memakai himpunan peserta yang hadir pada rentang, sehingga KPI dan daftar konsisten.
+- **KPI Berdasarkan Order**: Jumlah Tiket, Jumlah Hadir, Belum Hadir. Attendance Rate tetap ditampilkan pada hint kartu Jumlah Hadir.
+- **KPI Realtime Presensi**: Total Peserta Hari Ini (atau "Total Peserta (rentang)"), Order Hadir, dan Sisa Tiket.
+- Kartu Jumlah Hadir dan Total Peserta menampilkan rincian **Online X · OTS Y**, sehingga angka tiket Online + OTS tidak perlu dijumlah manual.
+- `presensi_summary` menambah `paid_tickets_online`, `paid_tickets_ots`, `sudah_hadir_online`, `sudah_hadir_ots`, dan `attending_orders`.
+- Baris presensi menambah `checked_in_in_range`; `checked_in_tickets` tetap total sepanjang waktu dan tetap dipakai drawer koreksi manual.
+- Halaman Realtime memuat ulang data otomatis tiap 30 detik.
+
+### Implementasi
+
+Migrasi `20261112150000_presensi_realtime_dan_total_kehadiran.sql` (`schema_version` 72): `presensi_page`, `export_presensi_page`, dan `presensi_summary` menerima argumen akhir `p_date_mode text default 'order'` (`order`/`attendance`), dengan grant/revoke yang sama. Web: `apps/web/src/lib/filters.ts`, `apps/web/src/lib/queries.ts`, halaman Presensi, `StandardFilterBar`/`FilterControls`/`DateRangeField`. Tes: `supabase/tests/38_presensi_realtime.sql`, `apps/web/test/presensi-realtime.test.tsx`; tes pgTAP 16/33/37 diperbarui.

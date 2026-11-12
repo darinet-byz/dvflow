@@ -14,7 +14,7 @@ insert into public.attendance_events(order_id,attendance_type,source) values ('p
 
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"f6000000-0000-0000-0000-000000000001","app_role":"presensi_only"}';
-select is(public.presensi_summary(), '{"paid_tickets":2,"sudah_hadir":1,"belum_hadir":1,"attendance_rate":0.5000}'::jsonb,
+select is(public.presensi_summary(), '{"paid_tickets":2,"sudah_hadir":1,"belum_hadir":1,"attendance_rate":0.5000,"paid_tickets_online":2,"paid_tickets_ots":0,"sudah_hadir_online":1,"sudah_hadir_ots":0,"attending_orders":1}'::jsonb,
   'izin Presensi saja: ringkasan kehadiran tersedia');
 select ok(not (public.presensi_summary() ? 'gross_amount'), 'tanpa angka keuangan');
 select throws_ok('select public.dashboard_summary()', 'DF006', 'FORBIDDEN', 'dashboard_summary tetap butuh izin Dashboard');
@@ -23,7 +23,7 @@ delete from public.app_role_permissions where role_id = 'presensi_only';
 set local role authenticated;
 select throws_ok('select public.presensi_summary()', 'DF006', 'FORBIDDEN', 'tanpa izin Presensi ditolak');
 reset role;
-select is(has_function_privilege('anon','public.presensi_summary(text,date,date,text,text,text,text,text,text,text)','execute'), false, 'anon tidak bisa');
+select is(has_function_privilege('anon','public.presensi_summary(text,date,date,text,text,text,text,text,text,text,text)','execute'), false, 'anon tidak bisa');
 
 select * from finish();
 rollback;

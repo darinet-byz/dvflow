@@ -29,10 +29,13 @@ export function PresensiDetailDrawer({
   row,
   onClose,
   onChanged,
+  realtime = false,
 }: {
   row: PresensiRow | null
   onClose: () => void
   onChanged?: () => void
+  /** A68: tab Realtime menghitung status dari rentang tanggal, tetapi koreksi manual tetap total. */
+  realtime?: boolean
 }) {
   const toast = useToast()
   const profile = useSession().profile
@@ -147,9 +150,15 @@ export function PresensiDetailDrawer({
               { label: 'Status order', value: <Badge tone={appStatusTone(row.app_status)}>{row.app_status}</Badge> },
               { label: 'Status presensi', value: <Badge tone={attendanceTone(row.attendance_status)}>{row.attendance_status}</Badge> },
               { label: 'Jumlah tiket', value: String(row.quantity) },
-              { label: 'Tiket hadir', value: `${row.checked_in_tickets}/${row.quantity}` },
-              { label: 'Sisa tiket', value: String(Math.max(row.quantity - row.checked_in_tickets, 0)) },
-              { label: 'Total Activity', value: String(row.total_activity) },
+              {
+                label: realtime ? 'Tiket hadir (rentang)' : 'Tiket hadir',
+                value: `${realtime ? row.checked_in_in_range ?? row.checked_in_tickets : row.checked_in_tickets}/${row.quantity}`,
+              },
+              ...(realtime
+                ? [{ label: 'Tiket hadir (total)', value: `${row.checked_in_tickets}/${row.quantity}` }]
+                : []),
+              { label: realtime ? 'Sisa tiket (total)' : 'Sisa tiket', value: String(Math.max(row.quantity - row.checked_in_tickets, 0)) },
+              { label: realtime ? 'Total Activity (rentang)' : 'Total Activity', value: String(row.total_activity) },
               { label: 'Di-scan oleh', value: formatText(row.scanner_names?.length ? row.scanner_names.join(', ') : null) },
               { label: 'Aktivitas terbaru', value: formatDateTime(row.latest_activity) },
             ]}
@@ -236,7 +245,7 @@ export function PresensiDetailDrawer({
 
           <section>
             <h3 className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
-              Timestamp (10 terbaru)
+              {realtime ? 'Timestamp (rentang, 10 terbaru)' : 'Timestamp (10 terbaru)'}
             </h3>
             {timestamps.length === 0 ? (
               <p className="text-ink-soft">Belum ada aktivitas presensi.</p>
@@ -253,7 +262,7 @@ export function PresensiDetailDrawer({
             )}
             {/* Retensi 30 hari: yang lebih tua sudah dihapus cron (PRD §106, A41). */}
             <p className="mt-2 text-[11px] text-ink-muted">
-              Total {row.total_activity} aktivitas. Timestamp lebih tua dari 30 hari dihapus otomatis.
+              Total {row.total_activity} aktivitas{realtime ? ' pada rentang ini' : ''}. Timestamp lebih tua dari 30 hari dihapus otomatis.
             </p>
           </section>
 
@@ -276,6 +285,7 @@ export function PresensiDetailDrawer({
               </div>
               <p className="mt-2 text-[12px] text-ink-soft">
                 Koreksi manual tanpa scan. Tindakan ini tercatat atas nama Anda di kolom “Di-scan oleh”.
+                {realtime ? ' Koreksi selalu memakai total tiket, bukan hanya tiket pada rentang.' : ''}
               </p>
             </section>
           ) : null}

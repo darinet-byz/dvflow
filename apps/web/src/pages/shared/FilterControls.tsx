@@ -90,10 +90,13 @@ export function SessionFilter<T extends CommonFilters>(props: FilterControlsProp
 }
 
 /** Satu field tanggal: preset + kalender (tanpa mengetik). Nilai tetap dateFrom/dateTo. */
-export function DateRangeFilters<T extends CommonFilters>(props: FilterControlsProps<T>) {
+export function DateRangeFilters<T extends CommonFilters>(
+  props: FilterControlsProps<T> & { label?: string },
+) {
   return (
     <DateRangeField
       className={CONTROL_WIDTH}
+      ariaLabel={props.label ?? 'Filter tanggal'}
       from={props.filters.dateFrom}
       to={props.filters.dateTo}
       disabled={props.disabled === true}

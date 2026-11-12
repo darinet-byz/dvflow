@@ -1,6 +1,6 @@
 import { EVENT_TYPE_NAME_BY_KIND, type EventKind } from '@dvflow/shared'
 import { supabaseRpc, supabaseSelect } from './supabase-rest'
-import type { CommonFilters, OrderFilters, PageSize, PresensiFilters } from './filters'
+import type { CommonFilters, OrderFilters, PageSize, PresensiDateMode, PresensiFilters } from './filters'
 import { toFilterArgs, toOrderArgs, toPresensiArgs } from './filters'
 
 /**
@@ -39,6 +39,13 @@ export type PresensiSummary = {
   sudah_hadir: number
   belum_hadir: number
   attendance_rate: number | null
+  /** A68: rincian per sumber supaya total tiket + OTS tidak perlu dijumlah manual. */
+  paid_tickets_online?: number
+  paid_tickets_ots?: number
+  sudah_hadir_online?: number
+  sudah_hadir_ots?: number
+  /** A68: jumlah order yang punya check-in pada rentang tanggal (mode Realtime). */
+  attending_orders?: number
 }
 
 export type AppStatus = 'Pending' | 'Paid' | 'Cancelled' | 'Refund'
@@ -149,8 +156,10 @@ export type PresensiRow = {
   /** Nominal & jumlah tiket dibutuhkan modal Refund di drawer Presensi. */
   gross_amount: number
   quantity: number
-  /** A61: tiket yang sudah hadir (0..quantity). */
+  /** A61: tiket yang sudah hadir sepanjang waktu (0..quantity). */
   checked_in_tickets: number
+  /** A68: tiket yang hadir di dalam rentang tanggal yang dipilih (mode Realtime). */
+  checked_in_in_range?: number
   /** A62: nama operator yang melakukan check-in (kosong untuk webinar). */
   scanner_names?: string[]
   /** A61: baris presensi sudah terhapus retensi 30 hari. */
@@ -270,8 +279,14 @@ export async function fetchDashboardSummary(filters: CommonFilters): Promise<Das
   return supabaseRpc<DashboardSummary>('dashboard_summary', toFilterArgs(filters))
 }
 
-export async function fetchPresensiSummary(filters: CommonFilters): Promise<PresensiSummary> {
-  return supabaseRpc<PresensiSummary>('presensi_summary', toFilterArgs(filters))
+export async function fetchPresensiSummary(
+  filters: CommonFilters,
+  dateMode: PresensiDateMode = 'order',
+): Promise<PresensiSummary> {
+  return supabaseRpc<PresensiSummary>('presensi_summary', {
+    ...toFilterArgs(filters),
+    p_date_mode: dateMode,
+  })
 }
 
 export async function fetchOrdersPage(
@@ -290,9 +305,10 @@ export async function fetchOrdersPage(
 export async function fetchPresensiPage(
   filters: PresensiFilters,
   options: { sort: PresensiSortKey; direction: SortDirection; page: number; pageSize: PageSize; exporting?: boolean },
+  dateMode: PresensiDateMode = 'order',
 ): Promise<PresensiPage> {
   return supabaseRpc<PresensiPage>(options.exporting ? 'export_presensi_page' : 'presensi_page', {
-    ...toPresensiArgs(filters),
+    ...toPresensiArgs(filters, dateMode),
     p_sort: options.sort,
     p_sort_dir: options.direction,
     p_page: options.page,

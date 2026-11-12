@@ -35,6 +35,7 @@ export function StandardFilterBar<T extends CommonFilters>({
   viewControls,
   extra,
   extraChips,
+  dateLabel,
 }: {
   filters: T
   lists: ConfigLists | null
@@ -46,9 +47,11 @@ export function StandardFilterBar<T extends CommonFilters>({
   /** Filter khusus halaman, selalu di baris Filter Lain. */
   extra?: ReactNode
   extraChips?: ReactNode
+  /** A68: halaman Presensi membedakan "Tanggal order" dan "Tanggal presensi". */
+  dateLabel?: string
 }) {
   const [showMore, setShowMore] = useState(false)
-  const chips = activeCommonFilters(filters)
+  const chips = activeCommonFilters(filters, { date: dateLabel })
   const controls = { filters, lists, update }
   const activeSecondary = [filters.eventType, filters.session, filters.city].filter((value) => value.trim() !== '').length
   const expanded = showMore
@@ -56,7 +59,7 @@ export function StandardFilterBar<T extends CommonFilters>({
     <div className="filter-bar flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-card p-3.5" data-testid="standard-filter-bar">
       <div className="filter-row flex min-w-0 flex-wrap items-center gap-2.5" data-filter-row="primary">
         {search}
-        <DateRangeFilters {...controls} />
+        <DateRangeFilters {...controls} label={dateLabel} />
         <ProductFilter {...controls} />
         <BatchFilter {...controls} />
         <AdvertiserFilter {...controls} />

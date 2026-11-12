@@ -27,12 +27,14 @@ export function DateRangeField({
   onChange,
   disabled = false,
   className,
+  ariaLabel = 'Filter tanggal',
 }: {
   from: string
   to: string
   onChange: (range: { from: string; to: string }) => void
   disabled?: boolean
   className?: string
+  ariaLabel?: string
 }) {
   const [open, setOpen] = useState(false)
   const [picks, setPicks] = useState<string[]>([])
@@ -88,7 +90,7 @@ export function DateRangeField({
       <button
         type="button"
         id="filter-tanggal"
-        aria-label="Filter tanggal"
+        aria-label={ariaLabel}
         aria-haspopup="dialog"
         aria-expanded={open}
         disabled={disabled}

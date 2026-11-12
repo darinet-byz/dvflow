@@ -111,7 +111,7 @@ select is(
 
 select is(
   public.presensi_summary(),
-  '{"paid_tickets":11,"sudah_hadir":9,"belum_hadir":2,"attendance_rate":0.8182}'::jsonb,
+  '{"paid_tickets":11,"sudah_hadir":9,"belum_hadir":2,"attendance_rate":0.8182,"paid_tickets_online":11,"paid_tickets_ots":0,"sudah_hadir_online":9,"sudah_hadir_ots":0,"attending_orders":5}'::jsonb,
   'KPI dari jumlah tiket, order kedaluwarsa tidak masuk penyebut');
 select is((public.export_presensi_page() ->> 'total')::int, 7, 'export presensi juga hanya peserta Paid');
 reset role;

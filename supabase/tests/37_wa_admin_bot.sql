@@ -5,7 +5,7 @@ begin;
 set local search_path = public, extensions, pg_catalog;
 select no_plan();
 
-select is(public.schema_version(), 71, 'schema version 71');
+select is(public.schema_version(), 72, 'schema version 72');
 
 -- ---------------------------------------------------------------------------
 -- Fixture

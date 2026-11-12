@@ -417,3 +417,7 @@ RPC langsung `recent_batches(p_product_code, p_advertiser_code, p_limit)` dari b
 
 ### GET /api/ots/report
 Izin `action.ots`. Query: `from`, `to`, `product_code`, `batch`, `session`, `city`, `method`. Respons: `summary`, `batches[]`, `sessions[]`, `from`, `to`. Tanggal memakai WIB; from > to atau tanggal/metode tidak valid -> 400.
+
+## A68 - Presensi Realtime dan total tiket + OTS
+
+`presensi_page`, `export_presensi_page`, dan `presensi_summary` menerima argumen akhir `p_date_mode text default 'order'`: `order` (tanggal order, perilaku lama) atau `attendance` (tanggal scan/check-in `attendance_events.clicked_at`, batas WIB). Nilai lain ditolak DF011 `INVALID_DATE_MODE`. Di mode `attendance`, baris hanya memuat order yang punya check-in pada rentang; `checked_in_in_range` berisi tiket hadir dalam rentang, sedangkan `checked_in_tickets` tetap total. `presensi_summary` mengembalikan tambahan `paid_tickets_online`, `paid_tickets_ots`, `sudah_hadir_online`, `sudah_hadir_ots`, dan `attending_orders`. Semua hitungan per tiket (A61), dan izin `operasional.presensi` tidak berubah.

@@ -1,8 +1,14 @@
 import { collectPages } from '../../lib/export'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { TIMESTAMP_DISPLAY_LIMIT } from '@dvflow/shared'
-import { EMPTY_PRESENSI_FILTERS, toCommonFilters, type PresensiFilters } from '../../lib/filters'
+import {
+  EMPTY_PRESENSI_FILTERS,
+  toCommonFilters,
+  type PresensiDateMode,
+  type PresensiFilters,
+} from '../../lib/filters'
 import { formatCount, formatRate, formatText, formatTime } from '../../lib/format'
+import { matchPreset } from '../../lib/date-range'
 import {
   fetchPresensiPage,
   fetchPresensiSummary,
@@ -83,6 +89,17 @@ function defaultDirection(key: PresensiSortKey): SortDirection {
   return key === 'total_activity' || key === 'latest_activity' ? 'desc' : 'asc'
 }
 
+/** A68: pilihan tab diingat selama tab browser terbuka, sama seperti filter. */
+const DATE_MODE_STORAGE_KEY = 'dvflow.presensi.dateMode'
+
+function readDateMode(): PresensiDateMode {
+  try {
+    return sessionStorage.getItem(DATE_MODE_STORAGE_KEY) === 'attendance' ? 'attendance' : 'order'
+  } catch {
+    return 'order'
+  }
+}
+
 export function PresensiPage() {
   const state = useFilterState<PresensiFilters>(EMPTY_PRESENSI_FILTERS, { storageKey: 'presensi' })
   // A30: Tampilan Apps Lapangan — filter dilipat, tabel menjadi kartu.
@@ -95,17 +112,41 @@ export function PresensiPage() {
     direction: 'desc',
   })
   const [selected, setSelected] = useState<PresensiRow | null>(null)
+  const [dateMode, setDateMode] = useState<PresensiDateMode>(readDateMode)
+  const realtime = dateMode === 'attendance'
+  const dateLabel = realtime ? 'Tanggal presensi' : 'Tanggal order'
+
+  function chooseDateMode(mode: PresensiDateMode): void {
+    if (mode === dateMode) return
+    setDateMode(mode)
+    setSelected(null)
+    state.setPage(1)
+    // Status "Belum Hadir"/"Reschedule" tidak mungkin muncul di tab Realtime;
+    // bersihkan supaya pengguna tidak mendapat tabel kosong tanpa alasan.
+    if (mode === 'attendance' && state.filters.attendanceStatus !== '') {
+      state.update('attendanceStatus', '')
+    }
+    try {
+      sessionStorage.setItem(DATE_MODE_STORAGE_KEY, mode)
+    } catch {
+      // sessionStorage bisa diblokir; pilihan tetap berlaku sampai halaman ditutup.
+    }
+  }
 
   const appliedKey = JSON.stringify(state.applied)
   const table = useAsyncData(
     () =>
-      fetchPresensiPage(state.applied, {
-        sort: sort.key,
-        direction: sort.direction,
-        page: state.page,
-        pageSize: state.pageSize,
-      }),
-    [appliedKey, sort.key, sort.direction, state.page, state.pageSize],
+      fetchPresensiPage(
+        state.applied,
+        {
+          sort: sort.key,
+          direction: sort.direction,
+          page: state.page,
+          pageSize: state.pageSize,
+        },
+        dateMode,
+      ),
+    [appliedKey, sort.key, sort.direction, state.page, state.pageSize, dateMode],
   )
 
   /**
@@ -113,9 +154,19 @@ export function PresensiPage() {
    * Dashboard). Dipisah dari tabel supaya pergantian halaman tidak memuat ulang KPI.
    */
   const summary = useAsyncData(
-    () => fetchPresensiSummary(toCommonFilters(state.applied)),
-    [`${appliedKey}:kpi`],
+    () => fetchPresensiSummary(toCommonFilters(state.applied), dateMode),
+    [`${appliedKey}:kpi`, dateMode],
   )
+
+  // A68: tab Realtime dipakai saat acara berjalan; muat ulang diam-diam tiap 30 detik.
+  useEffect(() => {
+    if (!realtime) return
+    const timer = setInterval(() => {
+      table.reload()
+      summary.reload()
+    }, 30_000)
+    return () => clearInterval(timer)
+  }, [realtime, table.reload, summary.reload])
 
   function toggleSort(key: string): void {
     const typed = key as PresensiSortKey
@@ -128,9 +179,36 @@ export function PresensiPage() {
   }
 
 
+  const todayRange = matchPreset(state.filters.dateFrom, state.filters.dateTo) === 'today'
+  const breakdown = `Online ${formatCount(summary.data?.sudah_hadir_online ?? 0)} · OTS ${formatCount(summary.data?.sudah_hadir_ots ?? 0)}`
+
   return (
     <>
       {fieldMode ? null : <PageHeader title="Presensi Acara" />}
+
+      <div className="mb-3 flex flex-wrap gap-2" role="tablist" aria-label="Basis tanggal presensi">
+        <Button
+          role="tab"
+          aria-selected={!realtime}
+          variant={realtime ? 'secondary' : 'primary'}
+          onClick={() => chooseDateMode('order')}
+        >
+          Berdasarkan Order
+        </Button>
+        <Button
+          role="tab"
+          aria-selected={realtime}
+          variant={realtime ? 'primary' : 'secondary'}
+          onClick={() => chooseDateMode('attendance')}
+        >
+          Realtime Presensi
+        </Button>
+      </div>
+      <p className="mb-3 text-[13px] text-ink-soft">
+        {realtime
+          ? 'Tanggal filter = tanggal scan/check-in. Hanya peserta yang sudah hadir pada rentang itu yang tampil. Data diperbarui otomatis tiap 30 detik.'
+          : 'Tanggal filter = tanggal order. Status presensi dihitung dari seluruh check-in peserta.'}
+      </p>
 
       {fieldMode ? (
         <div className="mb-1 flex items-center gap-2">
@@ -147,6 +225,7 @@ export function PresensiPage() {
           update={state.update}
           removeFilter={state.removeFilter}
           clearAll={state.clearAll}
+          dateLabel={dateLabel}
           search={
             <SearchInput
               id="presensi-search"
@@ -161,7 +240,9 @@ export function PresensiPage() {
               className={CONTROL_WIDTH}
               value={state.filters.attendanceStatus}
               placeholder="Semua status"
-              options={ATTENDANCE_OPTIONS}
+              options={realtime
+                ? ATTENDANCE_OPTIONS.filter((option) => option.value === 'Hadir' || option.value === 'Hadir Sebagian')
+                : ATTENDANCE_OPTIONS}
               onChange={(value) => state.update('attendanceStatus', value)}
             />
           }
@@ -182,23 +263,42 @@ export function PresensiPage() {
         </div>
       )}
 
-      {summary.data === null ? null : (
+      {summary.data === null ? null : realtime ? (
         <div className={fieldMode ? 'mt-3 grid grid-cols-3 gap-2' : 'mt-4 grid grid-cols-1 gap-3 md:grid-cols-3'}>
           <KpiCard
-            label={fieldMode ? 'Hadir' : 'Hadir (tiket)'}
+            label={fieldMode ? 'Peserta Hari Ini' : todayRange ? 'Total Peserta Hari Ini' : 'Total Peserta (rentang)'}
             value={formatCount(summary.data.sudah_hadir)}
-            hint={fieldMode ? undefined : 'Jumlah tiket yang sudah check-in'}
+            hint={fieldMode ? undefined : breakdown}
             highlight
           />
           <KpiCard
-            label={fieldMode ? 'Belum Hadir' : 'Belum Hadir (tiket)'}
-            value={formatCount(summary.data.belum_hadir)}
-            hint={fieldMode ? undefined : 'Tiket Paid yang belum check-in'}
+            label="Order Hadir"
+            value={formatCount(summary.data.attending_orders ?? 0)}
+            hint={fieldMode ? undefined : 'Order yang punya check-in pada rentang ini'}
           />
           <KpiCard
-            label={fieldMode ? 'Rate' : 'Attendance Rate'}
-            value={formatRate(summary.data.attendance_rate)}
-            hint={fieldMode ? undefined : summary.data.paid_tickets === 0 ? 'Belum ada tiket Paid' : 'Tiket hadir ÷ tiket Paid'}
+            label="Sisa Tiket"
+            value={formatCount(summary.data.belum_hadir)}
+            hint={fieldMode ? undefined : 'Tiket rombongan yang sudah datang tetapi belum lengkap'}
+          />
+        </div>
+      ) : (
+        <div className={fieldMode ? 'mt-3 grid grid-cols-3 gap-2' : 'mt-4 grid grid-cols-1 gap-3 md:grid-cols-3'}>
+          <KpiCard
+            label={fieldMode ? 'Tiket' : 'Jumlah Tiket'}
+            value={formatCount(summary.data.paid_tickets)}
+            hint={fieldMode ? undefined : 'Tiket dari order Paid'}
+          />
+          <KpiCard
+            label={fieldMode ? 'Hadir' : 'Jumlah Hadir'}
+            value={formatCount(summary.data.sudah_hadir)}
+            hint={fieldMode ? undefined : summary.data.attendance_rate == null ? breakdown : `${breakdown} · Rate ${formatRate(summary.data.attendance_rate)}`}
+            highlight
+          />
+          <KpiCard
+            label={fieldMode ? 'Belum Hadir' : 'Belum Hadir'}
+            value={formatCount(summary.data.belum_hadir)}
+            hint={fieldMode ? undefined : 'Tiket Paid yang belum check-in'}
           />
         </div>
       )}
@@ -222,8 +322,8 @@ export function PresensiPage() {
               <DataTable
                 rowNumbers
                 rowNumberStart={(state.page - 1) * state.pageSize + 1}
-                exportConfig={{ filename: 'presensi', columns: [...COLUMNS, { key: 'source', header: 'Sumber Pendaftaran' }, { key: 'checked_in_tickets', header: 'Tiket hadir' }, { key: 'app_status', header: 'Status order' }, { key: 'rescheduled', header: 'Reschedule' }, { key: 'original_batch', header: 'Batch asal' }, { key: 'original_session', header: 'Sesi asal' }, { key: 'original_city', header: 'Kota asal' }], loadRows: async () => {
-                  const rows = await collectPages(page => fetchPresensiPage(state.applied, { sort: sort.key, direction: sort.direction, page, pageSize: 100, exporting: true }))
+                exportConfig={{ filename: 'presensi', columns: [...COLUMNS, { key: 'source', header: 'Sumber Pendaftaran' }, { key: 'checked_in_tickets', header: 'Tiket hadir (total)' }, { key: 'checked_in_in_range', header: 'Tiket hadir (rentang)' }, { key: 'app_status', header: 'Status order' }, { key: 'rescheduled', header: 'Reschedule' }, { key: 'original_batch', header: 'Batch asal' }, { key: 'original_session', header: 'Sesi asal' }, { key: 'original_city', header: 'Kota asal' }], loadRows: async () => {
+                  const rows = await collectPages(page => fetchPresensiPage(state.applied, { sort: sort.key, direction: sort.direction, page, pageSize: 100, exporting: true }, dateMode))
                   return rows.map(row => ({
                     ...row,
                     scanner_names: (row.scanner_names ?? []).join(', '),
@@ -270,7 +370,7 @@ export function PresensiPage() {
                         <Badge tone={attendanceTone(row.attendance_status)}>{row.attendance_status}</Badge>
                         {row.attendance_status === 'Hadir Sebagian' ? (
                           <span className="text-[11px] font-semibold tabular-nums text-ink-soft">
-                            {row.checked_in_tickets}/{row.quantity}
+                            {row.checked_in_in_range ?? row.checked_in_tickets}/{row.quantity}
                           </span>
                         ) : null}
                       </div>
@@ -308,6 +408,7 @@ export function PresensiPage() {
 
       <PresensiDetailDrawer
         row={selected}
+        realtime={realtime}
         onClose={() => setSelected(null)}
         onChanged={() => {
           setSelected(null)
@@ -337,7 +438,7 @@ function PresensiCards({ rows, onSelect }: { rows: PresensiRow[]; onSelect: (row
                 {[row.product_name, row.batch ? `Batch ${row.batch}` : null, row.session, row.city].filter(Boolean).join(' · ') || '-'}
               </p>
               <p className="truncate text-[11px] font-semibold text-ink-soft">
-                {row.quantity > 1 ? `${row.quantity} tiket · hadir ${row.checked_in_tickets}/${row.quantity}` : '1 tiket'}
+                {row.quantity > 1 ? `${row.quantity} tiket · hadir ${row.checked_in_in_range ?? row.checked_in_tickets}/${row.quantity}` : '1 tiket'}
               </p>
               {row.scanner_names?.length ? (
                 <p className="truncate text-[11px] text-ink-soft">Di-scan: {row.scanner_names.join(', ')}</p>

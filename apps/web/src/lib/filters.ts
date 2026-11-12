@@ -33,6 +33,13 @@ export type PresensiFilters = CommonFilters & {
   attendanceStatus: string
 }
 
+/**
+ * A68: halaman Presensi punya dua sudut pandang tanggal.
+ *   order      = filter tanggal memakai tanggal order (perilaku lama)
+ *   attendance = filter tanggal memakai tanggal scan/check-in
+ */
+export type PresensiDateMode = 'order' | 'attendance'
+
 export const EMPTY_COMMON_FILTERS: CommonFilters = {
   source: '',
   search: '',
@@ -110,10 +117,14 @@ export function toOrderArgs(filters: OrderFilters): Record<string, unknown> {
   }
 }
 
-export function toPresensiArgs(filters: PresensiFilters): Record<string, unknown> {
+export function toPresensiArgs(
+  filters: PresensiFilters,
+  dateMode: PresensiDateMode = 'order',
+): Record<string, unknown> {
   return {
     ...toFilterArgs(filters),
     p_attendance_status: emptyToNull(filters.attendanceStatus),
+    p_date_mode: dateMode,
   }
 }
 
@@ -150,6 +161,8 @@ export type FilterLabels = {
   product?: string
   advertiser?: string
   session?: string
+  /** A68: "Tanggal order" atau "Tanggal presensi" di halaman Presensi. */
+  date?: string
 }
 
 export function activeCommonFilters(filters: CommonFilters, labels: FilterLabels = {}): ActiveFilter[] {
@@ -162,7 +175,7 @@ export function activeCommonFilters(filters: CommonFilters, labels: FilterLabels
 
   // Satu chip untuk rentang tanggal; menghapusnya mengosongkan dateFrom dan dateTo sekaligus.
   if (filters.dateFrom.trim() !== '' || filters.dateTo.trim() !== '') {
-    chips.push({ key: DATE_RANGE_CHIP, label: `Tanggal: ${describeRange(filters.dateFrom, filters.dateTo)}` })
+    chips.push({ key: DATE_RANGE_CHIP, label: `${labels.date ?? 'Tanggal'}: ${describeRange(filters.dateFrom, filters.dateTo)}` })
   }
   push('source', 'Sumber: ', filters.source, filters.source === 'ots' ? 'OTS' : 'Online')
   push('productCode', 'Produk: ', filters.productCode, labels.product ?? filters.productCode)
