@@ -42,7 +42,7 @@ tetap mengikuti blocker di dokumen Acceptance Tests/Runbook.
 # Tidak butuh Docker
 npm install
 npm run typecheck          # → PASS (shared, api, worker, functions, web)
-npm test                   # -> 749 test lulus (324 api + 144 shared + 3 wa-cron + 278 web)
+npm test                   # -> 746 test lulus (323 api + 143 shared + 3 wa-cron + 277 web)
 npm run build              # → aplikasi web + assets/ticket-qr.js
 npm run verify:ticket-qr   # → membuktikan artefak QR dapat dijalankan & dipindai
 npm run deploy:wa-cron     # → deploy Worker cron WA Admin Bot (Fitur 3.0)
@@ -53,7 +53,7 @@ npm run db:start                      # supabase start
 npm run db:reset                      # seluruh migrasi + seed.sql (untuk integration)
 npm run test:integration              # 39 test (butuh SUPABASE_URL/SECRET_KEY/DB_URL; skip bila kosong)
 supabase db reset --no-seed           # pgTAP mengasumsikan DB tanpa seed
-npm run test:db                       # pgTAP -> 950 test lulus / 37 berkas
+npm run test:db                       # pgTAP -> 992 test lulus / 38 berkas
 
 # Tooling developer (butuh database hidup)
 npm run create-master-admin
@@ -544,3 +544,5 @@ sering terlanggar:
 | 2026-11-12 | - | Diagnosis A69: penyebab "tidak ada status" bukan penyimpanan token - `wa_bot_settings` sudah berisi token (07:52:26Z) dan `GET /api/wa-bot` mengembalikan `has_token: true`. Panggilan `POST /api/wa-bot/settings/verify` gagal `NETWORK` karena `fetch` memakai `redirect: 'error'`, nilai yang DITOLAK runtime Cloudflare Workers ("Invalid redirect value"). Bug yang sama ada di kirim Fonnte, cron Worker, dan tes koneksi OrderOnline. |
 | 2026-11-12 | - | Perbaikan A69: seluruh panggilan keluar memakai redirect default (`follow`); detail error jaringan dikembalikan sebagai `detail` dan ditampilkan di panel status; badge **Fonnte tak terjangkau** dipisahkan dari **Token ditolak**. Commit `19c4b63`; deploy Pages run `43179672173` sukses; Worker `dvflow-wa-cron` di-deploy ulang (version `74da4c18`), secret `WA_CRON_SECRET` terpasang. Verifikasi production: verify -> `connected: true`, device `6285887711009` (Galuh), status `connect`, kuota 1000, aktif s/d 13 Desember 2026. |
 | 2026-11-12 | A70 | **Mention memakai nama pengiklan**: Fonnte tidak punya parameter tag WhatsApp, jadi placeholder `{{mention}}` dirender `@Nama Pengiklan` (bukan `@nomor`); signature `wa_render_reminder` tidak berubah dan `p_mention` diabaikan; template baru tidak lagi menduplikasi `{{advertiser_name}}`. Migrasi `20261112170000_wa_mention_advertiser_name.sql` (`schema_version` 73) diterapkan ke produksi via `supabase db push`; commit `4a02ffb`; deploy Pages run `43182999115` sukses. Verifikasi production: preview KMXX/Alfa -> "Mas @Alfa, sampai malam ini..." tanpa nomor HP. |
+| 2026-11-12 | A71 | **Nomor HP dihapus + mention seluruh pengiklan per grup**: kolom `advertisers.wa_phone`, endpoint `PATCH /api/wa-bot/advertisers/:id`, tab **Nomor WA Pengiklan**, dan validasi nomor dihapus. Pengingat kini **satu pesan per produk + jenis acara** yang menyebut semua pengiklan beraktivitas kemarin (`Mas @Andre, @Yosef, ...`), dengan gate `only_if_missing_report` tetap (kirim bila minimal satu belum lapor). Idempotensi pindah ke `(schedule_id, product_code, event_type, reminder_date)` untuk baris grup (`advertiser_id` null). `wa_reminder_preview` berubah signature (tanpa pengiklan) dan mengembalikan `advertisers[]`; Kirim Tes tidak lagi memilih pengiklan; filter pengiklan di Riwayat dihapus. Migrasi `20261112180000_wa_group_mentions.sql` (`schema_version` 74) diterapkan ke produksi. Gate: typecheck PASS; unit **746** (323 api + 143 shared + 3 wa-cron + 277 web); pgTAP **992 PASS / 38 berkas**; integration **39 PASS**; build PASS. |
+| 2026-11-12 | - | Deploy production A71: commit `4318749`; workflow **Deploy to Cloudflare Pages** run `43185893985` sukses. Verifikasi production: `schema_version` = 74; `GET /api/wa-bot` tidak lagi memuat `wa_phone`; preview KMXX/Webinar -> "Mas @Andre, @Yosef, sampai malam ini belum ada report masuk yaa.." (menyebut semua pengiklan yang beraktivitas). |
