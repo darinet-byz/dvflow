@@ -24,7 +24,8 @@ if (!configured) {
 const ADVERTISER = 'e7000000-0000-4000-8000-000000000001'
 const PRODUCT_A = 'e7000000-0000-4000-8000-000000000011'
 const PRODUCT_B = 'e7000000-0000-4000-8000-000000000012'
-const GROUP = 'e7000000-0000-4000-8000-000000000021'
+const GROUP_A = 'e7000000-0000-4000-8000-000000000021'
+const GROUP_B = 'e7000000-0000-4000-8000-000000000022'
 const TEMPLATE = 'e7000000-0000-4000-8000-000000000031'
 const SCHEDULE = 'e7000000-0000-4000-8000-000000000041'
 const NOW = '2026-11-11T02:00:00Z'
@@ -45,14 +46,18 @@ describe.skipIf(!configured)('WA Admin Bot end-to-end', () => {
     await client.connect()
     await cleanup()
 
-    await client.query("insert into public.advertisers (id, name, code) values ($1, 'E2E WA', '97')", [ADVERTISER])
+    await client.query("insert into public.advertisers (id, name, code, wa_phone) values ($1, 'E2E WA', '97', '628999999999')", [ADVERTISER])
     await client.query("insert into public.products (id, name, code) values ($1, 'E2E WA A', 'ZZWA'), ($2, 'E2E WA B', 'ZZWB')", [PRODUCT_A, PRODUCT_B])
     await client.query(
-      "insert into public.wa_reminder_groups (id, advertiser_id, fonnte_group_id, pic_phone, pic_name) values ($1, $2, '999@g.us', '628999999999', 'E2E PIC')",
-      [GROUP, ADVERTISER],
+      "insert into public.product_advertisers (product_id, advertiser_id) values ($1, $3), ($2, $3)",
+      [PRODUCT_A, PRODUCT_B, ADVERTISER],
     )
     await client.query(
-      "insert into public.wa_reminder_templates (id, name, message_content) values ($1, 'E2E Template', 'Halo {{mention}} {{store_name}} {{product_name}} {{leads}}/{{paid}} {{report_url}}')",
+      "insert into public.wa_product_groups (id, product_id, fonnte_group_id) values ($1, $2, '999@g.us'), ($3, $4, '998@g.us')",
+      [GROUP_A, PRODUCT_A, GROUP_B, PRODUCT_B],
+    )
+    await client.query(
+      "insert into public.wa_reminder_templates (id, name, message_content) values ($1, 'E2E Template', 'Halo {{mention}} {{advertiser_name}} {{product_name}} {{event_type}} {{leads}}/{{paid}} {{report_url}}')",
       [TEMPLATE],
     )
     await client.query(
@@ -85,7 +90,8 @@ describe.skipIf(!configured)('WA Admin Bot end-to-end', () => {
     await client.query('delete from public.wa_reminder_logs where advertiser_id = $1', [ADVERTISER])
     await client.query('delete from public.wa_reminder_schedules where id = $1', [SCHEDULE])
     await client.query('delete from public.wa_reminder_templates where id = $1', [TEMPLATE])
-    await client.query('delete from public.wa_reminder_groups where advertiser_id = $1', [ADVERTISER])
+    await client.query('delete from public.wa_product_groups where product_id in ($1, $2)', [PRODUCT_A, PRODUCT_B])
+    await client.query('delete from public.product_advertisers where advertiser_id = $1', [ADVERTISER])
     await client.query('delete from public.ad_spend_reports where advertiser_id = $1', [ADVERTISER])
     await client.query("delete from public.orders where order_id like 'WA-E2E-%'")
     await client.query('delete from public.advertisers where id = $1', [ADVERTISER])
@@ -101,8 +107,8 @@ describe.skipIf(!configured)('WA Admin Bot end-to-end', () => {
     expect(first).toHaveLength(1)
     expect(first[0]?.product_code).toBe('ZZWA')
     expect(first[0]?.group_id).toBe('999@g.us')
-    expect(first[0]?.message).toContain('Halo @628999999999 E2E WA E2E WA A 2/1')
-    expect(first[0]?.message).toContain('report-spend?advertiserCode=97&productCode=ZZWA')
+    expect(first[0]?.message).toContain('Halo @628999999999 E2E WA E2E WA A Seminar Offline 2/1')
+    expect(first[0]?.message).toContain('report-spend?advertiserCode=97&productCode=ZZWA&eventType=Seminar%20Offline')
 
     const second = await db.rpc<Task[]>('wa_reminder_claim', {
       p_now: NOW,
@@ -126,6 +132,7 @@ describe.skipIf(!configured)('WA Admin Bot end-to-end', () => {
       p_advertiser_code: '97',
       p_product_code: 'ZZWA',
       p_template_id: TEMPLATE,
+      p_event_type: 'Seminar Offline',
       p_base_url: 'https://app.example.com',
     })
     expect(preview.found).toBe(true)

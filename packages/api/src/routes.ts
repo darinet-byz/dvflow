@@ -29,17 +29,19 @@ import { batchRemapOrders, deleteAlias, deleteUnmappedOrders, listAliases, listU
 import { getDataSummary, purgeExpiredUnmapped, resetData } from './developer/handlers'
 import { markPresensiPresent, resetPresensi } from './presensi/handlers'
 import {
-  deleteWaBotGroup,
+  deleteWaBotProductGroup,
   deleteWaBotSchedule,
   deleteWaBotTemplate,
   runWaReminders,
-  saveWaBotGroup,
+  saveWaBotAdvertiserPhone,
+  saveWaBotProductGroup,
   saveWaBotSchedule,
   saveWaBotSettings,
   saveWaBotTemplate,
   waBotLogs,
   waBotOverview,
   waBotResend,
+  waBotTestPreview,
   waBotTestSend,
 } from './wa-bot/handlers'
 
@@ -154,9 +156,10 @@ export const ROUTES: Route[] = [
   // Fitur 3.0: WA Admin Bot (seluruh data lewat backend; token tidak pernah dikirim).
   { method: 'GET', path: '/api/wa-bot', handler: waBotOverview, auth: 'access' },
   { method: 'PUT', path: '/api/wa-bot/settings', handler: saveWaBotSettings, auth: 'access' },
-  { method: 'POST', path: '/api/wa-bot/groups', handler: saveWaBotGroup, auth: 'access' },
-  { method: 'PATCH', path: '/api/wa-bot/groups/:id', handler: saveWaBotGroup, auth: 'access' },
-  { method: 'DELETE', path: '/api/wa-bot/groups/:id', handler: deleteWaBotGroup, auth: 'access' },
+  { method: 'POST', path: '/api/wa-bot/product-groups', handler: saveWaBotProductGroup, auth: 'access' },
+  { method: 'PATCH', path: '/api/wa-bot/product-groups/:id', handler: saveWaBotProductGroup, auth: 'access' },
+  { method: 'DELETE', path: '/api/wa-bot/product-groups/:id', handler: deleteWaBotProductGroup, auth: 'access' },
+  { method: 'PATCH', path: '/api/wa-bot/advertisers/:id', handler: saveWaBotAdvertiserPhone, auth: 'access' },
   { method: 'POST', path: '/api/wa-bot/templates', handler: saveWaBotTemplate, auth: 'access' },
   { method: 'PATCH', path: '/api/wa-bot/templates/:id', handler: saveWaBotTemplate, auth: 'access' },
   { method: 'DELETE', path: '/api/wa-bot/templates/:id', handler: deleteWaBotTemplate, auth: 'access' },
@@ -165,6 +168,7 @@ export const ROUTES: Route[] = [
   { method: 'DELETE', path: '/api/wa-bot/schedules/:id', handler: deleteWaBotSchedule, auth: 'access' },
   { method: 'GET', path: '/api/wa-bot/logs', handler: waBotLogs, auth: 'access' },
   { method: 'POST', path: '/api/wa-bot/logs/:id/resend', handler: waBotResend, auth: 'access' },
+  { method: 'POST', path: '/api/wa-bot/test-preview', handler: waBotTestPreview, auth: 'access' },
   { method: 'POST', path: '/api/wa-bot/test-send', handler: waBotTestSend, auth: 'access' },
   // Dipanggil cron Worker; autentikasi memakai X-WA-Cron-Secret, bukan JWT.
   { method: 'POST', path: '/api/internal/wa-reminders/run', handler: runWaReminders, auth: 'none' },

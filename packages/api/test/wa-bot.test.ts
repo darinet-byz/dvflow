@@ -9,17 +9,24 @@ import {
 } from './helpers'
 
 const ADVERTISER_ID = '33333333-3333-3333-3333-333333333333'
+const PRODUCT_ID = '11111111-1111-1111-1111-111111111111'
+const SECOND_PRODUCT_ID = '22222222-2222-2222-2222-222222222222'
 const TEMPLATE_ID = '44444444-4444-4444-4444-444444444444'
-const GROUP_ID = '55555555-5555-5555-5555-555555555555'
+const PRODUCT_GROUP_ID = '55555555-5555-5555-5555-555555555555'
 const SCHEDULE_ID = '66666666-6666-6666-6666-666666666666'
 const ENCRYPTION_KEY = btoa('0123456789abcdef0123456789abcdef')
 
 function baseState(role = 'admin', permissions: string[] = ['config.wa_bot', 'action.wa_bot_send']) {
   const config = sampleConfig()
   // Kolom generated di database; tiruan perlu nilai yang sama untuk pencarian kode.
+  config.products = config.products.map((row) => ({
+    ...row,
+    code_normalized: String(row['code'] ?? '').trim().toUpperCase(),
+  }))
   config.advertisers = config.advertisers.map((row) => ({
     ...row,
     code_normalized: String(row['code'] ?? '').trim().toUpperCase(),
+    wa_phone: '628111111111',
   }))
   const state = createFakeState({
     users: [fakeUser({ role })],
@@ -29,17 +36,16 @@ function baseState(role = 'admin', permissions: string[] = ['config.wa_bot', 'ac
   state.waReminderTemplates.push({
     id: TEMPLATE_ID,
     name: 'Pagi',
-    message_content: 'Halo {{mention}}, {{store_name}} {{product_name}} belum lapor. {{leads}}/{{paid}} {{report_url}}',
+    message_content: 'Halo {{mention}}, {{advertiser_name}} {{product_name}} {{event_type}} {{date}}. {{report_url}}',
     is_active: true,
   })
-  state.waReminderGroups.push({
-    id: GROUP_ID,
-    advertiser_id: ADVERTISER_ID,
+  state.waProductGroups.push({
+    id: PRODUCT_GROUP_ID,
+    product_id: PRODUCT_ID,
     fonnte_group_id: '111@g.us',
-    pic_phone: '628111111111',
-    pic_name: 'PIC',
     is_active: true,
   })
+  state.productAdvertisers.push({ product_id: PRODUCT_ID, advertiser_id: ADVERTISER_ID })
   state.waReminderSchedules.push({
     id: SCHEDULE_ID,
     execution_time: '09:00:00',
@@ -90,8 +96,15 @@ describe('WA Admin Bot — akses & konfigurasi', () => {
 
     const allowed = await setup()
     const before = await allowed.request('GET', '/api/wa-bot')
-    const beforeBody = (await before.json()) as { data: { settings: { has_token: boolean }; templates: unknown[] } }
+    const beforeBody = (await before.json()) as {
+      data: {
+        settings: { has_token: boolean }
+        products: Array<{ code: string; group: { fonnte_group_id: string } | null }>
+        templates: unknown[]
+      }
+    }
     expect(beforeBody.data.settings.has_token).toBe(false)
+    expect(beforeBody.data.products.find((row) => row.code === 'KM')?.group?.fonnte_group_id).toBe('111@g.us')
     expect(JSON.stringify(beforeBody)).not.toContain('fonnte_token_encrypted')
 
     expect((await allowed.request('PUT', '/api/wa-bot/settings', { fonnte_token: 'token-rahasia-panjang' })).status).toBe(200)
@@ -104,35 +117,57 @@ describe('WA Admin Bot — akses & konfigurasi', () => {
     const { request } = await setup()
     const bad = await request('POST', '/api/wa-bot/templates', { name: 'Salah', message_content: 'Halo {{lead}}' })
     expect(bad.status).toBe(400)
-    const duplicate = await request('POST', '/api/wa-bot/templates', { name: 'pagi', message_content: 'Halo {{store_name}}' })
+    const duplicate = await request('POST', '/api/wa-bot/templates', { name: 'pagi', message_content: 'Halo {{advertiser_name}}' })
     expect(duplicate.status).toBe(400)
-    const created = await request('POST', '/api/wa-bot/templates', { name: 'Siang', message_content: 'Halo {{store_name}}' })
+    const created = await request('POST', '/api/wa-bot/templates', { name: 'Siang', message_content: 'Halo {{advertiser_name}} {{event_type}}' })
     expect(created.status).toBe(201)
   })
 
-  it('nomor PIC dinormalisasi dan satu pengiklan hanya boleh satu grup', async () => {
+  it('nomor WA pengiklan wajib dan dinormalisasi', async () => {
     const { state, request } = await setup()
-    const secondId = '44444444-4444-4444-4444-444444444444'
-    state.config.advertisers.push({ id: secondId, name: 'Zul Dua', code: '02', active: true })
+    const saved = await request('PATCH', `/api/wa-bot/advertisers/${ADVERTISER_ID}`, { wa_phone: '0812-3456-7890' })
+    expect(saved.status).toBe(200)
+    expect(state.config.advertisers[0]?.['wa_phone']).toBe('6281234567890')
 
-    const created = await request('POST', '/api/wa-bot/groups', {
-      advertiser_id: secondId,
+    expect((await request('PATCH', `/api/wa-bot/advertisers/${ADVERTISER_ID}`, { wa_phone: '12345' })).status).toBe(400)
+    expect((await request('PATCH', `/api/wa-bot/advertisers/${ADVERTISER_ID}`, { wa_phone: '' })).status).toBe(400)
+    expect((await request('PATCH', '/api/wa-bot/advertisers/99999999-9999-4999-8999-999999999999', { wa_phone: '081234567890' })).status).toBe(404)
+  })
+
+  it('satu produk hanya boleh punya satu grup dan grup aktif butuh nomor pengiklan', async () => {
+    const { state, request } = await setup()
+
+    const created = await request('POST', '/api/wa-bot/product-groups', {
+      product_id: SECOND_PRODUCT_ID,
       fonnte_group_id: '222@g.us',
-      pic_phone: '0812-3456-7890',
-      pic_name: 'PIC Dua',
       is_active: true,
     })
     expect(created.status).toBe(201)
-    const stored = state.waReminderGroups.find((row) => row['advertiser_id'] === secondId)
-    expect(stored?.['pic_phone']).toBe('6281234567890')
 
-    const duplicateOne = await request('POST', '/api/wa-bot/groups', {
-      advertiser_id: ADVERTISER_ID,
+    const duplicate = await request('POST', '/api/wa-bot/product-groups', {
+      product_id: SECOND_PRODUCT_ID,
       fonnte_group_id: '333@g.us',
-      pic_phone: '081234567890',
+      is_active: true,
     })
-    expect(duplicateOne.status).toBe(400)
-    expect(state.waReminderGroups.filter((row) => row['advertiser_id'] === ADVERTISER_ID)).toHaveLength(1)
+    expect(duplicate.status).toBe(400)
+
+    // Pengiklan yang ditugaskan belum punya nomor: grup aktif harus ditolak.
+    state.config.advertisers[0]!['wa_phone'] = null
+    const blocked = await request('PATCH', `/api/wa-bot/product-groups/${PRODUCT_GROUP_ID}`, {
+      product_id: PRODUCT_ID,
+      fonnte_group_id: '111@g.us',
+      is_active: true,
+    })
+    expect(blocked.status).toBe(400)
+    expect((await blocked.json() as { error: { message: string } }).error.message).toContain('Lengkapi nomor WA')
+
+    // Nonaktif tetap boleh disimpan walau nomor belum lengkap.
+    const inactive = await request('PATCH', `/api/wa-bot/product-groups/${PRODUCT_GROUP_ID}`, {
+      product_id: PRODUCT_ID,
+      fonnte_group_id: '111@g.us',
+      is_active: false,
+    })
+    expect(inactive.status).toBe(200)
   })
 
   it('jadwal memvalidasi jam, template, dan hari', async () => {
@@ -144,6 +179,27 @@ describe('WA Admin Bot — akses & konfigurasi', () => {
 })
 
 describe('WA Admin Bot — pengiriman', () => {
+  it('preview merender pesan tanpa mengirim apa pun', async () => {
+    const fetchMock = vi.fn(async () => okSend())
+    vi.stubGlobal('fetch', fetchMock)
+    const { request } = await setup()
+
+    const response = await request('POST', '/api/wa-bot/test-preview', {
+      advertiser_code: '01',
+      product_code: 'KM',
+      template_id: TEMPLATE_ID,
+      event_type: 'Webinar Online',
+    })
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as { data: { found: boolean; message: string; group_id: string } }
+    expect(body.data.found).toBe(true)
+    expect(body.data.group_id).toBe('111@g.us')
+    expect(body.data.message).toContain('@628111111111')
+    expect(body.data.message).toContain('Webinar Online')
+    expect(body.data.message).toContain('eventType=Webinar%20Online')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
   it('kirim tes memakai token tersimpan dan mencatat log', async () => {
     const fetchMock = vi.fn(async () => okSend())
     vi.stubGlobal('fetch', fetchMock)
@@ -154,11 +210,13 @@ describe('WA Admin Bot — pengiriman', () => {
       advertiser_code: '01',
       product_code: 'KM',
       template_id: TEMPLATE_ID,
+      event_type: 'Seminar Offline',
     })
     expect(response.status).toBe(200)
-    const body = (await response.json()) as { data: { sent: boolean; group_id: string } }
+    const body = (await response.json()) as { data: { sent: boolean; group_id: string; event_type: string } }
     expect(body.data.sent).toBe(true)
     expect(body.data.group_id).toBe('111@g.us')
+    expect(body.data.event_type).toBe('Seminar Offline')
     expect(fetchMock).toHaveBeenCalledTimes(1)
 
     const [url, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
@@ -169,6 +227,7 @@ describe('WA Admin Bot — pengiriman', () => {
 
     expect(state.waReminderLogs[0]?.['status']).toBe('sent')
     expect(state.waReminderLogs[0]?.['schedule_id']).toBeNull()
+    expect(state.waReminderLogs[0]?.['event_type']).toBe('Seminar Offline')
   })
 
   it('cron gagal-tertutup tanpa secret yang benar', async () => {
@@ -201,6 +260,7 @@ describe('WA Admin Bot — pengiriman', () => {
       advertiser_name: 'Zul',
       product_code: 'KM',
       product_name: 'Kuliner Masteri',
+      event_type: 'Seminar Offline',
     }]
 
     const response = await request('POST', '/api/internal/wa-reminders/run', undefined, { 'x-wa-cron-secret': 'cron-secret' })
@@ -224,6 +284,7 @@ describe('WA Admin Bot — pengiriman', () => {
       advertiser_name: 'Zul',
       product_code: 'KM',
       product_name: 'Kuliner Masteri',
+      event_type: 'Seminar Offline',
     }]
 
     const response = await request('POST', '/api/internal/wa-reminders/run', undefined, { 'x-wa-cron-secret': 'cron-secret' })
@@ -249,6 +310,7 @@ describe('WA Admin Bot — pengiriman', () => {
       reminder_date: '2026-11-10',
       group_id: '111@g.us',
       template_id: TEMPLATE_ID,
+      event_type: 'Seminar Offline',
       message: 'Pesan lama',
       status: 'failed',
       attempts: 1,
@@ -270,12 +332,13 @@ describe('WA Admin Bot — pengiriman', () => {
       product_name: 'Kuliner Masteri',
       reminder_date: '2026-11-10',
       group_id: '111@g.us',
+      event_type: 'Seminar Offline',
       message: 'Pesan',
       status: 'sent',
       attempts: 1,
       created_at: '2026-11-10T01:00:00Z',
     })
-    const response = await request('GET', '/api/wa-bot/logs?status=sent&advertiser=01&date_from=2026-11-01&date_to=2026-11-30')
+    const response = await request('GET', '/api/wa-bot/logs?status=sent&advertiser=01&product=KM&event_type=Seminar%20Offline&date_from=2026-11-01&date_to=2026-11-30')
     expect(response.status).toBe(200)
     const body = (await response.json()) as { data: { total: number; rows: unknown[] } }
     expect(body.data.total).toBe(1)

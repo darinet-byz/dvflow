@@ -118,7 +118,7 @@ export function ScheduleSection({ overview, reload }: { overview: WaOverview; re
         <div>
           <h2 className="text-[15px] font-semibold text-ink">Jadwal Pengingat</h2>
           <p className="mt-0.5 text-[12px] text-ink-soft">
-            Jam dibaca sebagai WIB. Pengingat hanya untuk produk yang punya leads kemarin.
+            Jam dibaca sebagai WIB. Pengingat hanya untuk produk yang punya order kemarin dan belum lapor.
           </p>
         </div>
         <Button variant="primary" onClick={openCreate}>+ Tambah Jadwal</Button>

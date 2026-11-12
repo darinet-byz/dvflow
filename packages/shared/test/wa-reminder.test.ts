@@ -1,14 +1,35 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatWaDays,
+  isWaEventType,
   listWaTemplatePlaceholders,
   normalizeWhatsAppPhone,
   renderWaTemplate,
   validateWaTemplate,
+  WA_LOG_RETENTION_DAYS,
 } from '../src'
 
 describe('WA Admin Bot — template', () => {
   it('menerima placeholder yang didokumentasikan', () => {
+    const result = validateWaTemplate(
+      'Halo {{mention}}, laporan {{advertiser_name}} ({{advertiser_code}}) produk {{product_name}} {{product_code}} {{event_type}} tanggal {{date}} belum diisi. {{report_url}}',
+    )
+    expect(result.ok).toBe(true)
+    if (result.ok) {
+      expect(result.placeholders.sort()).toEqual([
+        'advertiser_code',
+        'advertiser_name',
+        'date',
+        'event_type',
+        'mention',
+        'product_code',
+        'product_name',
+        'report_url',
+      ])
+    }
+  })
+
+  it('tetap mengenali placeholder warisan', () => {
     const result = validateWaTemplate(
       'Halo {{mention}}, laporan {{store_name}} produk {{product_name}} belum diisi. Leads {{leads}}, Paid {{paid}}. {{report_url}}',
     )
@@ -35,6 +56,16 @@ describe('WA Admin Bot — template', () => {
 
   it('daftar placeholder tidak duplikat', () => {
     expect(listWaTemplatePlaceholders('{{leads}} {{leads}} {{paid}}')).toEqual(['leads', 'paid'])
+  })
+})
+
+describe('WA Admin Bot — jenis acara & retensi', () => {
+  it('hanya menerima tiga jenis acara kanonik', () => {
+    expect(isWaEventType('Seminar Offline')).toBe(true)
+    expect(isWaEventType('Webinar Online')).toBe(true)
+    expect(isWaEventType('Hybrid')).toBe(true)
+    expect(isWaEventType('Workshop')).toBe(false)
+    expect(WA_LOG_RETENTION_DAYS).toBe(3)
   })
 })
 

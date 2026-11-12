@@ -13,9 +13,10 @@ Semua respons memakai envelope standar:
 |---|---|---|---|
 | GET | `/api/wa-bot` | `config.wa_bot` | Seluruh konfigurasi + status token. |
 | PUT | `/api/wa-bot/settings` | `config.wa_bot` | Simpan/ganti token Fonnte. |
-| POST | `/api/wa-bot/groups` | `config.wa_bot` | Tambah mapping grup. |
-| PATCH | `/api/wa-bot/groups/:id` | `config.wa_bot` | Edit mapping grup. |
-| DELETE | `/api/wa-bot/groups/:id` | `config.wa_bot` | Hapus mapping grup. |
+| POST | `/api/wa-bot/product-groups` | `config.wa_bot` | Tambah mapping grup produk. |
+| PATCH | `/api/wa-bot/product-groups/:id` | `config.wa_bot` | Edit mapping grup produk. |
+| DELETE | `/api/wa-bot/product-groups/:id` | `config.wa_bot` | Hapus mapping grup produk. |
+| PATCH | `/api/wa-bot/advertisers/:id` | `config.wa_bot` | Simpan nomor WA pengiklan. |
 | POST | `/api/wa-bot/templates` | `config.wa_bot` | Tambah template. |
 | PATCH | `/api/wa-bot/templates/:id` | `config.wa_bot` | Edit template. |
 | DELETE | `/api/wa-bot/templates/:id` | `config.wa_bot` | Hapus template (ditolak bila dipakai jadwal). |
@@ -23,6 +24,7 @@ Semua respons memakai envelope standar:
 | PATCH | `/api/wa-bot/schedules/:id` | `config.wa_bot` | Edit jadwal. |
 | DELETE | `/api/wa-bot/schedules/:id` | `config.wa_bot` | Hapus jadwal. |
 | GET | `/api/wa-bot/logs` | `config.wa_bot` | Riwayat + filter + pagination. |
+| POST | `/api/wa-bot/test-preview` | `action.wa_bot_send` | Render pesan uji tanpa mengirim. |
 | POST | `/api/wa-bot/test-send` | `action.wa_bot_send` | Kirim satu pesan uji. |
 | POST | `/api/wa-bot/logs/:id/resend` | `action.wa_bot_send` | Kirim ulang pesan yang tercatat. |
 
@@ -31,11 +33,17 @@ Semua respons memakai envelope standar:
 ```json
 {
   "settings": { "has_token": true, "updated_at": "2026-11-11T01:00:00Z" },
-  "advertisers": [{ "id": "…", "code": "01", "name": "Zul", "active": true }],
-  "groups": [{
-    "id": "…", "advertiser_id": "…", "advertiser_code": "01", "advertiser_name": "Zul",
-    "advertiser_active": true, "fonnte_group_id": "111@g.us",
-    "pic_phone": "628111111111", "pic_name": "PIC", "is_active": true
+  "products": [{
+    "id": "…", "code": "KM", "name": "Kuliner Masteri", "active": true,
+    "group": {
+      "id": "…", "product_id": "…", "fonnte_group_id": "111@g.us",
+      "is_active": true, "created_at": "…", "updated_at": "…"
+    },
+    "advertisers": [{ "id": "…", "code": "01", "name": "Zul", "active": true, "wa_phone": "628111111111" }]
+  }],
+  "advertisers": [{
+    "id": "…", "code": "01", "name": "Zul", "active": true, "wa_phone": "628111111111",
+    "products": [{ "code": "KM", "name": "Kuliner Masteri" }]
   }],
   "templates": [{ "id": "…", "name": "Pagi", "message_content": "…", "is_active": true }],
   "schedules": [{
@@ -56,20 +64,28 @@ Semua respons memakai envelope standar:
 Token 8–512 karakter. Respons `{ "has_token": true }`. Token dienkripsi sebelum
 disimpan; nilai lama ditimpa.
 
-### POST/PATCH group
+### POST/PATCH product-group
 
 ```json
 {
-  "advertiser_id": "uuid",
+  "product_id": "uuid",
   "fonnte_group_id": "12xxx@g.us",
-  "pic_phone": "0812-3456-7890",
-  "pic_name": "Nama PIC",
   "is_active": true
 }
 ```
 
-Validasi: pengiklan ada, belum punya grup lain, grup tidak kosong ≤100, nomor
-dapat dinormalisasi ke `628…`, nama PIC ≤50.
+Validasi: produk ada, belum punya grup lain, grup tidak kosong ≤100. Saat
+mengaktifkan, semua pengiklan aktif yang ditugaskan ke produk wajib sudah punya
+`wa_phone`; bila belum, respons 400 menyebut nama pengiklan yang kurang.
+
+### PATCH advertiser
+
+```json
+{ "wa_phone": "0812-3456-7890" }
+```
+
+Nomor dinormalisasi ke `628…`; kosong/format salah ditolak 400. Respons
+`{ "id": "…", "wa_phone": "6281234567890" }`.
 
 ### POST/PATCH template
 
@@ -97,16 +113,29 @@ Waktu dinormalisasi menjadi `HH:MM:00`; minimal satu hari; template harus ada.
 ### GET /api/wa-bot/logs
 
 Query: `page`, `pageSize` (maks. 100), `status` (`queued|sent|failed`),
-`advertiser` (kode), `date_from`, `date_to` (`YYYY-MM-DD`).
-Respons: `{ rows, total, page, pageSize }`.
+`product` (kode), `advertiser` (kode), `event_type`
+(`Seminar Offline|Webinar Online|Hybrid`), `date_from`, `date_to`
+(`YYYY-MM-DD`). Respons: `{ rows, total, page, pageSize }`. Baris memuat
+`event_type`.
+
+### POST /api/wa-bot/test-preview
+
+```json
+{
+  "advertiser_code": "01",
+  "product_code": "KM",
+  "template_id": "uuid",
+  "event_type": "Seminar Offline"
+}
+```
+
+Respons sama dengan data preview: `group_id`, `message`, `leads`, `paid`,
+`advertiser_id`, `advertiser_name`, `product_code`, `product_name`, `event_type`.
+Tidak mengirim apa pun dan tidak menulis log.
 
 ### POST /api/wa-bot/test-send
 
-```json
-{ "advertiser_code": "01", "product_code": "KM", "template_id": "uuid" }
-```
-
-Respons:
+Body sama dengan preview. Respons:
 
 ```json
 {
@@ -114,7 +143,8 @@ Respons:
   "sent": true,
   "error": null,
   "message": "Halo @628111111111 …",
-  "group_id": "111@g.us"
+  "group_id": "111@g.us",
+  "event_type": "Seminar Offline"
 }
 ```
 
@@ -149,8 +179,8 @@ Respons normal:
 | Kode | Status | Kapan |
 |---|---|---|
 | `FORBIDDEN` | 403 | Tidak punya permission. |
-| `INVALID_ARGUMENT` | 400 | Validasi form/grup/template/jadwal/token. |
-| `RESOURCE_NOT_FOUND` | 404 | Group/template/schedule tidak ada. |
+| `INVALID_ARGUMENT` | 400 | Validasi form/grup/produk/nomor/template/jadwal/token. |
+| `RESOURCE_NOT_FOUND` | 404 | Produk-group/template/schedule/advertiser tidak ada. |
 | `WA_LOG_NOT_FOUND` | 404 | Log kirim ulang tidak ada. |
 | `MASTER_IN_USE` | 409 | Template masih dipakai jadwal. |
 | `NOT_FOUND` | 404 | Endpoint cron tanpa secret yang benar. |
@@ -166,4 +196,4 @@ Respons normal:
 | Permission server-side | `requirePermission` membaca baris `users` di database, bukan claim JWT. |
 | Tidak ada injeksi | Semua nilai lewat PostgREST/RPC berparameter; template hanya dikirim sebagai teks WhatsApp. |
 | Log tanpa kredensial | Pesan/nama boleh ada (kebutuhan operasional); token/secret tidak pernah ditulis. |
-| Retensi | Log 90 hari, dihapus `pg_cron`. |
+| Retensi | Log **3 hari**, dihapus `pg_cron` + purge defensif di klaim. |

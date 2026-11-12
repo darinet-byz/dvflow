@@ -124,6 +124,8 @@ export type FakeState = {
   /** Fitur 3.0: WA Admin Bot. */
   waBotSettings: Array<Record<string, unknown>>
   waReminderGroups: Array<Record<string, unknown>>
+  waProductGroups: Array<Record<string, unknown>>
+  productAdvertisers: Array<Record<string, unknown>>
   waReminderTemplates: Array<Record<string, unknown>>
   waReminderSchedules: Array<Record<string, unknown>>
   waReminderLogs: Array<Record<string, unknown>>
@@ -171,6 +173,8 @@ export function createFakeState(
     productAliases: [],
     waBotSettings: [],
     waReminderGroups: [],
+    waProductGroups: [],
+    productAdvertisers: [],
     waReminderTemplates: [],
     waReminderSchedules: [],
     waReminderLogs: [],
@@ -819,6 +823,7 @@ export function createFakeDb(state: FakeState): Db {
             product_code: task['product_code'],
             product_name: task['product_name'],
             group_id: task['group_id'],
+            event_type: task['event_type'] ?? null,
             message: task['message'],
             status: 'queued',
             attempts: 1,
@@ -843,24 +848,45 @@ export function createFakeDb(state: FakeState): Db {
       if (name === 'wa_reminder_preview') {
         if (state.waPreview !== undefined) return { ...state.waPreview } as T
         const advertiser = state.config.advertisers.find((row) => String(row['code']).toUpperCase() === String(args['p_advertiser_code']).toUpperCase())
+        const product = state.config.products.find((row) => String(row['code']).toUpperCase() === String(args['p_product_code']).toUpperCase())
         const template = state.waReminderTemplates.find((row) => row['id'] === args['p_template_id'])
-        const group = state.waReminderGroups.find((row) => row['advertiser_id'] === advertiser?.['id'] && row['is_active'] !== false)
-        if (!advertiser || !template || !group) return { found: false, reason: !group ? 'GROUP_NOT_FOUND' : 'TEMPLATE_NOT_FOUND' } as T
+        if (!advertiser || !product || !template) {
+          return { found: false, reason: !advertiser ? 'ADVERTISER_NOT_FOUND' : !product ? 'PRODUCT_NOT_FOUND' : 'TEMPLATE_NOT_FOUND' } as T
+        }
+        const assigned = state.productAdvertisers.some(
+          (link) => link['product_id'] === product['id'] && link['advertiser_id'] === advertiser['id'],
+        )
+        if (!assigned) return { found: false, reason: 'ADVERTISER_NOT_ASSIGNED' } as T
+        if (!advertiser['wa_phone']) return { found: false, reason: 'ADVERTISER_PHONE_MISSING' } as T
+        const group = state.waProductGroups.find(
+          (row) => row['product_id'] === product['id'] && row['is_active'] !== false,
+        )
+        if (!group) return { found: false, reason: 'GROUP_NOT_FOUND' } as T
+        const eventType = String(args['p_event_type'] ?? '') === '' ? 'Seminar Offline' : String(args['p_event_type'])
+        const reportUrl = `${args['p_base_url']}/report-spend?advertiserCode=${advertiser['code']}&productCode=${product['code']}&eventType=${eventType.replaceAll(' ', '%20')}`
         return {
           found: true,
           group_id: group['fonnte_group_id'],
           message: String(template['message_content'])
-            .replaceAll('{{mention}}', `@${group['pic_phone']}`)
+            .replaceAll('{{mention}}', `@${advertiser['wa_phone']}`)
+            .replaceAll('{{advertiser_name}}', String(advertiser['name']))
             .replaceAll('{{store_name}}', String(advertiser['name']))
-            .replaceAll('{{product_name}}', String(args['p_product_code']))
+            .replaceAll('{{advertiser_code}}', String(advertiser['code']))
+            .replaceAll('{{product_name}}', String(product['name']))
+            .replaceAll('{{product_code}}', String(product['code']))
+            .replaceAll('{{event_type}}', eventType)
+            .replaceAll('{{date}}', '2026-11-10')
             .replaceAll('{{leads}}', '5')
             .replaceAll('{{paid}}', '2')
-            .replaceAll('{{report_url}}', `${args['p_base_url']}/report-spend?advertiserCode=${advertiser['code']}&productCode=${args['p_product_code']}`),
+            .replaceAll('{{report_url}}', reportUrl),
           leads: 5,
           paid: 2,
+          advertiser_id: advertiser['id'],
           advertiser_name: advertiser['name'],
-          product_code: args['p_product_code'],
-          product_name: args['p_product_code'],
+          advertiser_code: advertiser['code'],
+          product_code: product['code'],
+          product_name: product['name'],
+          event_type: eventType,
           reminder_date: String(args['p_now']).slice(0, 10),
         } as T
       }
@@ -995,6 +1021,10 @@ function rowsOf(state: FakeState, table: string): Array<Record<string, unknown>>
       return state.waBotSettings
     case 'wa_reminder_groups':
       return state.waReminderGroups
+    case 'wa_product_groups':
+      return state.waProductGroups
+    case 'product_advertisers':
+      return state.productAdvertisers
     case 'wa_reminder_templates':
       return state.waReminderTemplates
     case 'wa_reminder_schedules':

@@ -3,18 +3,43 @@
  *
  * Template disimpan apa adanya; validasi placeholder dilakukan SEBELUM disimpan
  * supaya salah ketik `{{lead}}` tidak diam-diam terkirim sebagai teks mentah.
- * Penggantian nilai di SQL (`wa_reminder_claim`) memakai daftar placeholder yang
+ * Penggantian nilai di SQL (`wa_render_reminder`) memakai daftar placeholder yang
  * sama; fungsi di sini adalah cermin untuk preview dan unit test.
  */
 export const WA_TEMPLATE_PLACEHOLDERS = [
   'mention',
-  'store_name',
+  'advertiser_name',
+  'advertiser_code',
   'product_name',
+  'product_code',
+  'event_type',
+  'date',
+  'report_url',
+  // Warisan template lama: tetap dikenali agar isi yang sudah tersimpan tidak
+  // terkirim sebagai teks mentah. Tidak lagi ditawarkan di picker.
+  'store_name',
   'leads',
   'paid',
+] as const
+
+/** Placeholder yang ditawarkan di UI. */
+export const WA_TEMPLATE_OFFERED_PLACEHOLDERS = [
+  'mention',
+  'advertiser_name',
+  'advertiser_code',
+  'product_name',
+  'product_code',
+  'event_type',
+  'date',
   'report_url',
 ] as const
 
+/** Placeholder warisan: dirender, tetapi tidak ditawarkan lagi. */
+export const WA_TEMPLATE_LEGACY_PLACEHOLDERS = ['store_name', 'leads', 'paid'] as const
+
+export const WA_EVENT_TYPES = ['Seminar Offline', 'Webinar Online', 'Hybrid'] as const
+
+export type WaEventType = (typeof WA_EVENT_TYPES)[number]
 export type WaTemplatePlaceholder = (typeof WA_TEMPLATE_PLACEHOLDERS)[number]
 export type WaTemplateValues = Record<WaTemplatePlaceholder, string | number>
 
@@ -22,8 +47,13 @@ export const WA_TEMPLATE_MAX_LENGTH = 4000
 export const WA_MESSAGE_MAX_LENGTH = 60000
 export const WA_TEMPLATE_NAME_MAX_LENGTH = 50
 export const WA_GROUP_ID_MAX_LENGTH = 100
-export const WA_PIC_NAME_MAX_LENGTH = 50
 export const WA_TOKEN_MAX_LENGTH = 512
+/** Riwayat pengiriman hanya disimpan sesingkat ini; WhatsApp sudah punya chat. */
+export const WA_LOG_RETENTION_DAYS = 3
+
+export function isWaEventType(value: string): value is WaEventType {
+  return (WA_EVENT_TYPES as readonly string[]).includes(value)
+}
 
 /** Placeholder yang muncul di teks, termasuk yang tidak dikenal. */
 export function listWaTemplatePlaceholders(content: string): string[] {
@@ -77,7 +107,7 @@ export function renderWaTemplate(content: string, values: Partial<WaTemplateValu
 }
 
 /**
- * Nomor PIC dinormalisasi ke format `628xxx` (dokumen Fitur 3.0 §2.1).
+ * Nomor WA dinormalisasi ke format `628xxx` (dokumen Fitur 3.0 §2.1).
  * Menerima `08…`, `8…`, `628…`, dan bentuk bertanda baca.
  */
 export function normalizeWhatsAppPhone(value: string): string | null {

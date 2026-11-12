@@ -1649,7 +1649,7 @@ Permintaan pengguna: sistem otomasi reminder WhatsApp untuk laporan iklan harian
 - Token device Fonnte disimpan **terenkripsi** di `wa_bot_settings` (AES-256-GCM dengan `INTEGRATION_ENCRYPTION_KEY`) dan dapat diganti dari dashboard. Token tidak pernah dikirim ke browser dan tidak disimpan di Worker.
 - Pengiriman dilakukan **backend**, bukan cron Worker. Worker (`apps/wa-cron`) hanya memanggil `POST /api/internal/wa-reminders/run` dengan header `X-WA-Cron-Secret`. Alasan: token tidak perlu disalin ke Worker, log/retry terpusat, dan backend tetap pemilik aturan bisnis.
 - Cloudflare Pages tidak memiliki cron trigger; karena itu Worker terpisah dengan `crons = ["* * * * *"]`.
-- Cron < 1 jam dibatasi �30 detik wall-clock. Backend mengirim maksimal 10 pesan per run (dapat diatur `WA_BATCH_LIMIT`, maks. 25) dengan jeda 1,5 detik (`WA_SEND_DELAY_MS`). Sisa antrean dihabiskan run berikutnya.
+- Cron < 1 jam dibatasi �30 detik wall-clock. Backend mengirim maksimal 10 pesan per run (dapat diatur `WA_BATCH_LIMIT`, maks. 25) dengan jeda 1,5 detik (`WA_SEND_DELAY_MS`). Sisa antrean dihabiskan run berikutnya.
 - Evaluasi jadwal memakai **Asia/Jakarta** dengan jendela 60 menit. Satu pesan per `(schedule_id, advertiser_id, product_code, reminder_date)` dijaga unique index parsial; status `failed` boleh dicoba ulang maksimal 3 kali per hari.
 - Log pengiriman disimpan 90 hari dan dapat difilter; baris gagal dapat dikirim ulang manual.
 
@@ -1662,3 +1662,26 @@ Permintaan pengguna: sistem otomasi reminder WhatsApp untuk laporan iklan harian
 ### Implementasi
 
 Migrasi `20261111120000_wa_admin_bot.sql` (schema_version 70); tabel `wa_bot_settings`, `wa_reminder_groups`, `wa_reminder_templates`, `wa_reminder_schedules`, `wa_reminder_logs`; RPC `wa_reminder_claim`, `wa_reminder_mark`, `wa_reminder_preview`; `packages/shared/src/domain/wa-reminder.ts`; `packages/api/src/wa-bot/*`; `apps/wa-cron/*`; halaman `/wa-bot`; workflow `deploy-wa-cron.yml`.
+
+## A67 - WA Admin Bot level produk, nomor pengiklan, dan retensi 3 hari (12 November 2026)
+
+Permintaan pengguna: konfigurasi WA Admin Bot dipindah ke **level produk** (karena produk bisa seminar atau webinar), pengiklan yang ditugaskan ke produk otomatis menerima reminder, nomor WA pengiklan bisa di-tag, dan riwayat pengiriman cukup disimpan 3 hari karena WhatsApp sudah menyimpan chat.
+
+### Keputusan
+
+- Grup WhatsApp mewakili **satu produk** (`wa_product_groups.product_id` UNIQUE), bukan pengiklan. Tabel lama `wa_reminder_groups` dibiarkan sebagai legacy dan tidak dibaca kode baru.
+- Penerima diturunkan dari `product_advertisers`: pengiklan yang ditugaskan ke produk dan masih aktif. Tidak ada tabel penerima baru.
+- Nomor tag disimpan di master `advertisers.wa_phone` (satu nomor per pengiklan, wajib untuk pengiklan aktif). Nomor lama di-backfill dari `wa_reminder_groups.pic_phone`.
+- Produk tidak dapat diaktifkan bila ada pengiklan penerima yang belum punya nomor WA. Backend menolak dengan menyebut nama pengiklan; UI menandainya merah.
+- Pengecekan laporan menjadi **per pengiklan + produk + jenis acara** (`ad_spend_reports.event_type`). Report seminar tidak menutupi reminder webinar untuk pengiklan yang sama. Batch tetap diabaikan.
+- Satu pesan dikirim per `(schedule_id, advertiser_id, product_code, event_type, reminder_date)`; unique index parsial ikut memuat `event_type`.
+- Template default tidak memakai `{{leads}}`/`{{paid}}`. Placeholder baru: `{{advertiser_name}}`, `{{advertiser_code}}`, `{{product_name}}`, `{{product_code}}`, `{{event_type}}`, `{{date}}`, `{{report_url}}`. `{{store_name}}`, `{{leads}}`, `{{paid}}` tetap dirender untuk template lama tetapi tidak ditawarkan lagi.
+- `{{report_url}}` menuju `/report-spend?advertiserCode=…&productCode=…&eventType=…`.
+- **Kirim Tes** memakai dua langkah: `POST /api/wa-bot/test-preview` (render + target, tanpa kirim) lalu `POST /api/wa-bot/test-send`.
+- Halaman `/wa-bot` memakai **enam tab**: Koneksi, Produk & Grup, Nomor WA Pengiklan, Template, Jadwal, Riwayat.
+- Log pengiriman disimpan **3 hari** (sebelumnya 90). Retensi dijalankan `pg_cron` dan `wa_reminder_purge` yang dipanggil `wa_reminder_claim`, sehingga tetap berlaku bila `pg_cron` absen. Baris lama dibersihkan saat migrasi.
+- Token Fonnte, alur cron Worker, dan permission tidak berubah.
+
+### Implementasi
+
+Migrasi `20261112090000_wa_bot_product_level.sql` (schema_version 71); tabel `wa_product_groups`, kolom `advertisers.wa_phone`, kolom `wa_reminder_logs.event_type`; RPC `wa_render_reminder`, `wa_reminder_purge`, versi baru `wa_reminder_claim` dan `wa_reminder_preview`; endpoint `product-groups`, `advertisers/:id`, `test-preview`; halaman `/wa-bot` bertab; test `supabase/tests/37_wa_admin_bot.sql`, `packages/api/test/wa-bot.test.ts`, `apps/web/test/wa-bot.test.tsx`.

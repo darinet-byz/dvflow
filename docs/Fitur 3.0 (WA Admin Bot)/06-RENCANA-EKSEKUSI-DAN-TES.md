@@ -53,51 +53,57 @@ docs/AMENDMENTS.md (A66)
 - Normalisasi `08…`, `8…`, `+62…`, `62…`; nomor tak masuk akal ditolak.
 - Ringkasan hari (Setiap hari / tiga hari / Minggu).
 
-### `packages/api/test/wa-bot.test.ts` (11)
+### `packages/api/test/wa-bot.test.ts` (13)
 - 403 tanpa izin pada baca dan tulis.
-- Respons overview tidak memuat token; token tersimpan terenkripsi.
+- Respons overview tidak memuat token; token tersimpan terenkripsi; grup berasal dari produk.
 - Template: placeholder asing dan nama ganda ditolak.
-- Grup: nomor dinormalisasi, pengiklan ganda ditolak.
+- Nomor WA pengiklan: wajib, dinormalisasi `08…` → `628…`, id tak dikenal 404.
+- Grup produk: satu produk satu grup, aktivasi ditolak bila pengiklan belum punya nomor.
 - Jadwal: jam tidak valid, template tidak ada, hari dinormalkan.
-- Kirim tes: header Authorization, form target/message, log tercatat.
+- Preview: merender pesan + target tanpa memanggil Fonnte.
+- Kirim tes: header Authorization, form target/message, log + `event_type` tercatat.
 - Cron: tanpa/salah secret → 404; tanpa token → `NO_TOKEN`; sukses → `sent`;
   kegagalan Fonnte → `failed` dengan alasan.
 - Kirim ulang: id invalid → 404; baris failed → sent + attempts bertambah.
-- Daftar log: filter status + pengiklan + tanggal.
+- Daftar log: filter status + produk + pengiklan + jenis acara + tanggal.
 
 ### `apps/wa-cron/test/index.test.ts` (3)
 - URL/metode/header secret benar.
 - Status non-2xx diteruskan tanpa melempar.
 - Konfigurasi tidak lengkap ditolak sebelum fetch.
 
-### `apps/web/test/wa-bot.test.tsx` (3)
-- Lima bagian utama tampil (token, grup, jadwal, riwayat).
+### `apps/web/test/wa-bot.test.tsx` (5)
+- Enam tab tampil; grup per produk, jadwal, dan riwayat dapat dibuka.
 - Placeholder asing ditolak di klien; server tidak dipanggil.
-- Modal kirim tes menampilkan pilihan produk.
+- Modal kirim tes menampilkan pilihan produk dan pengiklan.
+- Nomor WA pengiklan disimpan lewat tab khusus.
+- Preview tidak memanggil endpoint kirim.
 
 ### `packages/api/test/integration/wa-bot.e2e.test.ts` (2)
 - Klaim lewat PostgREST nyata memakai nama argumen RPC yang benar.
 - Hanya produk belum lapor yang diklaim; klaim kedua kosong.
 - `wa_reminder_mark` mengubah baris `queued` menjadi `sent`.
-- `wa_reminder_preview` menghitung leads/paid kemarin (2/1).
+- `wa_reminder_preview` menghitung leads/paid kemarin (2/1) per jenis acara.
 - Fixture dibersihkan sendiri; dibuktikan lulus dua kali tanpa reset.
 
-### `supabase/tests/37_wa_admin_bot.sql` (31 assertion)
-- `schema_version = 70`.
-- Hanya pengiklan aktif + produk belum lapor yang diklaim.
-- Grup, produk, dan pesan dirender benar.
-- Klaim kedua idempoten; batch diabaikan.
-- Jendela 60 menit dan filter hari dihormati.
-- Grup nonaktif dilewati; OTS tidak dihitung.
+### `supabase/tests/37_wa_admin_bot.sql` (45 assertion)
+- `schema_version = 71`.
+- Hanya pengiklan aktif, punya nomor, ditugaskan ke produk, dan belum lapor yang diklaim.
+- Grup berasal dari produk; produk satu grup; grup bersama dapat menerima beberapa pengiklan.
+- Report seminar tidak menutupi webinar; batch diabaikan.
+- Klaim kedua idempoten; jendela 60 menit dan filter hari dihormati.
+- Grup nonaktif dan pengiklan tanpa nomor dilewati; OTS tidak dihitung.
 - Retry berhenti di 3 kegagalan; klaim menggantung di-fail-kan.
-- Preview mengembalikan leads/paid dan alasan `GROUP_NOT_FOUND`.
-- Izin terdaftar; browser tidak punya akses RPC/tabel.
+- Preview mengembalikan leads/paid dan alasan `GROUP_NOT_FOUND`,
+  `ADVERTISER_NOT_ASSIGNED`, `ADVERTISER_PHONE_MISSING`, `EVENT_TYPE_NOT_FOUND`.
+- Retensi 3 hari menghapus log lama.
+- Izin terdaftar; browser tidak punya akses RPC/tabel; format nomor ditegakkan.
 
 ## 4. Perintah verifikasi
 
 ```bash
 npm run typecheck      # PASS (API, shared, wa-cron, web, worker, functions)
-npm test               # PASS: 320 api + 142 shared + 3 wa-cron + 272 web = 737
+npm test               # PASS: 322 api + 144 shared + 3 wa-cron + 274 web = 743
 npm run build          # PASS (web + ticket-qr)
 npm run verify:ticket-qr
 
@@ -109,16 +115,16 @@ supabase db reset      # dengan seed, untuk integration
 npm run test:integration
 ```
 
-Status terakhir di mesin pengembang (11 November 2026):
+Status terakhir di mesin pengembang (12 November 2026):
 
 ```text
 typecheck          : PASS
-npm test           : PASS (737)
+lint               : PASS
+npm test           : PASS (743)
 build              : PASS
 verify:ticket-qr   : PASS
-pgTAP              : PASS — 950 test / 37 berkas (37 WA bot = 31 assertion)
+pgTAP              : PASS — 964 test / 37 berkas (37 WA bot = 45 assertion)
 integration        : PASS — 39 test / 5 berkas, lulus dua kali tanpa reset
-wrangler dry-run   : PASS
 ```
 
 ## 5. Butir yang belum diverifikasi

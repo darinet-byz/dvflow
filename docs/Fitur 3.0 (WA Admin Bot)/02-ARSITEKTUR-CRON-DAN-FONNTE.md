@@ -13,9 +13,10 @@ Admin (browser)
                         │ service_role
                         ▼
                     Supabase
-        wa_bot_settings / wa_reminder_groups
+        wa_bot_settings / wa_product_groups
+        product_advertisers / advertisers
         wa_reminder_templates / wa_reminder_schedules
-        wa_reminder_logs + RPC claim/mark/preview
+        wa_reminder_logs + RPC claim/mark/preview/purge
 
 Cloudflare Worker cron  (* * * * *, setiap menit)
   └─ POST /api/internal/wa-reminders/run
@@ -68,7 +69,7 @@ kemudian).
 Satu-satunya penjaga pesan ganda adalah unique index parsial:
 
 ```sql
-unique (schedule_id, advertiser_id, product_code, reminder_date)
+unique (schedule_id, advertiser_id, product_code, event_type, reminder_date)
 where schedule_id is not null and status in ('queued', 'sent')
 ```
 
@@ -98,10 +99,10 @@ ditandai `failed` setelah 10 menit, lalu boleh dicoba lagi.
 | Jaringan/timeout | Log `failed` dengan `NETWORK`; retry otomatis pada run berikutnya (maks. 3). |
 | Worker cron mati | Tidak ada klaim baru; saat hidup lagi, jadwal dalam jendela 60 menit tetap dikirim. |
 | Dua run bersamaan | Unique index + `on conflict do nothing`; satu task. |
-| Ads report sudah ada | Produk dilewati untuk jadwal itu. |
+| Ads report jenis acara itu sudah ada | Pengiklan dilewati untuk jadwal itu; jenis acara lain tetap dikirim. |
 
 ## 7. Urutan pengiriman
 
-`wa_reminder_claim` mengurutkan `execution_time`, nama pengiklan, nama produk.
-Backend mengirim berurutan dengan jeda. Tidak ada paralelisme agar tidak
-memancing rate limit/ban Fonnte.
+`wa_reminder_claim` mengurutkan `execution_time`, nama pengiklan, nama produk,
+jenis acara. Backend mengirim berurutan dengan jeda. Tidak ada paralelisme agar
+tidak memancing rate limit/ban Fonnte.

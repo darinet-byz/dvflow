@@ -1,5 +1,10 @@
 # Rencana Sistem Otomasi Reminder WhatsApp (Dashboard Dinamis)
 
+> **Catatan historis:** dokumen ini adalah spesifikasi awal. Keputusan terbaru
+> (grup per produk, nomor WA pengiklan, pemisahan seminar/webinar, retensi 3 hari)
+> ada di `01-PRD-WA-ADMIN-BOT.md`, `03-SKEMA-DATABASE-DAN-RPC.md`, dan
+> `docs/AMENDMENTS.md` A67.
+
 Dokumen ini berisi spesifikasi teknis dan panduan implementasi untuk bot pengingat pelaporan iklan harian. Sistem ini dirancang agar **100% dinamis**, di mana jadwal pengiriman, template pesan, pengaturan grup WhatsApp, dan penugasan PIC advertiser sepenuhnya dapat dikonfigurasi melalui Dashboard Admin tanpa perlu menyentuh kode (hardcode).
 
 ---

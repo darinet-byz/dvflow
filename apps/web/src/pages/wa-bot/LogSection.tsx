@@ -1,9 +1,10 @@
 import { useState } from 'react'
+import { WA_EVENT_TYPES, WA_LOG_RETENTION_DAYS } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
 import { formatDateTime } from '../../lib/format'
 import type { PageSize } from '../../lib/filters'
 import { useAsyncData } from '../../lib/useAsyncData'
-import { Badge } from '../../ui/Badge'
+import { Badge, eventTypeTone } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { Select, TextInput } from '../../ui/Field'
@@ -16,7 +17,9 @@ import { WA_STATUS_LABEL, type WaLog, type WaLogsPage, type WaOverview } from '.
 
 const COLUMNS: readonly TableColumn[] = [
   { key: 'time', header: 'Waktu', minWidth: 140 },
-  { key: 'target', header: 'Pengiklan / Produk', minWidth: 200 },
+  { key: 'product', header: 'Produk', minWidth: 150 },
+  { key: 'advertiser', header: 'Pengiklan', minWidth: 150 },
+  { key: 'event', header: 'Jenis Acara', minWidth: 120 },
   { key: 'group', header: 'Grup', minWidth: 130 },
   { key: 'status', header: 'Status', minWidth: 100 },
   { key: 'error', header: 'Keterangan', minWidth: 170 },
@@ -35,7 +38,9 @@ export function LogSection({ overview, canSend }: { overview: WaOverview; canSen
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState<PageSize>(50)
   const [status, setStatus] = useState('')
+  const [product, setProduct] = useState('')
   const [advertiser, setAdvertiser] = useState('')
+  const [eventType, setEventType] = useState('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [refresh, setRefresh] = useState(0)
@@ -44,7 +49,9 @@ export function LogSection({ overview, canSend }: { overview: WaOverview; canSen
 
   const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) })
   if (status !== '') params.set('status', status)
+  if (product !== '') params.set('product', product)
   if (advertiser !== '') params.set('advertiser', advertiser)
+  if (eventType !== '') params.set('event_type', eventType)
   if (dateFrom !== '') params.set('date_from', dateFrom)
   if (dateTo !== '') params.set('date_to', dateTo)
 
@@ -77,19 +84,35 @@ export function LogSection({ overview, canSend }: { overview: WaOverview; canSen
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-[15px] font-semibold text-ink">Riwayat Pengiriman</h2>
-          <p className="mt-0.5 text-[12px] text-ink-soft">Satu baris = satu pesan untuk satu produk. Disimpan 90 hari.</p>
+          <p className="mt-0.5 text-[12px] text-ink-soft">
+            Disimpan {WA_LOG_RETENTION_DAYS} hari, setelah itu dihapus otomatis. Riwayat lengkap tetap ada di aplikasi WhatsApp.
+          </p>
         </div>
         <Button onClick={reload}>Muat ulang</Button>
       </div>
 
-      <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         <Select id="wa-log-status" ariaLabel="Status pengiriman" value={status} options={STATUS_OPTIONS} onChange={changeFilter(setStatus)} />
+        <Select
+          id="wa-log-product"
+          ariaLabel="Produk"
+          value={product}
+          options={[{ value: '', label: 'Semua produk' }, ...overview.products.map((row) => ({ value: row.code, label: `${row.code} — ${row.name}` }))]}
+          onChange={changeFilter(setProduct)}
+        />
         <Select
           id="wa-log-advertiser"
           ariaLabel="Pengiklan"
           value={advertiser}
           options={[{ value: '', label: 'Semua pengiklan' }, ...overview.advertisers.map((row) => ({ value: row.code, label: `${row.code} — ${row.name}` }))]}
           onChange={changeFilter(setAdvertiser)}
+        />
+        <Select
+          id="wa-log-event-type"
+          ariaLabel="Jenis acara"
+          value={eventType}
+          options={[{ value: '', label: 'Semua jenis acara' }, ...WA_EVENT_TYPES.map((type) => ({ value: type, label: type }))]}
+          onChange={changeFilter(setEventType)}
         />
         <TextInput id="wa-log-from" ariaLabel="Tanggal awal" type="date" value={dateFrom} onChange={changeFilter(setDateFrom)} />
         <TextInput id="wa-log-to" ariaLabel="Tanggal akhir" type="date" value={dateTo} onChange={changeFilter(setDateTo)} />
@@ -105,9 +128,13 @@ export function LogSection({ overview, canSend }: { overview: WaOverview; canSen
               <TableCell className="whitespace-nowrap text-[12px]">{formatDateTime(row.created_at)}</TableCell>
               <TableCell>
                 <div className="flex flex-col">
-                  <span className="font-medium text-ink">{row.advertiser_name}</span>
-                  <span className="text-[11px] text-ink-soft">{row.product_name ?? row.product_code}</span>
+                  <span className="font-medium text-ink">{row.product_name ?? row.product_code}</span>
+                  <span className="text-[11px] text-ink-soft">{row.product_code}</span>
                 </div>
+              </TableCell>
+              <TableCell>{row.advertiser_name}</TableCell>
+              <TableCell>
+                {row.event_type ? <Badge tone={eventTypeTone(row.event_type)}>{row.event_type}</Badge> : '-'}
               </TableCell>
               <TableCell className="break-all text-[12px]">{row.group_id}</TableCell>
               <TableCell>
@@ -153,11 +180,12 @@ export function LogSection({ overview, canSend }: { overview: WaOverview; canSen
       >
         <div className="flex flex-col gap-2">
           <p className="text-[12px] text-ink-soft">
-            {viewing?.advertiser_name} · {viewing?.product_name ?? viewing?.product_code} · {WA_STATUS_LABEL[viewing?.status ?? 'queued']}
+            {viewing?.advertiser_name} · {viewing?.product_name ?? viewing?.product_code} · {viewing?.event_type ?? '-'} · {WA_STATUS_LABEL[viewing?.status ?? 'queued']}
           </p>
           <pre className="max-h-[320px] overflow-auto whitespace-pre-wrap rounded-sm border border-line bg-soft p-2.5 text-[12px] text-ink">
             {viewing?.message ?? ''}
           </pre>
+          {viewing?.error ? <p className="text-[12px] text-danger">{viewing.error}</p> : null}
         </div>
       </Modal>
     </Card>

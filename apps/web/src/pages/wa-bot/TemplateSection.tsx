@@ -2,8 +2,9 @@ import { useState } from 'react'
 import {
   renderWaTemplate,
   validateWaTemplate,
-  WA_TEMPLATE_PLACEHOLDERS,
+  WA_TEMPLATE_LEGACY_PLACEHOLDERS,
   WA_TEMPLATE_MAX_LENGTH,
+  WA_TEMPLATE_OFFERED_PLACEHOLDERS,
 } from '@dvflow/shared'
 import { authorizedRequest } from '../../lib/session'
 import { Badge } from '../../ui/Badge'
@@ -18,21 +19,29 @@ import type { WaOverview, WaTemplate } from './types'
 const COLUMNS: readonly TableColumn[] = [
   { key: 'name', header: 'Nama Template', minWidth: 150 },
   { key: 'content', header: 'Isi Pesan', minWidth: 320 },
-  { key: 'status', header: 'Status', minWidth: 90 },
+  { key: 'status', header: 'Status', minWidth: 110 },
   { key: 'actions', header: 'Aksi', minWidth: 130 },
 ]
 
 const PREVIEW_VALUES = {
-  mention: '628123456789',
-  store_name: 'Toko Contoh',
+  mention: '@628123456789',
+  advertiser_name: 'Zul',
+  advertiser_code: '01',
   product_name: 'Kuliner Masteri',
+  product_code: 'KM',
+  event_type: 'Seminar Offline',
+  date: '2026-11-11',
+  report_url: 'https://app.example.com/report-spend?advertiserCode=01&productCode=KM&eventType=Seminar%20Offline',
+  store_name: 'Zul',
   leads: 12,
   paid: 3,
-  report_url: 'https://dvflow.pages.dev/report-spend?advertiserCode=01&productCode=KM',
 }
 
+const DEFAULT_CONTENT =
+  '{{mention}} mohon input Report Spend {{event_type}} produk {{product_name}} ({{advertiser_name}}) untuk tanggal {{date}}.\n{{report_url}}'
+
 type FormState = { id: string | null; name: string; content: string; isActive: boolean }
-const EMPTY: FormState = { id: null, name: '', content: '', isActive: true }
+const EMPTY: FormState = { id: null, name: '', content: DEFAULT_CONTENT, isActive: true }
 
 export function TemplateSection({ overview, reload }: { overview: WaOverview; reload: () => void }) {
   const toast = useToast()
@@ -43,7 +52,7 @@ export function TemplateSection({ overview, reload }: { overview: WaOverview; re
 
   function openCreate() {
     setFailure(null)
-    setForm({ ...EMPTY, content: 'Halo {{mention}}, laporan iklan {{store_name}} untuk produk {{product_name}} belum diisi.\nLeads kemarin: {{leads}}, Paid: {{paid}}.\nInput di sini: {{report_url}}' })
+    setForm({ ...EMPTY })
   }
 
   function openEdit(template: WaTemplate) {
@@ -97,38 +106,56 @@ export function TemplateSection({ overview, reload }: { overview: WaOverview; re
       <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 className="text-[15px] font-semibold text-ink">Template Pesan</h2>
-          <p className="mt-0.5 text-[12px] text-ink-soft">Gunakan placeholder agar isi pesan menyesuaikan pengiklan dan produk.</p>
+          <p className="mt-0.5 text-[12px] text-ink-soft">
+            Satu template dipakai semua produk. Placeholder diganti otomatis saat pesan dikirim.
+          </p>
         </div>
         <Button variant="primary" onClick={openCreate}>+ Tambah Template</Button>
       </div>
 
       <DataTable columns={COLUMNS} maxRows={null}>
-        {overview.templates.map((template) => (
-          <TableRow key={template.id}>
-            <TableCell className="font-medium">{template.name}</TableCell>
-            <TableCell>
-              <p className="line-clamp-2 max-w-[420px] whitespace-pre-line text-[12px] text-ink-soft">{template.message_content}</p>
-            </TableCell>
-            <TableCell>
-              <Badge tone={template.is_active ? 'success' : 'neutral'}>{template.is_active ? 'Aktif' : 'Nonaktif'}</Badge>
-            </TableCell>
-            <TableCell>
-              <div className="flex flex-wrap gap-1.5">
-                <Button size="sm" onClick={() => openEdit(template)}>Edit</Button>
-                <Button size="sm" variant="danger" onClick={() => setDeleting(template)}>Hapus</Button>
-              </div>
-            </TableCell>
-          </TableRow>
-        ))}
+        {overview.templates.map((template) => {
+          const legacy = WA_TEMPLATE_LEGACY_PLACEHOLDERS.filter((placeholder) =>
+            template.message_content.includes(`{{${placeholder}}}`),
+          )
+          return (
+            <TableRow key={template.id}>
+              <TableCell className="font-medium">{template.name}</TableCell>
+              <TableCell>
+                <p className="line-clamp-2 max-w-[420px] whitespace-pre-line text-[12px] text-ink-soft">{template.message_content}</p>
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1">
+                  <Badge tone={template.is_active ? 'success' : 'neutral'}>{template.is_active ? 'Aktif' : 'Nonaktif'}</Badge>
+                  {legacy.length > 0 ? <Badge tone="warning">data lama</Badge> : null}
+                </div>
+              </TableCell>
+              <TableCell>
+                <div className="flex flex-wrap gap-1.5">
+                  <Button size="sm" onClick={() => openEdit(template)}>Edit</Button>
+                  <Button size="sm" variant="danger" onClick={() => setDeleting(template)}>Hapus</Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          )
+        })}
       </DataTable>
       {overview.templates.length === 0 ? (
-        <p className="py-4 text-[13px] text-ink-soft">Belum ada template. Buat satu template pagi, siang, atau eskalasi.</p>
+        <p className="py-4 text-[13px] text-ink-soft">Belum ada template. Buat satu template pengingat pagi.</p>
       ) : null}
 
-      {form !== null ? (
-        <section aria-label={form.id === null ? 'Tambah Template' : 'Edit Template'} className="mb-3 rounded-sm border border-line p-3">
-          <h3 className="mb-2 text-[13px] font-semibold text-ink">{form.id === null ? 'Tambah Template' : 'Edit Template'}</h3>
-          <div className="flex flex-col gap-3">
+      <Modal
+        open={form !== null}
+        title={form?.id === null ? 'Tambah Template' : 'Edit Template'}
+        onClose={() => { if (!busy) setForm(null) }}
+        footer={
+          <>
+            <Button disabled={busy} onClick={() => setForm(null)}>Batal</Button>
+            <Button variant="primary" loading={busy} onClick={() => void save()}>Simpan</Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-3">
           <TextInput
             id="wa-template-name"
             label="Nama Template"
@@ -148,7 +175,7 @@ export function TemplateSection({ overview, reload }: { overview: WaOverview; re
             onChange={(value) => setForm((current) => current === null ? current : { ...current, content: value })}
           />
           <div className="flex flex-wrap gap-1.5">
-            {WA_TEMPLATE_PLACEHOLDERS.map((placeholder) => (
+            {WA_TEMPLATE_OFFERED_PLACEHOLDERS.map((placeholder) => (
               <button
                 key={placeholder}
                 type="button"
@@ -173,14 +200,9 @@ export function TemplateSection({ overview, reload }: { overview: WaOverview; re
             />
             Template aktif
           </label>
-            {failure ? <p role="alert" className="text-[12px] text-danger">{failure}</p> : null}
-            <div className="flex flex-wrap gap-2">
-              <Button variant="primary" loading={busy} onClick={() => void save()}>Simpan</Button>
-              <Button disabled={busy} onClick={() => setForm(null)}>Batal</Button>
-            </div>
-          </div>
-        </section>
-      ) : null}
+          {failure ? <p role="alert" className="text-[12px] text-danger">{failure}</p> : null}
+        </div>
+      </Modal>
 
       <Modal
         open={deleting !== null}

@@ -20,15 +20,24 @@ vi.mock('../src/lib/useSession', () => ({
 
 const overview = {
   settings: { has_token: true, updated_at: '2026-11-11T01:00:00Z' },
-  advertisers: [{ id: 'adv-1', code: '01', name: 'Zul', active: true }],
-  groups: [{
-    id: 'group-1', advertiser_id: 'adv-1', advertiser_code: '01', advertiser_name: 'Zul', advertiser_active: true,
-    fonnte_group_id: '111@g.us', pic_phone: '628111111111', pic_name: 'PIC', is_active: true,
-    created_at: '2026-11-11T01:00:00Z', updated_at: '2026-11-11T01:00:00Z',
+  products: [{
+    id: 'prod-1',
+    code: 'KM',
+    name: 'Kuliner Masteri',
+    active: true,
+    group: {
+      id: 'group-1', product_id: 'prod-1', fonnte_group_id: '111@g.us',
+      is_active: true, created_at: '2026-11-11T01:00:00Z', updated_at: '2026-11-11T01:00:00Z',
+    },
+    advertisers: [{ id: 'adv-1', code: '01', name: 'Zul', active: true, wa_phone: '628111111111' }],
+  }],
+  advertisers: [{
+    id: 'adv-1', code: '01', name: 'Zul', active: true, wa_phone: '628111111111',
+    products: [{ code: 'KM', name: 'Kuliner Masteri' }],
   }],
   templates: [{
-    id: 'tpl-1', name: 'Pagi', message_content: 'Halo {{mention}} {{store_name}}', is_active: true,
-    created_at: '2026-11-11T01:00:00Z', updated_at: '2026-11-11T01:00:00Z',
+    id: 'tpl-1', name: 'Pagi', message_content: 'Halo {{mention}} {{advertiser_name}}',
+    is_active: true, created_at: '2026-11-11T01:00:00Z', updated_at: '2026-11-11T01:00:00Z',
   }],
   schedules: [{
     id: 'sch-1', execution_time: '09:00:00', template_id: 'tpl-1', template_name: 'Pagi', days: [0, 1, 2, 3, 4, 5, 6],
@@ -38,21 +47,35 @@ const overview = {
 
 const logs = { rows: [], total: 0, page: 1, pageSize: 50 }
 
+const preview = {
+  found: true,
+  group_id: '111@g.us',
+  message: 'Halo @628111111111, Zul Kuliner Masteri Seminar Offline 2026-11-10.',
+  leads: 2,
+  paid: 1,
+  advertiser_id: 'adv-1',
+  advertiser_name: 'Zul',
+  advertiser_code: '01',
+  product_code: 'KM',
+  product_name: 'Kuliner Masteri',
+  event_type: 'Seminar Offline',
+  reminder_date: '2026-11-11',
+}
+
 vi.mock('../src/lib/session', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../src/lib/session')>()
   return {
     ...actual,
     authorizedRequest: vi.fn(async (path: string, options?: { method?: string; body?: unknown }) => {
       if (path.startsWith('/api/wa-bot/logs')) return logs
+      if (path === '/api/wa-bot/test-preview') return preview
+      if (path === '/api/wa-bot/test-send') return { sent: true, error: null, message: preview.message, group_id: preview.group_id }
+      if (path.startsWith('/api/wa-bot/advertisers/') && options?.method === 'PATCH') return { id: 'adv-1', wa_phone: '6281234567890' }
       if (path === '/api/wa-bot' && options?.method === undefined) return overview
       throw new Error(`Unexpected request: ${options?.method ?? 'GET'} ${path}`)
     }),
   }
 })
-
-vi.mock('../src/lib/useConfigLists', () => ({
-  useConfigLists: () => ({ lists: { products: [{ value: 'KM', label: 'KM — Kuliner Masteri' }] }, error: null }),
-}))
 
 const { WaBotPage } = await import('../src/pages/wa-bot/WaBotPage')
 const { authorizedRequest } = await import('../src/lib/session')
@@ -73,17 +96,26 @@ function renderPage() {
 }
 
 describe('WA Admin Bot page', () => {
-  it('menampilkan konfigurasi, jadwal, dan riwayat', async () => {
+  it('menampilkan koneksi, grup per produk, jadwal, dan riwayat lewat tab', async () => {
     renderPage()
     expect(await screen.findByText('WA Admin Bot')).toBeTruthy()
     expect(screen.getByText('Token terpasang')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Produk & Grup' }))
+    expect(await screen.findByText('Grup WhatsApp per Produk')).toBeTruthy()
     expect(screen.getByText('111@g.us')).toBeTruthy()
-    expect(screen.getByText('Setiap hari')).toBeTruthy()
-    expect(screen.getByText('Riwayat Pengiriman')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Jadwal' }))
+    expect(await screen.findByText('Setiap hari')).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Riwayat' }))
+    expect(await screen.findByText('Riwayat Pengiriman')).toBeTruthy()
+    expect(screen.getByText(/Disimpan 3 hari/)).toBeTruthy()
   })
 
   it('menolak placeholder asing sebelum memanggil server', async () => {
     renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: 'Template' }))
     fireEvent.click(await screen.findByRole('button', { name: '+ Tambah Template' }))
     const textarea = screen.getByLabelText('Isi Pesan')
     fireEvent.change(textarea, { target: { value: 'Halo {{lead}}' } })
@@ -95,10 +127,35 @@ describe('WA Admin Bot page', () => {
     })
   })
 
-  it('menampilkan form kirim tes dengan pilihan pengiklan dan produk', async () => {
+  it('menampilkan form kirim tes dengan pilihan produk dan pengiklan', async () => {
     renderPage()
     fireEvent.click(await screen.findByRole('button', { name: 'Kirim Tes' }))
     expect(await screen.findByRole('dialog', { name: 'Kirim Pesan Tes' })).toBeTruthy()
     expect(screen.getByText('KM — Kuliner Masteri')).toBeTruthy()
+    expect(screen.getByRole('option', { name: '01 — Zul (628111111111)' })).toBeTruthy()
+  })
+
+  it('menyimpan nomor WA pengiklan dari tab khusus', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: 'Nomor WA Pengiklan' }))
+    const input = await screen.findByLabelText('Nomor WA Zul')
+    fireEvent.change(input, { target: { value: '0812-3456-7890' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan' }))
+
+    await waitFor(() => {
+      expect(authorizedRequest).toHaveBeenCalledWith('/api/wa-bot/advertisers/adv-1', {
+        method: 'PATCH',
+        body: { wa_phone: '0812-3456-7890' },
+      })
+    })
+  })
+
+  it('preview tidak mengirim pesan', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: 'Kirim Tes' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Preview' }))
+    expect(await screen.findByText(/Tujuan 111@g.us/)).toBeTruthy()
+    expect(authorizedRequest).toHaveBeenCalledWith('/api/wa-bot/test-preview', expect.anything())
+    expect(authorizedRequest).not.toHaveBeenCalledWith('/api/wa-bot/test-send', expect.anything())
   })
 })

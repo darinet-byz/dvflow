@@ -1,18 +1,32 @@
 /** Bentuk data WA Admin Bot dari `GET /api/wa-bot` (Fitur 3.0). */
-export type WaAdvertiser = { id: string; code: string; name: string; active: boolean }
-
-export type WaGroup = {
+export type WaAdvertiser = {
   id: string
-  advertiser_id: string
-  advertiser_code: string | null
-  advertiser_name: string | null
-  advertiser_active: boolean
+  code: string
+  name: string
+  active: boolean
+  wa_phone: string | null
+}
+
+export type WaProductRef = { code: string; name: string }
+
+export type WaAdvertiserWithProducts = WaAdvertiser & { products: WaProductRef[] }
+
+export type WaProductGroup = {
+  id: string
+  product_id: string
   fonnte_group_id: string
-  pic_phone: string
-  pic_name: string | null
   is_active: boolean
   created_at: string
   updated_at: string
+}
+
+export type WaProduct = {
+  id: string
+  code: string
+  name: string
+  active: boolean
+  group: WaProductGroup | null
+  advertisers: WaAdvertiser[]
 }
 
 export type WaTemplate = {
@@ -38,8 +52,8 @@ export type WaSchedule = {
 
 export type WaOverview = {
   settings: { has_token: boolean; updated_at: string | null }
-  advertisers: WaAdvertiser[]
-  groups: WaGroup[]
+  products: WaProduct[]
+  advertisers: WaAdvertiserWithProducts[]
   templates: WaTemplate[]
   schedules: WaSchedule[]
 }
@@ -54,6 +68,7 @@ export type WaLog = {
   reminder_date: string
   group_id: string
   template_id: string | null
+  event_type: string | null
   message: string
   status: 'queued' | 'sent' | 'failed'
   attempts: number
@@ -65,6 +80,21 @@ export type WaLog = {
 }
 
 export type WaLogsPage = { rows: WaLog[]; total: number; page: number; pageSize: number }
+
+export type WaPreview = {
+  found: true
+  group_id: string
+  message: string
+  leads: number
+  paid: number
+  advertiser_id: string
+  advertiser_name: string
+  advertiser_code: string
+  product_code: string
+  product_name: string
+  event_type: string
+  reminder_date: string
+}
 
 export const WA_STATUS_LABEL: Record<WaLog['status'], string> = {
   queued: 'Menunggu',
