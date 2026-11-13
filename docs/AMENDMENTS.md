@@ -1774,3 +1774,18 @@ Permintaan pengguna: satu hari bisa punya beberapa pengingat. Pagi menyebut semu
 ### Implementasi
 
 Migrasi `20261112190000_wa_schedule_mention_scope.sql` (`schema_version` 75): kolom + constraint, `wa_reminder_claim` dan `wa_reminder_preview` versi baru. Backend `handlers.ts` (simpan/validasi `mention_scope`, teruskan ke preview). Web `ScheduleSection`, `ConnectionSection`, `types`. Tes: `37_wa_admin_bot.sql` (53 assertion), unit API/web, integration 39.
+
+## A73 - Drill-down Sisa Tiket pada Presensi Realtime (13 November 2026)
+
+Permintaan pengguna: angka **Sisa Tiket** di tab Realtime Presensi tidak bisa ditelusuri; untuk menemukan order mana yang masih menyisakan tiket, operator harus menebak lewat filter status yang tidak terlihat hubungannya.
+
+### Keputusan
+
+- Kartu KPI **Sisa Tiket** menjadi tombol: sekali klik menyetel filter status ke **Hadir Sebagian** dan menampilkan order penyumbangnya; klik lagi membersihkan filter. Nilai KPI sengaja tidak ikut tersaring (perilaku A23/A68: filter status adalah pemilih baris, bukan filter KPI).
+- `KpiCard` mendapat prop opsional `onClick`, `pressed`, dan `ariaLabel`; hanya kartu yang bisa diklik yang dirender sebagai `<button>` dengan isi `<span>`, sedangkan kartu lain mempertahankan struktur `<div><p>` lama.
+- Baris **Hadir Sebagian** menyebut sisanya secara eksplisit di samping progres `X/Y` (`sisa N`, N = `quantity − tiket hadir pada basis tanggal aktif`). Kartu mode lapangan ikut menyebut `sisa N`.
+- Definisi Sisa Tiket tidak berubah: sisa tiket rombongan yang sudah mulai datang tetapi belum lengkap pada rentang tanggal terpilih.
+
+### Implementasi
+
+Tanpa migrasi (`schema_version` tetap 75). Web: `apps/web/src/ui/Card.tsx` (`KpiCard`), `apps/web/src/pages/presensi/PresensiPage.tsx` (KPI drill-down, helper `remainingTickets`, kolom status, kartu lapangan). Tes: `apps/web/test/presensi-realtime.test.tsx` (klik/toggle filter + label sisa) dan `apps/web/test/field-app.test.tsx` (kartu tetap bisa diklik di mode lapangan).
