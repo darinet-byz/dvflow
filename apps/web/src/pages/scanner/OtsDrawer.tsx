@@ -284,14 +284,16 @@ export function OtsPanel({ open, canDelete, mode = 'today', section = 'both' }: 
 
   // A74: sesi yang tersimpan di perangkat tetapi sudah tidak aktif tidak boleh
   // diwarisi diam-diam. Kosongkan dan buka panel Meja agar operator memilih ulang.
+  // Saat mengedit order lama, sesi tersimpan dibiarkan (server tetap mengizinkan
+  // sesi yang sama walau sudah nonaktif) supaya koreksi nama tidak gagal.
   useEffect(() => {
     const list = references.data?.sessions
-    if (list === undefined) return
+    if (list === undefined || editingId !== null) return
     const active = new Set(list.map((session) => session.code))
     if (context.session === '' || active.has(context.session)) return
     setContext((current) => ({ ...current, session: '' }))
     setShowContext(true)
-  }, [references.data, context.session])
+  }, [references.data, context.session, editingId])
 
   // Saat drawer dibuka, arahkan fokus ke tempat yang paling mungkin dipakai.
   useEffect(() => {
@@ -304,10 +306,15 @@ export function OtsPanel({ open, canDelete, mode = 'today', section = 'both' }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, formOpen, tab])
 
-  const sessionOptions = useMemo(
-    () => sessions.map((session) => ({ value: session.code, label: `${session.code} — ${session.name}` })),
-    [sessions],
-  )
+  const sessionOptions = useMemo(() => {
+    const options = sessions.map((session) => ({ value: session.code, label: `${session.code} — ${session.name}` }))
+    // Hanya saat mengedit: tampilkan sesi tersimpan yang sudah nonaktif agar nilai
+    // di form tidak terlihat kosong padahal order lama masih memakainya.
+    if (editingId !== null && context.session !== '' && !options.some((option) => option.value === context.session)) {
+      options.push({ value: context.session, label: `${context.session} (tersimpan, nonaktif)` })
+    }
+    return options
+  }, [sessions, context.session, editingId])
 
   const priceOptions = useMemo(() => {
     const base = [...(OTS_UNIT_PRICE_OPTIONS as readonly number[])]
