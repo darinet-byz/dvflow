@@ -264,6 +264,12 @@ POST/PATCH/DELETE(deactivate): master_admin/admin only.
 Delete semantics = `active=false`.
 No hard delete endpoint.
 
+**A74 — status sesi khusus Developer.** Untuk `sessions`:
+- `POST` dari role mana pun selalu menyimpan `active=true` (field `active` di body diabaikan).
+- `PATCH` yang memuat `active` dan `DELETE` (nonaktifkan) hanya untuk role `developer`; role lain menerima `403 FORBIDDEN`.
+- `DELETE ?permanent=true` untuk sesi juga hanya `developer`, dan tetap ditolak `MASTER_IN_USE` bila order/alias memakai kode tersebut.
+- Menyunting nama sesi tetap boleh untuk pemegang `config.produk`.
+
 ## 12a. Report Spend Iklan (A37)
 Tulis saja; laporan dibaca browser lewat RPC `ad_spend_report(p_date_from, p_date_to, p_product_code, p_advertiser_code, p_batch, p_event_type)`.
 Sejak A63, `event_type` (Seminar Offline/Webinar Online/Hybrid) disimpan per report dan wajib dipilih saat input; laporan memisahkan batch yang sama untuk online dan offline.
@@ -421,3 +427,13 @@ Izin `action.ots`. Query: `from`, `to`, `product_code`, `batch`, `session`, `cit
 ## A68 - Presensi Realtime dan total tiket + OTS
 
 `presensi_page`, `export_presensi_page`, dan `presensi_summary` menerima argumen akhir `p_date_mode text default 'order'`: `order` (tanggal order, perilaku lama) atau `attendance` (tanggal scan/check-in `attendance_events.clicked_at`, batas WIB). Nilai lain ditolak DF011 `INVALID_DATE_MODE`. Di mode `attendance`, baris hanya memuat order yang punya check-in pada rentang; `checked_in_in_range` berisi tiket hadir dalam rentang, sedangkan `checked_in_tickets` tetap total. `presensi_summary` mengembalikan tambahan `paid_tickets_online`, `paid_tickets_ots`, `sudah_hadir_online`, `sudah_hadir_ots`, dan `attending_orders`. Semua hitungan per tiket (A61), dan izin `operasional.presensi` tidak berubah.
+
+## A74 - Status sesi khusus Developer dan sesi OTS
+
+Migrasi `20261113120000_session_active_dev_toggle.sql` (`schema_version` 76).
+
+- `PATCH /api/config/sessions/:id` dengan `active` dan `DELETE /api/config/sessions/:id` hanya untuk role `developer`; role lain menerima `403 FORBIDDEN`. `DELETE ?permanent=true` untuk sesi juga hanya Developer dan tetap dijaga `MASTER_IN_USE`.
+- `POST /api/config/sessions` menyimpan `active=true` dari role mana pun.
+- `save_ots_registration`: sesi untuk pendaftaran **baru** wajib `active`; saat edit, sesi lama yang tersimpan boleh dipertahankan walau nonaktif, tetapi pindah ke sesi nonaktif lain ditolak `DF011 INVALID_ARGUMENT`.
+- `reset_product_configuration` menanam ST dalam keadaan nonaktif; baris ST tidak dihapus sehingga parser dan replay webhook order historis tetap valid.
+- `POST /api/ots` memeriksa sesi aktif lebih dulu dan mengembalikan pesan "Sesi X sudah dinonaktifkan. Pilih sesi yang masih aktif." sebelum memanggil RPC.

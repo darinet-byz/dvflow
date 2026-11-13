@@ -32,6 +32,24 @@ import { findConfigResource, validateConfigBody, type ConfigResource } from './r
  * langsung dari Supabase lewat RLS (02 §14, K11).
  */
 
+/**
+ * Toggle status sesi hanya untuk Developer (A74).
+ *
+ * Role lain tetap boleh menambah sesi (dan sesi baru selalu aktif), tetapi
+ * menonaktifkan/mengaktifkan sesi adalah keputusan Developer. Pemeriksaan ini
+ * di handler, bukan hanya di UI, karena browser tidak boleh menjadi penjaga.
+ */
+function assertSessionStatusAllowed(
+  actor: Awaited<ReturnType<typeof requirePermission>>,
+  resource: ConfigResource,
+  body: Record<string, unknown>,
+): void {
+  if (resource.urlName !== 'sessions' || !Object.hasOwn(body, 'active')) return
+  if (actor.role !== 'developer') {
+    throw new ApiFailure('FORBIDDEN', undefined, 'Hanya Developer yang dapat mengaktifkan atau menonaktifkan sesi.')
+  }
+}
+
 export async function createConfig(context: RouteContext): Promise<Response> {
   const resource = requireResource(context)
   const actor = await requirePermission(context, resource.urlName === 'payment-fee-rules' ? 'config.tax' : 'config.produk')
@@ -40,6 +58,10 @@ export async function createConfig(context: RouteContext): Promise<Response> {
   assertProductAccess(access, '*')
   const body = await readJsonObject(context.request)
   const values = validateConfigBody(resource, body, { partial: false })
+
+  // Sesi tambahan dari role mana pun langsung aktif; statusnya bukan pilihan
+  // pembuat (A74).
+  if (resource.urlName === 'sessions') values['active'] = true
 
   await assertIdentityAvailable(context.db, resource, { ignoringId: null, incoming: values })
 
@@ -67,6 +89,7 @@ export async function updateConfig(context: RouteContext): Promise<Response> {
   assertProductAccess(access, resource.urlName === 'products' ? String(existing['code']) : '*')
 
   const body = await readJsonObject(context.request)
+  assertSessionStatusAllowed(actor, resource, body)
   // An unchanged code is not an edit of the code: legacy rows stay renamable and
   // the strict format rule only applies to codes that are actually written.
   if (resource.identityColumn === 'code' && typeof body['code'] === 'string' &&
@@ -122,6 +145,9 @@ export async function deactivateConfig(context: RouteContext): Promise<Response>
   const resource = requireResource(context)
   const actor = await requirePermission(context, resource.urlName === 'payment-fee-rules' ? 'config.tax' : 'config.produk')
   const access = await productAccess(context, actor)
+
+  // DELETE berarti menonaktifkan, jadi aturan Developer yang sama berlaku.
+  assertSessionStatusAllowed(actor, resource, { active: false })
 
   const id = requireUuid(context)
   const existing = await loadRow(context.db, resource, id)

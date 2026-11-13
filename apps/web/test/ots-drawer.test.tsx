@@ -194,6 +194,23 @@ describe('OtsDrawer', () => {
     await waitFor(() => expect(authorizedRequest).toHaveBeenCalledWith('/api/ots/OTS-000007', { method: 'DELETE' }))
   })
 
+  it('A74: sesi nonaktif dari cache perangkat dibersihkan, tanggal & jam scan tampil', async () => {
+    window.localStorage.setItem('dvflow.ots.context', JSON.stringify({
+      productCode: 'KULI', batch: '392', session: 'ST', city: 'Solo',
+    }))
+    render(<OtsDrawer open onClose={() => {}} canDelete={false} />)
+
+    // Panel Meja dibuka kembali dan sesi kosong: operator harus memilih dari daftar aktif.
+    const session = await screen.findByLabelText('Sesi') as HTMLSelectElement
+    expect(session.value).toBe('')
+    expect(screen.getAllByText(/Tanggal & jam scan/).length).toBeGreaterThan(0)
+    expect(screen.getByText(/Cocokkan pilihan sesi dengan waktu ini/)).toBeTruthy()
+
+    // Konteks produk/batch/kota yang masih valid tetap dipakai.
+    expect((screen.getByLabelText('Batch') as HTMLInputElement).value).toBe('392')
+    expect((screen.getByLabelText('Kota') as HTMLInputElement).value).toBe('Solo')
+  })
+
   it('harga OTS lama di luar preset tampil sebagai opsi tersimpan', async () => {
     vi.mocked(authorizedRequest).mockImplementation(async (path, init) => {
       if (path.startsWith('/api/ots/duplicates?')) return { rows: [] }

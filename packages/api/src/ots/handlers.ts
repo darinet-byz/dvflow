@@ -1,4 +1,4 @@
-import { roundMoney } from '@dvflow/shared'
+import { normalizeCode, roundMoney } from '@dvflow/shared'
 import { ApiFailure } from '../http/errors'
 import { sanitizeSearchTerm } from '../http/postgrest-filter'
 import { ok, readJsonObject, readString } from '../http/response'
@@ -217,6 +217,24 @@ export async function saveOts(context: RouteContext): Promise<Response> {
     if (legacyAmount === null || legacyAmount <= 0 || legacyAmount > MAX_MONEY) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nominal harus lebih dari 0.')
     amount = roundMoney(legacyAmount)
     eventType = eventTypeInput
+  }
+
+  // A74: sesi untuk pendaftaran BARU wajib aktif. Saat mengedit, sesi lama yang
+  // tersimpan tetap boleh dipertahankan walau sesinya sudah dinonaktifkan, supaya
+  // koreksi nama/No HP tidak gagal hanya karena perubahan status konfigurasi.
+  if (session !== '') {
+    const active = await context.db.selectRows<{ code: string }>(
+      'sessions_config', { code: `eq.${normalizeCode(session)}`, active: 'is.true' }, 'code',
+    )
+    if (active.length === 0) {
+      const stored = orderId === ''
+        ? null
+        : (await context.db.selectRows<{ session: string | null }>('orders', { order_id: `eq.${orderId}` }, 'session'))[0] ?? null
+      const keepsStored = stored !== null && normalizeCode(stored.session ?? '') === normalizeCode(session)
+      if (!keepsStored) {
+        throw new ApiFailure('INVALID_ARGUMENT', undefined, `Sesi ${session.toUpperCase()} sudah dinonaktifkan. Pilih sesi yang masih aktif.`)
+      }
+    }
   }
 
   const result = await context.db.rpc<{

@@ -1789,3 +1789,23 @@ Permintaan pengguna: angka **Sisa Tiket** di tab Realtime Presensi tidak bisa di
 ### Implementasi
 
 Tanpa migrasi (`schema_version` tetap 75). Web: `apps/web/src/ui/Card.tsx` (`KpiCard`), `apps/web/src/pages/presensi/PresensiPage.tsx` (KPI drill-down, helper `remainingTickets`, kolom status, kartu lapangan). Tes: `apps/web/test/presensi-realtime.test.tsx` (klik/toggle filter + label sisa) dan `apps/web/test/field-app.test.tsx` (kartu tetap bisa diklik di mode lapangan).
+
+## A74 - Status sesi khusus Developer + sesi OTS wajib dipilih (13 November 2026)
+
+Permintaan pengguna: Sesi Tunggal **ST** tidak dipakai lagi, tetapi penghapusannya harus aman dan hanya boleh dilakukan akun Developer. Form OTS juga tidak boleh lagi memilih sesi secara diam-diam; tanggal & jam scan harus terlihat agar pilihan sesi bisa dikoreksi operator.
+
+### Temuan
+
+- Snapshot produksi 12 November 2026: **344 dari 1.480 order** memakai `session = ST`, dan **8 alias produk** menunjuk `... - ST - ...`. Baris `sessions_config` ST tidak boleh dihapus: parser mensyaratkan segmen sesi cocok dengan baris konfigurasi, sehingga replay webhook order lama akan berubah menjadi `invalid` bila barisnya hilang. Hard delete juga sudah dijaga `master_is_used` (`MASTER_IN_USE`).
+- `apps/web/src/pages/config/specs.tsx` mengisi kode sesi baru dengan `ST` sejak awal, dan form OTS mengingat sesi di `localStorage` sehingga sesi lama terpakai tanpa terlihat.
+
+### Keputusan
+
+- ST **tidak dihapus**; barisnya dinonaktifkan lewat toggle di Konfigurasi Produk ? Sesi. Toggle on/off dan hapus permanen sesi hanya untuk role `developer`. Role lain tetap boleh menambah sesi, dan sesi baru selalu aktif.
+- Reset konfigurasi produk menanam ST nonaktif (baris tetap ada) dan S1–S8 aktif.
+- OTS: sesi untuk pendaftaran baru wajib aktif. Saat mengedit, sesi lama yang tersimpan boleh dipertahankan. Sesi nonaktif dari cache perangkat dibuang dan panel Meja dibuka kembali.
+- Form OTS menampilkan **tanggal & jam scan (WIB)** di ringkasan Meja dan di samping pilihan Sesi, sebagai dasar koreksi manual. Deteksi otomatis berbasis jadwal tidak dipakai karena `sessions_config` tidak menyimpan jadwal sesi.
+
+### Implementasi
+
+Migrasi `20261113120000_session_active_dev_toggle.sql` (`schema_version` 76): `delete_config_master` (sesi hanya Developer), `reset_product_configuration` (ST nonaktif), `save_ots_registration` (sesi aktif untuk pendaftaran baru). API: `packages/api/src/config/handlers.ts` (guard status sesi, sesi baru selalu aktif), `packages/api/src/ots/handlers.ts` (validasi sesi aktif + pesan jelas). Web: `ConfigSection.tsx` (switch terkunci dan Hapus hanya Developer, placeholder select), `specs.tsx` (sesi baru tidak lagi default ST), `OtsDrawer.tsx` (invalidasi cache sesi, label tanggal & jam scan). Tes: `packages/api/test/config.test.ts`, `ots.test.ts`, `permission-enforcement.test.ts`, `apps/web/test/config-session-toggle.test.tsx`, `ots-drawer.test.tsx`, pgTAP `39_session_active_dev_toggle.sql`.

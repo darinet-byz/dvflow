@@ -164,7 +164,20 @@ export const SESSION_SPEC: ConfigSpec = {
   tableName: 'sessions_config',
   readColumns: 'id,name,code,active',
   identityKey: 'code',
-  fields: [CODE_FIELDS[0]!, { key: 'code', label: 'Kode sesi', type: 'select', initial: 'ST', options: SESSION_CODES.map((code) => ({ value: code, label: code })) }],
+  // A74: status sesi hanya Developer; role lain boleh menambah dan hasilnya langsung aktif.
+  activeToggle: true,
+  fields: [
+    CODE_FIELDS[0]!,
+    {
+      key: 'code',
+      label: 'Kode sesi',
+      type: 'select',
+      initial: '',
+      placeholder: 'Pilih kode sesi',
+      options: SESSION_CODES.map((code) => ({ value: code, label: code })),
+      help: 'Mengaktifkan atau menonaktifkan sesi hanya dapat dilakukan oleh Developer.',
+    },
+  ],
   columns: CODE_COLUMNS,
   render: CODE_RENDER,
 }

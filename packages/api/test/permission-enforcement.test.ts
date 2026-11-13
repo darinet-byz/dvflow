@@ -29,7 +29,9 @@ describe('database role + dynamic permission enforcement', () => {
       expect(response.status).toBe(201)
       const { data } = await response.json() as { data: { item: { id: string } } }
       expect((await request('PATCH', `/api/config/${resource}/${data.item.id}`, { name: 'Diedit' })).status).toBe(200)
-      expect((await request('DELETE', `/api/config/${resource}/${data.item.id}`)).status).toBe(200)
+      // A74: menonaktifkan sesi hanya Developer; Owner tetap master admin untuk sisanya.
+      const deleteStatus = resource === 'sessions' && role === 'owner' ? 403 : 200
+      expect((await request('DELETE', `/api/config/${resource}/${data.item.id}`)).status).toBe(deleteStatus)
     }
   })
 

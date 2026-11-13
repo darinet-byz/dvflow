@@ -38,6 +38,9 @@ Versi: 1.0
   `operasional.resume_batch` dihapus dari Konfigurasi Role. URL `/resume-batch` diarahkan ke `/`.
 - `set_advertiser_status('Resign')` menutup akses user terkait; status aktif kembali membuka akses.
 - Hapus user hanya untuk akun tanpa data historis; selain itu `USER_HAS_DATA` dan gunakan Non-Aktifkan.
+- A74: **status sesi hanya Developer.** Role lain boleh menambah sesi (selalu aktif) dan menyunting nama,
+  tetapi toggle on/off serta hapus permanen sesi hanya untuk role `developer`. Owner tetap master admin
+  untuk konfigurasi lain, kecuali status sesi.
 
 ## 2. No Supabase Auth UI
 Tidak ada:

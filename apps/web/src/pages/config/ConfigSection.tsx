@@ -74,6 +74,11 @@ export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged
   const { profile } = useSession()
   const canCreate = hasAllProductAccess(profile)
   const canWrite = canCreate || spec.resource === 'products'
+  // A74: status sesi hanya Developer. Role lain tetap bisa menambah sesi, dan
+  // sesi baru selalu aktif.
+  const isDeveloper = profile?.role === 'developer'
+  const canToggleActive = spec.resource !== 'sessions' || isDeveloper
+  const canDeletePermanent = hasPermission(profile, 'action.delete_master') && (spec.resource !== 'sessions' || isDeveloper)
   const [search, setSearch] = useState('')
   const [editing, setEditing] = useState<ConfigRow | null>(null)
   const [adding, setAdding] = useState(false)
@@ -248,13 +253,16 @@ export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged
                       Edit
                     </Button>
                     {spec.statusManaged ? null : spec.activeToggle ? (
-                      <label className="mr-1 inline-flex cursor-pointer items-center gap-1.5 text-[12px] text-ink-soft">
+                      <label
+                        className="mr-1 inline-flex cursor-pointer items-center gap-1.5 text-[12px] text-ink-soft"
+                        title={canToggleActive ? undefined : 'Hanya Developer yang dapat mengubah status sesi'}
+                      >
                         <input
                           type="checkbox"
                           role="switch"
                           aria-label={`Aktif ${String(row[spec.identityKey])}`}
                           checked={row['active'] === true}
-                          disabled={busy}
+                          disabled={busy || !canToggleActive}
                           onChange={() => void (row['active'] === true ? deactivate(row) : reactivate(row))}
                         />
                         {row['active'] === true ? 'On' : 'Off'}
@@ -268,7 +276,7 @@ export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged
                         Aktifkan
                       </Button>
                     )}
-                    {hasPermission(profile, 'action.delete_master') ? <Button size="sm" variant="danger" disabled={busy} onClick={() => setDeleting(row)}>
+                    {canDeletePermanent ? <Button size="sm" variant="danger" disabled={busy} onClick={() => setDeleting(row)}>
                       Hapus
                     </Button> : null}
                   </div> : null}
@@ -428,6 +436,7 @@ function ConfigForm({
                   id={`config-${spec.resource}-${field.key}`}
                   label={field.label}
                   value={value}
+                  placeholder={field.placeholder}
                   options={value !== '' && !(field.options ?? []).some((option) => option.value === value)
                     ? [...(field.options ?? []), { value, label: value }]
                     : field.options ?? []}

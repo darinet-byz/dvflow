@@ -149,6 +149,11 @@ function wibToday(): string {
   return new Date(Date.now() + 7 * 60 * 60 * 1000).toISOString().slice(0, 10)
 }
 
+/** Tanggal & jam scan di meja (WIB), dipakai operator untuk mencocokkan pilihan sesi. */
+function wibMoment(date: Date): string {
+  return new Intl.DateTimeFormat('id-ID', { timeZone: 'Asia/Jakarta', dateStyle: 'medium', timeStyle: 'short' }).format(date)
+}
+
 export function OtsDrawer({ open, onClose, canDelete }: { open: boolean; onClose: () => void; canDelete: boolean }) {
   return (
     <Drawer open={open} title="Peserta OTS (Bayar di Lokasi)" onClose={onClose}>
@@ -194,6 +199,10 @@ export function OtsPanel({ open, canDelete, mode = 'today', section = 'both' }: 
   const [dateTo, setDateTo] = useState('')
   const [page, setPage] = useState(1)
   const [pageSize, setPageSizeState] = useState(50)
+  // A74: tanggal & jam scan ditampilkan supaya operator bisa mengoreksi pilihan
+  // sesi terhadap waktu pendaftaran (tidak ada jadwal sesi tersimpan di konfigurasi).
+  const [scanMoment, setScanMoment] = useState(() => new Date())
+  const scanMomentLabel = `${wibMoment(scanMoment)} WIB`
 
   const references = useAsyncData<OtsReferenceData>(
     () => (open ? fetchOtsReferenceData() : Promise.resolve({ products: [], sessions: [] })),
@@ -265,6 +274,25 @@ export function OtsPanel({ open, canDelete, mode = 'today', section = 'both' }: 
   useEffect(() => { if (deskPrice !== null) store(STORAGE_PRICE, String(deskPrice)) }, [deskPrice])
   useEffect(() => { store(STORAGE_METHOD, method) }, [method])
 
+  // Jam scan berjalan selama panel terbuka; 30 detik cukup untuk koreksi manual.
+  useEffect(() => {
+    if (!open) return
+    setScanMoment(new Date())
+    const timer = window.setInterval(() => setScanMoment(new Date()), 30_000)
+    return () => window.clearInterval(timer)
+  }, [open])
+
+  // A74: sesi yang tersimpan di perangkat tetapi sudah tidak aktif tidak boleh
+  // diwarisi diam-diam. Kosongkan dan buka panel Meja agar operator memilih ulang.
+  useEffect(() => {
+    const list = references.data?.sessions
+    if (list === undefined) return
+    const active = new Set(list.map((session) => session.code))
+    if (context.session === '' || active.has(context.session)) return
+    setContext((current) => ({ ...current, session: '' }))
+    setShowContext(true)
+  }, [references.data, context.session])
+
   // Saat drawer dibuka, arahkan fokus ke tempat yang paling mungkin dipakai.
   useEffect(() => {
     if (!open) return
@@ -276,13 +304,10 @@ export function OtsPanel({ open, canDelete, mode = 'today', section = 'both' }: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, formOpen, tab])
 
-  const sessionOptions = useMemo(() => {
-    const options = sessions.map((session) => ({ value: session.code, label: `${session.code} — ${session.name}` }))
-    if (context.session !== '' && !options.some((option) => option.value === context.session)) {
-      options.push({ value: context.session, label: `${context.session} (tersimpan)` })
-    }
-    return options
-  }, [sessions, context.session])
+  const sessionOptions = useMemo(
+    () => sessions.map((session) => ({ value: session.code, label: `${session.code} — ${session.name}` })),
+    [sessions],
+  )
 
   const priceOptions = useMemo(() => {
     const base = [...(OTS_UNIT_PRICE_OPTIONS as readonly number[])]
@@ -450,6 +475,9 @@ export function OtsPanel({ open, canDelete, mode = 'today', section = 'both' }: 
           <div className="min-w-0">
             <p className="text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Meja</p>
             <p className="truncate text-[13px] font-semibold text-ink">{contextSummary}</p>
+            <p className="mt-0.5 text-[11px] text-ink-soft">
+              Tanggal &amp; jam scan: <span className="font-semibold text-ink">{scanMomentLabel}</span>
+            </p>
           </div>
           <Button size="sm" onClick={() => setShowContext((value) => !value)} disabled={busy}>
             {showContext ? 'Tutup' : 'Ubah acara'}
@@ -498,6 +526,9 @@ export function OtsPanel({ open, canDelete, mode = 'today', section = 'both' }: 
               disabled={busy || context.productCode === ''}
               onChange={(value) => setContext((current) => ({ ...current, session: value }))}
             />
+            <p className="text-[11px] text-ink-soft">
+              Tanggal &amp; jam scan: <span className="font-semibold text-ink">{scanMomentLabel}</span>. Cocokkan pilihan sesi dengan waktu ini.
+            </p>
             <TextInput
               id="ots-city"
               label="Kota"

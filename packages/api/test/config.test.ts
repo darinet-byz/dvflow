@@ -26,6 +26,7 @@ async function setup() {
       fakeUser({ id: 'user-admin', username: 'admin1', role: 'admin' }),
       fakeUser({ id: 'user-staff', username: 'staff1', role: 'member' }),
       fakeUser({ id: 'user-boss', username: 'bos', role: 'owner' }),
+      fakeUser({ id: 'user-dev', username: 'dev1', role: 'developer' }),
     ],
     config: sampleConfig(),
   })
@@ -38,8 +39,15 @@ async function setup() {
   const admin = await loginAndGetToken(api, 'admin1')
   const staff = await loginAndGetToken(api, 'staff1')
   const boss = await loginAndGetToken(api, 'bos')
+  const developer = await loginAndGetToken(api, 'dev1')
 
-  return { state, api, admin: admin.accessToken, staff: staff.accessToken, boss: boss.accessToken }
+  return {
+    state, api,
+    admin: admin.accessToken,
+    staff: staff.accessToken,
+    boss: boss.accessToken,
+    developer: developer.accessToken,
+  }
 }
 
 type Ctx = Awaited<ReturnType<typeof setup>>
@@ -108,6 +116,72 @@ describe('batas peran (03 §12, B02–B05)', () => {
       body: { name: 'Baru', code: 'XX' },
     })
     expect(response.status).toBe(403)
+  })
+})
+
+describe('status sesi khusus Developer (A74)', () => {
+  it('admin tidak dapat menonaktifkan sesi; Developer dapat', async () => {
+    const ctx = await setup()
+    const session = ctx.state.config.sessions.find((row) => row['code'] === 'ST')
+    expect(session).toBeDefined()
+
+    const denied = await write(ctx, ctx.admin, {
+      method: 'PATCH',
+      path: `/api/config/sessions/${String(session!['id'])}`,
+      body: { active: false },
+    })
+    expect(denied.status).toBe(403)
+    expect((await readBody<FailureBody>(denied)).error.code).toBe('FORBIDDEN')
+    expect(session!['active']).toBe(true)
+
+    const allowed = await write(ctx, ctx.developer, {
+      method: 'PATCH',
+      path: `/api/config/sessions/${String(session!['id'])}`,
+      body: { active: false },
+    })
+    expect(allowed.status).toBe(200)
+    expect(session!['active']).toBe(false)
+  })
+
+  it('tombol Nonaktifkan (DELETE) juga hanya untuk Developer', async () => {
+    const ctx = await setup()
+    const session = ctx.state.config.sessions.find((row) => row['code'] === 'ST')
+
+    // Owner adalah master admin, tetapi bukan Developer: tetap ditolak.
+    const denied = await write(ctx, ctx.boss, { method: 'DELETE', path: `/api/config/sessions/${String(session!['id'])}` })
+    expect(denied.status).toBe(403)
+    expect(session!['active']).toBe(true)
+
+    const allowed = await write(ctx, ctx.developer, { method: 'DELETE', path: `/api/config/sessions/${String(session!['id'])}` })
+    expect(allowed.status).toBe(200)
+    expect(session!['active']).toBe(false)
+  })
+
+  it('sesi baru dari role lain selalu aktif', async () => {
+    const ctx = await setup()
+
+    const response = await write(ctx, ctx.admin, {
+      method: 'POST',
+      path: '/api/config/sessions',
+      body: { name: 'Sesi 5', code: 'S5', active: false },
+    })
+
+    expect(response.status).toBe(201)
+    const body = await readBody<ItemBody>(response)
+    expect(body.data.item['active']).toBe(true)
+  })
+
+  it('nama sesi tetap dapat disunting role lain tanpa menyentuh status', async () => {
+    const ctx = await setup()
+    const session = ctx.state.config.sessions.find((row) => row['code'] === 'ST')
+
+    const response = await write(ctx, ctx.admin, {
+      method: 'PATCH',
+      path: `/api/config/sessions/${String(session!['id'])}`,
+      body: { name: 'Sesi Tunggal (lama)' },
+    })
+    expect(response.status).toBe(200)
+    expect(session!['active']).toBe(true)
   })
 })
 

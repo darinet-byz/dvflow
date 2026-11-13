@@ -213,6 +213,7 @@ export function sampleConfig(): FakeConfigRows {
     sessions: [
       { id: fixtureUuid(6), name: 'Sesi 1', code: 'S1', active: true },
       { id: fixtureUuid(7), name: 'Sesi Tunggal', code: 'ST', active: true },
+      { id: fixtureUuid(10), name: 'Sesi 2', code: 'S2', active: true },
     ],
     feeRules: [
       { id: fixtureUuid(8), name: 'Admin Bank Transfer', identifier: 'bank_transfer', fee_type: 'flat', fee_value: 4000, active: true },

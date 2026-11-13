@@ -180,6 +180,31 @@ describe('OTS (A29/A34)', () => {
     expect(state.orders.find((row) => row['order_id'] === data.order_id)).toMatchObject({ quantity: 1, gross_amount: 150000 })
   })
 
+  it('A74: sesi nonaktif ditolak untuk OTS baru, tetap boleh dipertahankan saat edit', async () => {
+    const { state, request } = await setup('admin', ['action.ots'])
+    const created = await request('POST', '/api/ots', { ...valid, session: 'ST' })
+    expect(created.status).toBe(201)
+    const { data } = (await created.json()) as { data: { order_id: string } }
+
+    const st = state.config.sessions.find((row) => row['code'] === 'ST')
+    expect(st).toBeDefined()
+    st!['active'] = false
+
+    // Nomor HP lain (bukan duplikat) dan sesi ST nonaktif -> ditolak sebelum RPC.
+    const denied = await request('POST', '/api/ots', { ...valid, phone: '0899', session: 'ST' })
+    expect(denied.status).toBe(400)
+    const deniedBody = (await denied.json()) as { error: { code: string; message: string } }
+    expect(deniedBody.error.code).toBe('INVALID_ARGUMENT')
+    expect(deniedBody.error.message).toContain('dinonaktifkan')
+
+    // Mengedit order yang sudah memakai sesi itu tetap boleh (koreksi nama).
+    const edited = await request('POST', '/api/ots', {
+      ...valid, order_id: data.order_id, session: 'ST', name: 'Budi Tetap ST',
+    })
+    expect(edited.status).toBe(200)
+    expect(state.orders.find((row) => row['order_id'] === data.order_id)).toMatchObject({ name: 'Budi Tetap ST', session: 'ST' })
+  })
+
   it('hapus hanya order OTS', async () => {
     const { request } = await setup('developer')
     const { data } = (await (await request('POST', '/api/ots', valid)).json()) as { data: { order_id: string } }
