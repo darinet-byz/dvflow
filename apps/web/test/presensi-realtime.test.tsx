@@ -77,4 +77,73 @@ describe('A68: tab Presensi Acara', () => {
     expect(queries.fetchPresensiPage).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), 'attendance')
     expect(queries.fetchPresensiSummary).toHaveBeenLastCalledWith(expect.anything(), 'attendance')
   })
+
+  it('A73: kartu Sisa Tiket membuka daftar order Hadir Sebagian dan bisa ditutup', async () => {
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Realtime Presensi' }))
+    const card = await screen.findByRole('button', { name: 'Tampilkan order penyumbang Sisa Tiket' })
+    expect(card.getAttribute('aria-pressed')).toBe('false')
+
+    fireEvent.click(card)
+
+    expect(queries.fetchPresensiPage).toHaveBeenLastCalledWith(
+      expect.objectContaining({ attendanceStatus: 'Hadir Sebagian' }),
+      expect.anything(),
+      'attendance',
+    )
+    expect(
+      (await screen.findByRole('button', { name: 'Tampilkan order penyumbang Sisa Tiket' })).getAttribute('aria-pressed'),
+    ).toBe('true')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tampilkan order penyumbang Sisa Tiket' }))
+
+    expect(queries.fetchPresensiPage).toHaveBeenLastCalledWith(
+      expect.objectContaining({ attendanceStatus: '' }),
+      expect.anything(),
+      'attendance',
+    )
+  })
+
+  it('A73: baris Hadir Sebagian menyebut sisa tiketnya', async () => {
+    vi.mocked(queries.fetchPresensiPage).mockResolvedValue({
+      total: 1,
+      page: 1,
+      page_size: 50,
+      rows: [{
+        order_id: 'ORD-000042',
+        name: 'Rombongan Keluarga',
+        phone: '081200000042',
+        product_code: 'PRTD',
+        product_name: 'Produk Uji',
+        advertiser_code: '01',
+        advertiser_name: 'Pengiklan Uji',
+        event_type: 'Seminar Offline',
+        batch: 'B1',
+        session: 'S1',
+        city: 'Jakarta',
+        product_parse_status: 'valid',
+        app_status: 'Paid',
+        gross_amount: 400000,
+        quantity: 4,
+        checked_in_tickets: 1,
+        checked_in_in_range: 1,
+        attendance_data_expired: false,
+        attendance_status: 'Hadir Sebagian',
+        total_activity: 1,
+        latest_activity: '2026-11-12T02:00:00Z',
+        timestamps: ['2026-11-12T02:00:00Z'],
+        created_at: '2026-11-01T02:00:00Z',
+        paid_at: null,
+        updated_at: '2026-11-12T02:00:00Z',
+      }],
+    })
+
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Realtime Presensi' }))
+
+    expect(await screen.findByText('1/4')).toBeDefined()
+    expect(await screen.findByText('sisa 3')).toBeDefined()
+  })
 })

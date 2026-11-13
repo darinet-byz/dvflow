@@ -122,4 +122,23 @@ describe('Presensi di mode lapangan', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Filter/ }))
     expect(screen.getByTestId('standard-filter-bar')).toBeDefined()
   })
+
+  it('A73: kartu Sisa Tiket tetap bisa diklik di mode lapangan', async () => {
+    session.profile = profile('member', FIELD_PERMS)
+    render(
+      <MemoryRouter>
+        <FieldAppContext.Provider value={true}>
+          <PresensiPage />
+        </FieldAppContext.Provider>
+      </MemoryRouter>,
+    )
+
+    fireEvent.click(await screen.findByRole('tab', { name: 'Realtime Presensi' }))
+    const card = await screen.findByRole('button', { name: 'Tampilkan order penyumbang Sisa Tiket' })
+    fireEvent.click(card)
+
+    expect(
+      (await screen.findByRole('button', { name: 'Tampilkan order penyumbang Sisa Tiket' })).getAttribute('aria-pressed'),
+    ).toBe('true')
+  })
 })

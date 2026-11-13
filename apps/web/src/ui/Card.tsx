@@ -65,6 +65,9 @@ export function KpiCard({
   size = 'md',
   className,
   valueClassName,
+  onClick,
+  pressed,
+  ariaLabel,
 }: {
   label: string
   value: string
@@ -75,21 +78,52 @@ export function KpiCard({
   className?: string
   /** Warna angka (mis. `text-success` / `text-danger`); menggantikan `text-ink`. */
   valueClassName?: string
+  /**
+   * A73: bila diisi, kartu menjadi tombol (mis. drill-down KPI Sisa Tiket).
+   * Isi kartu memakai `<span>` agar tetap sah di dalam `<button>`.
+   */
+  onClick?: () => void
+  /** Status aktif untuk kartu yang berfungsi sebagai toggle filter. */
+  pressed?: boolean
+  /** Nama aksesibel; teks kartu terlalu panjang untuk diandalkan sebagai label. */
+  ariaLabel?: string
 }) {
+  const labelClass = cn('text-[11px] font-semibold uppercase tracking-wide', highlight ? 'text-primary' : 'text-ink-soft')
+  const valueClass = cn('mt-1 break-words font-bold', valueClassName || 'text-ink', size === 'lg' ? 'text-[28px]' : 'text-[20px]')
+  const baseClass = cn(
+    'min-w-0 rounded-md border',
+    size === 'lg' ? 'p-4' : 'p-3',
+    highlight ? 'border-primary/20 bg-primary-soft' : 'border-line bg-card',
+    className,
+  )
+
+  // Kartu biasa mempertahankan struktur lama; hanya kartu yang bisa diklik yang
+  // memakai <span> agar isinya sah di dalam <button>.
+  if (onClick === undefined) {
+    return (
+      <div className={baseClass}>
+        <p className={labelClass}>{label}</p>
+        <p className={valueClass}>{value}</p>
+        {hint === undefined ? null : <p className="text-[11px] text-ink-soft">{hint}</p>}
+      </div>
+    )
+  }
+
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={ariaLabel ?? label}
+      aria-pressed={pressed}
       className={cn(
-        'min-w-0 rounded-md border',
-        size === 'lg' ? 'p-4' : 'p-3',
-        highlight ? 'border-primary/20 bg-primary-soft' : 'border-line bg-card',
-        className,
+        baseClass,
+        'w-full text-left transition-colors hover:border-primary/40',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40',
       )}
     >
-      <p className={cn('text-[11px] font-semibold uppercase tracking-wide', highlight ? 'text-primary' : 'text-ink-soft')}>
-        {label}
-      </p>
-      <p className={cn('mt-1 break-words font-bold', valueClassName || 'text-ink', size === 'lg' ? 'text-[28px]' : 'text-[20px]')}>{value}</p>
-      {hint === undefined ? null : <p className="text-[11px] text-ink-soft">{hint}</p>}
-    </div>
+      <span className={cn('block', labelClass)}>{label}</span>
+      <span className={cn('block', valueClass)}>{value}</span>
+      {hint === undefined ? null : <span className="block text-[11px] text-ink-soft">{hint}</span>}
+    </button>
   )
 }

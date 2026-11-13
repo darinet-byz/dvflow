@@ -89,6 +89,15 @@ function defaultDirection(key: PresensiSortKey): SortDirection {
   return key === 'total_activity' || key === 'latest_activity' ? 'desc' : 'asc'
 }
 
+/**
+ * A73: sisa tiket yang belum hadir pada basis tanggal aktif.
+ * Mode Realtime memakai check-in dalam rentang; mode Order memakai total sepanjang waktu.
+ */
+function remainingTickets(row: PresensiRow): number {
+  const present = row.checked_in_in_range ?? row.checked_in_tickets
+  return Math.max(row.quantity - present, 0)
+}
+
 /** A68: pilihan tab diingat selama tab browser terbuka, sama seperti filter. */
 const DATE_MODE_STORAGE_KEY = 'dvflow.presensi.dateMode'
 
@@ -298,7 +307,15 @@ export function PresensiPage() {
           <KpiCard
             label="Sisa Tiket"
             value={formatCount(summary.data.belum_hadir)}
-            hint={fieldMode ? undefined : 'Tiket rombongan yang sudah datang tetapi belum lengkap'}
+            hint={fieldMode ? undefined : 'Tiket rombongan yang belum lengkap · klik untuk lihat ordernya'}
+            onClick={() =>
+              state.update(
+                'attendanceStatus',
+                state.filters.attendanceStatus === 'Hadir Sebagian' ? '' : 'Hadir Sebagian',
+              )
+            }
+            pressed={state.filters.attendanceStatus === 'Hadir Sebagian'}
+            ariaLabel="Tampilkan order penyumbang Sisa Tiket"
           />
         </div>
       ) : (
@@ -388,9 +405,12 @@ export function PresensiPage() {
                       <div className="flex flex-wrap items-center gap-1.5">
                         <Badge tone={attendanceTone(row.attendance_status)}>{row.attendance_status}</Badge>
                         {row.attendance_status === 'Hadir Sebagian' ? (
-                          <span className="text-[11px] font-semibold tabular-nums text-ink-soft">
-                            {row.checked_in_in_range ?? row.checked_in_tickets}/{row.quantity}
-                          </span>
+                          <>
+                            <span className="text-[11px] font-semibold tabular-nums text-ink-soft">
+                              {row.checked_in_in_range ?? row.checked_in_tickets}/{row.quantity}
+                            </span>
+                            <span className="text-[11px] font-semibold tabular-nums text-ink-soft">sisa {remainingTickets(row)}</span>
+                          </>
                         ) : null}
                       </div>
                     </TableCell>
@@ -457,7 +477,11 @@ function PresensiCards({ rows, onSelect }: { rows: PresensiRow[]; onSelect: (row
                 {[row.product_name, row.batch ? `Batch ${row.batch}` : null, row.session, row.city].filter(Boolean).join(' · ') || '-'}
               </p>
               <p className="truncate text-[11px] font-semibold text-ink-soft">
-                {row.quantity > 1 ? `${row.quantity} tiket · hadir ${row.checked_in_in_range ?? row.checked_in_tickets}/${row.quantity}` : '1 tiket'}
+                {row.quantity > 1
+                  ? `${row.quantity} tiket · hadir ${row.checked_in_in_range ?? row.checked_in_tickets}/${row.quantity}${
+                      row.attendance_status === 'Hadir Sebagian' ? ` · sisa ${remainingTickets(row)}` : ''
+                    }`
+                  : '1 tiket'}
               </p>
               {row.scanner_names?.length ? (
                 <p className="truncate text-[11px] text-ink-soft">Di-scan: {row.scanner_names.join(', ')}</p>
