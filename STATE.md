@@ -7,7 +7,7 @@
 > Dokumen yang mengikat tetap `CLAUDE.md` + `docs/`. File ini hanya mencatat **sejauh mana**
 > pekerjaan sudah berjalan, bukan aturan baru.
 
-Terakhir diperbarui: 2026-11-12
+Terakhir diperbarui: 2026-11-14
 Repo: `C:\Users\MyBook Z Series\dvflow` (git `main`, sudah di-push ke `origin/main`; production live di https://dvflow.pages.dev)
 Rencana lengkap: `~/.claude/plans/baca-file-claude-md-dan-glowing-pike.md`
 Nama aplikasi: **dvflow** (`OrderOnline` tetap nama provider, bukan nama aplikasi)
@@ -240,10 +240,10 @@ Delapan deviasi terkunci dari dokumen kontrak:
 |---|---|
 | `src/types.ts` | `CanonicalOrderWebhook`, `AppStatus`, `EventKind`, `ProductConfigSet`, `MatchedFeeRule`, `EVENT_TYPE_NAME_BY_KIND` |
 | `src/domain/constants.ts` | Semua angka dokumen: 50/100 baris, 300ms debounce, min 2 karakter, 20 hasil scanner, T1..T10=10, retensi 30 hari / log 7 hari, sesi 7 hari, JWT 30 menit, password min 8, batas panjang teks |
-| `src/domain/text.ts` | `toTrimmedOrNull`, `collapseWhitespace`, `normalizeCode` (trim+uppercase, tanpa buang spasi tengah), `CODE_PATTERN` |
+| `src/domain/text.ts` | `toTrimmedOrNull`, `collapseWhitespace`, `normalizeCode` (trim+uppercase, tanpa buang spasi tengah), `normalizeProductName` (A75), `CODE_PATTERN` |
 | `src/domain/status.ts` | Mapping kanonik + `UnsupportedOrderStatusError` (`UNSUPPORTED_ORDER_STATUS`) + `isPaidStatus` |
 | `src/domain/payment-identifier.ts` | Normalisasi trim/lowercase/collapse; exact-only, tanpa fuzzy |
-| `src/domain/product-name.ts` | `buildProductName` + `validateProductNameInput` + `PRODUCT_SEGMENT_SEPARATOR` |
+| `src/domain/product-name.ts` | `buildProductName` + `buildProductNameVariants` + `validateProductNameInput` + `validateProductNameVariants` + `PRODUCT_SEGMENT_SEPARATOR` |
 | `src/domain/product-parser.ts` | **Modul paling kritis.** `parseProductRaw`, `listCodeCombinations`, `findAmbiguousCodeCombinations`, `describeCodeCombination` |
 | `src/domain/tax.ts` | `roundMoney`, `calcTaxAmount`, `calculateTax`, `shouldRecalculateTax` |
 | `src/domain/attendance.ts` | `attendanceStatusLabel` (Hadir/Belum Hadir/Pending/Cancelled), `selectLatestTimestamps` |
@@ -552,3 +552,4 @@ sering terlanggar:
 | 2026-11-13 | - | Deploy production A73: commit `3d2c61f`; workflow **Deploy to Cloudflare Pages** run `43354892597` sukses; aset produksi `index-y5KL9MYe.js` memuat tombol "Tampilkan order penyumbang Sisa Tiket" dan teks "klik untuk lihat ordernya"; `schema_version` = 75 (tidak ada migrasi baru, `check-schema-version` OK). |
 | 2026-11-13 | A74 | **Status sesi khusus Developer + sesi OTS wajib dipilih**: ST (344 order, 8 alias) tidak dihapus, cukup dinonaktifkan lewat toggle yang hanya bisa digeser Developer; role lain boleh menambah sesi dan hasilnya selalu aktif. Reset konfigurasi menanam ST nonaktif. OTS menolak sesi nonaktif untuk pendaftaran baru (edit boleh mempertahankan sesi lama), membuang sesi nonaktif dari cache perangkat, dan menampilkan tanggal & jam scan WIB di ringkasan Meja serta di samping pilihan sesi. Migrasi `20261113120000_session_active_dev_toggle.sql` (`schema_version` 76). Gate: typecheck PASS; lint PASS; unit **760** (328 api + 143 shared + 3 wa-cron + 286 web); build PASS; pgTAP belum dijalankan (Docker Desktop tidak aktif). |
 | 2026-11-13 | - | Deploy production A74: backup targeted `.local-backups/prod-pre-a74-2026-11-13T07-48-42-614Z.sql`; migrasi `20261113120000_session_active_dev_toggle.sql` diterapkan (`schema_version` = 76, riwayat migrasi tercatat); commit `6389669` + `35065d0`; workflow **Deploy to Cloudflare Pages** run `43388524127` dan `43388786282` sukses. Verifikasi production: `sessions_config` tetap 9 baris (ST masih aktif, menunggu toggle Developer), order ST 344 dan alias 18 utuh, `save_ots_registration` memuat aturan sesi aktif, aset produksi `index-Cl_ayWea.js` memuat "Tanggal & jam scan" dan "Hanya Developer yang dapat mengubah status sesi". `supabase/config.toml` diperbarui `[inbucket]` → `[local_smtp]` agar Supabase CLI 3.1 dapat membaca konfigurasi. |
+| 2026-11-14 | A75 | **Dua format nama produk**: generator menghasilkan format kode (`MTIX01SO60 - S1 - Tegal`) dan format nama (`01 - SO60 - Master Tiktok Indonesia - S1 - Tegal`), keduanya dapat diparse (3 vs 5 segmen). Nama produk wajib unik, tanpa ` - `, dan terkunci setelah produk dipakai (hanya nonaktifkan). Migrasi `20261114090000_dual_product_name_format.sql` (`schema_version` 77): `normalize_product_name`, `master_detailed_parts`, `master_setting_parts`/`master_is_used` dua format, index unik nama. Gate: typecheck PASS; lint PASS; unit **782** (333 api + 160 shared + 3 wa-cron + 286 web); build PASS; pgTAP belum dijalankan (CLI menolak `supabase/config.toml`: `local_smtp` invalid). |

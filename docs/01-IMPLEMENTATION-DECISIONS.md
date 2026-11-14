@@ -130,13 +130,22 @@ Jika `product_raw` tidak sesuai format atau kode tidak ditemukan:
 Jika parsing valid: `product_parse_status = valid`.
 
 ## 10. Product parser rules
-Canonical pattern:
+Canonical patterns (keduanya sah sejak A75):
+
 `[PRODUCT_CODE][ADVERTISER_CODE][TYPE_CODE][BATCH] - [SESSION_CODE] - [CITY]`
+
+`[ADVERTISER_CODE] - [TYPE_CODE][BATCH] - [PRODUCT_NAME] - [SESSION_CODE] - [CITY]`
+
+Contoh: `KM01SO392 - S1 - Solo` dan `01 - SO392 - Kuliner Masteri - S1 - Solo`.
 
 Parsing:
 - trim whitespace di sekitar segment;
 - separator utama harus ` - ` setelah trim;
+- jumlah segmen menentukan format: 3 = berbasis kode, 5 = berbasis nama produk; 4 atau >=6 invalid;
 - code lookup case-insensitive tetapi disimpan sesuai code canonical configuration;
+- nama produk dicocokkan setelah uppercase + spasi dirapatkan (`normalizeProductName`), harus tepat satu produk;
+- nama produk di `products` wajib unik dan tidak boleh memuat ` - `;
+- nama produk tidak boleh diubah setelah produk dipakai (nonaktifkan lalu buat baru);
 - city disimpan sebagai display string hasil trim;
 - batch wajib string non-empty dan tidak diubah menjadi integer agar leading zero tidak hilang;
 - parser tidak boleh fuzzy guess.

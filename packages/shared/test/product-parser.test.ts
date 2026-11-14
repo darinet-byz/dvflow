@@ -182,3 +182,92 @@ describe('parser product_raw (PRD §67, 01 §10)', () => {
     expect(parsed.product_code).toBe('KM')
   })
 })
+
+describe('parser format nama produk (A75)', () => {
+  it('01 - SO392 - Kuliner Masteri - S1 - Solo menghasilkan field yang sama', () => {
+    const parsed = expectValid(parseProductRaw('01 - SO392 - Kuliner Masteri - S1 - Solo', TEST_CONFIG))
+
+    expect(parsed.product_code).toBe('KM')
+    expect(parsed.product_name).toBe('Kuliner Masteri')
+    expect(parsed.advertiser_code).toBe('01')
+    expect(parsed.advertiser_name).toBe('Zul')
+    expect(parsed.event_type).toBe('Seminar Offline')
+    expect(parsed.event_kind).toBe('seminar')
+    expect(parsed.batch).toBe('392')
+    expect(parsed.session).toBe('S1')
+    expect(parsed.city).toBe('Solo')
+  })
+
+  it('batch tetap string: nol depan diabaikan, kode pengiklan 01 utuh', () => {
+    const parsed = expectValid(parseProductRaw('01 - SO0058 - Kuliner Masteri - S1 - Solo', TEST_CONFIG))
+
+    expect(parsed.batch).toBe('58')
+    expect(parsed.advertiser_code).toBe('01')
+  })
+
+  it('nama produk dicocokkan tanpa peduli besar-kecil huruf dan spasi ganda', () => {
+    const parsed = expectValid(parseProductRaw('01 - SO392 - kuliner   masteri - s1 - solo', TEST_CONFIG))
+
+    expect(parsed.product_code).toBe('KM')
+    expect(parsed.product_name).toBe('Kuliner Masteri')
+    expect(parsed.session).toBe('S1')
+  })
+
+  it('webinar memakai tipe WO dan sesi tunggal', () => {
+    const parsed = expectValid(parseProductRaw('02 - WO7 - Master TikTok Indonesia - ST - Online', TEST_CONFIG))
+
+    expect(parsed.product_code).toBe('MT')
+    expect(parsed.event_kind).toBe('webinar')
+    expect(parsed.session).toBe('ST')
+    expect(parsed.batch).toBe('7')
+  })
+
+  it('jumlah segmen selain 3 dan 5 tetap tidak valid', () => {
+    expectInvalid(parseProductRaw('01 - SO392 - Kuliner Masteri - S1', TEST_CONFIG), 'WRONG_SEGMENT_COUNT')
+    expectInvalid(parseProductRaw('01 - SO392 - Kuliner Masteri - S1 - Solo - Tambahan', TEST_CONFIG), 'WRONG_SEGMENT_COUNT')
+  })
+
+  it('segmen kosong ditolak', () => {
+    expectInvalid(parseProductRaw('01 - SO392 -  - S1 - Solo', TEST_CONFIG), 'EMPTY_SEGMENT')
+    expectInvalid(parseProductRaw('01 - SO392 - Kuliner Masteri - S1 - ', TEST_CONFIG), 'EMPTY_SEGMENT')
+  })
+
+  it('pengiklan, tipe, nama produk, dan sesi harus dikenal konfigurasi', () => {
+    expectInvalid(parseProductRaw('99 - SO392 - Kuliner Masteri - S1 - Solo', TEST_CONFIG), 'UNKNOWN_ADVERTISER')
+    expectInvalid(parseProductRaw('01 - XX392 - Kuliner Masteri - S1 - Solo', TEST_CONFIG), 'UNKNOWN_TYPE_CODE')
+    expectInvalid(parseProductRaw('01 - SO392 - Produk Asing - S1 - Solo', TEST_CONFIG), 'UNKNOWN_PRODUCT_NAME')
+    expectInvalid(parseProductRaw('01 - SO392 - Kuliner Masteri - S9 - Solo', TEST_CONFIG), 'UNKNOWN_SESSION')
+  })
+
+  it('tipe tanpa batch ditolak', () => {
+    expectInvalid(parseProductRaw('01 - SO - Kuliner Masteri - S1 - Solo', TEST_CONFIG), 'UNKNOWN_TYPE_CODE')
+  })
+
+  it('dua produk bernama sama ditolak sebagai ambigu, bukan dipilih salah satu', () => {
+    const duplicateNames: ProductConfigSet = {
+      ...TEST_CONFIG,
+      products: [
+        ...TEST_CONFIG.products,
+        { name: 'Kuliner Masteri', code: 'KM2', active: true },
+      ],
+    }
+
+    const parsed = expectInvalid(
+      parseProductRaw('01 - SO392 - Kuliner Masteri - S1 - Solo', duplicateNames),
+      'AMBIGUOUS_PRODUCT_NAME',
+    )
+    expect(parsed.candidates).toEqual(expect.arrayContaining(['KM', 'KM2']))
+  })
+
+  it('produk nonaktif tetap dipakai untuk order lama', () => {
+    const withInactiveProduct: ProductConfigSet = {
+      ...TEST_CONFIG,
+      products: TEST_CONFIG.products.map((product) =>
+        product.code === 'KM' ? { ...product, active: false } : product,
+      ),
+    }
+
+    const parsed = expectValid(parseProductRaw('01 - SO392 - Kuliner Masteri - S1 - Solo', withInactiveProduct))
+    expect(parsed.product_code).toBe('KM')
+  })
+})

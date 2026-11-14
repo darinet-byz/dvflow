@@ -72,7 +72,15 @@ export const PRODUCT_SPEC: ConfigSpec = {
   identityKey: 'code',
   statusManaged: true,
   fields: [
-    { key: 'name', label: 'Nama', maxLength: 200, type: 'text' as const, initial: '', placeholder: 'mis. Kuliner Masteri' },
+    {
+      key: 'name',
+      label: 'Nama',
+      maxLength: 200,
+      type: 'text' as const,
+      initial: '',
+      placeholder: 'mis. Kuliner Masteri',
+      help: 'Dipakai apa adanya di format nama produk. Tidak bisa diubah setelah produk dipakai (order/alias/Zoom/akses tim) — nonaktifkan lalu buat produk baru.',
+    },
     {
       key: 'code',
       label: 'Kode',

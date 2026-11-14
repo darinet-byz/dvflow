@@ -1,4 +1,4 @@
-import { normalizeMasterCode, MASTER_CODE_RULES } from '@dvflow/shared'
+import { normalizeMasterCode, MASTER_CODE_RULES, PRODUCT_SEGMENT_SEPARATOR } from '@dvflow/shared'
 import { ApiFailure } from '../http/errors'
 
 /**
@@ -119,6 +119,11 @@ export function validateConfigBody(
     const name = readText(body['name'])
     if (name === null || name.length > NAME_MAX_LENGTH) {
       throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Nama wajib diisi, maksimal 200 karakter.')
+    }
+    // A75: nama produk menjadi bagian dari nama produk yang diparse, jadi pemisah
+    // segmen tidak boleh ikut masuk ke namanya.
+    if (resource.urlName === 'products' && name.includes(PRODUCT_SEGMENT_SEPARATOR)) {
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, `Nama produk tidak boleh mengandung "${PRODUCT_SEGMENT_SEPARATOR.trim()}".`)
     }
     patch['name'] = name
   }

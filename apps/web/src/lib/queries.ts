@@ -354,7 +354,15 @@ export async function fetchRefundPage(
  * Menukar keduanya adalah bug yang sulit terlihat: generator akan menolak
  * setiap input, dan filter tidak akan pernah cocok.
  */
-export type ConfigOption = { value: string; label: string }
+export type ConfigOption = {
+  value: string
+  label: string
+  /**
+   * A75: nama baris konfigurasi tanpa kode (mis. `Master Tiktok Indonesia`).
+   * Dipakai generator format berbasis nama produk; `label` tetap untuk tampilan.
+   */
+  name?: string
+}
 
 export type ConfigLists = {
   /** value = KODE produk. */
@@ -422,6 +430,6 @@ export async function fetchAdvertiserChoices(): Promise<AdvertiserChoice[]> {
 /** Label pilihan: "Kode — Nama" supaya kode dan namanya sama-sama terbaca. */
 function toOptions(rows: CodeRow[]): ConfigOption[] {
   return rows
-    .map((row) => ({ value: row.code, label: `${row.code} — ${row.name}` }))
+    .map((row) => ({ value: row.code, label: `${row.code} — ${row.name}`, name: row.name }))
     .sort((left, right) => left.value.localeCompare(right.value, 'id'))
 }

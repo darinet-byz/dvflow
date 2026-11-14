@@ -37,7 +37,7 @@ vi.mock('../src/lib/queries', async (importOriginal) => {
   return {
     ...actual,
     fetchConfigLists: vi.fn(async () => ({
-      products: [{ value: 'KULI', label: 'KULI — Kuliner Masteri' }],
+      products: [{ value: 'KULI', label: 'KULI — Kuliner Masteri', name: 'Kuliner Masteri' }],
       advertisers: [{ value: '01', label: '01 — Zul' }],
       eventTypes: [{ value: 'SO', label: 'SO — Seminar Offline' }],
       eventTypeNames: [{ value: 'Seminar Offline', label: 'Seminar Offline' }],
@@ -103,8 +103,8 @@ function type(id: string, value: string): void {
   fireEvent.change(screen.getByLabelText(id), { target: { value } })
 }
 
-describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
-  it('D01: input konfigurasi menghasilkan nama persis seperti kontrak', async () => {
+describe('Product Name Generator (PRD §71, 05 §D01–§D05, A75)', () => {
+  it('D01: input konfigurasi menghasilkan dua nama sesuai kontrak', async () => {
     renderPage(<GeneratorPage />)
     await waitForConfigOptions()
 
@@ -117,9 +117,10 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
     expect(await screen.findByText('KULI01SO392 - S1 - Solo')).toBeDefined()
+    expect(screen.getByText('01 - SO392 - Kuliner Masteri - S1 - Solo')).toBeDefined()
   })
 
-  it('D05: batch "001" tidak kehilangan angka nol di depan', async () => {
+  it('D05: batch "001" tidak kehilangan angka nol di depan (dua format)', async () => {
     renderPage(<GeneratorPage />)
     await waitForConfigOptions()
 
@@ -133,6 +134,7 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
 
     // A33: nol di depan batch diabaikan; kode pengiklan 01 tetap utuh.
     expect(await screen.findByText('KULI01SO58 - S1 - Solo')).toBeDefined()
+    expect(screen.getByText('01 - SO58 - Kuliner Masteri - S1 - Solo')).toBeDefined()
   })
 
   it('D04: spasi di sekitar kota dipangkas', async () => {
@@ -148,6 +150,7 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
     expect(await screen.findByText('KULI01SO392 - S1 - Solo')).toBeDefined()
+    expect(screen.getByText('01 - SO392 - Kuliner Masteri - S1 - Solo')).toBeDefined()
   })
 
   it('D03: input kurang -> tidak ada kode yang dihasilkan, hanya error', async () => {
@@ -175,12 +178,15 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05)', () => {
     type('Kota / Live Zoom', 'Solo')
 
     expect(screen.queryByText('KULI01SO392 - S1 - Solo')).toBeNull()
+    expect(screen.queryByText('01 - SO392 - Kuliner Masteri - S1 - Solo')).toBeNull()
   })
 
-  it('tombol Copy tidak aktif sebelum ada hasil', async () => {
+  it('tombol Copy tiap format tidak aktif sebelum ada hasil', async () => {
     renderPage(<GeneratorPage />)
     await waitForConfigOptions()
-    expect(screen.getByRole('button', { name: 'Copy' })).toHaveProperty('disabled', true)
+
+    expect(screen.getByRole('button', { name: 'Copy Format 1 — kode' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Copy Format 2 — nama produk' })).toHaveProperty('disabled', true)
   })
 })
 

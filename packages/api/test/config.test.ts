@@ -304,6 +304,79 @@ describe('D07: guard kombinasi kode ambigu', () => {
   })
 })
 
+describe('A75: nama produk (format nama)', () => {
+  it('nama produk terkunci setelah produk dipakai order', async () => {
+    const ctx = await setup()
+    const product = ctx.state.config.products.find((row) => row['code'] === 'KULI')
+    const id = String(product?.['id'])
+    ctx.state.orders.push({ order_id: 'A75-1', product_code: 'KULI', session: 'S1' })
+
+    const response = await write(ctx, ctx.admin, {
+      method: 'PATCH',
+      path: `/api/config/products/${id}`,
+      body: { name: 'Kuliner Baru' },
+    })
+
+    expect(response.status).toBe(409)
+    expect((await readBody<FailureBody>(response)).error.code).toBe('PRODUCT_NAME_LOCKED')
+  })
+
+  it('nama produk tetap boleh diubah selama belum dipakai', async () => {
+    const ctx = await setup()
+    const product = ctx.state.config.products.find((row) => row['code'] === 'KULI')
+    const id = String(product?.['id'])
+
+    const response = await write(ctx, ctx.admin, {
+      method: 'PATCH',
+      path: `/api/config/products/${id}`,
+      body: { name: 'Kuliner Masteri Baru' },
+    })
+
+    expect(response.status).toBe(200)
+  })
+
+  it('nama produk harus unik (case-insensitive)', async () => {
+    const ctx = await setup()
+    const product = ctx.state.config.products.find((row) => row['code'] === 'KULI')
+    const id = String(product?.['id'])
+
+    const response = await write(ctx, ctx.admin, {
+      method: 'PATCH',
+      path: `/api/config/products/${id}`,
+      body: { name: '  bisnis   masteri ' },
+    })
+
+    expect(response.status).toBe(409)
+    expect((await readBody<FailureBody>(response)).error.code).toBe('NAME_TAKEN')
+  })
+
+  it('produk baru dengan nama yang sudah dipakai ditolak', async () => {
+    const ctx = await setup()
+
+    const response = await write(ctx, ctx.admin, {
+      method: 'POST',
+      path: '/api/config/products',
+      body: { name: 'Kuliner Masteri', code: 'NEWP' },
+    })
+
+    expect(response.status).toBe(409)
+    expect((await readBody<FailureBody>(response)).error.code).toBe('NAME_TAKEN')
+  })
+
+  it('nama produk tidak boleh memuat pemisah segmen', async () => {
+    const ctx = await setup()
+
+    const response = await write(ctx, ctx.admin, {
+      method: 'POST',
+      path: '/api/config/products',
+      body: { name: 'Kuliner - Masteri', code: 'NEWP' },
+    })
+
+    expect(response.status).toBe(400)
+    expect((await readBody<FailureBody>(response)).error.code).toBe('INVALID_ARGUMENT')
+  })
+})
+
 describe('penyuntingan & penonaktifan', () => {
   it('PATCH hanya menulis field yang dikirim', async () => {
     const ctx = await setup()

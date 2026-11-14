@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { normalizeBatch } from '../src/domain/text'
 import {
   buildProductName,
+  buildProductNameVariants,
   InvalidProductNameError,
   PRODUCT_SEGMENT_SEPARATOR,
   validateProductNameInput,
+  validateProductNameVariants,
 } from '../src/domain/product-name'
 import { parseProductRaw } from '../src/domain/product-parser'
 import { TEST_CONFIG } from './fixtures'
@@ -96,6 +98,72 @@ describe('Product Name Generator (PRD §54, §72)', () => {
       expect(parsed.city).toBe(input.city.trim())
       expect(parsed.product_code).toBe(input.productCode)
       expect(parsed.advertiser_code).toBe(input.advertiserCode)
+    }
+  })
+})
+
+describe('Product Name Generator dua format (A75)', () => {
+  const DETAILED_INPUT = { ...VALID_INPUT, productName: 'Kuliner Masteri' } as const
+
+  it('menghasilkan format kode dan format nama sekaligus', () => {
+    expect(buildProductNameVariants(DETAILED_INPUT)).toEqual({
+      legacy: 'KM01SO392 - S1 - Solo',
+      detailed: '01 - SO392 - Kuliner Masteri - S1 - Solo',
+    })
+  })
+
+  it('format nama memakai batch ternormalisasi dan kode pengiklan utuh', () => {
+    expect(buildProductNameVariants({ ...DETAILED_INPUT, batch: '0058' }).detailed)
+      .toBe('01 - SO58 - Kuliner Masteri - S1 - Solo')
+    expect(buildProductNameVariants({ ...DETAILED_INPUT, advertiserCode: '01' }).detailed)
+      .toContain('01 - SO392')
+  })
+
+  it('spasi nama produk di-trim, kota dan batch tetap di-trim', () => {
+    expect(buildProductNameVariants({ ...DETAILED_INPUT, productName: '  Kuliner Masteri  ' }).detailed)
+      .toBe('01 - SO392 - Kuliner Masteri - S1 - Solo')
+  })
+
+  it('nama produk wajib dan tidak boleh memuat pemisah segmen', () => {
+    expect(validateProductNameVariants({ ...DETAILED_INPUT, productName: '   ' }).ok).toBe(false)
+    expect(validateProductNameVariants({ ...DETAILED_INPUT, productName: 'Kuliner - Masteri' }).ok).toBe(false)
+  })
+
+  it('error nama produk baru muncul setelah field lain valid', () => {
+    const result = validateProductNameVariants({ ...DETAILED_INPUT, productName: '', productCode: '' })
+
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('seharusnya gagal')
+    expect(result.errors.productCode).toBeDefined()
+    expect(result.errors.productName).toBeUndefined()
+  })
+
+  it('buildProductNameVariants melempar bila input tidak valid', () => {
+    expect(() => buildProductNameVariants({ ...DETAILED_INPUT, productName: '' })).toThrow(InvalidProductNameError)
+  })
+
+  it('round-trip: kedua format dapat diparse kembali', () => {
+    const cases = [
+      DETAILED_INPUT,
+      { ...DETAILED_INPUT, batch: '058' },
+      { ...DETAILED_INPUT, sessionCode: 'ST', city: 'Live Zoom', typeCode: 'WO', productName: 'Master TikTok Indonesia', productCode: 'MT' },
+    ]
+
+    for (const input of cases) {
+      const names = buildProductNameVariants(input)
+
+      for (const generated of [names.legacy, names.detailed]) {
+        const parsed = parseProductRaw(generated, TEST_CONFIG)
+
+        expect(parsed.product_parse_status, `gagal parse: ${generated}`).toBe('valid')
+        if (parsed.product_parse_status !== 'valid') continue
+
+        expect(parsed.batch).toBe(normalizeBatch(input.batch))
+        expect(parsed.session).toBe(input.sessionCode)
+        expect(parsed.city).toBe(input.city.trim())
+        expect(parsed.product_code).toBe(input.productCode)
+        expect(parsed.advertiser_code).toBe(input.advertiserCode)
+      }
     }
   })
 })

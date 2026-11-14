@@ -145,23 +145,32 @@ Do NOT hardcode:
 
 Configuration must come from database-backed configuration.
 
-Canonical product pattern:
+Canonical product patterns (BOTH valid since A75):
 
 ```text
 [PRODUCT_CODE][ADVERTISER_CODE][TYPE_CODE][BATCH] - [SESSION_CODE] - [CITY]
+[ADVERTISER_CODE] - [TYPE_CODE][BATCH] - [PRODUCT_NAME] - [SESSION_CODE] - [CITY]
 ```
 
-Example:
+Examples:
 
 ```text
 KM01SO392 - S1 - Solo
+01 - SO392 - Kuliner Masteri - S1 - Solo
 ```
+
+Segment count decides the format: 3 segments = code-based, 5 segments = name-based. 4 or 6+ is invalid.
+
+The name-based format uses `products.name` verbatim, so product names MUST be unique (case/whitespace-insensitive) and MUST
+NOT contain ` - `. Once a product is used (order/alias/Zoom key/report), its name MUST NOT change — deactivate and create a
+new row instead (A75, `PRODUCT_NAME_LOCKED`).
 
 Batch MUST remain a string. Leading zeroes in the BATCH are NOT significant (A33): `058` = `0058` = `58`;
 zeroes in the middle/end ARE significant (`508`, `580`, `100`). Use `normalizeBatch()` / `public.normalize_batch()`.
 This applies to the batch ONLY — advertiser codes keep their leading zero (`01`, `02`, exactly 2 digits).
 
-Parser MUST NOT fuzzy guess.
+Parser MUST NOT fuzzy guess. Name matching normalizes case and whitespace only (`normalizeProductName()` /
+`public.normalize_product_name()`); it never guesses between two candidates.
 
 ### Invalid product parsing
 

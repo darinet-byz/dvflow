@@ -1802,10 +1802,59 @@ Permintaan pengguna: Sesi Tunggal **ST** tidak dipakai lagi, tetapi penghapusann
 ### Keputusan
 
 - ST **tidak dihapus**; barisnya dinonaktifkan lewat toggle di Konfigurasi Produk ? Sesi. Toggle on/off dan hapus permanen sesi hanya untuk role `developer`. Role lain tetap boleh menambah sesi, dan sesi baru selalu aktif.
-- Reset konfigurasi produk menanam ST nonaktif (baris tetap ada) dan S1–S8 aktif.
+- Reset konfigurasi produk menanam ST nonaktif (baris tetap ada) dan S1ï¿½S8 aktif.
 - OTS: sesi untuk pendaftaran baru wajib aktif. Saat mengedit, sesi lama yang tersimpan boleh dipertahankan. Sesi nonaktif dari cache perangkat dibuang dan panel Meja dibuka kembali.
 - Form OTS menampilkan **tanggal & jam scan (WIB)** di ringkasan Meja dan di samping pilihan Sesi, sebagai dasar koreksi manual. Deteksi otomatis berbasis jadwal tidak dipakai karena `sessions_config` tidak menyimpan jadwal sesi.
 
 ### Implementasi
 
 Migrasi `20261113120000_session_active_dev_toggle.sql` (`schema_version` 76): `delete_config_master` (sesi hanya Developer), `reset_product_configuration` (ST nonaktif), `save_ots_registration` (sesi aktif untuk pendaftaran baru). API: `packages/api/src/config/handlers.ts` (guard status sesi, sesi baru selalu aktif), `packages/api/src/ots/handlers.ts` (validasi sesi aktif + pesan jelas). Web: `ConfigSection.tsx` (switch terkunci dan Hapus hanya Developer, placeholder select), `specs.tsx` (sesi baru tidak lagi default ST), `OtsDrawer.tsx` (invalidasi cache sesi, label tanggal & jam scan). Tes: `packages/api/test/config.test.ts`, `ots.test.ts`, `permission-enforcement.test.ts`, `apps/web/test/config-session-toggle.test.tsx`, `ots-drawer.test.tsx`, pgTAP `39_session_active_dev_toggle.sql`.
+
+## A75 - Dua format nama produk + nama produk terkunci (14 November 2026)
+
+Permintaan pengguna: selain format kode yang sudah ada, generator harus menghasilkan format yang memakai **nama produk**
+secara langsung, dan **kedua format harus sama-sama valid saat diparse**.
+
+```text
+Format 1 (kode):        MTIX01SO60 - S1 - Tegal
+Format 2 (nama):        01 - SO60 - Master Tiktok Indonesia - S1 - Tegal
+```
+
+### Keputusan
+
+- Pembedaan format memakai **jumlah segmen**: 3 = format kode, 5 = format nama; 4 atau >=6 tetap invalid. Tidak ada
+  tebakan dan tidak ada toleransi tanpa spasi untuk format nama.
+- Format nama memakai `products.name` dari konfigurasi (bukan kode). Pencocokan nama saat parse menormalisasi
+  besar-kecil huruf dan rangkaian spasi (`normalizeProductName`), tetapi tetap harus menunjuk **tepat satu** produk.
+- Karena nama produk menjadi identitas yang ditulis ke OrderOnline:
+  - nama produk **wajib unik** (index unik pada `normalize_product_name(name)`);
+  - nama produk **tidak boleh memuat ` - `** (check `NOT VALID`, tulisan baru ketat);
+  - nama produk **tidak boleh diubah setelah produk dipakai** (order/alias/key Zoom/report/akses tim). Satu-satunya jalan
+    adalah nonaktifkan lalu buat produk baru (`PRODUCT_NAME_LOCKED`). Selama belum dipakai, nama masih boleh diperbaiki.
+- Nama produk yang sudah ada tidak diubah dan tidak dihapus. Kalau ada duplikat, migrasi berhenti dengan daftar kode agar
+  perbaikannya dilakukan sadar.
+- Format kode tetap dipakai untuk target alias produk, remap Order Unmapped, dan OTS supaya target kanonik itu stabil
+  terhadap penggantian nama produk.
+- Generator menampilkan **dua hasil** dengan tombol **Copy terpisah** per format.
+
+### Implementasi
+
+- `packages/shared`: `normalizeProductName` (`domain/text.ts`); `buildProductNameVariants` /
+  `validateProductNameVariants` (`domain/product-name.ts`, fungsi lama tidak berubah); parser dua format
+  (`domain/product-parser.ts`, alasan gagal baru `UNKNOWN_ADVERTISER`, `UNKNOWN_TYPE_CODE`, `UNKNOWN_PRODUCT_NAME`,
+  `AMBIGUOUS_PRODUCT_NAME`, dst).
+- Web: `ConfigOption.name` (`lib/queries.ts`) dan `GeneratorPage` dua hasil + dua tombol Copy.
+- API: `PRODUCT_NAME_LOCKED` dan `NAME_TAKEN` (`http/errors.ts`); guard nama di `config/handlers.ts` dan validasi pemisah di
+  `config/resources.ts`.
+- Migrasi `20261114090000_dual_product_name_format.sql` (`schema_version` 77): `normalize_product_name`,
+  `master_detailed_parts`, `master_setting_parts` + `master_is_used` mengenali dua format, check pemisah, index unik nama.
+- Tes: `packages/shared/test/product-name.test.ts`, `product-parser.test.ts`, `apps/web/test/render-p9.test.tsx`,
+  `packages/api/test/config.test.ts`, pgTAP `supabase/tests/40_dual_product_name_format.sql`.
+
+### Catatan operasional
+
+- Sebelum `db push`, cek nama produk duplikat:
+  `select public.normalize_product_name(name), string_agg(code, ', ') from public.products group by 1 having count(*) > 1;`
+  Migrasi akan menolak jalan selama hasilnya tidak kosong.
+- Order lama berformat kode tidak terpengaruh. Order berformat nama yang sudah masuk tetapi gagal parse juga tetap
+  dihitung sebagai pemakaian produk oleh guard hapus konfigurasi.

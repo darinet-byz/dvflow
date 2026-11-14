@@ -277,6 +277,23 @@ export function createFakeDb(state: FakeState): Db {
         state.rolePermissions.push(...keys.map(key => ({ role_id: args['p_role'], permission_key: key })))
         return role as T
       }
+      if (name === 'master_is_used') {
+        // Tiruan 0048: cukup untuk guard nama produk (A75) di level HTTP.
+        const normalize = (value: unknown): string => String(value ?? '').trim().toUpperCase()
+        const code = normalize(args['p_code'])
+        const resource = String(args['p_resource'])
+        const used = resource === 'products'
+          ? state.orders.some(row => normalize(row['product_code']) === code)
+            || state.userProductAccess.some(row => normalize(row['product_code']) === code)
+            || state.productAliases.some(row => normalize(row['canonical_target']).startsWith(code))
+            || state.appSettings.some(row => normalize(row['key']).includes(code))
+          : resource === 'advertisers'
+            ? state.orders.some(row => normalize(row['advertiser_code']) === code)
+            : resource === 'sessions'
+              ? state.orders.some(row => normalize(row['session']) === code)
+              : false
+        return used as T
+      }
       if (name === 'delete_config_master') {
         const table = String(args['p_resource']).replace('event-types','event_types').replace('sessions','sessions_config').replace('payment-fee-rules','payment_fee_rules')
         const rows = rowsOf(state, table)

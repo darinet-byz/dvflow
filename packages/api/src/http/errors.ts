@@ -26,6 +26,8 @@ export type ApiErrorCode =
   | 'NOT_SEMINAR_ORDER'
   | 'CODE_TAKEN'
   | 'IDENTIFIER_TAKEN'
+  | 'NAME_TAKEN'
+  | 'PRODUCT_NAME_LOCKED'
   | 'CODE_AMBIGUOUS'
   | 'MASTER_IN_USE'
   | 'RESOURCE_NOT_FOUND'
@@ -72,6 +74,12 @@ export const ERROR_CATALOG: Record<ApiErrorCode, { status: number; message: stri
   // 03 §12: konfigurasi.
   CODE_TAKEN: { status: 409, message: 'Kode sudah dipakai.' },
   IDENTIFIER_TAKEN: { status: 409, message: 'Identifier ini sudah punya rule aktif.' },
+  // A75: nama produk dipakai format nama produk, jadi harus unik dan stabil.
+  NAME_TAKEN: { status: 409, message: 'Nama produk sudah dipakai produk lain.' },
+  PRODUCT_NAME_LOCKED: {
+    status: 409,
+    message: 'Nama produk sudah dipakai (order/alias/Zoom/akses tim), jadi tidak bisa diubah. Nonaktifkan produk ini lalu buat produk baru.',
+  },
   MASTER_IN_USE: { status: 409, message: 'Konfigurasi masih digunakan. Lepaskan dependensinya atau gunakan Nonaktifkan.' },
   CODE_AMBIGUOUS: {
     status: 409,

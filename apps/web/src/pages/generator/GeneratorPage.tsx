@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { PRODUCT_SEGMENT_SEPARATOR, validateProductNameInput } from '@dvflow/shared'
+import { PRODUCT_SEGMENT_SEPARATOR, validateProductNameVariants } from '@dvflow/shared'
+import type { ConfigOption } from '../../lib/queries'
 import { useConfigLists } from '../../lib/useConfigLists'
 import { useSession } from '../../lib/useSession'
 import { PageHeader } from '../../layout/PageHeader'
@@ -11,12 +12,17 @@ import { useToast } from '../../ui/Toast'
 import { cn } from '../../ui/cn'
 
 /**
- * Product Name Generator (PRD §70–§73, §163, 05 §D01–§D06).
+ * Product Name Generator (PRD §70–§73, §163, 05 §D01–§D06, A75).
  *
- * Seluruh logikanya ada di `packages/shared` dan sudah diuji (`buildProductName`
- * + `validateProductNameInput`) — halaman ini tidak menyusun ulang stringnya
+ * Seluruh logikanya ada di `packages/shared` dan sudah diuji
+ * (`validateProductNameVariants`) — halaman ini tidak menyusun ulang stringnya
  * sendiri. Itu penting: nama yang dihasilkan HARUS selalu dapat diparse kembali
  * oleh parser, dan satu-satunya cara menjaminnya adalah memakai fungsi yang sama.
+ *
+ * Sejak A75 generator menghasilkan DUA nama sekaligus:
+ *   * format lama (kode): `MTIX01SO60 - S1 - Tegal`
+ *   * format baru (nama): `01 - SO60 - Master Tiktok Indonesia - S1 - Tegal`
+ * Keduanya sah dan dapat diparse. Masing-masing punya tombol Copy sendiri.
  *
  * Yang dijaga di sini:
  *   * hanya konfigurasi AKTIF yang ditawarkan (D02);
@@ -27,6 +33,21 @@ import { cn } from '../../ui/cn'
  *   * tombol Copy menyalin nilai persis seperti yang tampil (D06).
  */
 const TYPE_LABEL = 'Seminar / Webinar'
+
+type GeneratedNames = { legacy: string; detailed: string }
+type GeneratedKey = keyof GeneratedNames
+
+/**
+ * Nama produk tanpa kode. `ConfigOption.name` sudah diisi `toOptions`; fallback
+ * dari label `KODE — Nama` hanya untuk data uji/lama yang belum membawa `name`.
+ */
+function productNameOf(option: ConfigOption | undefined): string {
+  if (option === undefined) return ''
+  if (option.name !== undefined) return option.name
+  const marker = ' — '
+  const index = option.label.indexOf(marker)
+  return index === -1 ? '' : option.label.slice(index + marker.length)
+}
 
 export function GeneratorPage() {
   const { lists, error: listsError } = useConfigLists()
@@ -44,17 +65,19 @@ export function GeneratorPage() {
   const [city, setCity] = useState('')
 
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({})
-  const [generated, setGenerated] = useState<string | null>(null)
-  const [copied, setCopied] = useState(false)
+  const [generated, setGenerated] = useState<GeneratedNames | null>(null)
+  const [copied, setCopied] = useState<GeneratedKey | null>(null)
 
   function generate(): void {
-    const result = validateProductNameInput({
+    const productName = productNameOf(lists?.products.find((item) => item.value === productCode))
+    const result = validateProductNameVariants({
       productCode,
       advertiserCode,
       typeCode,
       batch,
       sessionCode,
       city,
+      productName,
     }, { strictCodes: true })
 
     if (!result.ok) {
@@ -66,15 +89,15 @@ export function GeneratorPage() {
 
     setErrors({})
     setGenerated(result.value)
-    setCopied(false)
+    setCopied(null)
   }
 
-  async function copy(): Promise<void> {
+  async function copy(key: GeneratedKey): Promise<void> {
     if (generated === null) return
 
     try {
-      await navigator.clipboard.writeText(generated)
-      setCopied(true)
+      await navigator.clipboard.writeText(generated[key])
+      setCopied(key)
       toast.show('Nama produk disalin.', 'success')
     } catch {
       // Clipboard bisa ditolak (izin browser / konteks tidak aman). Nilainya
@@ -153,21 +176,26 @@ export function GeneratorPage() {
         <Card>
           <CardHeader title="Generated Product Name" />
 
-          <div
-            className={cn(
-              'grid min-h-[132px] place-items-center rounded-md border p-4 text-center',
-              generated === null ? 'border-dashed border-line bg-soft' : 'border-primary/20 bg-primary-soft',
-            )}
-          >
+          <div className="flex flex-col gap-3">
+            <GeneratedNameRow
+              label="Format 1 — kode"
+              value={generated?.legacy ?? null}
+              copied={copied === 'legacy'}
+              onCopy={() => void copy('legacy')}
+            />
+            <GeneratedNameRow
+              label="Format 2 — nama produk"
+              value={generated?.detailed ?? null}
+              copied={copied === 'detailed'}
+              onCopy={() => void copy('detailed')}
+            />
             {generated === null ? (
-              <p className="text-ink-soft">
+              <p className="text-[12px] text-ink-soft">
                 {Object.keys(errors).length === 0
                   ? 'Hasil akan muncul di sini setelah Generate.'
                   : 'Periksa input yang ditandai, lalu tekan Generate lagi.'}
               </p>
-            ) : (
-              <p className="break-all font-mono text-[17px] font-semibold text-ink">{generated}</p>
-            )}
+            ) : null}
           </div>
 
           {Object.keys(errors).length === 0 ? null : (
@@ -179,15 +207,49 @@ export function GeneratorPage() {
           )}
 
           <div className="mt-3 flex items-center gap-2">
-            <Button variant="secondary" disabled={generated === null} onClick={() => void copy()}>
-              {copied ? 'Tersalin' : 'Copy'}
-            </Button>
-            {generated === null ? null : (
-              <span className="text-[12px] text-ink-soft">Pemisah segmen: "{PRODUCT_SEGMENT_SEPARATOR.trim()}"</span>
-            )}
+            <span className="text-[12px] text-ink-soft">Pemisah segmen: "{PRODUCT_SEGMENT_SEPARATOR.trim()}"</span>
           </div>
         </Card>
       </div>
     </>
+  )
+}
+
+function GeneratedNameRow({
+  label,
+  value,
+  copied,
+  onCopy,
+}: {
+  label: string
+  value: string | null
+  copied: boolean
+  onCopy: () => void
+}) {
+  const empty = value === null
+
+  return (
+    <div
+      className={cn(
+        'rounded-md border p-3',
+        empty ? 'border-dashed border-line bg-soft' : 'border-primary/20 bg-primary-soft',
+      )}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span className="text-[12px] font-medium text-ink-soft">{label}</span>
+        <Button
+          variant="secondary"
+          size="sm"
+          aria-label={`Copy ${label}`}
+          disabled={empty}
+          onClick={onCopy}
+        >
+          {copied ? 'Tersalin' : 'Copy'}
+        </Button>
+      </div>
+      <p className={cn('mt-2 break-all font-mono text-[17px] font-semibold', empty ? 'text-ink-muted' : 'text-ink')}>
+        {value ?? '—'}
+      </p>
+    </div>
   )
 }

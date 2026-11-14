@@ -29,6 +29,20 @@ export function normalizeCode(value: string): string {
 }
 
 /**
+ * Normalisasi NAMA PRODUK untuk pencocokan parser format nama (A75).
+ *
+ * Nama produk ditulis manusia di OrderOnline, jadi besar-kecil huruf dan
+ * rangkaian spasi tidak boleh membuat nama yang sama gagal diparse. Yang
+ * dirapatkan HANYA spasi; tanda baca dan kata tetap apa adanya. Pemisah ` - `
+ * tetap bermakna, karena itu nama produk yang memuatnya ditolak generator.
+ *
+ * Kembaran SQL: `public.normalize_product_name(text)` (A75).
+ */
+export function normalizeProductName(value: string): string {
+  return collapseWhitespace(value).trim().toUpperCase()
+}
+
+/**
  * Normalisasi BATCH (A33, keputusan pengguna 18 Okt 2026): nol di DEPAN tidak berarti
  * (`058` = `0058` = `58`), nol di tengah/belakang tetap berarti (`508`, `580`, `100`).
  * Batch nol semua menjadi `0`, tidak pernah kosong. Huruf disamakan besar (`58a` = `58A`).

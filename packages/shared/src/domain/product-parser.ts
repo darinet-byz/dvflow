@@ -1,18 +1,26 @@
 /**
  * Parser product_raw (PRD §67, 01-IMPLEMENTATION-DECISIONS §9 dan §10).
  *
- * Pola kanonik:
+ * Dua pola kanonik yang SAMA-SAMA diterima (A75):
+ *
+ *   Berbasis kode — 3 segmen:
  *   [PRODUCT_CODE][ADVERTISER_CODE][TYPE_CODE][BATCH] - [SESSION_CODE] - [CITY]
- * contoh: KM01SO392 - S1 - Solo
+ *   contoh: KM01SO392 - S1 - Solo
  *
- * Segmen pertama TIDAK punya pemisah internal, jadi ia harus dipecah dengan
- * mencocokkan kode konfigurasi. Algoritma ini deterministik dan tidak pernah
- * menebak:
+ *   Berbasis nama produk — 5 segmen:
+ *   [ADVERTISER_CODE] - [TYPE_CODE][BATCH] - [PRODUCT_NAME] - [SESSION_CODE] - [CITY]
+ *   contoh: 01 - SO392 - Kuliner Masteri - S1 - Solo
  *
- *   1. trim, pecah pada pemisah persis " - " -> harus tepat 3 segmen
+ * Segmen pertama format lama TIDAK punya pemisah internal, jadi ia harus dipecah
+ * dengan mencocokkan kode konfigurasi. Algoritma ini deterministik dan tidak
+ * pernah menebak:
+ *
+ *   1. trim, pecah pada pemisah persis " - " (3 segmen => format lama, 5 => format baru)
  *   2. segmen sesi harus cocok dengan TEPAT SATU baris sessions_config
- *   3. segmen kode harus cocok dengan TEPAT SATU kombinasi
+ *   3. format lama: segmen kode harus cocok dengan TEPAT SATU kombinasi
  *      (product, advertiser, event_type); sisanya menjadi batch
+ *      format baru: pengiklan, tipe+batch, dan nama produk masing-masing harus
+ *      cocok dengan TEPAT SATU baris konfigurasi
  *
  * Nol kandidat atau lebih dari satu kandidat => invalid. Ambiguitas tidak pernah
  * diselesaikan dengan tebakan.
@@ -34,7 +42,7 @@ import {
   type SessionConfigRow,
 } from '../types'
 import { PRODUCT_SEGMENT_SEPARATOR } from './product-name'
-import { normalizeBatch, normalizeCode } from './text'
+import { normalizeBatch, normalizeCode, normalizeProductName } from './text'
 
 export type ProductParseFailureReason =
   | 'EMPTY_PRODUCT_RAW'
@@ -45,6 +53,13 @@ export type ProductParseFailureReason =
   | 'AMBIGUOUS_SESSION'
   | 'UNKNOWN_CODE_COMBINATION'
   | 'AMBIGUOUS_CODE_COMBINATION'
+  // A75: kegagalan khusus format berbasis nama produk.
+  | 'UNKNOWN_ADVERTISER'
+  | 'AMBIGUOUS_ADVERTISER'
+  | 'UNKNOWN_TYPE_CODE'
+  | 'AMBIGUOUS_TYPE_CODE'
+  | 'UNKNOWN_PRODUCT_NAME'
+  | 'AMBIGUOUS_PRODUCT_NAME'
 
 export type ProductParseCandidate = string
 
@@ -183,6 +198,119 @@ export function findAmbiguousCodeCombinations(
   return conflicts
 }
 
+type SessionMatch =
+  | { ok: true; session: SessionConfigRow }
+  | { ok: false; result: ParsedProductInvalid }
+
+/** Sesi harus cocok dengan TEPAT SATU baris konfigurasi. */
+function resolveSession(sessionText: string, config: ProductConfigSet): SessionMatch {
+  const sessionKey = normalizeCode(sessionText)
+  const sessionMatches = config.sessions.filter(
+    (session: SessionConfigRow) => normalizeCode(session.code) === sessionKey,
+  )
+  if (sessionMatches.length === 0) return { ok: false, result: invalidProduct('UNKNOWN_SESSION') }
+  if (sessionMatches.length > 1) {
+    return {
+      ok: false,
+      result: invalidProduct('AMBIGUOUS_SESSION', sessionMatches.map((session) => session.code)),
+    }
+  }
+  const session = sessionMatches[0]
+  if (session === undefined) return { ok: false, result: invalidProduct('UNKNOWN_SESSION') }
+  return { ok: true, session }
+}
+
+/**
+ * Format baru (A75): 01 - SO392 - Kuliner Masteri - S1 - Solo
+ *
+ * Setiap bagian dicocokkan ke konfigurasi; tidak ada pencocokan teks bebas.
+ * Nama produk dibandingkan setelah besar-kecil huruf dan rangkaian spasi
+ * dinormalisasi (`normalizeProductName`), karena nama itu ditulis manusia di
+ * OrderOnline — tetapi tetap harus menunjuk TEPAT SATU produk.
+ */
+function parseDetailedProduct(
+  segments: readonly string[],
+  config: ProductConfigSet,
+): ProductParseResult {
+  const advertiserText = (segments[0] ?? '').trim()
+  const typeBatchText = (segments[1] ?? '').trim()
+  const productNameText = (segments[2] ?? '').trim()
+  const sessionText = (segments[3] ?? '').trim()
+  const city = (segments[4] ?? '').trim()
+
+  if (
+    advertiserText.length === 0 ||
+    typeBatchText.length === 0 ||
+    productNameText.length === 0 ||
+    sessionText.length === 0 ||
+    city.length === 0
+  ) {
+    return invalidProduct('EMPTY_SEGMENT')
+  }
+
+  const advertiserKey = normalizeCode(advertiserText)
+  const advertiserMatches = config.advertisers.filter(
+    (advertiser: AdvertiserConfigRow) => normalizeCode(advertiser.code) === advertiserKey,
+  )
+  if (advertiserMatches.length === 0) return invalidProduct('UNKNOWN_ADVERTISER')
+  if (advertiserMatches.length > 1) {
+    return invalidProduct('AMBIGUOUS_ADVERTISER', advertiserMatches.map((advertiser) => advertiser.code))
+  }
+  const advertiser = advertiserMatches[0]
+  if (advertiser === undefined) return invalidProduct('UNKNOWN_ADVERTISER')
+
+  // Tipe + batch menempel: "SO392" = tipe SO, batch 392. Tipe dicocokkan dari
+  // konfigurasi (bukan memotong 2 huruf), lalu sisanya batch.
+  const typeBatchKey = normalizeCode(typeBatchText)
+  // Slice batch memakai indeks dari teks asli, jadi panjangnya harus sama.
+  if (typeBatchKey.length !== typeBatchText.length) return invalidProduct('INVALID_CODE_BLOCK')
+
+  const typeMatches: Array<{ eventType: EventTypeConfigRow; batchRaw: string }> = []
+  for (const eventType of config.eventTypes) {
+    const typeKey = normalizeCode(eventType.code)
+    if (typeKey.length === 0 || typeBatchKey.length <= typeKey.length) continue
+    if (!typeBatchKey.startsWith(typeKey)) continue
+    const batchRaw = typeBatchText.slice(typeKey.length)
+    if (batchRaw.length === 0) continue
+    typeMatches.push({ eventType, batchRaw })
+  }
+  if (typeMatches.length === 0) return invalidProduct('UNKNOWN_TYPE_CODE')
+  if (typeMatches.length > 1) {
+    return invalidProduct('AMBIGUOUS_TYPE_CODE', typeMatches.map((match) => match.eventType.code))
+  }
+  const typeMatch = typeMatches[0]
+  if (typeMatch === undefined) return invalidProduct('UNKNOWN_TYPE_CODE')
+
+  const productKey = normalizeProductName(productNameText)
+  const productMatches = config.products.filter(
+    (product: ProductConfigRow) => normalizeProductName(product.name) === productKey,
+  )
+  if (productMatches.length === 0) return invalidProduct('UNKNOWN_PRODUCT_NAME')
+  if (productMatches.length > 1) {
+    return invalidProduct('AMBIGUOUS_PRODUCT_NAME', productMatches.map((product) => product.code))
+  }
+  const product = productMatches[0]
+  if (product === undefined) return invalidProduct('UNKNOWN_PRODUCT_NAME')
+
+  const sessionMatch = resolveSession(sessionText, config)
+  if (!sessionMatch.ok) return sessionMatch.result
+
+  return {
+    product_parse_status: 'valid',
+    product_code: product.code,
+    product_name: product.name,
+    advertiser_code: advertiser.code,
+    advertiser_name: advertiser.name,
+    event_type: EVENT_TYPE_NAME_BY_KIND[typeMatch.eventType.kind],
+    event_kind: typeMatch.eventType.kind,
+    batch: normalizeBatch(typeMatch.batchRaw),
+    session: sessionMatch.session.code,
+    city,
+    failure_reason: null,
+    candidates: [],
+  }
+}
+
 export function parseProductRaw(
   productRaw: string | null | undefined,
   config: ProductConfigSet,
@@ -195,6 +323,8 @@ export function parseProductRaw(
   // sehingga `KM01SO392 - S1 - ` terbaca sebagai 2 segmen, bukan 3 segmen dengan
   // segmen kota kosong. Akibatnya alasan kegagalan yang tercatat jadi kurang tepat.
   const segments = raw.split(PRODUCT_SEGMENT_SEPARATOR)
+  if (segments.length === 5) return parseDetailedProduct(segments, config)
+
   let codeBlockRaw: string | undefined
   let sessionRaw: string | undefined
   let cityRaw: string | undefined

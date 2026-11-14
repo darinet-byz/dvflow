@@ -2,6 +2,7 @@ import {
   findAmbiguousCodeCombinations,
   normalizeCode,
   normalizePaymentIdentifier,
+  normalizeProductName,
   type AdvertiserConfigRow,
   type EventKind,
   type EventTypeConfigRow,
@@ -69,6 +70,11 @@ export async function createConfig(context: RouteContext): Promise<Response> {
     await assertCombinationsRemainUnambiguous(context.db, resource, { replacingCode: null, incoming: values })
   }
 
+  // A75: nama produk harus unik — nama itu dipakai sebagai segmen format baru.
+  if (resource.urlName === 'products' && typeof values['name'] === 'string') {
+    await assertProductNameAvailable(context.db, values['name'], null)
+  }
+
   const created = await context.db.insertRow<Record<string, unknown>>(
     resource.table,
     values,
@@ -96,6 +102,12 @@ export async function updateConfig(context: RouteContext): Promise<Response> {
     body['code'].trim().toUpperCase() === String(existing['code']).toUpperCase()) delete body['code']
   if (Object.keys(body).length === 0) return ok({ resource: resource.urlName, item: existing })
   const values = validateConfigBody(resource, body, { partial: true })
+
+  // A75: nama produk terkunci setelah produk dipakai (order/alias/Zoom/akses tim/report).
+  if (resource.urlName === 'products' && typeof values['name'] === 'string' && !sameProductName(values['name'], existing['name'])) {
+    await assertProductNameChangeAllowed(context.db, id, existing)
+    await assertProductNameAvailable(context.db, values['name'], id)
+  }
 
   // Status produk/advertiser dikelola di halaman Status, bukan lewat toggle config.
   if (resource.urlName === 'products' && typeof values['active'] === 'boolean') {
@@ -195,6 +207,42 @@ async function loadRow(db: Db, resource: ConfigResource, id: string): Promise<Re
 }
 
 type CodeChange = { replacingCode: string | null; incoming: Record<string, unknown> }
+
+/** Nama produk dibandingkan seperti parser membandingkannya (A75). */
+function sameProductName(left: unknown, right: unknown): boolean {
+  return normalizeProductName(String(left ?? '')) === normalizeProductName(String(right ?? ''))
+}
+
+/**
+ * A75: nama produk harus unik.
+ *
+ * Format baru memakai nama produk sebagai segmen, jadi dua produk bernama sama
+ * membuat segmen itu ambigu dan parser wajib menolaknya. Diperiksa di sini agar
+ * pesannya jelas; unique index database tetap menjadi jaring terakhir.
+ */
+async function assertProductNameAvailable(db: Db, name: string, ignoringId: string | null): Promise<void> {
+  const rows = await db.selectRows<{ id: string; name: string }>('products', {}, 'id,name')
+  const key = normalizeProductName(name)
+  const clash = rows.find((row) => row.id !== ignoringId && normalizeProductName(String(row.name ?? '')) === key)
+  if (clash !== undefined) throw new ApiFailure('NAME_TAKEN', `product=${clash.id}`)
+}
+
+/**
+ * A75: nama produk tidak boleh berubah setelah produk dipakai.
+ *
+ * Nama produk sudah tertulis di product_raw format baru, jadi menggantinya akan
+ * membuat order lama tidak lagi menunjuk produk yang sama. Satu-satunya jalan
+ * adalah menonaktifkan produk dan membuat baris baru.
+ */
+async function assertProductNameChangeAllowed(
+  db: Db,
+  id: string,
+  existing: Record<string, unknown>,
+): Promise<void> {
+  const code = String(existing['code'] ?? '')
+  const used = await db.rpc<boolean>('master_is_used', { p_resource: 'products', p_code: code, p_id: id })
+  if (used === true) throw new ApiFailure('PRODUCT_NAME_LOCKED', `product=${code}`)
+}
 
 /**
  * Identitas (kode / identifier) harus belum dipakai baris lain.
