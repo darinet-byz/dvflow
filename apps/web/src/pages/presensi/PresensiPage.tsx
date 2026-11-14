@@ -31,6 +31,9 @@ import { useFilterState } from '../shared/useFilterState'
 import { CONTROL_WIDTH } from '../shared/FilterControls'
 import { StandardFilterBar } from '../shared/StandardFilterBar'
 import { PresensiDetailDrawer } from './PresensiDetailDrawer'
+import { FollowUpModal } from '../order/FollowUpModal'
+import { MobileOrderCards } from '../shared/MobileOrderCards'
+import { useFollowUpActions } from '../../lib/useFollowUpActions'
 import { isOtsOrder } from '../../lib/access-link'
 import { useFieldAppMode } from '../../lib/field-app'
 import { activeCommonFilters } from '../../lib/filters'
@@ -158,6 +161,9 @@ export function PresensiPage() {
       ),
     [appliedKey, sort.key, sort.direction, state.page, state.pageSize, dateMode],
   )
+
+  // A78: Follow Up juga tersedia di dua tab Presensi (kartu mode lapangan).
+  const followUp = useFollowUpActions((table.data?.rows ?? []).map((row) => row.order_id), fieldMode)
 
   /**
    * KPI dari `presensi_summary` (A23: cukup izin Presensi; dashboard_summary butuh izin
@@ -353,7 +359,27 @@ export function PresensiPage() {
         ) : (
           <Card padding="none">
             {fieldMode ? (
-              <PresensiCards rows={table.data?.rows ?? []} onSelect={setSelected} />
+              <MobileOrderCards
+                testId="presensi-cards"
+                items={(table.data?.rows ?? []).map((row) => ({
+                  key: row.order_id,
+                  target: row,
+                  name: row.name,
+                  productName: row.product_name,
+                  session: row.session,
+                  city: row.city,
+                  quantity: row.quantity,
+                  status: <Badge tone={attendanceTone(row.attendance_status)}>{row.attendance_status}</Badge>,
+                }))}
+                startIndex={(state.page - 1) * state.pageSize + 1}
+                summaries={followUp.summaries}
+                busyOrderId={followUp.busyOrderId}
+                onOpen={(item) => {
+                  const row = table.data?.rows.find((candidate) => candidate.order_id === item.key)
+                  if (row !== undefined) setSelected(row)
+                }}
+                onBubble={(item, slot) => void followUp.handleBubble(item.target, slot)}
+              />
             ) : (
               <DataTable
                 rowNumbers
@@ -455,45 +481,15 @@ export function PresensiPage() {
           summary.reload()
         }}
       />
+
+      <FollowUpModal
+        order={followUp.target}
+        initialSlot={followUp.initialSlot}
+        onMarked={followUp.onMarked}
+        onClose={followUp.closeModal}
+      />
     </>
   )
 }
 
-/** Daftar kartu Presensi untuk Tampilan Apps Lapangan (A30): yang penting di meja registrasi saja. */
-function PresensiCards({ rows, onSelect }: { rows: PresensiRow[]; onSelect: (row: PresensiRow) => void }) {
-  if (rows.length === 0) return <p className="p-4 text-center text-[13px] text-ink-soft">Tidak ada peserta untuk filter ini.</p>
-  return (
-    <ul className="divide-y divide-line" data-testid="presensi-cards">
-      {rows.map((row) => (
-        <li key={row.order_id}>
-          <button type="button" onClick={() => onSelect(row)} className="flex w-full items-start gap-3 px-3 py-3 text-left active:bg-soft">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[15px] font-semibold text-ink">{formatText(row.name)}</p>
-              <p className="truncate font-mono text-[11px] text-ink-soft">
-                {row.order_id}
-                {isOtsOrder(row.order_id) ? ' · OTS' : ''}
-              </p>
-              <p className="truncate text-[12px] text-ink-soft">
-                {[row.product_name, row.batch ? `Batch ${row.batch}` : null, row.session, row.city].filter(Boolean).join(' · ') || '-'}
-              </p>
-              <p className="truncate text-[11px] font-semibold text-ink-soft">
-                {row.quantity > 1
-                  ? `${row.quantity} tiket · hadir ${row.checked_in_in_range ?? row.checked_in_tickets}/${row.quantity}${
-                      row.attendance_status === 'Hadir Sebagian' ? ` · sisa ${remainingTickets(row)}` : ''
-                    }`
-                  : '1 tiket'}
-              </p>
-              {row.scanner_names?.length ? (
-                <p className="truncate text-[11px] text-ink-soft">Di-scan: {row.scanner_names.join(', ')}</p>
-              ) : null}
-            </div>
-            <div className="flex shrink-0 flex-col items-end gap-1">
-              <Badge tone={attendanceTone(row.attendance_status)}>{row.attendance_status}</Badge>
-              {row.latest_activity ? <span className="text-[11px] text-ink-soft">{formatTime(row.latest_activity)}</span> : null}
-            </div>
-          </button>
-        </li>
-      ))}
-    </ul>
-  )
-}
+/** Daftar kartu Presensi kini memakai komponen bersama MobileOrderCards (A78). */

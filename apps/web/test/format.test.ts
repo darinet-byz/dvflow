@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatCount, formatDate, formatDateTime, formatMoney, formatRate, formatText, formatTime } from '../src/lib/format'
+import { formatCount, formatDate, formatDateTime, formatMoney, formatRate, formatSession, formatText, formatTime } from '../src/lib/format'
 
 /**
  * Pemformat tampilan.
@@ -66,5 +66,14 @@ describe('teks', () => {
     expect(formatText('')).toBe('-')
     expect(formatText('   ')).toBe('-')
     expect(formatText(' Solo ')).toBe('Solo')
+  })
+
+  it('A78: kode sesi diterjemahkan ke label yang dibaca manusia', () => {
+    expect(formatSession('ST')).toBe('Sesi Tunggal')
+    expect(formatSession('S1')).toBe('Sesi 1')
+    expect(formatSession('s8')).toBe('Sesi 8')
+    expect(formatSession('S9')).toBe('S9')
+    expect(formatSession(null)).toBe('-')
+    expect(formatSession('')).toBe('-')
   })
 })

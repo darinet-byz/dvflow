@@ -41,6 +41,8 @@ export type FollowUpSummary = {
   order_id: string
   slots: number[]
   used: number[]
+  /** Jumlah tiket order (dipakai kartu HP; orders_page tidak memuatnya). */
+  quantity: number
 }
 
 export type FollowUpTemplateRow = {

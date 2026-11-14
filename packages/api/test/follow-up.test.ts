@@ -58,6 +58,7 @@ async function setup() {
     session: 'S1',
     city: 'Solo',
     app_status: 'Paid',
+    quantity: 2,
   })
 
   state.followUpTemplates.push(
@@ -161,7 +162,7 @@ describe('A76: ringkasan untuk kartu HP', () => {
     expect(response.status).toBe(200)
 
     const body = await readBody<{ ok: true; data: { orders: Array<{ order_id: string; slots: number[]; used: number[] }> } }>(response)
-    expect(body.data.orders).toEqual([{ order_id: 'KM-1', slots: [1, 2], used: [1] }])
+    expect(body.data.orders).toEqual([{ order_id: 'KM-1', slots: [1, 2], used: [1], quantity: 2 }])
   })
 
   it('order di luar cakupan produk tidak ikut', async () => {

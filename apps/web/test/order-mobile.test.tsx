@@ -78,7 +78,7 @@ beforeEach(() => {
     summary: { total: 1, paid: 1, pending: 0 },
   })
   vi.mocked(fetchFollowUpSummaries).mockResolvedValue({
-    orders: [{ order_id: ORDER.order_id, slots: [1], used: [1] }],
+    orders: [{ order_id: ORDER.order_id, slots: [1], used: [1], quantity: 1 }],
   })
   vi.mocked(fetchFollowUpContext).mockResolvedValue({
     order: {
@@ -115,17 +115,18 @@ afterEach(() => {
 })
 
 describe('Order di HP (A77)', () => {
-  it('menampilkan kartu ringkas: No, ID, Nama, No HP, kode produk, sesi, kota, status', async () => {
+  it('menampilkan kartu ringkas: No, Nama, Jumlah Tiket, Status, produk, sesi, kota', async () => {
     renderOrder()
 
-    expect(await screen.findByText('MTIX-283818331')).toBeDefined()
-    expect(screen.getByText('Budi Santoso')).toBeDefined()
-    expect(screen.getByText('0812-3456-7890')).toBeDefined()
-    expect(screen.getByText('Sesi S1')).toBeDefined()
-    expect(screen.getByText('Tegal')).toBeDefined()
+    expect(await screen.findByText('Budi Santoso')).toBeDefined()
+    expect(await screen.findByText('1 tiket')).toBeDefined()
     expect(screen.getByText('Paid')).toBeDefined()
-    // Kode produk (4 huruf) tampil, bukan nama panjang.
-    expect(screen.queryByText('Master Tiktok Indonesia')).toBeNull()
+    expect(screen.getByText('Master Tiktok Indonesia')).toBeDefined()
+    expect(screen.getByText('Sesi 1')).toBeDefined()
+    expect(screen.getByText('Tegal')).toBeDefined()
+    // Order ID & No HP tidak lagi di kartu; detailnya ada di drawer.
+    expect(screen.queryByText('MTIX-283818331')).toBeNull()
+    expect(screen.queryByText('0812-3456-7890')).toBeNull()
   })
 
   it('menampilkan F1-F4 dan mewarnai slot yang sudah dipakai', async () => {

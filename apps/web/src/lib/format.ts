@@ -95,3 +95,15 @@ export function formatText(value: string | null | undefined): string {
   const trimmed = String(value).trim()
   return trimmed === '' ? '-' : trimmed
 }
+
+/**
+ * Kode sesi menjadi label yang dibaca manusia (A78):
+ * `ST` -> Sesi Tunggal, `S1`..`S8` -> Sesi 1..8, kode lain dibiarkan apa adanya.
+ */
+export function formatSession(value: string | null | undefined): string {
+  const code = (value ?? '').trim().toUpperCase()
+  if (code === '') return '-'
+  if (code === 'ST') return 'Sesi Tunggal'
+  const match = /^S([1-8])$/.exec(code)
+  return match === null ? code : `Sesi ${match[1]}`
+}

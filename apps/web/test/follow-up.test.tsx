@@ -118,7 +118,7 @@ describe('Follow Up Manual (A76)', () => {
       event_type: { code: 'SO', name: 'Seminar Offline' },
       templates: [{ slot: 1, body: 'Halo {nama}. Link: {link}' }],
     })
-    render(<FollowUpModal order={{ ...ORDER, order_id: 'OTS-000009', product_raw: null }} onClose={() => {}} />)
+    render(<FollowUpModal order={{ ...ORDER, order_id: 'OTS-000009' }} onClose={() => {}} />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'F1' }))
     const preview = screen.getByText(/Halo Budi Santoso\. Link:/)

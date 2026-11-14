@@ -13,7 +13,7 @@ import {
   markFollowUpSlot,
   type FollowUpContext,
 } from '../../lib/follow-up'
-import type { OrderRow } from '../../lib/queries'
+import type { FollowUpTarget } from '../../lib/useFollowUpActions'
 import { Button } from '../../ui/Button'
 import { Modal } from '../../ui/Overlay'
 import { useToast } from '../../ui/Toast'
@@ -33,7 +33,7 @@ export function FollowUpModal({
   initialSlot = null,
   onMarked,
 }: {
-  order: OrderRow | null
+  order: FollowUpTarget | null
   onClose: () => void
   /** Dipakai kartu HP: buka langsung ke preview slot yang diketuk. */
   initialSlot?: number | null

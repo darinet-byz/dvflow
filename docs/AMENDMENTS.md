@@ -1934,3 +1934,30 @@ membuka Order sama sekali (harus pindah ke "tampilan web" dulu).
   `FollowUpModal` (buka langsung ke slot yang diketuk + `onMarked`), `ProfilePage` (anchor `#ganti-password`).
 - API: `getFollowUpSummaries` + rute `/api/orders/follow-up-summary`; tanpa perubahan database/migrasi.
 - Tes: `apps/web/test/field-app.test.tsx`, `order-mobile.test.tsx`; unit API untuk endpoint ringkas.
+
+## A78 - Satu kartu untuk Order & Presensi + Follow Up di Presensi (14 November 2026)
+
+Permintaan pengguna: tampilan HP Presensi sudah bagus, jadi Order disamakan; Follow Up juga harus muncul di Presensi
+(tab **Berdasarkan Order** dan **Realtime Presensi**).
+
+### Keputusan
+
+- Satu komponen kartu bersama (`MobileOrderCards`) dipakai **Order di semua HP** dan **Presensi mode lapangan**. Layout:
+  - `No · Nama (ellipsis) · Jumlah Tiket · Status`
+  - `Nama Produk (bukan kode, ellipsis) · Sesi · Kota`
+  - `F1 · F2 · F3 · F4` (selalu tampil; hijau + centang bila sudah dipakai)
+- **Sesi diterjemahkan** lewat `formatSession()`: `ST -> Sesi Tunggal`, `S1..S8 -> Sesi 1..8`, kode lain apa adanya.
+- Kartu tidak lagi menampilkan Order ID/No HP (Order) maupun progres hadir/nama scanner (Presensi); semuanya tetap ada di
+  drawer detail. Tujuannya satu: data utama saja, konsisten di kedua halaman.
+- Follow Up memakai hook bersama (`useFollowUpActions`): ringkasan halaman (slot + used + quantity), preview template,
+  WhatsApp kosong untuk slot tanpa template, dan penanda warna setelah Kirim. Penanda tetap per `order + slot`, jadi
+  status hijau konsisten antara Order dan kedua tab Presensi.
+- `Jumlah Tiket` Order diambil dari endpoint ringkas yang sudah ada (`/api/orders/follow-up-summary`) yang kini juga
+  mengembalikan `quantity` — tanpa mengubah RPC `orders_page` dan tanpa migrasi.
+
+### Implementasi
+
+- Web: `pages/shared/MobileOrderCards.tsx`, `lib/useFollowUpActions.ts`, `lib/format.ts` (`formatSession`),
+  `OrderPage`, `PresensiPage` (kartu di dua tab), `FollowUpModal` menerima target minimal (Order/Presensi).
+- API: `getFollowUpSummaries` menambah `quantity`.
+- Tes: `apps/web/test/order-mobile.test.tsx`, `field-app.test.tsx`, `format.test.ts`, unit API ringkasan.

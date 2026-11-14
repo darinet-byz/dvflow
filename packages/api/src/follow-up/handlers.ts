@@ -40,6 +40,7 @@ type FollowUpOrderRow = {
   batch: string | null
   session: string | null
   city: string | null
+  quantity: number
 }
 
 type TemplateRow = {
@@ -184,7 +185,7 @@ export async function getFollowUpSummaries(context: RouteContext): Promise<Respo
   const orders = await context.db.selectRows<FollowUpOrderRow>(
     'orders',
     { order_id: `in.(${quoteIn(ids)})` },
-    'order_id,source,name,phone,product_code,product_name,product_raw,advertiser_code,advertiser_name,event_type,batch,session,city',
+    'order_id,source,name,phone,product_code,product_name,product_raw,advertiser_code,advertiser_name,event_type,batch,session,city,quantity',
   )
   const allowed = orders.filter((order) => allowsOrder(access, order))
   if (allowed.length === 0) return ok({ orders: [] })
@@ -269,6 +270,7 @@ export async function getFollowUpSummaries(context: RouteContext): Promise<Respo
         order_id: order.order_id,
         slots,
         used: [...new Set(usedByOrder.get(order.order_id) ?? [])].sort((left, right) => left - right),
+        quantity: order.quantity,
       }
     }),
   })
@@ -358,7 +360,7 @@ async function loadOrder(context: RouteContext, orderId: string): Promise<Follow
   const rows = await context.db.selectRows<FollowUpOrderRow>(
     'orders',
     { order_id: `eq.${orderId}` },
-    'order_id,source,name,phone,product_code,product_name,product_raw,advertiser_code,advertiser_name,event_type,batch,session,city',
+    'order_id,source,name,phone,product_code,product_name,product_raw,advertiser_code,advertiser_name,event_type,batch,session,city,quantity',
   )
   const row = rows[0]
   if (row === undefined) throw new ApiFailure('ORDER_NOT_FOUND', `order=${orderId}`)
