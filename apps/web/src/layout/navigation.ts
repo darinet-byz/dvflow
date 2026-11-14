@@ -74,6 +74,7 @@ export const NAV_SECTIONS: NavSection[] = [
     collapsible: true,
     items: [
       { label: 'Konfigurasi Produk', path: '/konfigurasi-produk', icon: 'package', keywords: ['produk', 'alias', 'kode'] },
+      { label: 'Template Follow Up', path: '/template-follow-up', icon: 'message-circle', keywords: ['follow up', 'fu', 'whatsapp', 'wa', 'template', 'pesan'] },
       { label: 'Product Name Generator', path: '/generator', icon: 'wand', keywords: ['generator', 'nama produk', 'kode produk'] },
       { label: 'Konfigurasi Zoom', path: '/konfigurasi-zoom', icon: 'video', keywords: ['zoom', 'webinar', 'link'] },
       { label: 'Konfigurasi Barcode / Tiket', path: '/konfigurasi-tiket', icon: 'qr-code', keywords: ['tiket', 'barcode', 'qr', 'seminar'] },

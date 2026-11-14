@@ -17,6 +17,7 @@ import { LoginPage } from './pages/LoginPage'
 import { LogoutPage } from './pages/LogoutPage'
 import { DashboardPage } from './pages/dashboard/DashboardPage'
 import { KonfigurasiProdukPage } from './pages/config/KonfigurasiProdukPage'
+import { FollowUpTemplatePage } from './pages/follow-up/FollowUpTemplatePage'
 import { KonfigurasiTaxPage } from './pages/config/KonfigurasiTaxPage'
 import { GeneratorPage } from './pages/generator/GeneratorPage'
 import { ProfilePage } from './pages/profile/ProfilePage'
@@ -89,6 +90,7 @@ export function App() {
           <Route path="/order-unmapped" element={<RoleGuard path="/order-unmapped"><OrderUnmappedPage /></RoleGuard>} />
           <Route path="/presensi" element={<PresensiPage />} />
           <Route path="/konfigurasi-produk" element={<RoleGuard path="/konfigurasi-produk"><KonfigurasiProdukPage /></RoleGuard>} />
+          <Route path="/template-follow-up" element={<RoleGuard path="/template-follow-up"><FollowUpTemplatePage /></RoleGuard>} />
           <Route path="/konfigurasi-tax" element={<RoleGuard path="/konfigurasi-tax"><KonfigurasiTaxPage /></RoleGuard>} />
           <Route path="/report-tax" element={<RoleGuard path="/report-tax"><ReportTaxPage /></RoleGuard>} />
           <Route path="/report-spend" element={<RoleGuard path="/report-spend"><ReportSpendPage /></RoleGuard>} />

@@ -29,6 +29,7 @@ export const PATH_PERMISSION_MAP: Record<string, string> = {
   '/status-produk': 'operasional.product_status',
   '/status-advertiser': 'operasional.advertiser_status',
   '/konfigurasi-produk': 'config.produk',
+  '/template-follow-up': 'operasional.order',
   '/konfigurasi-tax': 'config.tax',
   '/report-tax': 'config.report_tax',
   '/konfigurasi-zoom': 'config.zoom',

@@ -1858,3 +1858,49 @@ Format 2 (nama):        01 - SO60 - Master Tiktok Indonesia - S1 - Tegal
   Migrasi akan menolak jalan selama hasilnya tidak kosong.
 - Order lama berformat kode tidak terpengaruh. Order berformat nama yang sudah masuk tetapi gagal parse juga tetap
   dihitung sebagai pemakaian produk oleh guard hapus konfigurasi.
+
+## A76 - Follow Up Manual via WhatsApp (14 November 2026)
+
+Permintaan pengguna: pimpro/advertiser perlu menghubungi peserta secara manual ketika gateway WA bermasalah.
+Fitur ini **tidak mengirim pesan** dari aplikasi — operator membuka WhatsApp miliknya sendiri, sehingga pesan masih
+bisa diedit di WhatsApp sebelum terkirim.
+
+### Keputusan
+
+- Template disimpan **per PRODUK x JENIS ACARA**, berisi 4 bubble `F1`-`F4` tanpa label nama. Semua pimpro/advertiser
+  yang membuka produk yang sama melihat template yang sama.
+- Jenis acara memakai **kode event type** (`SO`/`WO`/`WS`), bukan `orders.event_type`. Alasannya: Workshop ber-kind
+  `hybrid` tersimpan sebagai `"Hybrid"`; kode asli dibaca dari `product_raw` (termasuk lewat alias). Bila raw tidak bisa
+  diparse (mis. OTS), fallback ke nama jenis acara hanya jika kind-nya menunjuk tepat satu event type.
+- Order **OTS ikut bisa di-FU** (nomornya ada di data OTS), tetapi placeholder `{link}` dirender kosong karena OTS tidak
+  punya tiket/link online.
+- Alur di modal: klik `F1`-`F4` -> preview (read-only; edit hanya di halaman pengaturan atau di WhatsApp) -> **Kirim**
+  membuka `https://api.whatsapp.com/send?phone=62…&text=…` (bukan `wa.me`). Aplikasi tidak tahu status terkirim.
+- Penanda "sudah dipakai": satu baris per `(order_id, slot)`, bubble yang sudah pernah dikirim berubah hijau dan tetap
+  bisa diklik lagi. **Tidak ada riwayat isi pesan** — hanya penanda.
+- Siapa pun yang punya izin **Order** dan akses produk tersebut boleh mengubah template produk itu. Setiap simpan
+  mencatat `updated_by`/`updated_at` yang ditampilkan sebagai "terakhir diubah oleh".
+- Menu: **Produk & Acara -> Template Follow Up**. Tombol `FU` ada di kolom Aksi Order dan di drawer detail Order.
+- Placeholder: `{nama}` `{order_id}` `{produk}` `{pengiklan}` `{jenis}` `{batch}` `{sesi}` `{kota}` `{link}`.
+  Placeholder asing ditolak saat simpan (seperti template WA Bot).
+
+### Implementasi
+
+- Migrasi `20261114095000_follow_up_templates.sql` (`schema_version` 78): tabel `follow_up_templates`
+  (`product_id`, `event_type_id`, `slot` 1-4, `body`, `updated_by`) dan `order_follow_up_marks` (`order_id`, `slot`,
+  `used_at`, `used_by_name`), RPC `save_follow_up_templates` + `mark_order_follow_up`. Kedua tabel service-only
+  (RLS aktif tanpa policy).
+- `packages/shared`: `domain/follow-up.ts` (placeholder, validasi, render, `toWhatsAppNumber`, URL `api.whatsapp.com`);
+  parser kini mengembalikan `event_type_code`.
+- API: `GET/POST /api/orders/:orderId/follow-up`, `GET/PUT /api/follow-up-templates`; cek `operasional.order` +
+  cakupan produk (`actor_can_order`).
+- Web: `FollowUpModal`, halaman `FollowUpTemplatePage`, kolom Aksi di Order, tombol di drawer, menu Produk & Acara.
+- Tes: `packages/shared/test/follow-up.test.ts`, `packages/api/test/follow-up.test.ts`,
+  `apps/web/test/follow-up.test.tsx`, pgTAP `supabase/tests/41_follow_up.sql`.
+
+### Catatan operasional
+
+- Template kosong = bubble tidak muncul di modal; isi F1-F4 lewat menu Template Follow Up.
+- Nomor WA dinormalisasi ke `62…`; nomor yang tidak wajar membuat tombol Kirim nonaktif.
+- Karena pesan dibuka di WhatsApp operator, aplikasi tidak bisa menjamin pesan benar-benar terkirim; warna hijau hanya
+  menandai bahwa bubble sudah dipakai pada order tersebut.

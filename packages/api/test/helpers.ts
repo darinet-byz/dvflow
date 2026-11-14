@@ -129,6 +129,9 @@ export type FakeState = {
   waReminderTemplates: Array<Record<string, unknown>>
   waReminderSchedules: Array<Record<string, unknown>>
   waReminderLogs: Array<Record<string, unknown>>
+  /** A76: template Follow Up per produk x jenis acara + penanda bubble per order. */
+  followUpTemplates: Array<Record<string, unknown>>
+  orderFollowUpMarks: Array<Record<string, unknown>>
   /** Task yang dikembalikan tiruan `wa_reminder_claim`. */
   waClaimTasks?: Array<Record<string, unknown>>
   /** Override hasil `wa_reminder_preview` bila test perlu bentuk tertentu. */
@@ -178,6 +181,8 @@ export function createFakeState(
     waReminderTemplates: [],
     waReminderSchedules: [],
     waReminderLogs: [],
+    followUpTemplates: [],
+    orderFollowUpMarks: [],
     rpcCalls: [],
   }
 }
@@ -293,6 +298,58 @@ export function createFakeDb(state: FakeState): Db {
               ? state.orders.some(row => normalize(row['session']) === code)
               : false
         return used as T
+      }
+      if (name === 'save_follow_up_templates') {
+        // A76: simpan 4 slot; body kosong menghapus baris.
+        const productCode = String(args['p_product_code'] ?? '').trim().toUpperCase()
+        const eventCode = String(args['p_event_type_code'] ?? '').trim().toUpperCase()
+        const product = state.config.products.find(row => String(row['code'] ?? '').toUpperCase() === productCode)
+        const event = state.config.eventTypes.find(row => String(row['code'] ?? '').toUpperCase() === eventCode)
+        if (!product || !event) throw new DbError('DF011', 'fake: product/event type tidak dikenal')
+        const slots = (args['p_slots'] ?? {}) as Record<string, unknown>
+        const now = new Date().toISOString()
+        for (let slot = 1; slot <= 4; slot += 1) {
+          const body = String(slots[String(slot)] ?? '').trim()
+          state.followUpTemplates = state.followUpTemplates.filter(row => !(
+            row['product_id'] === product['id'] && row['event_type_id'] === event['id'] && Number(row['slot']) === slot
+          ))
+          if (body !== '') {
+            state.followUpTemplates.push({
+              product_id: product['id'],
+              event_type_id: event['id'],
+              slot,
+              body,
+              updated_by: args['p_actor'],
+              updated_at: now,
+            })
+          }
+        }
+        return { saved: true } as T
+      }
+      if (name === 'mark_order_follow_up') {
+        const orderId = String(args['p_order_id'] ?? '')
+        const slot = Number(args['p_slot'] ?? 0)
+        const order = state.orders.find(row => row['order_id'] === orderId)
+        if (!order) throw new DbError('DF001', 'fake: order tidak dikenal')
+        const actor = state.users.find(user => user.id === args['p_actor'])
+        const code = String(order['product_code'] ?? '').toUpperCase()
+        const allowed = actor !== undefined && (
+          ['developer', 'owner'].includes(actor.role)
+          || actor.has_all_product_access === true
+          || state.userProductAccess.some(row => row['user_id'] === actor.id && String(row['product_code'] ?? '').toUpperCase() === code)
+        )
+        if (!allowed) throw new DbError('DF006', 'fake: FORBIDDEN')
+        if (!Number.isInteger(slot) || slot < 1 || slot > 4) throw new DbError('DF011', 'fake: slot tidak valid')
+        const usedAt = new Date().toISOString()
+        state.orderFollowUpMarks = state.orderFollowUpMarks.filter(row => !(row['order_id'] === orderId && Number(row['slot']) === slot))
+        state.orderFollowUpMarks.push({
+          order_id: orderId,
+          slot,
+          used_at: usedAt,
+          used_by: actor.id,
+          used_by_name: actor.display_name,
+        })
+        return { order_id: orderId, slot, used_at: usedAt, used_by_name: actor.display_name } as T
       }
       if (name === 'delete_config_master') {
         const table = String(args['p_resource']).replace('event-types','event_types').replace('sessions','sessions_config').replace('payment-fee-rules','payment_fee_rules')
@@ -1053,6 +1110,10 @@ function rowsOf(state: FakeState, table: string): Array<Record<string, unknown>>
       return state.waReminderSchedules
     case 'wa_reminder_logs':
       return state.waReminderLogs
+    case 'follow_up_templates':
+      return state.followUpTemplates
+    case 'order_follow_up_marks':
+      return state.orderFollowUpMarks
     default:
       throw new Error(`tabel tidak dikenal di tiruan: ${table}`)
   }

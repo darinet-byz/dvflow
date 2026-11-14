@@ -199,6 +199,7 @@ describe('tabel Master Order (PRD §45)', () => {
       'Created At',
       'Paid At',
       'Updated At',
+      'Aksi',
     ])
   })
 

@@ -22,10 +22,13 @@ export function OrderDetailDrawer({
   order,
   onClose,
   onChanged,
+  onFollowUp,
 }: {
   order: OrderRow | null
   onClose: () => void
   onChanged?: () => void
+  /** A76: buka modal Follow Up Manual dari drawer. */
+  onFollowUp?: () => void
 }) {
   const toast = useToast()
   const [history, setHistory] = useState<RescheduleHistoryRow[]>([])
@@ -77,6 +80,14 @@ export function OrderDetailDrawer({
               { label: 'Email', value: formatText(order.email) },
             ]}
           />
+
+          {onFollowUp === undefined ? null : (
+            <div>
+              <Button size="sm" onClick={onFollowUp} disabled={order.phone === null || order.phone.trim() === ''}>
+                Follow Up via WA
+              </Button>
+            </div>
+          )}
 
           {isOtsOrder(order.order_id) ? (
             <p className="rounded-md border border-line bg-page p-2.5 text-[12px] text-ink-soft">

@@ -70,6 +70,8 @@ export type ParsedProductValid = {
   advertiser_code: string
   advertiser_name: string
   event_type: EventTypeName
+  /** Kode event type dari konfigurasi (SO/WO/WS). Dipakai template Follow Up. */
+  event_type_code: string
   /** Turunan dari konfigurasi; tidak disimpan sebagai kolom orders. */
   event_kind: EventKind
   /** Selalu string supaya leading zero seperti "001" tidak hilang. */
@@ -87,6 +89,7 @@ export type ParsedProductInvalid = {
   advertiser_code: null
   advertiser_name: null
   event_type: null
+  event_type_code: null
   event_kind: null
   batch: null
   session: null
@@ -104,6 +107,7 @@ const NULL_FIELDS = {
   advertiser_code: null,
   advertiser_name: null,
   event_type: null,
+  event_type_code: null,
   event_kind: null,
   batch: null,
   session: null,
@@ -302,6 +306,7 @@ function parseDetailedProduct(
     advertiser_code: advertiser.code,
     advertiser_name: advertiser.name,
     event_type: EVENT_TYPE_NAME_BY_KIND[typeMatch.eventType.kind],
+    event_type_code: typeMatch.eventType.code,
     event_kind: typeMatch.eventType.kind,
     batch: normalizeBatch(typeMatch.batchRaw),
     session: sessionMatch.session.code,
@@ -402,6 +407,7 @@ export function parseProductRaw(
     advertiser_code: combination.advertiser.code,
     advertiser_name: combination.advertiser.name,
     event_type: EVENT_TYPE_NAME_BY_KIND[combination.eventType.kind],
+    event_type_code: combination.eventType.code,
     event_kind: combination.eventType.kind,
     batch,
     session: session.code,

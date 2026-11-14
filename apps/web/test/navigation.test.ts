@@ -37,6 +37,7 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
       'Report Tax',
       'Konfigurasi Tax',
       'Konfigurasi Produk',
+      'Template Follow Up',
       'Product Name Generator',
       'Konfigurasi Zoom',
       'Konfigurasi Barcode / Tiket',

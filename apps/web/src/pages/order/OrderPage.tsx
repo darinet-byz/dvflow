@@ -26,6 +26,7 @@ import { useFilterState } from '../shared/useFilterState'
 import { CONTROL_WIDTH } from '../shared/FilterControls'
 import { StandardFilterBar } from '../shared/StandardFilterBar'
 import { OrderDetailDrawer } from './OrderDetailDrawer'
+import { FollowUpModal } from './FollowUpModal'
 import { isOtsOrder, paymentMethodLabel } from '../../lib/access-link'
 
 /**
@@ -69,6 +70,8 @@ const COLUMNS: readonly TableColumn[] = [
   { key: 'created_at', header: 'Created At', sortKey: 'created_at', minWidth: 150 },
   { key: 'paid_at', header: 'Paid At', sortKey: 'paid_at', minWidth: 150 },
   { key: 'updated_at', header: 'Updated At', sortKey: 'updated_at', minWidth: 150 },
+  // A76: Follow Up Manual. Kolom `actions` otomatis dikecualikan dari export.
+  { key: 'actions', header: 'Aksi', minWidth: 70 },
 ]
 
 /** Default PRD/01 §6: created_at DESC. Kolom tanggal lain juga turun. */
@@ -84,6 +87,7 @@ export function OrderPage() {
     direction: 'desc',
   })
   const [selected, setSelected] = useState<OrderRow | null>(null)
+  const [followUpOrder, setFollowUpOrder] = useState<OrderRow | null>(null)
 
   const appliedKey = JSON.stringify(state.applied)
   const { data, loading, error, reload } = useAsyncData(
@@ -270,6 +274,20 @@ export function OrderPage() {
                   <TableCell>{formatDateTime(row.created_at)}</TableCell>
                   <TableCell>{formatDateTime(row.paid_at)}</TableCell>
                   <TableCell>{formatDateTime(row.updated_at)}</TableCell>
+                  <TableCell>
+                    {row.phone === null || row.phone.trim() === '' ? (
+                      <span className="text-ink-muted">-</span>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        aria-label={`Follow up ${row.order_id}`}
+                        onClick={() => setFollowUpOrder(row)}
+                      >
+                        FU
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
             </DataTable>
@@ -296,11 +314,18 @@ export function OrderPage() {
       <OrderDetailDrawer
         order={selected}
         onClose={() => setSelected(null)}
+        onFollowUp={() => {
+          if (selected === null) return
+          setFollowUpOrder(selected)
+          setSelected(null)
+        }}
         onChanged={() => {
           setSelected(null)
           reload()
         }}
       />
+
+      <FollowUpModal order={followUpOrder} onClose={() => setFollowUpOrder(null)} />
     </>
   )
 }
