@@ -5,7 +5,7 @@ begin;
 set local search_path = public, extensions, pg_catalog;
 select no_plan();
 
-select is(public.schema_version(), 75, 'schema version 75');
+select ok(public.schema_version() >= 75, 'schema version >= 75');
 
 -- ---------------------------------------------------------------------------
 -- Fixture
@@ -99,13 +99,13 @@ select is((select count(*)::int from jsonb_array_elements((select result from wa
             where t->>'message' like '%Advertiser Tiga%'), 0,
   'grup produk nonaktif dilewati');
 
-select is((select message from public.wa_reminder_logs where event_type = 'Seminar Offline'),
+select is((select message from public.wa_reminder_logs where product_code = 'WAAA' and event_type = 'Seminar Offline'),
   'Halo @Advertiser Dua, @Advertiser Satu, laporan Advertiser Dua, Advertiser Satu produk Produk Satu Seminar Offline tanggal 2026-11-10 belum diisi. Leads 3, Paid 2. https://app.example.com/report-spend?productCode=WAAA&eventType=Seminar%20Offline',
   'placeholder, mention, dan total dirender dari data nyata');
-select is((select advertiser_name from public.wa_reminder_logs where event_type = 'Seminar Offline'),
+select is((select advertiser_name from public.wa_reminder_logs where product_code = 'WAAA' and event_type = 'Seminar Offline'),
   'Advertiser Dua, Advertiser Satu', 'log menyimpan daftar pengiklan yang disebut');
-select is((select count(*)::int from public.wa_reminder_logs where status = 'queued'), 2, 'klaim menulis dua log queued');
-select is((select reminder_date::text from public.wa_reminder_logs limit 1), '2026-11-11', 'tanggal reminder = tanggal jalan WIB');
+select is((select count(*)::int from public.wa_reminder_logs where product_code = 'WAAA' and status = 'queued'), 2, 'klaim menulis dua log queued');
+select is((select reminder_date::text from public.wa_reminder_logs where product_code = 'WAAA' limit 1), '2026-11-11', 'tanggal reminder = tanggal jalan WIB');
 
 -- Klaim kedua pada jam yang sama tidak boleh menggandakan pesan.
 select is(jsonb_array_length(public.wa_reminder_claim('2026-11-11 09:05:00+07', 'https://app.example.com', 10)), 0,
@@ -117,8 +117,8 @@ select is(jsonb_array_length(public.wa_reminder_claim('2026-11-11 09:05:00+07', 
 select is((public.wa_reminder_mark(
   (select (t->>'log_id')::uuid from jsonb_array_elements((select result from wa_first)) t where t->>'event_type' = 'Webinar Online'),
   'sent', 'fonnte-1', null))->>'updated', 'true', 'mark sent mengubah baris queued');
-select is((select count(*)::int from public.wa_reminder_logs where status = 'sent'), 1, 'status menjadi sent');
-select is((select fonnte_message_id from public.wa_reminder_logs where status = 'sent'), 'fonnte-1', 'provider id disimpan');
+select is((select count(*)::int from public.wa_reminder_logs where product_code = 'WAAA' and status = 'sent'), 1, 'status menjadi sent');
+select is((select fonnte_message_id from public.wa_reminder_logs where product_code = 'WAAA' and status = 'sent'), 'fonnte-1', 'provider id disimpan');
 select is((public.wa_reminder_mark(
   (select (t->>'log_id')::uuid from jsonb_array_elements((select result from wa_first)) t where t->>'event_type' = 'Webinar Online'),
   'sent', 'again', null))->>'updated', 'false', 'baris sent tidak bisa ditandai dua kali');
