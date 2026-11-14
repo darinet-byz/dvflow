@@ -30,9 +30,14 @@ import { cn } from '../../ui/cn'
 export function FollowUpModal({
   order,
   onClose,
+  initialSlot = null,
+  onMarked,
 }: {
   order: OrderRow | null
   onClose: () => void
+  /** Dipakai kartu HP: buka langsung ke preview slot yang diketuk. */
+  initialSlot?: number | null
+  onMarked?: (slot: number) => void
 }) {
   const toast = useToast()
   const [data, setData] = useState<FollowUpContext | null>(null)
@@ -50,13 +55,19 @@ export function FollowUpModal({
     let cancelled = false
     setLoading(true)
     fetchFollowUpContext(order.order_id)
-      .then((context) => { if (!cancelled) setData(context) })
+      .then((context) => {
+        if (cancelled) return
+        setData(context)
+        if (initialSlot !== null && context.templates.some((item) => item.slot === initialSlot)) {
+          setSelected(initialSlot)
+        }
+      })
       .catch((failure: unknown) => {
         if (!cancelled) setError(failure instanceof ApiError ? failure.message : 'Gagal memuat data follow up.')
       })
       .finally(() => { if (!cancelled) setLoading(false) })
     return () => { cancelled = true }
-  }, [order?.order_id])
+  }, [order?.order_id, initialSlot])
 
   const values = useMemo<FollowUpTemplateValues>(() => {
     if (order === null) return {}
@@ -100,6 +111,7 @@ export function FollowUpModal({
           used_by_name: mark.used_by_name,
         }],
       })
+      onMarked?.(mark.slot)
       toast.show('WhatsApp dibuka. Pesan masih bisa diedit sebelum dikirim.', 'success')
     } catch (failure) {
       toast.show(failure instanceof ApiError ? failure.message : 'Gagal menandai follow up.', 'danger')

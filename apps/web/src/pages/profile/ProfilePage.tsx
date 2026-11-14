@@ -10,7 +10,7 @@ import { Card, CardHeader } from '../../ui/Card'
 import { TextInput } from '../../ui/Field'
 import { useToast } from '../../ui/Toast'
 import { cn } from '../../ui/cn'
-import { Link } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 import { setPreferWebLayout, useFieldAppMode } from '../../lib/field-app'
 
 /**
@@ -95,6 +95,16 @@ export function ProfilePage() {
   }
 
   const fieldMode = useFieldAppMode()
+  const location = useLocation()
+
+  // A77: menu akun HP "Ganti Password" mengarah ke #ganti-password.
+  useEffect(() => {
+    if (location.hash !== '#ganti-password') return
+    const timer = window.setTimeout(() => {
+      document.getElementById('ganti-password')?.scrollIntoView({ block: 'start', behavior: 'smooth' })
+    }, 0)
+    return () => window.clearTimeout(timer)
+  }, [location.hash])
 
   return (
     <>
@@ -150,10 +160,11 @@ export function ProfilePage() {
           </div>
         </Card>
 
-        <Card>
-          <CardHeader
-            title="Ganti Password"
-          />
+        <div id="ganti-password" className="min-w-0 scroll-mt-24">
+          <Card>
+            <CardHeader
+              title="Ganti Password"
+            />
 
           <div className="flex flex-col gap-3">
             <TextInput
@@ -191,7 +202,8 @@ export function ProfilePage() {
               Ubah password
             </Button>
           </div>
-        </Card>
+          </Card>
+        </div>
 
         {/* A30: di Tampilan Apps Lapangan tidak ada sidebar — Logout & tampilan web ada di sini. */}
         {fieldMode ? (

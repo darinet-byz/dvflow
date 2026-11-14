@@ -30,7 +30,7 @@ Object.defineProperty(window, 'localStorage', { configurable: true, value: {
   removeItem: (k: string) => void memory.delete(k), clear: () => memory.clear(),
 } })
 
-const FIELD_PERMS = ['ui.field_app', 'operasional.presensi', 'operasional.scan_qr', 'action.ots', 'action.manual_checkin', 'account.profile']
+const FIELD_PERMS = ['ui.field_app', 'operasional.presensi', 'operasional.scan_qr', 'operasional.order', 'action.ots', 'action.manual_checkin', 'account.profile']
 const profile = (role: string, permissions: string[]) => ({ user_id: '1', username: 'u', display_name: 'Petugas', avatar_emoji: null, role, permissions })
 
 const { AppShell } = await import('../src/layout/AppShell')
@@ -63,19 +63,32 @@ describe('canUseFieldApp', () => {
 })
 
 describe('AppShell memilih kerangka', () => {
-  it('staff berizin di HP -> tab bawah Presensi · OTS · Scan · Cari · Akun, Scan di tengah', () => {
+  it('staff berizin di HP -> tab bawah Presensi · OTS · Scan · Order · Cari, Scan di tengah', () => {
     session.profile = profile('member', FIELD_PERMS)
     renderShell()
     const nav = screen.getByRole('navigation', { name: 'Navigasi lapangan' })
-    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Presensi', 'OTS', 'Scan', 'Cari', 'Akun'])
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Presensi', 'OTS', 'Scan', 'Order', 'Cari'])
     expect(screen.queryByRole('button', { name: 'Buka menu' })).toBeNull()
+    // A77: Akun pindah ke menu avatar kanan atas.
+    expect(screen.queryByRole('link', { name: 'Akun' })).toBeNull()
+    expect(screen.getByRole('button', { name: 'Menu akun' })).toBeDefined()
+  })
+
+  it('menu akun berisi Profil, Ganti Password, Tampilan Web, Logout', () => {
+    session.profile = profile('member', FIELD_PERMS)
+    renderShell()
+    fireEvent.click(screen.getByRole('button', { name: 'Menu akun' }))
+    const menu = screen.getByRole('menu', { name: 'Menu akun' })
+    expect(within(menu).getAllByRole('menuitem').map((item) => item.textContent)).toEqual([
+      'Profil', 'Ganti Password', 'Tampilan Web', 'Logout',
+    ])
   })
 
   it('tab tanpa izin tidak tampil', () => {
     session.profile = profile('member', ['ui.field_app', 'operasional.scan_qr', 'operasional.presensi'])
     renderShell()
     const nav = screen.getByRole('navigation', { name: 'Navigasi lapangan' })
-    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Presensi', 'Scan', 'Akun'])
+    expect(within(nav).getAllByRole('link').map((link) => link.textContent)).toEqual(['Presensi', 'Scan'])
   })
 
   it('halaman di luar tab (mis. Dashboard) diarahkan ke Scan', () => {

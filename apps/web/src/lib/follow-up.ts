@@ -36,6 +36,13 @@ export type FollowUpMark = {
   used_by_name: string | null
 }
 
+/** Ringkasan per halaman daftar Order: slot yang punya template + yang sudah dipakai. */
+export type FollowUpSummary = {
+  order_id: string
+  slots: number[]
+  used: number[]
+}
+
 export type FollowUpTemplateRow = {
   event_type_id: string
   slot: number
@@ -58,6 +65,11 @@ export function markFollowUpSlot(orderId: string, slot: number): Promise<FollowU
     method: 'POST',
     body: { slot },
   })
+}
+
+export function fetchFollowUpSummaries(orderIds: readonly string[]): Promise<{ orders: FollowUpSummary[] }> {
+  const ids = orderIds.map((id) => encodeURIComponent(id)).join(',')
+  return authorizedRequest<{ orders: FollowUpSummary[] }>(`/api/orders/follow-up-summary?ids=${ids}`)
 }
 
 export function fetchFollowUpTemplates(productCode: string): Promise<FollowUpTemplateMatrix> {

@@ -11,7 +11,7 @@ import {
 } from '@dvflow/shared'
 import { ApiFailure } from '../http/errors'
 import { ok, readJsonObject, readString } from '../http/response'
-import { assertOrderAccess, assertProductAccess, productAccess, requirePermission } from '../permissions'
+import { assertOrderAccess, assertProductAccess, allowsOrder, productAccess, requirePermission } from '../permissions'
 import type { RouteContext } from '../router'
 import { loadProductConfig, resolveProductAlias } from '../webhooks/handlers'
 
@@ -165,6 +165,115 @@ export async function markFollowUp(context: RouteContext): Promise<Response> {
   return ok(result)
 }
 
+/**
+ * Ringkasan untuk daftar Order di HP: slot template yang tersedia + slot yang
+ * sudah dipakai, untuk maksimal 50 order sekaligus (satu request per halaman).
+ *
+ * Isi pesan tidak dikirim di sini — preview diambil saat bubble diketuk.
+ */
+export async function getFollowUpSummaries(context: RouteContext): Promise<Response> {
+  const actor = await requirePermission(context, 'operasional.order')
+  const access = await productAccess(context, actor)
+
+  const idsParam = (context.url.searchParams.get('ids') ?? '').trim()
+  const ids = [...new Set(idsParam.split(',').map((value) => value.trim()).filter(Boolean))]
+  if (ids.length === 0) return ok({ orders: [] })
+  if (ids.length > 50) throw new ApiFailure('INVALID_ARGUMENT', 'ids>50')
+  if (ids.some((id) => !isOrderIdShaped(id))) throw new ApiFailure('INVALID_ARGUMENT', 'ids=invalid')
+
+  const orders = await context.db.selectRows<FollowUpOrderRow>(
+    'orders',
+    { order_id: `in.(${quoteIn(ids)})` },
+    'order_id,source,name,phone,product_code,product_name,product_raw,advertiser_code,advertiser_name,event_type,batch,session,city',
+  )
+  const allowed = orders.filter((order) => allowsOrder(access, order))
+  if (allowed.length === 0) return ok({ orders: [] })
+
+  const config = await loadProductConfig(context.db)
+
+  // Alias produk dibaca sekali untuk seluruh halaman, bukan per order.
+  const aliasKeys = [...new Set(
+    allowed
+      .map((order) => (order.product_raw ?? '').trim().toLowerCase())
+      .filter((value) => value !== ''),
+  )]
+  const aliases = aliasKeys.length === 0 ? [] : await context.db.selectRows<{ alias_name_normalized: string; canonical_target: string }>(
+    'product_aliases',
+    { alias_name_normalized: `in.(${quoteIn(aliasKeys)})` },
+    'alias_name_normalized,canonical_target',
+  )
+  const aliasByRaw = new Map(aliases.map((row) => [row.alias_name_normalized, row.canonical_target]))
+
+  const [productRows, eventTypeRows] = await Promise.all([
+    context.db.selectRows<{ id: string; code: string }>('products', {}, 'id,code'),
+    context.db.selectRows<{ id: string; code: string }>('event_types', {}, 'id,code'),
+  ])
+  const productIdByCode = new Map(productRows.map((row) => [normalizeCode(row.code), row.id]))
+  const eventTypeIdByCode = new Map(eventTypeRows.map((row) => [normalizeCode(row.code), row.id]))
+
+  const targets = new Map<string, { productId: string | null; eventTypeId: string | null }>()
+  for (const order of allowed) {
+    const aliasTarget = aliasByRaw.get((order.product_raw ?? '').trim().toLowerCase()) ?? null
+    const parsed = parseProductRaw(aliasTarget ?? order.product_raw, config)
+    let productCode = order.product_code
+    let eventTypeCode: string | null = null
+    if (parsed.product_parse_status === 'valid') {
+      productCode = parsed.product_code
+      eventTypeCode = parsed.event_type_code
+    } else if (order.event_type !== null) {
+      const matches = config.eventTypes.filter(
+        (eventType) => EVENT_TYPE_NAME_BY_KIND[eventType.kind as EventKind] === order.event_type,
+      )
+      if (matches.length === 1) eventTypeCode = matches[0]?.code ?? null
+    }
+    targets.set(order.order_id, {
+      productId: productCode === null ? null : productIdByCode.get(normalizeCode(productCode)) ?? null,
+      eventTypeId: eventTypeCode === null ? null : eventTypeIdByCode.get(normalizeCode(eventTypeCode)) ?? null,
+    })
+  }
+
+  const productIds = [...new Set(
+    [...targets.values()]
+      .map((target) => target.productId)
+      .filter((value): value is string => value !== null),
+  )]
+  const templateRows = productIds.length === 0 ? [] : await context.db.selectRows<{ product_id: string; event_type_id: string; slot: number }>(
+    'follow_up_templates',
+    { product_id: `in.(${quoteIn(productIds)})` },
+    'product_id,event_type_id,slot',
+  )
+  const templateSlots = new Set(templateRows.map((row) => `${row.product_id}:${row.event_type_id}:${row.slot}`))
+
+  const markRows = await context.db.selectRows<{ order_id: string; slot: number }>(
+    'order_follow_up_marks',
+    { order_id: `in.(${quoteIn(allowed.map((order) => order.order_id))})` },
+    'order_id,slot',
+  )
+  const usedByOrder = new Map<string, number[]>()
+  for (const row of markRows) {
+    const current = usedByOrder.get(row.order_id) ?? []
+    current.push(row.slot)
+    usedByOrder.set(row.order_id, current)
+  }
+
+  return ok({
+    orders: allowed.map((order) => {
+      const target = targets.get(order.order_id)
+      const slots: number[] = []
+      if (target?.productId !== null && target?.productId !== undefined && target.eventTypeId !== null) {
+        for (let slot = 1; slot <= 4; slot += 1) {
+          if (templateSlots.has(`${target.productId}:${target.eventTypeId}:${slot}`)) slots.push(slot)
+        }
+      }
+      return {
+        order_id: order.order_id,
+        slots,
+        used: [...new Set(usedByOrder.get(order.order_id) ?? [])].sort((left, right) => left - right),
+      }
+    }),
+  })
+}
+
 /** Empat slot template untuk satu produk x jenis acara + daftar jenis acara. */
 export async function getFollowUpTemplates(context: RouteContext): Promise<Response> {
   const actor = await requirePermission(context, 'operasional.order')
@@ -254,6 +363,11 @@ async function loadOrder(context: RouteContext, orderId: string): Promise<Follow
   const row = rows[0]
   if (row === undefined) throw new ApiFailure('ORDER_NOT_FOUND', `order=${orderId}`)
   return row
+}
+
+/** Nilai PostgREST `in.(...)`: setiap nilai dikutip agar aman. */
+function quoteIn(values: readonly string[]): string {
+  return values.map((value) => `"${value.replaceAll('\\', '\\\\').replaceAll('"', '\\"')}"`).join(',')
 }
 
 function readOrderId(context: RouteContext): string {

@@ -154,6 +154,31 @@ describe('A76: penanda bubble', () => {
   })
 })
 
+describe('A76: ringkasan untuk kartu HP', () => {
+  it('mengembalikan slot template dan slot terpakai', async () => {
+    const ctx = await setup()
+    const response = await call(ctx, ctx.admin, 'GET', '/api/orders/follow-up-summary?ids=KM-1')
+    expect(response.status).toBe(200)
+
+    const body = await readBody<{ ok: true; data: { orders: Array<{ order_id: string; slots: number[]; used: number[] }> } }>(response)
+    expect(body.data.orders).toEqual([{ order_id: 'KM-1', slots: [1, 2], used: [1] }])
+  })
+
+  it('order di luar cakupan produk tidak ikut', async () => {
+    const ctx = await setup()
+    const response = await call(ctx, ctx.pimpro, 'GET', '/api/orders/follow-up-summary?ids=KM-1')
+    const body = await readBody<{ ok: true; data: { orders: unknown[] } }>(response)
+    expect(body.data.orders).toEqual([])
+  })
+
+  it('id tidak valid atau lebih dari 50 ditolak', async () => {
+    const ctx = await setup()
+    expect((await call(ctx, ctx.admin, 'GET', '/api/orders/follow-up-summary?ids=bad!id')).status).toBe(400)
+    const many = Array.from({ length: 51 }, (_, index) => `KM-${index + 1}`).join(',')
+    expect((await call(ctx, ctx.admin, 'GET', `/api/orders/follow-up-summary?ids=${many}`)).status).toBe(400)
+  })
+})
+
 describe('A76: template per produk x jenis acara', () => {
   it('membaca template beserta daftar jenis acara', async () => {
     const ctx = await setup()

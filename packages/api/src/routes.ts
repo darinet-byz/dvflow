@@ -17,7 +17,7 @@ import { getProfile, updateProfile } from './profile/handlers'
 import { scannerManualCheckin, scannerSearch } from './scanner/handlers'
 import { deleteOts, listOts, listOtsEvents, otsDuplicates, otsFinanceReport, saveOts } from './ots/handlers'
 import { cancelRefund, refundOrder, rescheduleOrder } from './orders/handlers'
-import { getFollowUpContext, getFollowUpTemplates, markFollowUp, saveFollowUpTemplates } from './follow-up/handlers'
+import { getFollowUpContext, getFollowUpSummaries, getFollowUpTemplates, markFollowUp, saveFollowUpTemplates } from './follow-up/handlers'
 import { createAdSpend, deleteAdSpend, updateAdSpend } from './ad-spend/handlers'
 import {
   archiveAdvertiserNote,
@@ -139,6 +139,7 @@ export const ROUTES: Route[] = [
   { method: 'POST', path: '/api/orders/:orderId/refund', handler: refundOrder, auth: 'access' },
   // A76: Follow Up Manual via WhatsApp.
   { method: 'GET', path: '/api/orders/:orderId/follow-up', handler: getFollowUpContext, auth: 'access' },
+  { method: 'GET', path: '/api/orders/follow-up-summary', handler: getFollowUpSummaries, auth: 'access' },
   { method: 'POST', path: '/api/orders/:orderId/follow-up', handler: markFollowUp, auth: 'access' },
   { method: 'GET', path: '/api/follow-up-templates', handler: getFollowUpTemplates, auth: 'access' },
   { method: 'PUT', path: '/api/follow-up-templates', handler: saveFollowUpTemplates, auth: 'access' },

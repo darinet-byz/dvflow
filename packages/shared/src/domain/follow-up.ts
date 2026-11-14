@@ -120,5 +120,7 @@ export function toWhatsAppNumber(value: string | null | undefined): string | nul
 
 /** URL chat baru WhatsApp; pesan belum terkirim dan masih bisa diedit di WhatsApp. */
 export function whatsAppSendUrl(phone: string, message: string): string {
-  return `${WHATSAPP_SEND_BASE}?phone=${encodeURIComponent(phone)}&text=${encodeURIComponent(message)}`
+  const base = `${WHATSAPP_SEND_BASE}?phone=${encodeURIComponent(phone)}`
+  // Slot tanpa template tetap membuka chat kosong (tanpa parameter text).
+  return message.trim() === '' ? base : `${base}&text=${encodeURIComponent(message)}`
 }

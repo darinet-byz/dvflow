@@ -1,10 +1,15 @@
 import { collectPages } from '../../lib/export'
-import { useState } from 'react'
-import { EMPTY_ORDER_FILTERS, type OrderFilters } from '../../lib/filters'
+import { useEffect, useState } from 'react'
+import { toWhatsAppNumber, whatsAppSendUrl } from '@dvflow/shared'
+import { EMPTY_ORDER_FILTERS, activeCommonFilters, type OrderFilters } from '../../lib/filters'
 import { formatCount, formatDateTime, formatMoney, formatText } from '../../lib/format'
 import { fetchOrdersPage, type OrderRow, type OrderSortKey, type SortDirection } from '../../lib/queries'
+import { fetchFollowUpContext, fetchFollowUpSummaries, markFollowUpSlot } from '../../lib/follow-up'
+import { ApiError } from '../../lib/api'
 import { useAsyncData } from '../../lib/useAsyncData'
 import { useConfigLists } from '../../lib/useConfigLists'
+import { useFieldAppMode, useIsPhone } from '../../lib/field-app'
+import { useToast } from '../../ui/Toast'
 import {
   canExportMetaForStatus,
   META_CONVERSION_COLUMNS,
@@ -27,6 +32,7 @@ import { CONTROL_WIDTH } from '../shared/FilterControls'
 import { StandardFilterBar } from '../shared/StandardFilterBar'
 import { OrderDetailDrawer } from './OrderDetailDrawer'
 import { FollowUpModal } from './FollowUpModal'
+import { OrderMobileList } from './OrderMobileList'
 import { isOtsOrder, paymentMethodLabel } from '../../lib/access-link'
 
 /**
@@ -88,6 +94,13 @@ export function OrderPage() {
   })
   const [selected, setSelected] = useState<OrderRow | null>(null)
   const [followUpOrder, setFollowUpOrder] = useState<OrderRow | null>(null)
+  // A77: kartu Order di HP — bubble F1-F4 langsung terlihat di tiap baris.
+  const compact = useFieldAppMode() || useIsPhone()
+  const toast = useToast()
+  const [showFilters, setShowFilters] = useState(false)
+  const [followUpSlot, setFollowUpSlot] = useState<number | null>(null)
+  const [summaries, setSummaries] = useState<Map<string, { slots: number[]; used: number[] }>>(new Map())
+  const [busyOrderId, setBusyOrderId] = useState<string | null>(null)
 
   const appliedKey = JSON.stringify(state.applied)
   const { data, loading, error, reload } = useAsyncData(
@@ -100,6 +113,92 @@ export function OrderPage() {
       }),
     [appliedKey, sort.key, sort.direction, state.page, state.pageSize],
   )
+
+  // Satu request ringkas per halaman: slot mana yang punya template & sudah dipakai.
+  useEffect(() => {
+    if (!compact) return
+    const orders = data?.rows ?? []
+    if (orders.length === 0) {
+      setSummaries(new Map())
+      return
+    }
+    let cancelled = false
+    fetchFollowUpSummaries(orders.map((order) => order.order_id))
+      .then((result) => {
+        if (cancelled) return
+        setSummaries(new Map(result.orders.map((row) => [row.order_id, { slots: row.slots, used: row.used }])))
+      })
+      .catch(() => {
+        // Warna bubble boleh belum akurat; klik bubble tetap memakai fallback per order.
+        if (!cancelled) setSummaries(new Map())
+      })
+    return () => { cancelled = true }
+  }, [compact, data])
+
+  function markUsed(orderId: string, slot: number): void {
+    setSummaries((previous) => {
+      const next = new Map(previous)
+      const current = next.get(orderId) ?? { slots: [], used: [] }
+      next.set(orderId, {
+        ...current,
+        used: [...new Set([...current.used, slot])].sort((left, right) => left - right),
+      })
+      return next
+    })
+  }
+
+  async function openEmptyChat(order: OrderRow, slot: number, phone: string): Promise<void> {
+    const opened = window.open(whatsAppSendUrl(phone, ''), '_blank', 'noopener,noreferrer')
+    if (opened === null) {
+      toast.show('Popup diblokir browser. Izinkan popup lalu coba lagi.', 'danger')
+      return
+    }
+    setBusyOrderId(order.order_id)
+    try {
+      await markFollowUpSlot(order.order_id, slot)
+      markUsed(order.order_id, slot)
+      toast.show(`F${slot} dibuka tanpa template. Pesan bisa ditulis langsung di WhatsApp.`, 'success')
+    } catch (failure) {
+      toast.show(failure instanceof ApiError ? failure.message : 'Gagal menandai follow up.', 'danger')
+    } finally {
+      setBusyOrderId(null)
+    }
+  }
+
+  async function handleBubble(order: OrderRow, slot: number): Promise<void> {
+    const phone = toWhatsAppNumber(order.phone)
+    if (phone === null) {
+      toast.show('Nomor WA tidak valid untuk WhatsApp.', 'danger')
+      return
+    }
+
+    const summary = summaries.get(order.order_id)
+    if (summary !== undefined) {
+      if (summary.slots.includes(slot)) {
+        setFollowUpSlot(slot)
+        setFollowUpOrder(order)
+        return
+      }
+      await openEmptyChat(order, slot, phone)
+      return
+    }
+
+    // Ringkasan belum ada (gagal dimuat): tentukan dari konteks order ini saja.
+    setBusyOrderId(order.order_id)
+    try {
+      const context = await fetchFollowUpContext(order.order_id)
+      if (context.templates.some((item) => item.slot === slot)) {
+        setFollowUpSlot(slot)
+        setFollowUpOrder(order)
+      } else {
+        await openEmptyChat(order, slot, phone)
+      }
+    } catch (failure) {
+      toast.show(failure instanceof ApiError ? failure.message : 'Gagal memuat template follow up.', 'danger')
+    } finally {
+      setBusyOrderId(null)
+    }
+  }
 
   function toggleSort(key: string): void {
     const typed = key as OrderSortKey
@@ -140,6 +239,136 @@ export function OrderPage() {
       return mapped.rows
     },
     serialize: toMetaConversionCsv,
+  }
+
+  const activeFilterCount =
+    activeCommonFilters(state.filters).length +
+    (state.filters.appStatus === '' ? 0 : 1) +
+    (state.filters.paymentMethod.trim() === '' ? 0 : 1)
+
+  // A77: layar HP — kartu ringkas + bubble F1-F4 langsung di tiap Order.
+  if (compact) {
+    return (
+      <>
+        <div className="flex items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <SearchInput
+              id="order-search-field"
+              value={state.filters.search}
+              onChange={(value) => state.update('search', value)}
+            />
+          </div>
+          <Button onClick={() => setShowFilters((open) => !open)} aria-expanded={showFilters}>
+            {showFilters ? 'Tutup filter' : `Filter${activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}`}
+          </Button>
+        </div>
+
+        {showFilters ? (
+          <div className="mt-2">
+            <StandardFilterBar
+              filters={state.filters}
+              lists={lists}
+              update={state.update}
+              removeFilter={state.removeFilter}
+              clearAll={state.clearAll}
+              search={
+                <SearchInput
+                  id="order-search"
+                  value={state.filters.search}
+                  onChange={(value) => state.update('search', value)}
+                />
+              }
+              extra={
+                <>
+                  <Select
+                    id="filter-status"
+                    ariaLabel="Filter status"
+                    className={CONTROL_WIDTH}
+                    value={state.filters.appStatus}
+                    placeholder="Semua status"
+                    options={STATUS_OPTIONS}
+                    onChange={(value) => state.update('appStatus', value)}
+                  />
+                  <TextInput
+                    id="filter-payment"
+                    ariaLabel="Filter payment method"
+                    className={CONTROL_WIDTH}
+                    value={state.filters.paymentMethod}
+                    placeholder="Payment method (mis. bca_va)"
+                    onChange={(value) => state.update('paymentMethod', value)}
+                  />
+                </>
+              }
+            />
+          </div>
+        ) : null}
+
+        {error === null ? null : (
+          <div className="mt-3">
+            <ErrorState message={error} action={<Button onClick={reload}>Coba lagi</Button>} />
+          </div>
+        )}
+
+        {loading && data === null ? (
+          <Card className="mt-3">
+            <SkeletonRows rows={5} />
+          </Card>
+        ) : null}
+
+        {data === null ? null : (
+          <div className="mt-3 flex flex-col gap-3">
+            {data.rows.length === 0 ? (
+              <p className="rounded-md border border-dashed border-line bg-soft px-3 py-6 text-center text-[13px] text-ink-soft">
+                Tidak ada order yang cocok dengan filter aktif.
+              </p>
+            ) : (
+              <OrderMobileList
+                rows={data.rows}
+                startIndex={(state.page - 1) * state.pageSize + 1}
+                summaries={summaries}
+                busyOrderId={busyOrderId}
+                onOpen={setSelected}
+                onBubble={(order, slot) => void handleBubble(order, slot)}
+              />
+            )}
+            <Pagination
+              page={state.page}
+              pageSize={state.pageSize}
+              total={data.total}
+              onPageChange={state.setPage}
+              onPageSizeChange={state.setPageSize}
+            />
+          </div>
+        )}
+
+        <OrderDetailDrawer
+          order={selected}
+          onClose={() => setSelected(null)}
+          onFollowUp={() => {
+            if (selected === null) return
+            setFollowUpSlot(null)
+            setFollowUpOrder(selected)
+            setSelected(null)
+          }}
+          onChanged={() => {
+            setSelected(null)
+            reload()
+          }}
+        />
+
+        <FollowUpModal
+          order={followUpOrder}
+          initialSlot={followUpSlot}
+          onMarked={(slot) => {
+            if (followUpOrder !== null) markUsed(followUpOrder.order_id, slot)
+          }}
+          onClose={() => {
+            setFollowUpOrder(null)
+            setFollowUpSlot(null)
+          }}
+        />
+      </>
+    )
   }
 
   return (
@@ -282,7 +511,10 @@ export function OrderPage() {
                         size="sm"
                         variant="secondary"
                         aria-label={`Follow up ${row.order_id}`}
-                        onClick={() => setFollowUpOrder(row)}
+                        onClick={() => {
+                          setFollowUpSlot(null)
+                          setFollowUpOrder(row)
+                        }}
                       >
                         FU
                       </Button>
@@ -316,6 +548,7 @@ export function OrderPage() {
         onClose={() => setSelected(null)}
         onFollowUp={() => {
           if (selected === null) return
+          setFollowUpSlot(null)
           setFollowUpOrder(selected)
           setSelected(null)
         }}
@@ -325,7 +558,17 @@ export function OrderPage() {
         }}
       />
 
-      <FollowUpModal order={followUpOrder} onClose={() => setFollowUpOrder(null)} />
+      <FollowUpModal
+        order={followUpOrder}
+        initialSlot={followUpSlot}
+        onMarked={(slot) => {
+          if (followUpOrder !== null) markUsed(followUpOrder.order_id, slot)
+        }}
+        onClose={() => {
+          setFollowUpOrder(null)
+          setFollowUpSlot(null)
+        }}
+      />
     </>
   )
 }

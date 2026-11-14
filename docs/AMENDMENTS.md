@@ -1904,3 +1904,33 @@ bisa diedit di WhatsApp sebelum terkirim.
 - Nomor WA dinormalisasi ke `62…`; nomor yang tidak wajar membuat tombol Kirim nonaktif.
 - Karena pesan dibuka di WhatsApp operator, aplikasi tidak bisa menjamin pesan benar-benar terkirim; warna hijau hanya
   menandai bahwa bubble sudah dipakai pada order tersebut.
+
+## A77 - Koreksi tampilan HP: Order + Follow Up masuk Apps Lapangan (14 November 2026)
+
+Permintaan pengguna: tombol Follow Up di kolom paling kanan sulit dijangkau di HP, dan beberapa akun lapangan tidak bisa
+membuka Order sama sekali (harus pindah ke "tampilan web" dulu).
+
+### Keputusan
+
+- Tab bawah Apps Lapangan menjadi **Presensi · OTS · Scan · Order · Cari**. `Akun` dihapus dari tab dan dipindah ke menu
+  avatar kanan atas: **Profil · Ganti Password · Tampilan Web · Logout**.
+- Halaman **Profil** dan **Template Follow Up** tetap dapat dibuka dari mode lapangan (bukan tab), sehingga link
+  "Atur template" pada modal Follow Up tidak terlempar ke Scan.
+- Order di HP memakai **kartu**, bukan tabel lebar. Kartu dipakai di semua HP (mode lapangan maupun tampilan web di
+  layar < 768px); desktop tetap tabel penuh. Isi kartu:
+  - baris 1: **No · Order ID · Status**
+  - baris 2: **Nama** (ellipsis) · **No HP**
+  - baris 3: **kode produk** (bukan nama) · Sesi · Kota
+  - baris 4: **F1-F4** selalu tampil, hijau + centang bila sudah dipakai. Slot tanpa template tetap bisa diklik dan
+    langsung membuka WhatsApp kosong (tanpa parameter `text`).
+- Nama/teks panjang memakai ellipsis CSS; nama lengkap tetap ada di `title` dan drawer detail (data tidak dipotong).
+- Untuk mewarnai bubble tanpa 50 request, ditambah endpoint ringkas
+  `GET /api/orders/follow-up-summary?ids=…` (maks 50 order) yang mengembalikan `slots` (punya template) dan `used`.
+  Isi pesan tetap diambil saat bubble diketuk dan di-cache.
+
+### Implementasi
+
+- Web: `FieldAppShell` (tab + menu akun), `OrderPage` (varian kartu untuk HP), `OrderMobileList`,
+  `FollowUpModal` (buka langsung ke slot yang diketuk + `onMarked`), `ProfilePage` (anchor `#ganti-password`).
+- API: `getFollowUpSummaries` + rute `/api/orders/follow-up-summary`; tanpa perubahan database/migrasi.
+- Tes: `apps/web/test/field-app.test.tsx`, `order-mobile.test.tsx`; unit API untuk endpoint ringkas.

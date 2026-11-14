@@ -62,4 +62,9 @@ describe('Follow Up Manual: template (A76)', () => {
     expect(url).toContain(encodeURIComponent('Halo Budi & rekan'))
     expect(url.includes('wa.me')).toBe(false)
   })
+
+  it('slot tanpa template membuka chat kosong', () => {
+    expect(whatsAppSendUrl('6281234567890', '')).toBe('https://api.whatsapp.com/send?phone=6281234567890')
+    expect(whatsAppSendUrl('6281234567890', '   ')).toBe('https://api.whatsapp.com/send?phone=6281234567890')
+  })
 })
