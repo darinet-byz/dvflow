@@ -32,9 +32,27 @@ function emptyForm(eventDate: string): EventForm {
 }
 
 function categoryTone(category: string): BadgeTone {
-  if (category === 'Seminar') return 'seminar'
+  if (category === 'Seminar') return 'danger'
   if (category === 'Webinar') return 'webinar'
-  return 'primary'
+  return 'warning'
+}
+
+function categoryAccent(category: string): string {
+  if (category === 'Seminar') return 'border-l-danger'
+  if (category === 'Webinar') return 'border-l-webinar'
+  return 'border-l-warning'
+}
+
+function categoryDot(category: string): string {
+  if (category === 'Seminar') return 'bg-danger'
+  if (category === 'Webinar') return 'bg-webinar'
+  return 'bg-warning'
+}
+
+function categoryChip(category: string): string {
+  if (category === 'Seminar') return 'bg-danger-soft text-danger'
+  if (category === 'Webinar') return 'bg-webinar-soft text-webinar'
+  return 'bg-warning-soft text-[#c78a21]'
 }
 
 function displayDate(value: string): string {
@@ -64,6 +82,7 @@ export function EventCalendarPage() {
   const [saving, setSaving] = useState(false)
   const [selected, setSelected] = useState<CalendarEvent | null>(null)
   const [deleting, setDeleting] = useState<CalendarEvent | null>(null)
+  const [dayDetail, setDayDetail] = useState<string | null>(null)
 
   const from = toIsoDate(new Date(month.getFullYear(), month.getMonth(), 1))
   const to = toIsoDate(new Date(month.getFullYear(), month.getMonth() + 1, 0))
@@ -84,6 +103,8 @@ export function EventCalendarPage() {
     }
     return map
   }, [events])
+
+  const dayDetailEvents = dayDetail === null ? [] : (eventsByDate.get(dayDetail) ?? [])
 
   const productOptions = products.map((product) => ({ value: product.code, label: `${product.code} — ${product.name}` }))
   const today = toIsoDate(new Date())
@@ -173,9 +194,18 @@ export function EventCalendarPage() {
           <p className="text-[12px] text-ink-muted">{events.length} event bulan ini</p>
         </div>
 
+        <div className="mb-2 flex flex-wrap items-center gap-3 text-[11px] text-ink-soft">
+          {EVENT_CATEGORIES.map((category) => (
+            <span key={category} className="inline-flex items-center gap-1">
+              <span aria-hidden="true" className={cn('h-2 w-2 rounded-full', categoryDot(category))} />
+              {category}
+            </span>
+          ))}
+        </div>
+
         {error !== null ? <ErrorState message={error} action={<Button onClick={reload}>Coba lagi</Button>} /> : loading && data === null ? <SkeletonRows rows={6} /> : (
           <div className="overflow-x-auto">
-            <div className="min-w-[680px]">
+            <div className="min-w-[840px]">
               <div className="grid grid-cols-7 gap-1 pb-1">
                 {WEEKDAYS.map((day) => (
                   <p key={day} className="px-1 text-center text-[11px] font-semibold uppercase tracking-wide text-ink-muted">{day}</p>
@@ -189,27 +219,42 @@ export function EventCalendarPage() {
                   return (
                     <div
                       key={cell}
-                      onClick={canManage ? () => startCreate(cell) : undefined}
-                      title={canManage ? 'Klik untuk menambah event' : undefined}
+                      onClick={dayEvents.length > 0 ? () => setDayDetail(cell) : canManage ? () => startCreate(cell) : undefined}
+                      title={dayEvents.length > 0 ? 'Lihat semua event hari ini' : canManage ? 'Klik untuk menambah event' : undefined}
                       className={cn(
                         'min-h-[92px] rounded-md border p-1.5 transition-colors',
                         isToday ? 'border-primary bg-primary-soft/40' : 'border-line bg-card',
-                        canManage ? 'cursor-pointer hover:border-primary/40' : '',
+                        (canManage || dayEvents.length > 0) ? 'cursor-pointer hover:border-primary/40' : '',
                       )}
                     >
                       <p className={cn('mb-1 text-[11px] font-semibold', isToday ? 'text-primary' : 'text-ink-soft')}>{Number(cell.slice(8))}</p>
                       <div className="flex flex-col gap-1">
-                        {dayEvents.map((event) => (
+                        {dayEvents.slice(0, 3).map((event) => (
                           <button
                             key={event.id}
                             type="button"
                             onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelected(event) }}
-                            className="rounded-sm bg-soft px-1 py-0.5 text-left text-[10px] leading-tight text-ink hover:bg-primary-soft"
+                            className={cn(
+                              'rounded-sm border-l-[3px] bg-soft px-1 py-0.5 text-left text-[10px] leading-tight text-ink hover:bg-primary-soft',
+                              categoryAccent(event.category),
+                            )}
                           >
-                            <span className="block font-semibold">{shortTime(event.start_time)} · {event.category}</span>
-                            <span className="block truncate text-ink-soft">{event.product_name}</span>
+                            <span className="flex min-w-0 items-center gap-1">
+                              <span className="shrink-0 font-bold">{event.product_code}</span>
+                              <span className={cn('shrink-0 rounded-full px-1 py-0 text-[9px] font-semibold', categoryChip(event.category))}>{event.category}</span>
+                            </span>
+                            <span className="mt-0.5 block truncate text-ink-soft">{event.location}</span>
                           </button>
                         ))}
+                        {dayEvents.length > 3 ? (
+                          <button
+                            type="button"
+                            onClick={(clickEvent) => { clickEvent.stopPropagation(); setDayDetail(cell) }}
+                            className="rounded-sm px-1 py-0.5 text-left text-[10px] font-semibold text-primary hover:bg-primary-soft"
+                          >
+                            +{dayEvents.length - 3} lainnya
+                          </button>
+                        ) : null}
                       </div>
                     </div>
                   )
@@ -233,7 +278,7 @@ export function EventCalendarPage() {
                     <span className="w-[92px] shrink-0 text-[12px] font-semibold text-ink">{displayDate(event.event_date)}</span>
                     <span className="w-[52px] shrink-0 text-[12px] text-ink-soft">{shortTime(event.start_time)}</span>
                     <Badge tone={categoryTone(event.category)}>{event.category}</Badge>
-                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">{event.product_name}</span>
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">{event.product_code} — {event.product_name}</span>
                     <span className="w-full truncate text-[12px] text-ink-soft sm:w-auto">{event.location}</span>
                   </button>
                 </li>
@@ -242,6 +287,46 @@ export function EventCalendarPage() {
           )}
         </Card>
       </div>
+
+      <Modal
+        open={dayDetail !== null}
+        title={dayDetail === null ? 'Event' : `Event ${displayDate(dayDetail)}`}
+        onClose={() => setDayDetail(null)}
+        footer={
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setDayDetail(null)}>Tutup</Button>
+            {canManage && dayDetail !== null ? (
+              <Button
+                variant="primary"
+                onClick={() => { const date = dayDetail; setDayDetail(null); startCreate(date) }}
+              >
+                + Tambah Event
+              </Button>
+            ) : null}
+          </div>
+        }
+      >
+        {dayDetailEvents.length === 0 ? (
+          <p className="text-ink-soft">Tidak ada event pada tanggal ini.</p>
+        ) : (
+          <ul className="flex flex-col divide-y divide-line">
+            {dayDetailEvents.map((event) => (
+              <li key={event.id}>
+                <button
+                  type="button"
+                  onClick={() => { setDayDetail(null); setSelected(event) }}
+                  className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 py-2 text-left hover:bg-soft"
+                >
+                  <span className="w-[46px] shrink-0 text-[12px] font-semibold text-ink">{shortTime(event.start_time)}</span>
+                  <Badge tone={categoryTone(event.category)}>{event.category}</Badge>
+                  <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">{event.product_code} — {event.product_name}</span>
+                  <span className="w-full truncate text-[12px] text-ink-soft sm:w-auto">{event.location}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Modal>
 
       <Modal
         open={formOpen}
@@ -279,7 +364,7 @@ export function EventCalendarPage() {
       >
         {selected === null ? null : (
           <dl className="grid grid-cols-1 gap-2 text-[13px] sm:grid-cols-[110px_1fr]">
-            <dt className="text-ink-soft">Produk</dt><dd className="font-medium text-ink">{selected.product_name}</dd>
+            <dt className="text-ink-soft">Produk</dt><dd className="font-medium text-ink">{selected.product_code} — {selected.product_name}</dd>
             <dt className="text-ink-soft">Jenis Acara</dt><dd><Badge tone={categoryTone(selected.category)}>{selected.category}</Badge></dd>
             <dt className="text-ink-soft">Tanggal</dt><dd className="font-medium text-ink">{displayDate(selected.event_date)}</dd>
             <dt className="text-ink-soft">Jam Mulai</dt><dd className="font-medium text-ink">{shortTime(selected.start_time)} WIB</dd>

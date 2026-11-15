@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { ToastProvider } from '../src/ui/Toast'
 
@@ -72,12 +72,13 @@ function renderCalendar() {
 describe('A79: Kalender Event', () => {
   it('menampilkan agenda dan detail event', async () => {
     renderCalendar()
-    expect(await screen.findByText('Zoom Meeting')).toBeTruthy()
+    const matches = await screen.findAllByText('Zoom Meeting')
+    expect(matches.length).toBeGreaterThan(0)
 
-    fireEvent.click(screen.getByText('Zoom Meeting'))
+    fireEvent.click(matches[0])
     expect(await screen.findByText('Detail Event')).toBeTruthy()
     expect(screen.getByText('10:00 WIB')).toBeTruthy()
-    expect(screen.getAllByText('Bisnis Masteri').length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Bisnis Masteri/).length).toBeGreaterThan(0)
   })
 
   it('manajer menambah event dari form', async () => {
@@ -106,12 +107,35 @@ describe('A79: Kalender Event', () => {
   it('tanpa izin kelola, tombol tambah/edit/hapus tidak muncul', async () => {
     sessionState.permissions = ['operasional.event_calendar']
     renderCalendar()
-    expect(await screen.findByText('Zoom Meeting')).toBeTruthy()
+    const matches = await screen.findAllByText('Zoom Meeting')
     expect(screen.queryByRole('button', { name: '+ Tambah Event' })).toBeNull()
 
-    fireEvent.click(screen.getByText('Zoom Meeting'))
+    fireEvent.click(matches[0])
     expect(await screen.findByText('Detail Event')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Hapus' })).toBeNull()
+  })
+
+  it('maksimal 3 chip per tanggal; +N lainnya membuka daftar lengkap hari itu', async () => {
+    const now = new Date()
+    const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-20`
+    const many = [
+      { ...event, id: 'e1', event_date: day, start_time: '08:00:00', category: 'Seminar', location: 'Hotel Solo' },
+      { ...event, id: 'e2', event_date: day, start_time: '09:00:00', category: 'Webinar', location: 'Zoom A' },
+      { ...event, id: 'e3', event_date: day, start_time: '10:00:00', category: 'Workshop', location: 'Zoom B' },
+      { ...event, id: 'e4', event_date: day, start_time: '11:00:00', category: 'Webinar', location: 'Zoom C' },
+    ]
+    requestMock.mockImplementationOnce(async () => ({
+      events: many,
+      products: [{ code: 'BM', name: 'Bisnis Masteri' }],
+    }))
+
+    renderCalendar()
+    fireEvent.click(await screen.findByText('+1 lainnya'))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(within(dialog).getByText('Hotel Solo')).toBeTruthy()
+    expect(within(dialog).getByText('Zoom C')).toBeTruthy()
+    expect(within(dialog).getByRole('button', { name: '+ Tambah Event' })).toBeTruthy()
   })
 })

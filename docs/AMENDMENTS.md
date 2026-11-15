@@ -1995,3 +1995,14 @@ Konfigurasi Role.
   `lib/chat.ts`, `lib/event-calendar.ts`, navigasi + rute `/kalender` + peta izin.
 - Tes: `packages/api/test/chat.test.ts`, `event-calendar.test.ts`, `apps/web/test/chat.test.tsx`,
   `event-calendar.test.tsx`, pgTAP `42_chat.sql` + `43_event_calendar.sql`.
+
+### Revisi A79 — tampilan grid Kalender Event (16 November 2026)
+
+- Chip grid bulan hanya memuat **kode produk + jenis acara berwarna + lokasi/platform**; jam tetap tampil di agenda
+  dan modal detail.
+- Warna jenis: **Seminar merah soft, Webinar biru, Workshop amber**, dengan legend di atas grid.
+- Maksimal **3 event per tanggal**; sisanya menjadi **"+N lainnya"**.
+- Klik tanggal membuka modal daftar lengkap hari itu (jam, kode + nama produk, jenis, lokasi) + tombol
+  **Tambah Event** untuk pemegang izin.
+- Lebar minimum grid dinaikkan agar isi chip muat; agenda tetap daftar lengkap. Tanpa migrasi/API baru.
+- Tes: `apps/web/test/event-calendar.test.tsx`.
