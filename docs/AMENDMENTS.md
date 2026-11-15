@@ -1961,3 +1961,37 @@ Permintaan pengguna: tampilan HP Presensi sudah bagus, jadi Order disamakan; Fol
   `OrderPage`, `PresensiPage` (kartu di dua tab), `FollowUpModal` menerima target minimal (Order/Presensi).
 - API: `getFollowUpSummaries` menambah `quantity`.
 - Tes: `apps/web/test/order-mobile.test.tsx`, `field-app.test.tsx`, `format.test.ts`, unit API ringkasan.
+
+## A79 - Notes menjadi Chat Internal + Kalender Event (16 November 2026)
+
+Permintaan pengguna: Notes tidak perlu tanggal/detail acara — murni chat antar user; dan perlu kalender event
+(Nama Produk, Seminar/Webinar/Workshop, tanggal, jam, lokasi/platform) dengan izin yang bisa diatur di checklist
+Konfigurasi Role.
+
+### Keputusan
+
+- **Advertiser Notes dihapus total**: tabel, 3 RPC, 2 izin, ringkasan order/spend, dan filter status/produk/batch.
+  Data lama tidak dimigrasikan (keputusan pengguna: hapus total).
+- **Chat Internal**: panel kanan dengan ikon chat saja (tanpa label teks), badge belum dibaca, daftar percakapan
+  1:1, bubble dua arah, dan form pesan baru.
+- **Penerima**: pilih **role** dulu, lalu **"Semua [Role]"** atau satu nama. Role apa pun boleh mengirim ke role
+  mana pun. Kiriman "Semua" di-fan-out menjadi satu percakapan per penerima; tidak ada thread grup dan tidak ada
+  nama "Semua Advertiser" di daftar penerima.
+- **Kalender Event**: menu **Kalender Event** di grup Acara; tampilan bulan + agenda; field produk (pilih dari
+  daftar), jenis acara (Seminar/Webinar/Workshop), tanggal, jam mulai, lokasi/platform. Tidak ada kolom nama event
+  bebas — nama tampilan diturunkan dari produk + jenis.
+- **Izin baru di checklist**: `operasional.chat` + `action.send_chat` (default semua role),
+  `operasional.event_calendar` (default semua role) + `action.manage_event_calendar` (default Manajer + Admin).
+
+### Implementasi
+
+- Migrasi `20261116120000_chat_dan_kalender_event.sql` (`schema_version` 79): drop notes lama, tabel
+  `chat_threads`/`chat_messages` + 4 RPC chat, tabel `event_calendar`, 4 izin baru, `can_read_configuration`
+  dibersihkan dari izin notes.
+- API: `packages/api/src/chat/handlers.ts`, `packages/api/src/event-calendar/handlers.ts`, route baru, error
+  `DF024 -> RESOURCE_NOT_FOUND`.
+- Shared: konstanta izin chat/kalender; key notes lama dihapus.
+- Web: `pages/chat/ChatWorkspace.tsx` (menggantikan `AdvertiserNotesWorkspace`), `pages/calendar/EventCalendarPage.tsx`,
+  `lib/chat.ts`, `lib/event-calendar.ts`, navigasi + rute `/kalender` + peta izin.
+- Tes: `packages/api/test/chat.test.ts`, `event-calendar.test.ts`, `apps/web/test/chat.test.tsx`,
+  `event-calendar.test.tsx`, pgTAP `42_chat.sql` + `43_event_calendar.sql`.

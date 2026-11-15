@@ -3,7 +3,7 @@ import { Outlet } from 'react-router-dom'
 import { Sidebar } from './Sidebar'
 import { FieldAppShell } from './FieldAppShell'
 import { GlobalSearchButton, GlobalSearchDialog } from './GlobalSearch'
-import { AdvertiserNotesWorkspace } from '../pages/notes/AdvertiserNotesWorkspace'
+import { ChatWorkspace } from '../pages/chat/ChatWorkspace'
 import { useSession } from '../lib/useSession'
 import { canUseFieldApp, setPreferWebLayout, useIsPhone, usePreferWebLayout } from '../lib/field-app'
 
@@ -73,7 +73,7 @@ export function AppShell() {
           </div>
         </div>
 
-        <AdvertiserNotesWorkspace />
+        <ChatWorkspace />
       </div>
     </div>
   )

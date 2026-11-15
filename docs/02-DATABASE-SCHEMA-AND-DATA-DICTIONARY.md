@@ -394,27 +394,39 @@ Recommended implementation:
 
 Gunakan orders.source yang sudah ada: orderonline/ots. Tidak ada backfill atau tabel OTS baru. Filter p_source diterapkan sebelum agregasi/pagination. Paid transaction = count Order ID Paid; tiket terjual = sum quantity Paid; hadir dan rasio mengikuti aturan presensi/retensi pada sumber yang sama. Semua = penjumlahan metrik aditif Online + OTS; rasio dihitung ulang. Fungsi internal service-role ots_registrations_page dan ots_duplicate_candidates memvalidasi izin aktor dan cakupan produk; tidak tersedia bagi anon/authenticated. Helper ots_phone_key hanya untuk normalisasi pencarian, bukan unique constraint.
 
-## A65 - Advertiser Notes dan saran batch
+## A79 - Chat internal dan kalender event
 
-### advertiser_notes
-Satu baris = satu tugas event untuk satu pengiklan + satu produk + batch opsional. Ringkasan order/report spend tidak disimpan; dihitung live oleh RPC.
+Fitur Advertiser Notes lama dihapus total: tabel `advertiser_notes`, RPC `advertiser_notes_page`/`save_advertiser_note`/`archive_advertiser_note`, dan izin `operasional.advertiser_notes`/`action.manage_advertiser_notes`.
+
+### chat_threads
+Satu baris = satu percakapan **1:1**. Pasangan user disimpan terurut supaya satu pasangan hanya punya satu thread.
 
 - id UUID PK
-- advertiser_id UUID NOT NULL FK advertisers(id) ON DELETE RESTRICT
-- product_id UUID NOT NULL FK products(id) ON DELETE RESTRICT
-- batch TEXT NULL CHECK (batch = normalize_batch(batch), tidak kosong)
-- title TEXT NOT NULL CHECK (tidak kosong, maks 200)
-- description TEXT NULL CHECK (maks 4000)
-- event_at TIMESTAMPTZ NOT NULL
-- location TEXT NULL CHECK (maks 200)
-- monitor_from DATE NOT NULL DEFAULT tanggal WIB hari ini
-- deadline_at TIMESTAMPTZ NOT NULL CHECK (tanggal WIB >= monitor_from)
-- status TEXT NOT NULL CHECK in ('Draft','Aktif','Selesai','Dibatalkan')
+- user_a / user_b UUID NOT NULL FK users(id) ON DELETE CASCADE
+- created_at / last_message_at TIMESTAMPTZ NOT NULL DEFAULT now()
+- UNIQUE (user_a, user_b); CHECK (user_a < user_b)
+
+### chat_messages
+- id UUID PK
+- thread_id UUID NOT NULL FK chat_threads(id) ON DELETE CASCADE
+- sender_id UUID NOT NULL FK users(id) ON DELETE CASCADE
+- body TEXT NOT NULL CHECK (tidak kosong, maks 2000)
+- created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+- read_at TIMESTAMPTZ NULL
+
+RLS aktif; kedua tabel hanya dapat dibaca/ditulis `service_role`. RPC: `chat_recipients(p_actor)`, `chat_threads_page(p_actor)`, `chat_messages_page(p_actor, p_thread_id)` (menandai `read_at`), dan `send_chat_message(p_actor, p_role_id, p_recipient_id, p_all, p_body)`. Kirim ke "Semua [Role]" di-fan-out menjadi satu baris `chat_messages` per penerima di thread 1:1 masing-masing.
+
+### event_calendar
+- id UUID PK
+- product_code TEXT NOT NULL FK products(code) ON UPDATE CASCADE ON DELETE RESTRICT
+- category TEXT NOT NULL CHECK in ('Seminar','Webinar','Workshop')
+- event_date DATE NOT NULL
+- start_time TIME NOT NULL (WIB, tanpa zona waktu)
+- location TEXT NOT NULL CHECK (tidak kosong, maks 200)
 - created_by / updated_by UUID NULL FK users(id) ON DELETE SET NULL
 - created_at / updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
-- archived_at TIMESTAMPTZ NULL (soft delete)
 
-RLS aktif; tabel hanya dapat ditulis/dibaca service_role. Baca untuk pengguna melalui RPC `advertiser_notes_page(p_actor, p_filters)` yang menegakkan `operasional.advertiser_notes`, scope produk, dan `users.advertiser_id` bila akun memegang pengiklan. Akun Advertiser tidak melihat status Draft. Tulis melalui `save_advertiser_note` dan `archive_advertiser_note` (izin `action.manage_advertiser_notes`).
+RLS aktif; baca dan tulis lewat Worker. Izin `operasional.event_calendar` (lihat) dan `action.manage_event_calendar` (kelola).
 
 ### RPC recent_batches
 `recent_batches(p_product_code text, p_advertiser_code text default null, p_limit integer default 3)` mengembalikan `{batches:[{batch,product_code,product_name,advertiser_code,advertiser_name,last_activity,orders,tickets}]}`. Maksimal 3 batch berbeda dari order Online, urut aktivitas order terakhir, dalam scope `actor_can_product`. Ini hanya saran; filter batch tetap teks bebas.

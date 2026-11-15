@@ -41,6 +41,10 @@ Versi: 1.0
 - A74: **status sesi hanya Developer.** Role lain boleh menambah sesi (selalu aktif) dan menyunting nama,
   tetapi toggle on/off serta hapus permanen sesi hanya untuk role `developer`. Owner tetap master admin
   untuk konfigurasi lain, kecuali status sesi.
+- A79: **Chat Internal** memakai `operasional.chat` (lihat) + `action.send_chat` (kirim), default semua role.
+  **Kalender Event** memakai `operasional.event_calendar` (lihat, default semua role) +
+  `action.manage_event_calendar` (kelola, default Manajer + Admin). Izin lama
+  `operasional.advertiser_notes`/`action.manage_advertiser_notes` dihapus bersama fitur Notes.
 
 ## 2. No Supabase Auth UI
 Tidak ada:

@@ -19,12 +19,8 @@ import { deleteOts, listOts, listOtsEvents, otsDuplicates, otsFinanceReport, sav
 import { cancelRefund, refundOrder, rescheduleOrder } from './orders/handlers'
 import { getFollowUpContext, getFollowUpSummaries, getFollowUpTemplates, markFollowUp, saveFollowUpTemplates } from './follow-up/handlers'
 import { createAdSpend, deleteAdSpend, updateAdSpend } from './ad-spend/handlers'
-import {
-  archiveAdvertiserNote,
-  createAdvertiserNote,
-  listAdvertiserNotes,
-  updateAdvertiserNote,
-} from './advertiser-notes/handlers'
+import { listChatMessages, listChatRecipients, listChatThreads, sendChatMessage } from './chat/handlers'
+import { createEventCalendar, deleteEventCalendar, listEventCalendar, updateEventCalendar } from './event-calendar/handlers'
 import { orderOnlineWebhook } from './webhooks/handlers'
 import { batchRemapOrders, deleteAlias, deleteUnmappedOrders, listAliases, listUnmappedOrders, saveAlias } from './aliases/handlers'
 import { getDataSummary, purgeExpiredUnmapped, resetData } from './developer/handlers'
@@ -150,11 +146,16 @@ export const ROUTES: Route[] = [
   { method: 'GET', path: '/api/ots', handler: listOts, auth: 'access' },
   { method: 'POST', path: '/api/ots', handler: saveOts, auth: 'access' },
   { method: 'DELETE', path: '/api/ots/:orderId', handler: deleteOts, auth: 'access' },
-  // Advertiser Notes: baca dan tulis lewat Worker karena RPC memakai service_role.
-  { method: 'GET', path: '/api/advertiser-notes', handler: listAdvertiserNotes, auth: 'access' },
-  { method: 'POST', path: '/api/advertiser-notes', handler: createAdvertiserNote, auth: 'access' },
-  { method: 'PATCH', path: '/api/advertiser-notes/:id', handler: updateAdvertiserNote, auth: 'access' },
-  { method: 'DELETE', path: '/api/advertiser-notes/:id', handler: archiveAdvertiserNote, auth: 'access' },
+  // A79: Chat internal menggantikan Advertiser Notes (baca/tulis lewat RPC service_role).
+  { method: 'GET', path: '/api/chat/recipients', handler: listChatRecipients, auth: 'access' },
+  { method: 'GET', path: '/api/chat/threads', handler: listChatThreads, auth: 'access' },
+  { method: 'GET', path: '/api/chat/threads/:id/messages', handler: listChatMessages, auth: 'access' },
+  { method: 'POST', path: '/api/chat/messages', handler: sendChatMessage, auth: 'access' },
+  // A79: Kalender Event (Seminar / Webinar / Workshop).
+  { method: 'GET', path: '/api/event-calendar', handler: listEventCalendar, auth: 'access' },
+  { method: 'POST', path: '/api/event-calendar', handler: createEventCalendar, auth: 'access' },
+  { method: 'PATCH', path: '/api/event-calendar/:id', handler: updateEventCalendar, auth: 'access' },
+  { method: 'DELETE', path: '/api/event-calendar/:id', handler: deleteEventCalendar, auth: 'access' },
   // A37: Report Spend Iklan (tulis; laporan dibaca lewat RPC ad_spend_report).
   { method: 'POST', path: '/api/ad-spend-reports', handler: createAdSpend, auth: 'access' },
   { method: 'PATCH', path: '/api/ad-spend-reports/:id', handler: updateAdSpend, auth: 'access' },

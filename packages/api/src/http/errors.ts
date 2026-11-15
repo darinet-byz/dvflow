@@ -38,7 +38,6 @@ export type ApiErrorCode =
   | 'FORBIDDEN_PRODUCT_ACCESS'
   | 'AD_SPEND_OVERLAP'
   | 'AD_SPEND_NOT_FOUND'
-  | 'ADVERTISER_NOTE_NOT_FOUND'
   | 'WA_LOG_NOT_FOUND'
   | 'SCHEMA_OUT_OF_DATE'
   | 'INTERNAL_ERROR'
@@ -98,7 +97,6 @@ export const ERROR_CATALOG: Record<ApiErrorCode, { status: number; message: stri
   // A37: Report Spend Iklan.
   AD_SPEND_OVERLAP: { status: 409, message: 'Tanggal, produk, batch, dan jenis acara sudah ada.' },
   AD_SPEND_NOT_FOUND: { status: 404, message: 'Report spend tidak ditemukan.' },
-  ADVERTISER_NOTE_NOT_FOUND: { status: 404, message: 'Catatan pengiklan tidak ditemukan.' },
   // Fitur 3.0: WA Admin Bot.
   WA_LOG_NOT_FOUND: { status: 404, message: 'Riwayat pengiriman WhatsApp tidak ditemukan.' },
   // Kode lebih baru dari database (migrasi belum diterapkan): beri tahu dengan jujur, bukan 500 bisu.
@@ -151,7 +149,8 @@ export const DB_SQLSTATE_TO_API_CODE: Record<string, ApiErrorCode> = {
   DF016: 'AD_SPEND_OVERLAP',
   DF017: 'AD_SPEND_NOT_FOUND',
   DF018: 'USER_HAS_DATA',
-  DF023: 'ADVERTISER_NOTE_NOT_FOUND',
+  // A79: thread chat / jadwal kalender tidak ditemukan.
+  DF024: 'RESOURCE_NOT_FOUND',
   '23514': 'INVALID_ARGUMENT',
   // Masih direferensikan baris lain (FK RESTRICT).
   '23503': 'MASTER_IN_USE',

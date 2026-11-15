@@ -407,16 +407,28 @@ RPC dashboard_summary, presensi_summary, orders_page/export_orders_page, presens
 
 `GET /api/ots/duplicates?phone=...&product_code=...&batch=...&session=...&city=...`: semua parameter wajib; izin action.ots. Respons `{rows:[{order_id,source,name,app_status,quantity}]}`, maksimum 20 kecocokan terbaru. Nomor dinormalisasi (tanda baca dibuang; awalan 0/62 disamakan). Acara memakai effective_batch/session/city dan scope aktor. Pemeriksaan ini tidak mengubah order dan bukan bukti identitas unik. Form baru memerlukan konfirmasi ketika ada hasil; kontrak POST lama tetap kompatibel.
 
-## A65 - Advertiser Notes, saran batch, dan laporan OTS
+## A79 - Chat internal dan kalender event
 
-### GET /api/advertiser-notes
-Izin `operasional.advertiser_notes`. Query: `q`, `status`, `advertiser_code`, `product_code`, `batch`, `deadline_from`, `deadline_to`, `page`, `pageSize`. Respons data: `rows[]`, `total`, `page`, `pageSize`, `summary`, `badge`. `rows[]` memuat data note + `orders`, `paid`, `tickets`, `omzet`, `last_order_at`, `spend_reports`, `spend_total`, `last_spend_date`, `activity_status`, `overdue`, `due_soon`. Scope produk dan pengiklan ditegakkan di RPC service-role.
+### GET /api/chat/recipients
+Izin `operasional.chat`. Respons data: `roles: [{id, name, users: [{id, display_name, account_name, is_advertiser, advertiser_name}]}]`. Hanya user aktif yang role-nya punya izin chat; aktor sendiri tidak muncul. Akun Advertiser memakai nama pengiklan sebagai `display_name`.
 
-### POST /api/advertiser-notes
-Izin `action.manage_advertiser_notes`. Body: `advertiser_code`, `product_code`, `batch` (opsional), `title`, `description`, `event_at`, `location`, `monitor_from`, `deadline_at`, `status`. Sukses 201.
+### GET /api/chat/threads
+Izin `operasional.chat`. Respons data: `threads[]` (`id`, `other_user_id`, `other_name`, `other_account_name`, `other_role`, `other_role_name`, `other_advertiser_name`, `last_message`, `last_sender_id`, `last_message_at`, `unread`) dan `unread_total`. Satu thread selalu 1:1.
 
-### PATCH /api/advertiser-notes/:id
-Sama dengan POST, sukses 200. `DELETE /api/advertiser-notes/:id` mengarsipkan note (soft delete). Note tidak ditemukan -> `ADVERTISER_NOTE_NOT_FOUND` (404).
+### GET /api/chat/threads/:id/messages
+Izin `operasional.chat`. Hanya peserta thread. Respons: `thread` dan `messages[]` (`id`, `sender_id`, `body`, `created_at`, `mine`). Pesan lawan yang belum dibaca ditandai `read_at`. Thread tidak ada atau bukan peserta -> `RESOURCE_NOT_FOUND` (404).
+
+### POST /api/chat/messages
+Izin `action.send_chat`. Body: `role_id`, `all` (boolean), `recipient_id` (wajib bila `all=false`), `body` (maks 2000). Sukses 201 `{sent, thread_ids}`. `all=true` mengirim satu pesan per user aktif di role itu (fan-out 1:1), bukan satu thread grup. Role/penerima/isi tidak valid -> 400.
+
+### GET /api/event-calendar
+Izin `operasional.event_calendar`. Query `from`, `to` (YYYY-MM-DD, opsional; maks 400 hari). Respons: `events[]` (`id`, `product_code`, `product_name`, `category`, `event_date`, `start_time`, `location`) dan `products[]` aktif.
+
+### POST /api/event-calendar
+Izin `action.manage_event_calendar`. Body: `product_code`, `category` (Seminar/Webinar/Workshop), `event_date` (YYYY-MM-DD), `start_time` (HH:MM), `location` (maks 200). Sukses 201.
+
+### PATCH /api/event-calendar/:id
+Sama dengan POST, sukses 200. `DELETE /api/event-calendar/:id` menghapus event, sukses 200. ID tidak valid atau tidak ada -> 404.
 
 ### Saran batch
 RPC langsung `recent_batches(p_product_code, p_advertiser_code, p_limit)` dari browser (grant authenticated). Maks 3 batch terbaru; nilai batch tetap boleh diketik bebas.

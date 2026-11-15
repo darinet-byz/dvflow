@@ -21,6 +21,7 @@ export const PATH_PERMISSION_MAP: Record<string, string> = {
   '/order-refund': 'operasional.order_refund',
   '/order-unmapped': 'operasional.order_unmapped',
   '/presensi': 'operasional.presensi',
+  '/kalender': 'operasional.event_calendar',
   '/generator': 'operasional.generator',
   '/report-spend': 'operasional.report_spend',
   '/performa': 'operasional.analytics',

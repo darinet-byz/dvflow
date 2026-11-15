@@ -48,9 +48,12 @@ export const AD_SPEND_INPUT_ROLES: readonly string[] = ['advertiser']
  */
 export const ANALYTICS_PERMISSION = 'operasional.analytics'
 
-/** Advertiser Notes: manajer ke atas melihat/mengelola; Advertiser hanya membaca miliknya. */
-export const ADVERTISER_NOTES_VIEW_PERMISSION = 'operasional.advertiser_notes'
-export const ADVERTISER_NOTES_MANAGE_PERMISSION = 'action.manage_advertiser_notes'
+/** A79: chat internal menggantikan Advertiser Notes. */
+export const CHAT_VIEW_PERMISSION = 'operasional.chat'
+export const CHAT_SEND_PERMISSION = 'action.send_chat'
+/** A79: kalender event — izin lihat dan kelola terpisah agar bisa diatur per role. */
+export const EVENT_CALENDAR_VIEW_PERMISSION = 'operasional.event_calendar'
+export const EVENT_CALENDAR_MANAGE_PERMISSION = 'action.manage_event_calendar'
 
 /** Izin yang hanya boleh dipegang role tertentu; role penuh (developer/owner) pun tidak. */
 const ROLE_RESTRICTED_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
@@ -79,8 +82,10 @@ export type AppPermissionKey =
   | 'operasional.report_spend'
   | 'operasional.analytics'
   | 'operasional.resume_batch'
-  | 'operasional.advertiser_notes'
-  | 'action.manage_advertiser_notes'
+  | 'operasional.chat'
+  | 'action.send_chat'
+  | 'operasional.event_calendar'
+  | 'action.manage_event_calendar'
   | 'config.produk'
   | 'config.tax'
   | 'config.report_tax'

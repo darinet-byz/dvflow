@@ -69,6 +69,8 @@ export const DEFAULT_PERMISSIONS = [
   { key: 'operasional.order', name: 'Data Order', module: 'operasional', description: 'Melihat order', sort_order: 3 },
   { key: 'operasional.presensi', name: 'Presensi Acara', module: 'operasional', description: 'Melihat presensi', sort_order: 4 },
   { key: 'operasional.generator', name: 'Product Name Generator', module: 'operasional', description: 'Generator nama produk', sort_order: 5 },
+  { key: 'operasional.chat', name: 'Chat Internal', module: 'operasional', description: 'Membuka panel chat', sort_order: 8 },
+  { key: 'operasional.event_calendar', name: 'Kalender Event', module: 'operasional', description: 'Melihat jadwal event', sort_order: 9 },
   { key: 'config.produk', name: 'Konfigurasi Produk', module: 'konfigurasi', description: 'Kelola produk', sort_order: 10 },
   { key: 'config.tax', name: 'Konfigurasi Tax & Fee', module: 'konfigurasi', description: 'Kelola tax fee', sort_order: 11 },
   { key: 'config.report_tax', name: 'Report Tax', module: 'konfigurasi', description: 'Laporan pajak', sort_order: 12 },
@@ -81,6 +83,8 @@ export const DEFAULT_PERMISSIONS = [
   { key: 'action.export_data', name: 'Export Data Order & Presensi', module: 'aksi', description: 'Export data', sort_order: 40 },
   { key: 'action.manual_checkin', name: 'Manual Check-in', module: 'aksi', description: 'Check-in manual', sort_order: 41 },
   { key: 'action.delete_master', name: 'Hapus Data Master', module: 'aksi', description: 'Hapus master', sort_order: 42 },
+  { key: 'action.send_chat', name: 'Kirim Chat', module: 'aksi', description: 'Kirim pesan chat', sort_order: 44 },
+  { key: 'action.manage_event_calendar', name: 'Kelola Kalender Event', module: 'aksi', description: 'Kelola jadwal event', sort_order: 46 },
 ]
 
 export const DEFAULT_ROLE_PERMISSIONS: Array<{ role_id: string; permission_key: string }> = [
@@ -105,6 +109,10 @@ export const DEFAULT_ROLE_PERMISSIONS: Array<{ role_id: string; permission_key: 
   ...[
     'operasional.scan_qr', 'operasional.presensi', 'account.profile', 'action.manual_checkin'
   ].map((key) => ({ role_id: 'member', permission_key: key })),
+  ...['manajer', 'admin', 'pimpro', 'advertiser', 'member'].flatMap((role_id) =>
+    ['operasional.chat', 'action.send_chat', 'operasional.event_calendar'].map((permission_key) => ({ role_id, permission_key })),
+  ),
+  ...['manajer', 'admin'].map((role_id) => ({ role_id, permission_key: 'action.manage_event_calendar' })),
 ]
 
 export type FakeState = {
@@ -136,6 +144,11 @@ export type FakeState = {
   waClaimTasks?: Array<Record<string, unknown>>
   /** Override hasil `wa_reminder_preview` bila test perlu bentuk tertentu. */
   waPreview?: Record<string, unknown>
+  /** A79: chat internal. */
+  chatThreads: Array<Record<string, unknown>>
+  chatMessages: Array<Record<string, unknown>>
+  /** A79: kalender event. */
+  eventCalendar: Array<Record<string, unknown>>
   /** Semua panggilan RPC, untuk memastikan handler tidak melewati database. */
   rpcCalls: Array<{ name: string; args: Record<string, unknown> }>
 }
@@ -183,6 +196,9 @@ export function createFakeState(
     waReminderLogs: [],
     followUpTemplates: [],
     orderFollowUpMarks: [],
+    chatThreads: [],
+    chatMessages: [],
+    eventCalendar: [],
     rpcCalls: [],
   }
 }
@@ -393,20 +409,164 @@ export function createFakeDb(state: FakeState): Db {
         } as T
       }
 
-      if (name === 'advertiser_notes_page') {
+      // A79: tiruan RPC chat internal (aturan lengkap diuji pgTAP 42_chat.sql).
+      if (name === 'chat_recipients') {
+        const actorId = String(args['p_actor'] ?? '')
+        const canChat = (role: string): boolean => role === 'developer' || role === 'owner' ||
+          state.rolePermissions.some((row) => row['role_id'] === role && row['permission_key'] === 'operasional.chat')
+        const roles = state.roles
+          .filter((role) => role['id'] === 'developer' || role['id'] === 'owner' || canChat(String(role['id'])))
+          .map((role) => ({
+            id: role['id'],
+            name: role['name'],
+            users: state.users
+              .filter((user) => user.active && user.id !== actorId && user.role === role['id'] && canChat(user.role))
+              .map((user) => {
+                const advertiser = user.advertiser_id
+                  ? state.config.advertisers.find((row) => row['id'] === user.advertiser_id)
+                  : undefined
+                return {
+                  id: user.id,
+                  display_name: advertiser ? String(advertiser['name']) : user.display_name,
+                  account_name: user.display_name,
+                  is_advertiser: advertiser !== undefined,
+                  advertiser_name: advertiser ? String(advertiser['name']) : null,
+                }
+              })
+              .sort((left, right) => left.display_name.localeCompare(right.display_name, 'id')),
+          }))
+          .filter((role) => role.users.length > 0)
+          .sort((left, right) => String(left.name).localeCompare(String(right.name), 'id'))
+        return { roles } as T
+      }
+
+      if (name === 'chat_threads_page') {
+        const actorId = String(args['p_actor'] ?? '')
+        const threads = state.chatThreads
+          .filter((thread) => thread['user_a'] === actorId || thread['user_b'] === actorId)
+          .map((thread) => {
+            const otherId = String(thread['user_a'] === actorId ? thread['user_b'] : thread['user_a'])
+            const other = state.users.find((user) => user.id === otherId)
+            const advertiser = other?.advertiser_id
+              ? state.config.advertisers.find((row) => row['id'] === other.advertiser_id)
+              : undefined
+            const role = state.roles.find((row) => row['id'] === other?.role)
+            const messages = state.chatMessages
+              .filter((message) => message['thread_id'] === thread['id'])
+              .sort((left, right) => String(left['created_at']).localeCompare(String(right['created_at'])))
+            const last = messages[messages.length - 1]
+            return {
+              id: thread['id'],
+              other_user_id: otherId,
+              other_name: advertiser ? String(advertiser['name']) : (other?.display_name ?? '-'),
+              other_account_name: other?.display_name ?? '-',
+              other_role: other?.role ?? '',
+              other_role_name: role?.['name'] ?? other?.role ?? '',
+              other_advertiser_name: advertiser ? String(advertiser['name']) : null,
+              last_message: last?.['body'] ?? null,
+              last_sender_id: last?.['sender_id'] ?? null,
+              last_message_at: thread['last_message_at'],
+              unread: messages.filter((message) => message['sender_id'] !== actorId && !message['read_at']).length,
+            }
+          })
+          .sort((left, right) => String(right.last_message_at).localeCompare(String(left.last_message_at)))
         return {
-          rows: [], total: 0, page: 1, pageSize: 50,
-          summary: { total: 0, active: 0, overdue: 0, due_soon: 0, spend_missing: 0 },
-          badge: 0,
+          threads,
+          unread_total: threads.reduce((total, thread) => total + thread.unread, 0),
         } as T
       }
 
-      if (name === 'save_advertiser_note') {
-        return { action: 'created', note: { id: generatedUuid((nextId += 1)) } } as T
+      if (name === 'chat_messages_page') {
+        const actorId = String(args['p_actor'] ?? '')
+        const thread = state.chatThreads.find((row) =>
+          row['id'] === args['p_thread_id'] && (row['user_a'] === actorId || row['user_b'] === actorId))
+        if (!thread) throw new DbError('DF024', 'THREAD_NOT_FOUND')
+        const otherId = String(thread['user_a'] === actorId ? thread['user_b'] : thread['user_a'])
+        const other = state.users.find((user) => user.id === otherId)
+        const advertiser = other?.advertiser_id
+          ? state.config.advertisers.find((row) => row['id'] === other.advertiser_id)
+          : undefined
+        const role = state.roles.find((row) => row['id'] === other?.role)
+        const now = new Date().toISOString()
+        for (const message of state.chatMessages) {
+          if (message['thread_id'] === thread['id'] && message['sender_id'] !== actorId && !message['read_at']) {
+            message['read_at'] = now
+          }
+        }
+        const messages = state.chatMessages
+          .filter((message) => message['thread_id'] === thread['id'])
+          .sort((left, right) => String(left['created_at']).localeCompare(String(right['created_at'])))
+          .map((message) => ({
+            id: message['id'],
+            sender_id: message['sender_id'],
+            body: message['body'],
+            created_at: message['created_at'],
+            mine: message['sender_id'] === actorId,
+          }))
+        return {
+          thread: {
+            id: thread['id'],
+            other_user_id: otherId,
+            other_name: advertiser ? String(advertiser['name']) : (other?.display_name ?? '-'),
+            other_account_name: other?.display_name ?? '-',
+            other_role: other?.role ?? '',
+            other_role_name: role?.['name'] ?? other?.role ?? '',
+            other_advertiser_name: advertiser ? String(advertiser['name']) : null,
+          },
+          messages,
+        } as T
       }
 
-      if (name === 'archive_advertiser_note') {
-        return { id: args['p_id'], archived: true } as T
+      if (name === 'send_chat_message') {
+        const actorId = String(args['p_actor'] ?? '')
+        const actor = state.users.find((user) => user.id === actorId)
+        const granted = actor !== undefined && (isMasterAdminRole(actor.role) ||
+          state.rolePermissions.some((row) => row['role_id'] === actor.role && row['permission_key'] === 'action.send_chat'))
+        if (!granted) throw new DbError(FORBIDDEN, 'fake')
+        const body = String(args['p_body'] ?? '').trim()
+        if (body === '' || body.length > 2000) throw new DbError('DF011', 'INVALID_MESSAGE')
+        const roleId = String(args['p_role_id'] ?? '')
+        if (!state.roles.some((role) => role['id'] === roleId)) throw new DbError('DF011', 'INVALID_ROLE')
+        const canChat = (role: string): boolean => role === 'developer' || role === 'owner' ||
+          state.rolePermissions.some((row) => row['role_id'] === role && row['permission_key'] === 'operasional.chat')
+        let recipients: FakeUser[]
+        if (args['p_all'] === true) {
+          recipients = state.users.filter((user) => user.active && user.id !== actorId && user.role === roleId && canChat(user.role))
+        } else {
+          const recipientId = String(args['p_recipient_id'] ?? '')
+          const target = state.users.find((user) => user.id === recipientId && user.active && user.id !== actorId && user.role === roleId && canChat(user.role))
+          if (!target) throw new DbError('DF011', 'INVALID_RECIPIENT')
+          recipients = [target]
+        }
+        const now = new Date().toISOString()
+        const threadIds: string[] = []
+        for (const recipient of recipients) {
+          const [userA, userB] = [actorId, recipient.id].sort()
+          let thread = state.chatThreads.find((row) => row['user_a'] === userA && row['user_b'] === userB)
+          if (!thread) {
+            nextId += 1
+            thread = {
+              id: generatedUuid(nextId),
+              user_a: userA,
+              user_b: userB,
+              created_at: now,
+              last_message_at: now,
+            }
+            state.chatThreads.push(thread)
+          }
+          nextId += 1
+          state.chatMessages.push({
+            id: generatedUuid(nextId),
+            thread_id: thread['id'],
+            sender_id: actorId,
+            body,
+            created_at: now,
+            read_at: null,
+          })
+          thread['last_message_at'] = now
+          threadIds.push(String(thread['id']))
+        }
+        return { sent: recipients.length, thread_ids: threadIds } as T
       }
 
       if (name === 'ots_finance_report') {
@@ -1114,6 +1274,12 @@ function rowsOf(state: FakeState, table: string): Array<Record<string, unknown>>
       return state.followUpTemplates
     case 'order_follow_up_marks':
       return state.orderFollowUpMarks
+    case 'chat_threads':
+      return state.chatThreads
+    case 'chat_messages':
+      return state.chatMessages
+    case 'event_calendar':
+      return state.eventCalendar
     default:
       throw new Error(`tabel tidak dikenal di tiruan: ${table}`)
   }
