@@ -235,7 +235,7 @@ export function EventCalendarPage() {
                             type="button"
                             onClick={(clickEvent) => { clickEvent.stopPropagation(); setSelected(event) }}
                             className={cn(
-                              'rounded-sm border-l-[3px] bg-soft px-1 py-0.5 text-left text-[10px] leading-tight text-ink hover:bg-primary-soft',
+                              'rounded-sm border-l-[3px] bg-soft px-1 py-0.5 text-left text-[9px] leading-tight text-ink hover:bg-primary-soft',
                               categoryAccent(event.category),
                             )}
                           >
@@ -250,7 +250,7 @@ export function EventCalendarPage() {
                           <button
                             type="button"
                             onClick={(clickEvent) => { clickEvent.stopPropagation(); setDayDetail(cell) }}
-                            className="rounded-sm px-1 py-0.5 text-left text-[10px] font-semibold text-primary hover:bg-primary-soft"
+                            className="rounded-sm px-1 py-0.5 text-left text-[9px] font-semibold text-primary hover:bg-primary-soft"
                           >
                             +{dayEvents.length - 3} lainnya
                           </button>

@@ -2006,3 +2006,5 @@ Konfigurasi Role.
   **Tambah Event** untuk pemegang izin.
 - Lebar minimum grid dinaikkan agar isi chip muat; agenda tetap daftar lengkap. Tanpa migrasi/API baru.
 - Tes: `apps/web/test/event-calendar.test.tsx`.
+- Revisi kecil: ukuran teks chip disamakan **9px** untuk kode produk (bold), jenis (berwarna), dan
+  lokasi/platform (normal); teks "+N lainnya" ikut 9px.
