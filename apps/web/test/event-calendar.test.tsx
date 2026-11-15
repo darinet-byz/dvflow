@@ -75,7 +75,7 @@ describe('A79: Kalender Event', () => {
     const matches = await screen.findAllByText('Zoom Meeting')
     expect(matches.length).toBeGreaterThan(0)
 
-    fireEvent.click(matches[0])
+    fireEvent.click(matches[0]!)
     expect(await screen.findByText('Detail Event')).toBeTruthy()
     expect(screen.getByText('10:00 WIB')).toBeTruthy()
     expect(screen.getAllByText(/Bisnis Masteri/).length).toBeGreaterThan(0)
@@ -110,7 +110,7 @@ describe('A79: Kalender Event', () => {
     const matches = await screen.findAllByText('Zoom Meeting')
     expect(screen.queryByRole('button', { name: '+ Tambah Event' })).toBeNull()
 
-    fireEvent.click(matches[0])
+    fireEvent.click(matches[0]!)
     expect(await screen.findByText('Detail Event')).toBeTruthy()
     expect(screen.queryByRole('button', { name: 'Edit' })).toBeNull()
     expect(screen.queryByRole('button', { name: 'Hapus' })).toBeNull()
