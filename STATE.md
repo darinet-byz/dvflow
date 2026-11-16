@@ -7,7 +7,7 @@
 > Dokumen yang mengikat tetap `CLAUDE.md` + `docs/`. File ini hanya mencatat **sejauh mana**
 > pekerjaan sudah berjalan, bukan aturan baru.
 
-Terakhir diperbarui: 2026-11-14
+Terakhir diperbarui: 2026-11-16
 Repo: `C:\Users\MyBook Z Series\dvflow` (git `main`, sudah di-push ke `origin/main`; production live di https://dvflow.pages.dev)
 Rencana lengkap: `~/.claude/plans/baca-file-claude-md-dan-glowing-pike.md`
 Nama aplikasi: **dvflow** (`OrderOnline` tetap nama provider, bukan nama aplikasi)
@@ -574,3 +574,4 @@ sering terlanggar:
 | 2026-11-16 | - | Deploy revisi agenda Kalender Event (2): commit `145b0ae`; workflow **Deploy to Cloudflare Pages** run `43781014956` sukses; aset `index-BaHlnr4x.js` / `index-BWefywTB.css` memuat `w-[42ch]`, `min-w-[260px]`, `break-words`; endpoint `/api/event-calendar` tetap 401; tanpa migrasi (`schema_version` tetap 79). |
 | 2026-11-16 | - | Revisi chip Kalender Event: chip grid kini hanya **kode produk + jenis berwarna**; lokasi/platform tetap tersedia di modal detail harian dan agenda. Tanpa migrasi (`schema_version` tetap 79). Gate: typecheck PASS; lint PASS; unit **824**; build PASS. |
 | 2026-11-16 | - | Deploy revisi chip Kalender Event: commit `527df8e`; workflow **Deploy to Cloudflare Pages** run `43782077877` sukses; aset `index-Cc2LmPaW.js` / `index-BWefywTB.css`; endpoint kalender tetap 401; tanpa migrasi (`schema_version` tetap 79). |
+| 2026-11-16 | - | Revisi Konfigurasi Zoom: kolom Aksi kini selalu menampilkan **Edit** dan **Hapus** untuk pemegang `config.zoom` (syarat `action.delete_master` dicabut khusus Zoom; scope produk tetap dijaga `assertProductAccess`). Tiket, integrasi, dan kamus master tetap butuh `action.delete_master`. Tanpa migrasi (`schema_version` tetap 79). Gate: typecheck PASS; lint PASS; unit **825** (353 api + 167 shared + 3 wa-cron + 302 web); build PASS. |

@@ -1,5 +1,5 @@
 import { useSession } from '../../lib/useSession'
-import { hasPermission, hasAllProductAccess } from '../../lib/roles'
+import { hasAllProductAccess } from '../../lib/roles'
 import { useState } from 'react'
 import { authorizedRequest } from '../../lib/session'
 import { useAsyncData } from '../../lib/useAsyncData'
@@ -347,9 +347,9 @@ export function ZoomPage() {
                         <Button size="sm" disabled={busy} onClick={() => startEdit(row)}>
                           Edit
                         </Button>
-                        {hasPermission(profile, 'action.delete_master') ? <Button size="sm" variant="danger" disabled={busy} onClick={() => setDeleting(row)}>
+                        <Button size="sm" variant="danger" disabled={busy} onClick={() => setDeleting(row)}>
                           Hapus
-                        </Button> : null}
+                        </Button>
                       </div>
                     </TableCell>
                   </TableRow>

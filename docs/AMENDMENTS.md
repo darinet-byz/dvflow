@@ -2013,3 +2013,12 @@ Konfigurasi Role.
   dipotong); baris diurutkan per tanggal lalu produk lalu jam sehingga event dari produk yang sama berurutan.
 - Revisi chip: lokasi/platform dihapus dari chip grid; cukup **kode produk + jenis** agar tidak penuh. Detail
   tetap ada di modal harian dan agenda.
+
+### Revisi Konfigurasi Zoom - tombol Hapus (16 November 2026)
+
+- Kolom **Aksi** pada daftar mapping Zoom kini selalu memuat **Edit** dan **Hapus** bagi pemegang izin
+  `config.zoom`; syarat tambahan `action.delete_master` untuk Zoom dicabut.
+- API `deleteWebinar` cukup `requirePermission('config.zoom')`; `assertProductAccess` tetap membatasi hapus
+  ke produk yang menjadi wewenang user. Tiket, integrasi, dan kamus master tetap memerlukan
+  `action.delete_master`.
+- Tes: `apps/web/test/team-zoom.test.tsx`, `packages/api/test/permission-enforcement.test.ts`.

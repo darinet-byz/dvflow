@@ -60,7 +60,8 @@ Seed permission lama tetap menjadi nilai awal; migrasi audit tidak mengganti che
 | `/order-unmapped`, batch remap | `operasional.order_unmapped` | GET `/api/orders/unmapped`, POST `/api/orders/batch-remap` → `batch_remap_orders` | Semua produk diperlukan karena sumber belum terpetakan; simpan alias juga perlu `config.alias_produk` |
 | Export tabel | Permission halaman + `action.export_data` | Tombol bersama; Order/Presensi memakai `export_orders_page` / `export_presensi_page` | S, profil diperbarui sebelum export; perubahan akses membatalkan export data cache |
 | Nonaktifkan/aktifkan | Permission modul | DELETE biasa / PATCH `active` | S untuk produk; global untuk kamus bersama |
-| Hapus permanen konfigurasi/alias/Zoom/tiket/koneksi | Permission modul + `action.delete_master` | DELETE; kamus menggunakan `delete_config_master` | Scope yang sama; kamus yang dipakai ditolak `MASTER_IN_USE` |
+| Hapus permanen konfigurasi/alias/tiket/koneksi | Permission modul + `action.delete_master` | DELETE; kamus menggunakan `delete_config_master` | Scope yang sama; kamus yang dipakai ditolak `MASTER_IN_USE` |
+| Hapus mapping Zoom | `config.zoom` saja (tanpa `action.delete_master`) | DELETE `/api/webinar-destinations` | Scope yang sama; wildcard produk global hanya user semua produk |
 | `/profil` dan perubahan password | `account.profile` | PATCH `/api/profile`, POST `/api/auth/change-password` | Akun sendiri |
 | Sesi/login/refresh/logout | User/sesi sah | `/api/auth/login`, `/refresh`, `/logout`; GET `/api/profile` | GET profil tetap tersedia untuk mengetahui pencabutan seluruh permission |
 | `/konfigurasi-role` | Khusus tingkat Master Admin | `/api/roles`, `/:id`, `/:id/permissions`, `/api/permissions`; `save_role_permissions` | Role sistem tidak dihapus; role penuh tidak dapat kehilangan akses |
@@ -101,7 +102,7 @@ Hapus kamus mengambil lock, memeriksa order/snapshot, alias, aturan acara, dan a
 - Sidebar, route, dan tombol memakai permission efektif yang sama. Tanpa permission tidak ada fallback berbasis nama role.
 - Profil dimuat ulang saat navigasi, window focus, dan penolakan akses. Jika pembacaan profil gagal, profil UI dikosongkan sehingga role penuh yang basi tidak membuka fitur; focus berikutnya dapat memulihkan sesi.
 - Perubahan role/permission/produk meremount isi aplikasi agar data cache dari cakupan lama tidak ditampilkan.
-- User terbatas tidak ditawarkan pembuatan master global, pilihan Zoom/tiket global, atau menu unmapped. Tombol hapus memerlukan izin aksi. Checklist alias remap hanya tampil jika izinnya tersedia.
+- User terbatas tidak ditawarkan pembuatan master global, pilihan Zoom/tiket global, atau menu unmapped. Tombol hapus tiket/koneksi/kamus memerlukan izin aksi; hapus mapping Zoom cukup izin modul `config.zoom`. Checklist alias remap hanya tampil jika izinnya tersedia.
 
 ## Inventaris aktif dan cleanup
 

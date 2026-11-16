@@ -271,7 +271,9 @@ export async function saveWebinar(context: RouteContext): Promise<Response> {
 }
 
 export async function deleteWebinar(context: RouteContext): Promise<Response> {
-  const actor = await requirePermissions(context, ['action.delete_master', 'config.zoom'])
+  // Izin hapus Zoom mengikuti akses modul: pemegang `config.zoom` boleh menghapus mapping
+  // yang ia kelola (akses produk tetap dibatasi `assertProductAccess` di bawah).
+  const actor = await requirePermission(context, 'config.zoom')
   const access = await productAccess(context, actor)
   let targetKey = context.url.searchParams.get('key')?.trim() ?? ''
   if (targetKey === '') {

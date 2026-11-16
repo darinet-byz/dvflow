@@ -87,9 +87,10 @@ describe('database role + dynamic permission enforcement', () => {
     expect((await request('DELETE', `/api/config/products/${id}`)).status).toBe(200)
   })
 
-  it('requires deletion permission for Zoom, ticket and integration configuration too', async () => {
+  it('lets Zoom module holders delete Zoom mappings but still requires deletion permission for tickets and integrations', async () => {
     const { request } = await setup('custom', ['config.zoom', 'config.tiket', 'config.integrasi'])
-    for (const path of ['/api/webinar-destinations?key=__scope__::*:*:*', '/api/seminar-tickets?key=__scope__::*:*:*', '/api/integrations/orderonline/00000000-0000-0000-0000-000000000001']) {
+    expect((await request('DELETE', '/api/webinar-destinations?key=__scope__::*:*:*')).status).toBe(200)
+    for (const path of ['/api/seminar-tickets?key=__scope__::*:*:*', '/api/integrations/orderonline/00000000-0000-0000-0000-000000000001']) {
       expect((await request('DELETE', path)).status).toBe(403)
     }
   })

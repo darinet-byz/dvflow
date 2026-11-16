@@ -104,6 +104,33 @@ describe('requested team, Zoom, and Barcode Ticket screens', () => {
     )
   })
 
+  it('shows both Edit and Hapus actions on configured Zoom rows for module holders without delete_master', async () => {
+    state.role = 'admin'
+    vi.mocked(authorizedRequest).mockImplementation(async () => ({
+      rows: [
+        {
+          key: '__scope__::*:*:*',
+          product_raw: '__scope__::*:*:*',
+          mode: 'scope',
+          product_code: '*',
+          batch: '*',
+          session_code: '*',
+          destination: 'https://zoom.us/j/123?pwd=abc',
+          updated_at: '2026-11-16T00:00:00Z',
+        },
+      ],
+      products: [{ code: 'KM', name: 'Kuliner Masteri', active: true }],
+      sessions: [{ code: 'S1', name: 'Sesi 1', active: true }],
+      stores: [{ name: 'Master Tiktok Indonesia', slug: 'MTIX' }],
+    }))
+    render(<ZoomPage />)
+
+    expect(await screen.findByRole('button', { name: 'Edit' })).toBeDefined()
+    expect(screen.getByRole('button', { name: 'Hapus' })).toBeDefined()
+    fireEvent.click(screen.getByRole('button', { name: 'Hapus' }))
+    expect(await screen.findByText('Hapus Konfigurasi Link Zoom')).toBeDefined()
+  }, 15000)
+
   it('saves scoped Barcode / QR Ticket configuration and opens QR preview modal', async () => {
     render(<TicketConfigPage />)
     await screen.findByRole('option', { name: 'KM — Kuliner Masteri' })
