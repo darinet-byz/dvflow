@@ -2008,6 +2008,6 @@ Konfigurasi Role.
 - Tes: `apps/web/test/event-calendar.test.tsx`.
 - Revisi kecil: ukuran teks chip disamakan **9px** untuk kode produk (bold), jenis (berwarna), dan
   lokasi/platform (normal); teks "+N lainnya" ikut 9px.
-- Agenda: urutan kolom **Tanggal - Produk - Jenis - Jam - Lokasi/Platform**; tanggal satu baris
-  (`whitespace-nowrap`), dan baris diurutkan per tanggal lalu produk lalu jam sehingga event dari produk
-  yang sama berurutan.
+- Agenda: urutan kolom **Tanggal - Produk - Lokasi/Platform - Jam - Jenis**; tanggal satu baris
+  (`whitespace-nowrap`); lokasi diberi lebar **42ch / min 260px** dan teks utuh (boleh turun baris, tidak
+  dipotong); baris diurutkan per tanggal lalu produk lalu jam sehingga event dari produk yang sama berurutan.

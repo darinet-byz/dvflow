@@ -169,12 +169,16 @@ describe('A79: Kalender Event', () => {
     expect(texts[3]).toContain('B1 — Produk B')
     expect(texts[3]).toContain('09:00')
 
-    const positions = [expectedDate, 'A1 — Produk A', 'Seminar', '10:00', 'Lokasi A1']
+    const positions = [expectedDate, 'A1 — Produk A', 'Lokasi A1', '10:00', 'Seminar']
       .map((value) => texts[0]!.indexOf(value))
     expect(positions.every((position) => position >= 0)).toBe(true)
     expect([...positions].sort((left, right) => left - right)).toEqual(positions)
 
     const dateCell = within(agendaRows[0]!).getByText(expectedDate)
     expect(dateCell.className).toContain('whitespace-nowrap')
+
+    const locationCell = within(agendaRows[0]!).getByText('Lokasi A1')
+    expect(locationCell.className).toContain('w-[42ch]')
+    expect(locationCell.className).toContain('break-words')
   })
 })

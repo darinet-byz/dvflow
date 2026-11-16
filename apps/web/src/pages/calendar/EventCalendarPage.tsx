@@ -283,12 +283,12 @@ export function EventCalendarPage() {
             <ul className="flex flex-col divide-y divide-line">
               {agendaEvents.map((event) => (
                 <li key={event.id}>
-                  <button type="button" onClick={() => setSelected(event)} className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-left hover:bg-soft sm:flex-nowrap">
+                  <button type="button" onClick={() => setSelected(event)} className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-left hover:bg-soft lg:flex-nowrap">
                     <span className="w-[122px] shrink-0 whitespace-nowrap text-[12px] font-semibold text-ink">{displayDate(event.event_date)}</span>
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">{event.product_code} — {event.product_name}</span>
-                    <Badge tone={categoryTone(event.category)}>{event.category}</Badge>
+                    <span className="w-full break-words text-[12px] text-ink-soft lg:w-[42ch] lg:min-w-[260px] lg:shrink-0">{event.location}</span>
                     <span className="w-[46px] shrink-0 text-right text-[12px] text-ink-soft">{shortTime(event.start_time)}</span>
-                    <span className="w-full truncate text-[12px] text-ink-soft sm:w-[170px] sm:shrink-0">{event.location}</span>
+                    <Badge tone={categoryTone(event.category)}>{event.category}</Badge>
                   </button>
                 </li>
               ))}
