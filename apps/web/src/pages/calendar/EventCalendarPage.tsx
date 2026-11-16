@@ -252,7 +252,6 @@ export function EventCalendarPage() {
                               <span className="shrink-0 font-bold">{event.product_code}</span>
                               <span className={cn('shrink-0 rounded-full px-1 py-0 text-[9px] font-semibold', categoryChip(event.category))}>{event.category}</span>
                             </span>
-                            <span className="mt-0.5 block truncate text-ink-soft">{event.location}</span>
                           </button>
                         ))}
                         {dayEvents.length > 3 ? (

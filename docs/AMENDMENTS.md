@@ -1998,8 +1998,8 @@ Konfigurasi Role.
 
 ### Revisi A79 — tampilan grid Kalender Event (16 November 2026)
 
-- Chip grid bulan hanya memuat **kode produk + jenis acara berwarna + lokasi/platform**; jam tetap tampil di agenda
-  dan modal detail.
+- Chip grid bulan hanya memuat **kode produk + jenis acara berwarna**; lokasi & jam tampil di agenda dan modal
+  detail.
 - Warna jenis: **Seminar merah soft, Webinar biru, Workshop amber**, dengan legend di atas grid.
 - Maksimal **3 event per tanggal**; sisanya menjadi **"+N lainnya"**.
 - Klik tanggal membuka modal daftar lengkap hari itu (jam, kode + nama produk, jenis, lokasi) + tombol
@@ -2011,3 +2011,5 @@ Konfigurasi Role.
 - Agenda: urutan kolom **Tanggal - Produk - Lokasi/Platform - Jam - Jenis**; tanggal satu baris
   (`whitespace-nowrap`); lokasi diberi lebar **42ch / min 260px** dan teks utuh (boleh turun baris, tidak
   dipotong); baris diurutkan per tanggal lalu produk lalu jam sehingga event dari produk yang sama berurutan.
+- Revisi chip: lokasi/platform dihapus dari chip grid; cukup **kode produk + jenis** agar tidak penuh. Detail
+  tetap ada di modal harian dan agenda.
