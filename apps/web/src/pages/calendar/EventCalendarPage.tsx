@@ -105,6 +105,15 @@ export function EventCalendarPage() {
   }, [events])
 
   const dayDetailEvents = dayDetail === null ? [] : (eventsByDate.get(dayDetail) ?? [])
+  const agendaEvents = useMemo(() => {
+    return [...events].sort((left, right) => {
+      const byDate = left.event_date.localeCompare(right.event_date)
+      if (byDate !== 0) return byDate
+      const byProduct = left.product_code.localeCompare(right.product_code, 'id')
+      if (byProduct !== 0) return byProduct
+      return left.start_time.localeCompare(right.start_time)
+    })
+  }, [events])
 
   const productOptions = products.map((product) => ({ value: product.code, label: `${product.code} — ${product.name}` }))
   const today = toIsoDate(new Date())
@@ -272,14 +281,14 @@ export function EventCalendarPage() {
             <p className="py-4 text-center text-[13px] text-ink-soft">Belum ada event pada bulan ini.</p>
           ) : (
             <ul className="flex flex-col divide-y divide-line">
-              {events.map((event) => (
+              {agendaEvents.map((event) => (
                 <li key={event.id}>
-                  <button type="button" onClick={() => setSelected(event)} className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-left hover:bg-soft">
-                    <span className="w-[92px] shrink-0 text-[12px] font-semibold text-ink">{displayDate(event.event_date)}</span>
-                    <span className="w-[52px] shrink-0 text-[12px] text-ink-soft">{shortTime(event.start_time)}</span>
-                    <Badge tone={categoryTone(event.category)}>{event.category}</Badge>
+                  <button type="button" onClick={() => setSelected(event)} className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-left hover:bg-soft sm:flex-nowrap">
+                    <span className="w-[122px] shrink-0 whitespace-nowrap text-[12px] font-semibold text-ink">{displayDate(event.event_date)}</span>
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">{event.product_code} — {event.product_name}</span>
-                    <span className="w-full truncate text-[12px] text-ink-soft sm:w-auto">{event.location}</span>
+                    <Badge tone={categoryTone(event.category)}>{event.category}</Badge>
+                    <span className="w-[46px] shrink-0 text-right text-[12px] text-ink-soft">{shortTime(event.start_time)}</span>
+                    <span className="w-full truncate text-[12px] text-ink-soft sm:w-[170px] sm:shrink-0">{event.location}</span>
                   </button>
                 </li>
               ))}

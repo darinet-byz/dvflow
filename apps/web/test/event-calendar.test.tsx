@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
+import { MONTH_NAMES } from '../src/lib/date-range'
 import { ToastProvider } from '../src/ui/Toast'
 
 /** A79: Kalender Event — tampilan bulan/agenda, detail, dan form tambah. */
@@ -137,5 +138,43 @@ describe('A79: Kalender Event', () => {
     expect(within(dialog).getByText('Hotel Solo')).toBeTruthy()
     expect(within(dialog).getByText('Zoom C')).toBeTruthy()
     expect(within(dialog).getByRole('button', { name: '+ Tambah Event' })).toBeTruthy()
+  })
+
+  it('agenda berurutan Tanggal-Produk-Jenis-Jam-Lokasi dan dikelompokkan per produk', async () => {
+    const now = new Date()
+    const day = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-20`
+    const expectedDate = `20 ${MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`
+    const rows = [
+      { ...event, id: 'b1', product_code: 'B1', product_name: 'Produk B', event_date: day, start_time: '09:00:00', category: 'Webinar', location: 'Lokasi B1' },
+      { ...event, id: 'a1', product_code: 'A1', product_name: 'Produk A', event_date: day, start_time: '10:00:00', category: 'Seminar', location: 'Lokasi A1' },
+      { ...event, id: 'b2', product_code: 'B1', product_name: 'Produk B', event_date: day, start_time: '08:00:00', category: 'Webinar', location: 'Lokasi B2' },
+      { ...event, id: 'a2', product_code: 'A1', product_name: 'Produk A', event_date: day, start_time: '11:00:00', category: 'Seminar', location: 'Lokasi A2' },
+    ]
+    requestMock.mockImplementationOnce(async () => ({
+      events: rows,
+      products: [{ code: 'A1', name: 'Produk A' }, { code: 'B1', name: 'Produk B' }],
+    }))
+
+    renderCalendar()
+    const agendaRows = await screen.findAllByRole('button', { name: /Produk A|Produk B/ })
+    const texts = agendaRows.map((row) => row.textContent ?? '')
+
+    expect(texts).toHaveLength(4)
+    expect(texts[0]).toContain('A1 — Produk A')
+    expect(texts[0]).toContain('10:00')
+    expect(texts[1]).toContain('A1 — Produk A')
+    expect(texts[1]).toContain('11:00')
+    expect(texts[2]).toContain('B1 — Produk B')
+    expect(texts[2]).toContain('08:00')
+    expect(texts[3]).toContain('B1 — Produk B')
+    expect(texts[3]).toContain('09:00')
+
+    const positions = [expectedDate, 'A1 — Produk A', 'Seminar', '10:00', 'Lokasi A1']
+      .map((value) => texts[0]!.indexOf(value))
+    expect(positions.every((position) => position >= 0)).toBe(true)
+    expect([...positions].sort((left, right) => left - right)).toEqual(positions)
+
+    const dateCell = within(agendaRows[0]!).getByText(expectedDate)
+    expect(dateCell.className).toContain('whitespace-nowrap')
   })
 })
