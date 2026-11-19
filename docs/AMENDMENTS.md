@@ -2119,3 +2119,26 @@ Permintaan pengguna: di halaman Performa/Analitik ada input KPI tiket; tiap kart
 - API: `packages/api/src/performance/handlers.ts` + route `GET/PUT /api/performance/kpi`.
 - Web: input KPI + badge di kartu; detail tahun dengan tabel Rincian Bulanan; filter detail hanya pengiklan/produk; label Beku/Berjalan; baris KPI per bulan.
 - Tes: `packages/api/test/performance-kpi.test.ts`, update `apps/web/test/performance.test.tsx`; pgTAP `supabase/tests/46_performance_kpi_snapshot.sql`.
+
+## A84 - Kalender Iklan otomatis dari Citta + tanda data belum lengkap (19 November 2026)
+
+Permintaan pengguna: saat draft `/add` dikonfirmasi, Citta langsung membuat deadline di **Kalender Iklan** dari tanggal event paling awal dikurangi 21 hari. Batch dan pengiklan tidak wajib disebut di chat: data tetap disimpan, diberi tanda **(!)** di web, dan dilengkapi manual lewat halaman Kalender Iklan. Bila H-21 sudah lewat, pakai H-14. Ringkasan konfirmasi juga dikirim ke grup.
+
+### Keputusan
+
+- **Dasar deadline adalah event paling awal yang benar-benar tersimpan** pada draft yang dikonfirmasi (bukan tanggal yang gagal validasi/duplikat). Bila `YA 2`, hanya baris yang dipilih yang dihitung.
+- **H-21; bila sudah lewat -> H-14.** Jika H-14 juga sudah lewat, tanggal H-14 tetap dicatat (tidak mencari H-7) agar aturan tetap sederhana dan terlihat di UI.
+- **Batch opsional, sentinel `?`.** Batch kosong/tidak valid disimpan sebagai `?`. **Pengiklan opsional, `advertiser_id` NULL.** Tidak ada pengiklan palsu; baris tanpa pengiklan tidak ikut skor kedisiplinan sampai dilengkapi.
+- **Tanda belum lengkap** = `advertiser_id IS NULL` atau `batch = '?'`. UI Kalender Iklan menampilkan `!` di grid, agenda, detail, dan modal edit. Operator memilih pengiklan/mengisi batch lewat edit; setelah disimpan baris menjadi `source='manual'`.
+- **Baris manual tidak pernah ditimpa Citta.** `ad_calendar.source` (`manual`/`ai`) + `ai_draft_id`; konfirmasi AI hanya meng-update baris `source='ai'`. Baris manual dengan kunci yang sama dilewati dan dilaporkan di ringkasan.
+- **Batch `?` boleh muncul beberapa kali.** Tidak ada unique index untuk baris tanpa pengiklan: setiap draft membuat barisnya sendiri, sehingga batch berbeda yang sama-sama belum menyebut nomor batch tidak saling menimpa. Setelah operator mengisi batch/pengiklan, baris menjadi `source='manual'`.
+- **Konfirmasi lewat dashboard** memakai `POST /api/ai/drafts/:id/confirm`, izin `config.ai_citta`, memanggil RPC `ai_confirm_draft` dengan `p_selection = null`; tidak memanggil AI. Ringkasan hasil (termasuk deadline/batch/!) dikirim ke grup memakai token Fonnte yang sudah ada.
+- **`/delete` hanya diblokir deadline manual.** Event yang hanya punya deadline otomatis `source='ai'` boleh dihapus dari chat; baris deadline AI ikut dihapus agar tidak menggantung. Deadline `source='manual'` tetap memblokir penghapusan sampai operator menghapusnya di Kalender Iklan.
+- **Draft yang sudah dikonfirmasi sebelum A84 tidak dibuatkan baris mundur.** Event lama tetap ada; deadline iklannya dapat ditambahkan manual atau lewat `/add` baru bila memang perlu.
+
+### Implementasi
+
+- Migrasi `20261120110000_ad_calendar_auto_incomplete.sql` (`schema_version` 84): `ad_calendar.advertiser_id` nullable, kolom `source`/`ai_draft_id`, partial unique index, `ad_calendar_page` mengembalikan `incomplete`/`source` dan memakai `LEFT JOIN advertisers`, serta `ai_confirm_draft` membuat deadline H-21/H-14.
+- API: parser mengekstrak `batch` + `advertiser_codes` (dibatasi ke pengiklan aktif produk); preview menampilkan batch/pengiklan/deadline + peringatan `(!)`; endpoint `POST /api/ai/drafts/:id/confirm`; `renderConfirmResult` menambahkan ringkasan Kalender Iklan.
+- Web: tombol **Konfirmasi** + modal di tab Citta AI (kolom Baris + badge `!`), tombol **Konfirmasi** mengirim ringkasan ke grup; `AdCalendarTab` menampilkan `!` dan peringatan di modal edit.
+- Tes: `packages/api/test/ai-citta.test.ts` (4 kasus A84), `apps/web/test/wa-bot.test.tsx` (1 kasus tombol Konfirmasi), pgTAP `supabase/tests/47_ad_calendar_auto.sql` (H-21/H-14, incomplete, manual skip, halaman, hapus deadline AI).

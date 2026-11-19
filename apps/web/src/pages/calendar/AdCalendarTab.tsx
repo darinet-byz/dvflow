@@ -277,6 +277,7 @@ export function AdCalendarTab() {
                               <span className="shrink-0 font-bold">{row.advertiser_code ?? '-'}</span>
                               <span className="shrink-0 font-semibold">{row.batch}</span>
                               <span className={cn('shrink-0 rounded-full px-1 py-0 text-[9px] font-semibold', statusChip(row.status))}>{row.product_code}</span>
+                              {row.incomplete === true ? <span className="shrink-0 font-bold text-danger" title="Batch/pengiklan belum lengkap">!</span> : null}
                             </span>
                           </button>
                         ))}
@@ -310,6 +311,7 @@ export function AdCalendarTab() {
                 <li key={row.id}>
                   <button type="button" onClick={() => setSelected(row)} className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-left hover:bg-soft lg:flex-nowrap">
                     <span className="w-[122px] shrink-0 whitespace-nowrap text-[12px] font-semibold text-ink">{displayDate(row.deadline_date)}</span>
+                    {row.incomplete === true ? <span className="shrink-0 font-bold text-danger" title="Batch/pengiklan belum lengkap">!</span> : null}
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">{row.advertiser_code ?? '-'} — {row.advertiser_name ?? 'Tanpa pengiklan'} · {row.product_code} · Batch {row.batch}</span>
                     <span className="w-full text-[12px] text-ink-soft lg:w-[180px] lg:shrink-0">{row.publish_date === null ? 'Belum tayang' : `Tayang ${displayDate(row.publish_date)}`}</span>
                     <span className="w-[54px] shrink-0 text-right text-[12px] font-semibold text-ink-soft">{adCalendarScoreText(row)}</span>
@@ -350,6 +352,7 @@ export function AdCalendarTab() {
                 >
                   <Badge tone={statusTone(row.status)}>{adCalendarStatusLabel(row)}</Badge>
                   <span className="shrink-0 text-[12px] font-semibold text-ink">{row.advertiser_code ?? '-'}</span>
+                  {row.incomplete === true ? <span className="shrink-0 font-bold text-danger" title="Batch/pengiklan belum lengkap">!</span> : null}
                   <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{row.product_code} · Batch {row.batch}</span>
                   <span className="text-[12px] text-ink-soft">{adCalendarScoreText(row)}</span>
                 </button>
@@ -412,6 +415,11 @@ export function AdCalendarTab() {
             Satu deadline berlaku untuk seluruh jadwal dalam batch ini. Tanggal tayang dihitung otomatis
             dari order/lead pertama, atau report spend pertama bila belum ada lead.
           </p>
+          {(form.advertiser_code === '' || form.batch === '?' || form.batch.trim() === '') ? (
+            <p className="rounded-sm border border-danger/30 bg-danger-soft px-3 py-2 text-[12px] text-danger">
+              ! {[form.advertiser_code === '' ? 'Pengiklan' : null, form.batch === '?' || form.batch.trim() === '' ? 'Batch' : null].filter(Boolean).join(' dan ')} belum lengkap. Lengkapi di sini agar deadline dihitung normal.
+            </p>
+          ) : null}
           {formError === null ? null : <p className="text-[12px] text-danger">{formError}</p>}
           {events.length === 0 ? <p className="text-[12px] text-ink-soft">Belum ada event. Tambahkan event di tab Kalender Event terlebih dahulu.</p> : null}
         </div>
@@ -430,13 +438,25 @@ export function AdCalendarTab() {
         }
       >
         {selected === null ? null : (
-          <dl className="grid grid-cols-1 gap-2 text-[13px] sm:grid-cols-[150px_1fr]">
+          <>
+            {selected.incomplete === true ? (
+              <p className="mb-3 rounded-sm border border-danger/30 bg-danger-soft px-3 py-2 text-[12px] text-danger">
+                ! Batch/pengiklan belum lengkap. Klik Edit untuk melengkapi.
+              </p>
+            ) : null}
+            <dl className="grid grid-cols-1 gap-2 text-[13px] sm:grid-cols-[150px_1fr]">
             <dt className="text-ink-soft">Pengiklan</dt>
-            <dd className="font-medium text-ink">{selected.advertiser_code ?? '-'} — {selected.advertiser_name ?? 'Tanpa pengiklan'}</dd>
+            <dd className="font-medium text-ink">
+              {selected.advertiser_code ?? '-'} - {selected.advertiser_name ?? 'Tanpa pengiklan'}
+              {selected.advertiser_code === null ? <span className="ml-1 font-bold text-danger" title="Pengiklan belum diisi">!</span> : null}
+            </dd>
             <dt className="text-ink-soft">Produk</dt>
             <dd className="font-medium text-ink">{selected.product_code} — {selected.product_name}</dd>
             <dt className="text-ink-soft">Batch</dt>
-            <dd className="font-medium text-ink">{selected.batch}</dd>
+            <dd className="font-medium text-ink">
+              {selected.batch}
+              {selected.batch === '?' ? <span className="ml-1 font-bold text-danger" title="Batch belum diisi">!</span> : null}
+            </dd>
             <dt className="text-ink-soft">Event</dt>
             <dd className="font-medium text-ink">
               {selected.event_date === null
@@ -455,6 +475,7 @@ export function AdCalendarTab() {
             <dt className="text-ink-soft">Skor</dt>
             <dd className="font-medium text-ink">{adCalendarScoreText(selected)}</dd>
           </dl>
+          </>
         )}
       </Modal>
 

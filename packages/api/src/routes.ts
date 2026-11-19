@@ -22,7 +22,7 @@ import { createAdSpend, deleteAdSpend, updateAdSpend } from './ad-spend/handlers
 import { listChatMessages, listChatRecipients, listChatThreads, sendChatMessage } from './chat/handlers'
 import { createEventCalendar, deleteEventCalendar, listEventCalendar, updateEventCalendar } from './event-calendar/handlers'
 import { createAdCalendar, deleteAdCalendar, listAdCalendar, updateAdCalendar } from './ad-calendar/handlers'
-import { cancelAiDraft, fonnteWebhook, getAiSettings, listAiDrafts, listAiRuns, saveAiSettings, testAiSettings } from './ai/handlers'
+import { cancelAiDraft, confirmAiDraft, fonnteWebhook, getAiSettings, listAiDrafts, listAiRuns, saveAiSettings, testAiSettings } from './ai/handlers'
 import { getPerformanceKpi, savePerformanceKpi } from './performance/handlers'
 import { orderOnlineWebhook } from './webhooks/handlers'
 import { batchRemapOrders, deleteAlias, deleteUnmappedOrders, listAliases, listUnmappedOrders, saveAlias } from './aliases/handlers'
@@ -195,6 +195,7 @@ export const ROUTES: Route[] = [
   { method: 'POST', path: '/api/ai/settings/test', handler: testAiSettings, auth: 'access' },
   { method: 'GET', path: '/api/ai/drafts', handler: listAiDrafts, auth: 'access' },
   { method: 'POST', path: '/api/ai/drafts/:id/cancel', handler: cancelAiDraft, auth: 'access' },
+  { method: 'POST', path: '/api/ai/drafts/:id/confirm', handler: confirmAiDraft, auth: 'access' },
   { method: 'GET', path: '/api/ai/runs', handler: listAiRuns, auth: 'access' },
   { method: 'POST', path: '/api/webhooks/fonnte/:webhookSecret', handler: fonnteWebhook, auth: 'none' },
 

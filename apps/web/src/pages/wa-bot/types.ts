@@ -155,6 +155,25 @@ export type AiDraft = {
   expires_at: string
   confirmed_at: string | null
   created_at: string
+  /** A84: jumlah baris draft + status data Kalender Iklan. */
+  item_count: number
+  batch: string | null
+  advertiser_codes: string[]
+  incomplete: boolean
+}
+
+export type AiConfirmResult = {
+  status: string
+  saved?: number
+  skipped?: number
+  ad_calendar_saved?: number
+  ad_calendar_skipped?: number
+  ad_calendar_incomplete?: boolean
+  ad_batch?: string | null
+  ad_deadline_date?: string | null
+  ad_deadline_rule?: string | null
+  group_message_sent?: boolean
+  summary?: string
 }
 
 export type AiRun = {

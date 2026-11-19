@@ -26,6 +26,9 @@ export type AdCalendarRow = {
   days_late: number | null
   score: number | null
   status: AdCalendarStatus
+  /** A84: batch/pengiklan belum lengkap; operator melengkapi lewat edit. */
+  incomplete?: boolean
+  source?: 'manual' | 'ai'
 }
 
 export type AdCalendarEventOption = {

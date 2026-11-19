@@ -69,7 +69,14 @@ type DraftRow = {
   product_id: string
   product_code: string
   raw_text: string
-  payload: { items?: NormalizedAddItem[]; candidates?: CandidateRow[] }
+  payload: {
+    items?: NormalizedAddItem[]
+    candidates?: CandidateRow[]
+    /** A84: batch kampanye; null/undefined = belum disebut. */
+    batch?: string | null
+    /** A84: kode pengiklan yang disebut; kosong = belum disebut. */
+    advertiser_codes?: string[]
+  }
   issues: unknown
   status: string
   code: string
@@ -102,6 +109,13 @@ type ConfirmResult = {
   created_ids?: string[]
   deleted_ids?: string[]
   reason?: string
+  /** A84: hasil Kalender Iklan otomatis. */
+  ad_calendar_saved?: number
+  ad_calendar_skipped?: number
+  ad_calendar_incomplete?: boolean
+  ad_batch?: string | null
+  ad_deadline_date?: string | null
+  ad_deadline_rule?: string | null
 }
 
 // ---------------------------------------------------------------------------
@@ -214,12 +228,41 @@ export async function testAiSettings(context: RouteContext): Promise<Response> {
 /** GET /api/ai/drafts */
 export async function listAiDrafts(context: RouteContext): Promise<Response> {
   await requirePermission(context, AI_CITTA_PERMISSION)
-  const rows = await context.db.selectRows<Record<string, unknown>>(
+  const rows = await context.db.selectRows<{
+    id: string
+    wa_group_id: string
+    command: 'add' | 'delete'
+    product_code: string
+    status: string
+    code: string
+    created_ids: string[]
+    deleted_ids: string[]
+    error: string | null
+    expires_at: string
+    confirmed_at: string | null
+    created_at: string
+    payload: { items?: unknown[]; candidates?: unknown[]; batch?: string | null; advertiser_codes?: string[] } | null
+  }>(
     'ai_drafts',
     { order: 'created_at.desc', limit: '50' },
-    'id,wa_group_id,command,product_code,status,code,created_ids,deleted_ids,error,expires_at,confirmed_at,created_at',
+    'id,wa_group_id,command,product_code,status,code,created_ids,deleted_ids,error,expires_at,confirmed_at,created_at,payload',
   )
-  return ok({ drafts: rows })
+  const drafts = rows.map(({ payload, ...rest }) => {
+    const itemCount = Array.isArray(payload?.items)
+      ? payload.items.filter((item) => (item as { valid?: boolean }).valid !== false).length
+      : Array.isArray(payload?.candidates)
+        ? payload.candidates.filter((candidate) => (candidate as { blocked?: boolean }).blocked !== true).length
+        : 0
+    const advertiserCodes = Array.isArray(payload?.advertiser_codes) ? payload.advertiser_codes : []
+    return {
+      ...rest,
+      item_count: itemCount,
+      batch: payload?.batch ?? null,
+      advertiser_codes: advertiserCodes,
+      incomplete: rest.command === 'add' && (payload?.batch === null || payload?.batch === undefined || payload?.batch === '?' || advertiserCodes.length === 0),
+    }
+  })
+  return ok({ drafts })
 }
 
 /** POST /api/ai/drafts/:id/cancel */
@@ -239,6 +282,30 @@ export async function cancelAiDraft(context: RouteContext): Promise<Response> {
   }
   await context.db.updateRows('ai_drafts', { id: `eq.${id}`, status: 'eq.pending' }, { status: 'cancelled' })
   return ok({ cancelled: id })
+}
+
+export async function confirmAiDraft(context: RouteContext): Promise<Response> {
+  await requirePermission(context, AI_CITTA_PERMISSION)
+  const id = (context.params['id'] ?? '').trim()
+  if (!UUID_PATTERN.test(id)) throw new ApiFailure('RESOURCE_NOT_FOUND')
+
+  const [draft] = await context.db.selectRows<DraftRow>('ai_drafts', { id: `eq.${id}` }, DRAFT_COLUMNS)
+  if (draft === undefined) throw new ApiFailure('RESOURCE_NOT_FOUND')
+  if (draft.status !== 'pending') {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Draft ini sudah tidak menunggu konfirmasi.')
+  }
+
+  const result = (await context.db.rpc<ConfirmResult | null>('ai_confirm_draft', {
+    p_actor: CITTA_AI_USER_ID,
+    p_draft_id: id,
+    p_group_id: draft.wa_group_id,
+    p_selection: null,
+  })) ?? { status: 'NOT_FOUND' }
+
+  const summary = renderConfirmResult(draft, result, null)
+  const shouldSend = result.status === 'CONFIRMED' || result.status === 'FAILED'
+  const groupMessageSent = shouldSend ? await reply(context, draft.wa_group_id, summary, null) : false
+  return ok({ ...result, group_message_sent: groupMessageSent, summary })
 }
 
 /** GET /api/ai/runs */
@@ -369,9 +436,10 @@ async function handleAdd(
     return ok({ error: 'NO_KEY' })
   }
 
+  const productAdvertisers = await loadProductAdvertisers(context, product.id)
   const result = await extractScheduleJson(
     config,
-    buildAddPrompt(product.code, product.name, today),
+    buildAddPrompt(product.code, product.name, today, productAdvertisers.map(({ code, name }) => ({ code, name }))),
     text,
   )
   await logRun(context, group, 'add', settings.model, result)
@@ -389,7 +457,11 @@ async function handleAdd(
     return ok({ error: 'INVALID_JSON' })
   }
 
-  const normalized = normalizeAdd(parsed, today)
+  const normalized = normalizeAdd(
+    parsed,
+    today,
+    productAdvertisers.map(({ code, name }) => ({ code, name })),
+  )
   await markDuplicates(context, product.code, normalized.items)
 
   const valid = normalized.items.filter((item) => item.valid)
@@ -398,11 +470,28 @@ async function handleAdd(
     return ok({ error: 'NO_VALID_ITEM' })
   }
 
+  const firstDate = [...valid].map((item) => item.event_date).sort()[0] ?? null
+  const adDeadline = firstDate === null ? null : adDeadlineFor(firstDate, today)
   const draft = await createDraft(context, group, product, 'add', text, member, {
     items: normalized.items,
+    batch: normalized.batch,
+    advertiser_codes: normalized.advertiserCodes,
   }, normalized.issues, settings.model)
 
-  await reply(context, group.target, renderAddPreview(product, normalized.items, normalized.issues), null)
+  await reply(
+    context,
+    group.target,
+    renderAddPreview(
+      product,
+      normalized.items,
+      normalized.issues,
+      normalized.batch,
+      normalized.advertiserCodes,
+      productAdvertisers,
+      adDeadline,
+    ),
+    null,
+  )
   return ok({ draft_id: draft.id, code: draft.code })
 }
 
@@ -472,7 +561,7 @@ async function handleDelete(
 
   const linkedAds = await context.db.selectRows<{ event_id: string | null }>(
     'ad_calendar',
-    { event_id: inFilter(candidates.map((row) => row.id)) },
+    { event_id: inFilter(candidates.map((row) => row.id)), source: 'eq.manual' },
     'event_id',
   )
   const blockedIds = new Set(linkedAds.map((row) => row.event_id).filter((id): id is string => id !== null))
@@ -482,7 +571,7 @@ async function handleDelete(
     await reply(
       context,
       group.target,
-      `Semua jadwal ${product.code} pada ${formatDateId(normalized.match.event_date)} punya deadline iklan. Hapus dulu di Kalender Iklan.`,
+      `Semua jadwal ${product.code} pada ${formatDateId(normalized.match.event_date)} punya deadline iklan manual. Hapus dulu di Kalender Iklan.`,
       null,
     )
     return ok({ ignored: true, reason: 'BLOCKED_BY_AD_CALENDAR' })
@@ -605,6 +694,35 @@ async function resolveGroup(context: RouteContext, sender: string, member: strin
 async function loadProduct(context: RouteContext, productId: string): Promise<ProductRow | null> {
   const [product] = await context.db.selectRows<ProductRow>('products', { id: `eq.${productId}` }, 'id,code,name,active')
   return product ?? null
+}
+
+type ProductAdvertiserRow = { id: string; code: string; name: string }
+
+async function loadProductAdvertisers(context: RouteContext, productId: string): Promise<ProductAdvertiserRow[]> {
+  const links = await context.db.selectRows<{ advertiser_id: string }>(
+    'product_advertisers',
+    { product_id: `eq.${productId}` },
+    'advertiser_id',
+  )
+  if (links.length === 0) return []
+  const ids = new Set(links.map((link) => link.advertiser_id))
+  const rows = await context.db.selectRows<{ id: string; code: string; name: string; active: boolean }>(
+    'advertisers',
+    {},
+    'id,code,name,active',
+  )
+  return rows
+    .filter((row) => row.active && ids.has(row.id))
+    .map(({ id, code, name }) => ({ id, code, name }))
+    .sort((left, right) => left.code.localeCompare(right.code, 'id'))
+}
+
+/** A84: H-21; bila sudah lewat, H-14. */
+function adDeadlineFor(firstDate: string, today: string): { date: string; rule: 'H-21' | 'H-14' } {
+  const base = Date.parse(`${firstDate}T00:00:00Z`)
+  const h21 = new Date(base - 21 * 86_400_000).toISOString().slice(0, 10)
+  if (h21 >= today) return { date: h21, rule: 'H-21' }
+  return { date: new Date(base - 14 * 86_400_000).toISOString().slice(0, 10), rule: 'H-14' }
 }
 
 async function checkRate(context: RouteContext, groupId: string, command: boolean): Promise<string | null> {
@@ -741,13 +859,14 @@ async function loadFonnteToken(context: RouteContext): Promise<string | null> {
   }
 }
 
-async function reply(context: RouteContext, target: string, message: string, inboxId: string | null): Promise<void> {
+async function reply(context: RouteContext, target: string, message: string, inboxId: string | null): Promise<boolean> {
   const token = await loadFonnteToken(context)
-  if (token === null) return
+  if (token === null) return false
   const result = await sendWhatsAppMessage(context.env, token, target, message, {
     inboxId: inboxId ?? undefined,
   })
   if (!result.sent) console.error(`[ai] balasan gagal: ${result.error}`)
+  return result.sent
 }
 
 function settingsView(row: AiSettingsRow | null): Record<string, unknown> {
@@ -768,6 +887,10 @@ function renderAddPreview(
   product: ProductRow,
   items: NormalizedAddItem[],
   issues: string[],
+  batch: string | null,
+  advertiserCodes: string[],
+  productAdvertisers: ProductAdvertiserRow[],
+  adDeadline: { date: string; rule: 'H-21' | 'H-14' } | null,
 ): string {
   const lines: string[] = ['*Cek dulu - belum disimpan*', '', `Produk: ${product.code} - ${product.name}`, '']
   items.forEach((item, index) => {
@@ -783,6 +906,19 @@ function renderAddPreview(
     lines.push('')
   })
   if (issues.length > 0) lines.push(...issues, '')
+  const advertiserLabels = productAdvertisers
+    .filter((advertiser) => advertiserCodes.includes(advertiser.code))
+    .map((advertiser) => `${advertiser.code} - ${advertiser.name}`)
+  lines.push(`Batch iklan: ${batch ?? '?'}${batch === null ? ' (!)' : ''}`)
+  lines.push(`Pengiklan: ${advertiserLabels.length > 0 ? advertiserLabels.join(', ') : 'belum disebut (!)'}`)
+  if (adDeadline !== null) {
+    lines.push(`Kalender iklan: deadline ${formatDateId(adDeadline.date)} (${adDeadline.rule})`)
+  }
+  if (batch === null || advertiserLabels.length === 0) {
+    lines.push('Data bertanda (!) tetap disimpan dan bisa dilengkapi di Kalender Iklan.')
+  }
+  lines.push('')
+
   if (items.filter((item) => item.valid).length > 1) {
     lines.push('Balas *YA 2* untuk hanya menyimpan nomor 2.')
   }
@@ -817,7 +953,7 @@ function renderDeletePreview(product: ProductRow, candidates: CandidateRow[]): s
     lines.push(`${index + 1}. ${candidate.category} • ${formatDateId(candidate.event_date)}, ${shortTime(candidate.start_time)} WIB`)
     if (candidate.city) lines.push(`   Kota: ${candidate.city}`)
     lines.push(`   Lokasi: ${candidate.location}`)
-    if (candidate.blocked === true) lines.push('   ⚠ Punya deadline iklan - tidak bisa dihapus dari sini.')
+    if (candidate.blocked === true) lines.push('   ! Punya deadline iklan manual - tidak bisa dihapus dari sini.')
     lines.push('')
   })
   lines.push(candidates.length > 1 ? 'Balas *YA 2* untuk memilih nomor 2.' : 'Balas *YA* untuk hapus.')
@@ -860,6 +996,23 @@ function renderConfirmResult(draft: DraftRow, result: ConfirmResult, number: num
     lines.push(`✅ ${saved} jadwal dihapus.`)
     for (const candidate of chosen.slice(0, saved)) {
       lines.push(`${formatDateId(candidate.event_date)}, ${shortTime(candidate.start_time)} • ${candidate.location}`)
+    }
+  }
+
+  if (draft.command === 'add' && (result.ad_calendar_saved ?? 0) + (result.ad_calendar_skipped ?? 0) > 0) {
+    lines.push('')
+    if ((result.ad_calendar_saved ?? 0) > 0) {
+      lines.push(`Kalender iklan: ${result.ad_calendar_saved} deadline dibuat.`)
+      lines.push(`Batch: ${result.ad_batch ?? '?'}${result.ad_batch === '?' || result.ad_batch === null ? ' (!)' : ''}`)
+      if (result.ad_deadline_date) {
+        lines.push(`Deadline: ${formatDateId(result.ad_deadline_date)} (${result.ad_deadline_rule ?? '-'})`)
+      }
+      if (result.ad_calendar_incomplete === true) {
+        lines.push('! Batch/pengiklan belum lengkap. Lengkapi di Kalender Iklan.')
+      }
+    }
+    if ((result.ad_calendar_skipped ?? 0) > 0) {
+      lines.push(`! ${result.ad_calendar_skipped} deadline dilewati (sudah ada baris manual).`)
     }
   }
 

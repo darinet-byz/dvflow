@@ -1220,6 +1220,8 @@ export function createFakeDb(state: FakeState): Db {
               days_late: daysLate,
               score,
               status,
+              incomplete: row['advertiser_id'] === null || row['batch'] === '?',
+              source: row['source'] ?? 'manual',
             }
           })
         return {
@@ -1263,9 +1265,23 @@ export function createFakeDb(state: FakeState): Db {
         const created: string[] = []
         const deleted: string[] = []
         let skipped = 0
+        let firstEventId: string | null = null
+        let firstDate: string | null = null
+        let firstTime: string | null = null
+        let adSaved = 0
+        let adSkipped = 0
+        let adIncomplete = false
+        let adBatch: string | null = null
+        let adDeadline: string | null = null
+        let adRule: string | null = null
+        const addDays = (date: string, days: number): string => {
+          const value = new Date(`${date}T00:00:00Z`)
+          value.setUTCDate(value.getUTCDate() + days)
+          return value.toISOString().slice(0, 10)
+        }
 
         if (draft['command'] === 'add') {
-          const payload = draft['payload'] as { items?: Array<Record<string, unknown>> }
+          const payload = draft['payload'] as { items?: Array<Record<string, unknown>>; batch?: string | null; advertiser_codes?: string[] }
           const items = payload.items ?? []
           items.forEach((item, index) => {
             if (!chosen(index + 1)) return
@@ -1291,7 +1307,74 @@ export function createFakeDb(state: FakeState): Db {
               updated_by: args['p_actor'],
             })
             created.push(id)
+            const eventDate = String(item['event_date'] ?? '')
+            const eventTime = String(item['start_time'] ?? '')
+            if (firstDate === null || eventDate < firstDate || (eventDate === firstDate && eventTime < (firstTime ?? '99:99'))) {
+              firstDate = eventDate
+              firstTime = eventTime
+              firstEventId = id
+            }
           })
+
+          if (firstDate !== null && firstEventId !== null) {
+            adBatch = (payload.batch ?? '').trim() === '' ? '?' : String(payload.batch).trim()
+            const h21 = addDays(firstDate, -21)
+            if (h21 >= '2026-10-13') {
+              adDeadline = h21
+              adRule = 'H-21'
+            } else {
+              adDeadline = addDays(firstDate, -14)
+              adRule = 'H-14'
+            }
+
+            const codes = payload.advertiser_codes ?? []
+            const linkedIds = state.productAdvertisers
+              .filter((link) => link['product_id'] === product['id'])
+              .map((link) => String(link['advertiser_id']))
+            const advertisers = state.config.advertisers.filter((advertiser) =>
+              advertiser['active'] !== false
+              && linkedIds.includes(String(advertiser['id']))
+              && codes.includes(String(advertiser['code'])),
+            )
+            const targets: Array<string | null> = advertisers.length > 0
+              ? advertisers.map((advertiser) => String(advertiser['id']))
+              : [null]
+            adIncomplete = adBatch === '?' || advertisers.length === 0
+
+            for (const advertiserId of targets) {
+              const existing = state.adCalendar.find((row) =>
+                row['advertiser_id'] === advertiserId
+                && row['product_code'] === draft['product_code']
+                && row['batch'] === adBatch
+                && (advertiserId !== null || row['event_id'] === firstEventId),
+              )
+              if (advertiserId !== null && existing !== undefined && existing['source'] === 'manual') {
+                adSkipped += 1
+                continue
+              }
+              if (existing !== undefined) {
+                existing['event_id'] = firstEventId
+                existing['deadline_date'] = adDeadline
+                existing['source'] = 'ai'
+                existing['ai_draft_id'] = draft['id']
+                existing['updated_by'] = args['p_actor']
+              } else {
+                state.adCalendar.push({
+                  id: generatedUuid(state.adCalendar.length + 9000),
+                  event_id: firstEventId,
+                  advertiser_id: advertiserId,
+                  product_code: draft['product_code'],
+                  batch: adBatch,
+                  deadline_date: adDeadline,
+                  source: 'ai',
+                  ai_draft_id: draft['id'],
+                  created_by: args['p_actor'],
+                  updated_by: args['p_actor'],
+                })
+              }
+              adSaved += 1
+            }
+          }
         } else {
           const payload = draft['payload'] as { candidates?: Array<Record<string, unknown>> }
           const candidates = payload.candidates ?? []
@@ -1320,6 +1403,12 @@ export function createFakeDb(state: FakeState): Db {
           skipped,
           created_ids: created,
           deleted_ids: deleted,
+          ad_calendar_saved: adSaved,
+          ad_calendar_skipped: adSkipped,
+          ad_calendar_incomplete: adIncomplete,
+          ad_batch: adBatch,
+          ad_deadline_date: adDeadline,
+          ad_deadline_rule: adRule,
         } as T
       }
 

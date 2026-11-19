@@ -67,6 +67,7 @@ export async function createAdCalendar(context: RouteContext): Promise<Response>
       product_code: input.event.product_code,
       batch: input.batch,
       deadline_date: input.deadlineDate,
+      source: 'manual',
       created_by: actor.id,
       updated_by: actor.id,
     },
@@ -102,6 +103,7 @@ export async function updateAdCalendar(context: RouteContext): Promise<Response>
       product_code: input.event.product_code,
       batch: input.batch,
       deadline_date: input.deadlineDate,
+      source: 'manual',
       updated_by: context.claims?.sub ?? null,
     },
   )

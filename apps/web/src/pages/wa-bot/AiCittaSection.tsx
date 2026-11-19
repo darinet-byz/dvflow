@@ -7,17 +7,19 @@ import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
 import { TextInput } from '../../ui/Field'
 import { ErrorState, SkeletonRows } from '../../ui/Feedback'
+import { Modal } from '../../ui/Overlay'
 import { DataTable, TableCell, TableRow, type TableColumn } from '../../ui/Table'
 import { useToast } from '../../ui/Toast'
-import type { AiDraft, AiRun, AiSettings, AiTestResult } from './types'
+import type { AiConfirmResult, AiDraft, AiRun, AiSettings, AiTestResult } from './types'
 
 const DRAFT_COLUMNS: readonly TableColumn[] = [
   { key: 'created', header: 'Waktu', minWidth: 130 },
   { key: 'code', header: 'Kode', minWidth: 70 },
   { key: 'command', header: 'Perintah', minWidth: 90 },
   { key: 'product', header: 'Produk', minWidth: 100 },
+  { key: 'rows', header: 'Baris', minWidth: 80 },
   { key: 'status', header: 'Status', minWidth: 100 },
-  { key: 'action', header: 'Aksi', minWidth: 90 },
+  { key: 'action', header: 'Aksi', minWidth: 180 },
 ]
 
 const RUN_COLUMNS: readonly TableColumn[] = [
@@ -59,6 +61,8 @@ export function AiCittaSection() {
   const [failure, setFailure] = useState<string | null>(null)
   const [testing, setTesting] = useState(false)
   const [test, setTest] = useState<AiTestResult | null>(null)
+  const [confirming, setConfirming] = useState<AiDraft | null>(null)
+  const [confirmBusy, setConfirmBusy] = useState(false)
 
   useEffect(() => {
     if (data === null) return
@@ -125,6 +129,36 @@ export function AiCittaSection() {
       toast.show('Draft dibatalkan.', 'success')
     } catch (error) {
       toast.show(error instanceof Error ? error.message : 'Draft gagal dibatalkan.', 'danger')
+    }
+  }
+
+  async function confirmDraft(): Promise<void> {
+    if (confirming === null || confirmBusy) return
+    setConfirmBusy(true)
+    try {
+      const result = await authorizedRequest<AiConfirmResult>(`/api/ai/drafts/${confirming.id}/confirm`, { method: 'POST' })
+      if (result.status !== 'CONFIRMED') {
+        toast.show(result.summary ?? 'Draft tidak dapat disimpan.', 'danger')
+        setConfirming(null)
+        reload()
+        return
+      }
+      const saved = result.saved ?? 0
+      const adSaved = result.ad_calendar_saved ?? 0
+      const adSkipped = result.ad_calendar_skipped ?? 0
+      const suffix = adSaved > 0
+        ? ` Kalender iklan: ${adSaved} deadline${result.ad_calendar_incomplete ? ' (tanda ! - lengkapi di web)' : ''}.`
+        : adSkipped > 0 ? ` ${adSkipped} deadline manual tidak ditimpa.` : ''
+      toast.show(`${saved} jadwal disimpan.${suffix}`, 'success')
+      if (result.group_message_sent === true) {
+        toast.show('Ringkasan dikirim ke grup.', 'info')
+      }
+      setConfirming(null)
+      reload()
+    } catch (error) {
+      toast.show(error instanceof Error ? error.message : 'Draft gagal dikonfirmasi.', 'danger')
+    } finally {
+      setConfirmBusy(false)
     }
   }
 
@@ -227,7 +261,8 @@ export function AiCittaSection() {
       <Card>
         <h2 className="mb-1 text-[15px] font-semibold text-ink">Draft terakhir</h2>
         <p className="mb-3 text-[12px] text-ink-soft">
-          Draft menunggu konfirmasi bisa dibatalkan dari sini. Konfirmasi tetap lewat balasan <strong>YA</strong> di grup.
+          Draft menunggu konfirmasi bisa disimpan lewat tombol <strong>Konfirmasi</strong> atau balasan <strong>YA</strong> di grup.
+          Batalkan untuk membuang draft.
         </p>
         <DataTable columns={DRAFT_COLUMNS} maxRows={null}>
           {data.drafts.map((draft) => {
@@ -238,10 +273,19 @@ export function AiCittaSection() {
                 <TableCell><span className="font-semibold">{draft.code}</span></TableCell>
                 <TableCell>{draft.command === 'add' ? '/add' : '/delete'}</TableCell>
                 <TableCell>{draft.product_code}</TableCell>
+                <TableCell>
+                  <span className="flex flex-wrap items-center gap-1">
+                    <span className="font-semibold">{draft.item_count}</span>
+                    {draft.incomplete ? <Badge tone="danger">!</Badge> : null}
+                  </span>
+                </TableCell>
                 <TableCell><Badge tone={status.tone}>{status.label}</Badge></TableCell>
                 <TableCell>
                   {draft.status === 'pending' ? (
-                    <Button size="sm" variant="danger" onClick={() => void cancelDraft(draft)}>Batalkan</Button>
+                    <div className="flex flex-wrap gap-1.5">
+                      <Button size="sm" variant="primary" onClick={() => setConfirming(draft)}>Konfirmasi</Button>
+                      <Button size="sm" variant="danger" onClick={() => void cancelDraft(draft)}>Batalkan</Button>
+                    </div>
                   ) : (
                     <span className="text-[11px] text-ink-soft">-</span>
                   )}
@@ -277,6 +321,40 @@ export function AiCittaSection() {
         </DataTable>
         {data.runs.length === 0 ? <p className="py-3 text-[12px] text-ink-soft">Belum ada panggilan AI.</p> : null}
       </Card>
+
+      <Modal
+        open={confirming !== null}
+        title="Konfirmasi Draft"
+        onClose={() => { if (!confirmBusy) setConfirming(null) }}
+        footer={
+          <>
+            <Button disabled={confirmBusy} onClick={() => setConfirming(null)}>Batal</Button>
+            <Button variant="primary" loading={confirmBusy} onClick={() => void confirmDraft()}>Simpan</Button>
+          </>
+        }
+      >
+        {confirming === null ? null : (
+          <div className="flex flex-col gap-2 text-[13px]">
+            <p>
+              {confirming.command === 'add'
+                ? `Simpan ${confirming.item_count} jadwal dari draft ${confirming.code}?`
+                : `Hapus ${confirming.item_count} jadwal dari draft ${confirming.code}?`}
+            </p>
+            {confirming.command === 'add' ? (
+              <p className="text-ink-soft">
+                Batch: {confirming.batch ?? '?'}{confirming.batch === null ? ' (!)' : ''} ·{' '}
+                Pengiklan: {confirming.advertiser_codes.length > 0 ? confirming.advertiser_codes.join(', ') : 'belum disebut (!)'}
+              </p>
+            ) : null}
+            {confirming.incomplete ? (
+              <p className="rounded-sm border border-danger/30 bg-danger-soft px-3 py-2 text-danger">
+                ! Batch/pengiklan belum lengkap. Data tetap disimpan dan bisa dilengkapi di Kalender Iklan.
+              </p>
+            ) : null}
+            <p className="text-[12px] text-ink-soft">Ringkasan juga akan dikirim ke grup.</p>
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }

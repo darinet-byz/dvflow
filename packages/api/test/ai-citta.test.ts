@@ -49,6 +49,10 @@ async function setup() {
     is_active: true,
     ai_enabled: true,
   })
+  state.productAdvertisers.push({
+    product_id: PRODUCT_ID,
+    advertiser_id: '33333333-3333-3333-3333-333333333333',
+  })
 
   const { api } = await createTestApi(state, {
     env: {
@@ -289,6 +293,7 @@ describe('A82: Citta AI', () => {
       product_code: 'BM',
       batch: '12',
       deadline_date: '2026-11-20',
+      source: 'manual',
     })
     const { calls } = stubAi(DELETE_AI_REPLY)
 
@@ -302,6 +307,41 @@ describe('A82: Citta AI', () => {
     expect(state.eventCalendar).toHaveLength(1)
     expect(state.aiDrafts).toHaveLength(0)
     expect(calls.some((call) => call.url.endsWith('/send') && call.body.includes('deadline+iklan'))).toBe(true)
+  })
+
+  it('A84: event dengan deadline otomatis AI tetap bisa dihapus', async () => {
+    const { api, state } = await setup()
+    state.eventCalendar.push({
+      id: 'event-3',
+      product_code: 'BM',
+      category: 'Seminar',
+      event_date: '2026-11-30',
+      start_time: '09:00:00',
+      location: 'Hotel Aston Pekalongan',
+      city: 'Pekalongan',
+    })
+    state.adCalendar.push({
+      id: 'ad-2',
+      event_id: 'event-3',
+      advertiser_id: null,
+      product_code: 'BM',
+      batch: '?',
+      deadline_date: '2026-11-16',
+      source: 'ai',
+    })
+    stubAi(DELETE_AI_REPLY)
+
+    await webhook(api, {
+      sender: GROUP_ID,
+      member: '628111',
+      message: '/delete 30 Nov 2026',
+      inboxid: 'del-ad-ai',
+    })
+
+    expect(state.aiDrafts).toHaveLength(1)
+    const payload = state.aiDrafts[0]?.['payload'] as { candidates: Array<Record<string, unknown>> }
+    expect(payload.candidates[0]?.['id']).toBe('event-3')
+    expect(payload.candidates[0]?.['blocked']).toBe(false)
   })
 
   it('API key ditolak -> tidak ada draft, kegagalan dicatat', async () => {
@@ -378,5 +418,102 @@ describe('A82: Citta AI', () => {
 
     expect(state.aiDrafts).toHaveLength(0)
     expect(calls.some((call) => call.url.endsWith('/send') && call.body.includes('lebih+dari+satu+produk'))).toBe(true)
+  })
+
+  it('A84: konfirmasi /add membuat deadline iklan H-21 dari event paling awal', async () => {
+    const { api, state } = await setup()
+    stubAi({
+      batch: '61',
+      advertiser_codes: ['01'],
+      items: [
+        { category: 'Seminar', event_date: '2026-12-01', start_time: '09:00', city: 'Tegal', location: 'Hotel Prime Tegal' },
+        { category: 'Seminar', event_date: '2026-12-02', start_time: '09:00', city: 'Purwakarta', location: 'Hotel Harper Purwakarta' },
+      ],
+      issues: [],
+    })
+
+    await webhook(api, {
+      sender: GROUP_ID,
+      member: '628111',
+      message: '/add batch 61 untuk Zul',
+      inboxid: 'ads-1',
+    })
+    expect(state.aiDrafts).toHaveLength(1)
+    expect(state.aiDrafts[0]?.['payload']).toMatchObject({ batch: '61', advertiser_codes: ['01'] })
+
+    await webhook(api, {
+      sender: GROUP_ID,
+      member: '628111',
+      message: 'YA',
+      inboxid: 'ads-2',
+    })
+
+    expect(state.eventCalendar).toHaveLength(2)
+    expect(state.adCalendar).toHaveLength(1)
+    expect(state.adCalendar[0]).toMatchObject({
+      advertiser_id: '33333333-3333-3333-3333-333333333333',
+      product_code: 'BM',
+      batch: '61',
+      deadline_date: '2026-11-10',
+      source: 'ai',
+    })
+  })
+
+  it('A84: batch/pengiklan tidak disebut tetap disimpan dengan tanda belum lengkap', async () => {
+    const { api, state } = await setup()
+    stubAi({
+      items: [
+        { category: 'Seminar', event_date: '2026-12-03', start_time: '09:00', city: 'Garut', location: 'Hotel Fave Garut' },
+      ],
+      issues: [],
+    })
+
+    await webhook(api, {
+      sender: GROUP_ID,
+      member: '628111',
+      message: '/add jadwal Garut',
+      inboxid: 'inc-1',
+    })
+    await webhook(api, {
+      sender: GROUP_ID,
+      member: '628111',
+      message: 'YA',
+      inboxid: 'inc-2',
+    })
+
+    expect(state.eventCalendar).toHaveLength(1)
+    expect(state.adCalendar).toHaveLength(1)
+    expect(state.adCalendar[0]).toMatchObject({
+      advertiser_id: null,
+      batch: '?',
+      source: 'ai',
+    })
+  })
+
+  it('A84: konfirmasi dari dashboard menyimpan draft dan mengirim ringkasan ke grup', async () => {
+    const { api, state, request } = await setup()
+    const { calls } = stubAi({
+      batch: '61',
+      advertiser_codes: ['01'],
+      items: [
+        { category: 'Seminar', event_date: '2026-12-04', start_time: '09:00', city: 'Bandung', location: 'Hotel Fave Bandung' },
+      ],
+      issues: [],
+    })
+
+    await webhook(api, {
+      sender: GROUP_ID,
+      member: '628111',
+      message: '/add batch 61 untuk Zul',
+      inboxid: 'dash-1',
+    })
+    const draftId = String(state.aiDrafts[0]?.['id'])
+
+    const response = await request('POST', `/api/ai/drafts/${draftId}/confirm`)
+    expect(response.status).toBe(200)
+    const body = await readBody<{ data: { status: string; saved: number; ad_calendar_saved: number; group_message_sent: boolean } }>(response)
+    expect(body.data).toMatchObject({ status: 'CONFIRMED', saved: 1, ad_calendar_saved: 1, group_message_sent: true })
+    expect(state.adCalendar).toHaveLength(1)
+    expect(calls.some((call) => call.url.endsWith('/send'))).toBe(true)
   })
 })

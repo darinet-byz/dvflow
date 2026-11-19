@@ -5,6 +5,8 @@
  * akhir dilakukan di sini, sehingga hasil model tidak pernah langsung dipakai:
  * tanggal, jam, jenis acara, dan panjang field divalidasi ulang.
  */
+import { normalizeBatch } from '@dvflow/shared'
+
 export const EVENT_CATEGORIES = ['Seminar', 'Webinar', 'Workshop'] as const
 export type EventCategory = (typeof EVENT_CATEGORIES)[number]
 
@@ -35,6 +37,10 @@ export type DeleteMatch = {
 export type ParsedAdd = {
   items: NormalizedAddItem[]
   issues: string[]
+  /** A84: batch kampanye bila disebut di chat; null = belum lengkap. */
+  batch: string | null
+  /** A84: kode pengiklan yang disebut; kosong = belum lengkap. */
+  advertiserCodes: string[]
 }
 
 export type ParsedDelete = {
@@ -70,15 +76,24 @@ export function todayWib(now: Date): string {
   return `${value('year')}-${value('month')}-${value('day')}`
 }
 
-export function buildAddPrompt(productCode: string, productName: string, today: string): string {
+export function buildAddPrompt(
+  productCode: string,
+  productName: string,
+  today: string,
+  advertisers: ReadonlyArray<{ code: string; name: string }> = [],
+): string {
   const year = today.slice(0, 4)
+  const advertiserList = advertisers.length === 0
+    ? '(belum ada pengiklan aktif di produk ini)'
+    : advertisers.map((advertiser) => `${advertiser.code} - ${advertiser.name}`).join(', ')
   return [
     'Anda adalah mesin ekstraksi jadwal untuk Citta - DVFLOW AI.',
     `Produk sudah ditentukan dari grup WhatsApp: ${productCode} - ${productName}. JANGAN mengubah produk.`,
+    `Pengiklan produk: ${advertiserList}.`,
     `Hari ini: ${today} (WIB).`,
     'Tugas: baca teks pengguna, lalu balas HANYA satu objek JSON tanpa penjelasan.',
     'Skema:',
-    '{"items":[{"category":null,"event_date":"YYYY-MM-DD","start_time":"HH:MM","city":null,"location":"..."}],"issues":[]}',
+    '{"batch":null,"advertiser_codes":[],"items":[{"category":null,"event_date":"YYYY-MM-DD","start_time":"HH:MM","city":null,"location":"..."}],"issues":[]}',
     'Aturan:',
     '- Satu baris jadwal = satu item. Maksimal 10 item.',
     '- Abaikan teks hiasan seperti "jadwal terbaru".',
@@ -86,7 +101,10 @@ export function buildAddPrompt(productCode: string, productName: string, today: 
     '- Jam memakai format 24 jam. "09.00 WIB" -> "09:00". "2 siang" -> "14:00".',
     '- Pisahkan kota dan lokasi bila jelas. "Hotel Aston Pekalongan" adalah location; "PEKALONGAN" adalah city.',
     '- category hanya diisi bila teks menyebut Seminar, Webinar, atau Workshop. Selain itu null; server yang menyimpulkan.',
-    '- Jangan mengarang. Field yang tidak ada -> null, dan tambahkan issue yang menjelaskan.',
+    '- batch diisi hanya bila teks menyebut batch (mis. "Batch 61" -> "61"). Jika tidak disebut, null.',
+    '- advertiser_codes diisi kode pengiklan yang disebut, hanya dari daftar pengiklan produk. Jika tidak disebut, [].',
+    '- Batch dan pengiklan boleh tidak disebut. Jangan bertanya dan jangan menolak hanya karena itu; cukup null/kosong.',
+    '- Jangan mengarang. Field yang tidak ada -> null/kosong, dan tambahkan issue yang menjelaskan.',
   ].join('\n')
 }
 
@@ -106,12 +124,21 @@ export function buildDeletePrompt(productCode: string, productName: string, toda
   ].join('\n')
 }
 
-export function normalizeAdd(raw: unknown, today: string): ParsedAdd {
+export function normalizeAdd(
+  raw: unknown,
+  today: string,
+  advertisers: ReadonlyArray<{ code: string; name: string }> = [],
+): ParsedAdd {
   const issues: string[] = []
   const object = asObject(raw)
   const rawItems = Array.isArray(object?.['items']) ? (object?.['items'] as unknown[]) : []
   if (rawItems.length === 0) {
-    return { items: [], issues: ['Tidak ada jadwal yang bisa dibaca dari pesan.'] }
+    return {
+      items: [],
+      issues: ['Tidak ada jadwal yang bisa dibaca dari pesan.'],
+      batch: null,
+      advertiserCodes: [],
+    }
   }
 
   const limited = rawItems.slice(0, MAX_ADD_ITEMS)
@@ -120,7 +147,43 @@ export function normalizeAdd(raw: unknown, today: string): ParsedAdd {
   }
 
   const items = limited.map((value) => normalizeAddItem(asObject(value), today))
-  return { items, issues }
+  return {
+    items,
+    issues,
+    batch: normalizeOptionalBatch(object?.['batch']),
+    advertiserCodes: normalizeAdvertiserCodes(object?.['advertiser_codes'], advertisers),
+  }
+}
+
+function normalizeOptionalBatch(value: unknown): string | null {
+  const text = typeof value === 'number' && Number.isFinite(value)
+    ? String(value)
+    : typeof value === 'string' ? value.trim() : ''
+  if (text === '' || text === '?') return null
+  const normalized = normalizeBatch(text)
+  if (normalized === '' || normalized.length > 32) return null
+  return normalized
+}
+
+function normalizeAdvertiserCodes(
+  value: unknown,
+  advertisers: ReadonlyArray<{ code: string; name: string }>,
+): string[] {
+  if (!Array.isArray(value) || advertisers.length === 0) return []
+  const byKey = new Map<string, string>()
+  for (const advertiser of advertisers) {
+    byKey.set(advertiser.code.trim().toLowerCase(), advertiser.code)
+    byKey.set(advertiser.name.trim().toLowerCase(), advertiser.code)
+  }
+  const result: string[] = []
+  for (const raw of value) {
+    if (typeof raw !== 'string' && !(typeof raw === 'number' && Number.isFinite(raw))) continue
+    const text = String(raw).trim().toLowerCase()
+    const code = byKey.get(text) ?? byKey.get(text.padStart(2, '0'))
+    if (code !== undefined && !result.includes(code)) result.push(code)
+    if (result.length >= 20) break
+  }
+  return result
 }
 
 function normalizeAddItem(raw: Record<string, unknown> | null, today: string): NormalizedAddItem {

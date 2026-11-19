@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { ToastProvider } from '../src/ui/Toast'
 
@@ -218,5 +218,63 @@ describe('WA Admin Bot page', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tes Koneksi' }))
     expect(await screen.findByText('Koneksi berhasil.')).toBeTruthy()
     expect(authorizedRequest).toHaveBeenCalledWith('/api/ai/settings/test', expect.anything())
+  })
+
+  it('A84: draft pending bisa dikonfirmasi dari dashboard tanpa balasan YA', async () => {
+    sessionState.permissions = ['config.wa_bot', 'action.wa_bot_send', 'config.ai_citta']
+    const original = vi.mocked(authorizedRequest).getMockImplementation()
+    const draft = {
+      id: 'draft-1',
+      wa_group_id: '111@g.us',
+      command: 'add',
+      product_code: 'KM',
+      status: 'pending',
+      code: 'AB12',
+      created_ids: [],
+      deleted_ids: [],
+      error: null,
+      expires_at: '2026-11-19T14:15:46Z',
+      confirmed_at: null,
+      created_at: '2026-11-19T13:15:46Z',
+      item_count: 8,
+      batch: null,
+      advertiser_codes: [],
+      incomplete: true,
+    }
+    vi.mocked(authorizedRequest).mockImplementation(async (path: string, options?: { method?: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT'; body?: unknown }) => {
+      if (path === '/api/ai/drafts' && options?.method === undefined) return { drafts: [draft] }
+      if (path === '/api/ai/drafts/draft-1/confirm') {
+        return {
+          status: 'CONFIRMED',
+          saved: 8,
+          skipped: 0,
+          ad_calendar_saved: 2,
+          ad_calendar_incomplete: true,
+          ad_batch: '?',
+          ad_deadline_date: '2026-11-17',
+          ad_deadline_rule: 'H-14',
+          group_message_sent: true,
+        }
+      }
+      if (original === undefined) throw new Error(`Unexpected request: ${path}`)
+      return original(path, options)
+    })
+
+    try {
+      renderPage()
+      fireEvent.click(await screen.findByRole('tab', { name: 'Citta AI' }))
+
+      expect(await screen.findByText('AB12')).toBeTruthy()
+      fireEvent.click(screen.getByRole('button', { name: 'Konfirmasi' }))
+      const dialog = await screen.findByRole('dialog', { name: 'Konfirmasi Draft' })
+      expect(screen.getByText(/Simpan 8 jadwal/)).toBeTruthy()
+      expect(screen.getByText(/belum lengkap/)).toBeTruthy()
+
+      fireEvent.click(within(dialog).getByRole('button', { name: 'Simpan' }))
+      expect(await screen.findByText(/8 jadwal disimpan/)).toBeTruthy()
+      expect(authorizedRequest).toHaveBeenCalledWith('/api/ai/drafts/draft-1/confirm', { method: 'POST' })
+    } finally {
+      if (original !== undefined) vi.mocked(authorizedRequest).mockImplementation(original)
+    }
   })
 })
