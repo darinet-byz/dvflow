@@ -2022,3 +2022,44 @@ Konfigurasi Role.
   ke produk yang menjadi wewenang user. Tiket, integrasi, dan kamus master tetap memerlukan
   `action.delete_master`.
 - Tes: `apps/web/test/team-zoom.test.tsx`, `packages/api/test/permission-enforcement.test.ts`.
+
+## A80 - Kalender Iklan, deadline batch, dan kedisiplinan pengiklan (19 November 2026)
+
+Permintaan pengguna: menu Kalender menjadi dua tab (**Kalender Event** dan **Kalender Iklan**);
+Kalender Iklan mencatat deadline tayang iklan per event; Performa/Analitik menampilkan tiket
+dengan pembanding bulan lalu, ROAS, kedisiplinan, Top 2 Event, dan halaman detail.
+
+### Keputusan
+
+- **Menu** `Kalender Event` diganti menjadi **`Kalender`** dengan dua tab. Rute tetap `/kalender`
+  dan izin lihat tetap `operasional.event_calendar`.
+- **Satu deadline = satu batch per pengiklan** (`advertiser_id + product_code + batch`), bukan per
+  jadwal. Satu batch biasanya berisi banyak jadwal, dan satu tanggal tayang berlaku untuk semuanya.
+  Event hanya menjadi konteks/prefill; memilih event lain di batch yang sama tidak membuat deadline
+  kedua.
+- **Tanggal tayang tidak diinput manual.** Prioritas: order/lead pertama untuk batch itu (OTS
+  dikecualikan); bila belum ada lead sama sekali, `date_from` report spend pertama.
+- **Skor per batch 0–10**: tepat waktu 10; terlambat 1–3 hari 8; 4–7 hari 6; 8–14 hari 4;
+  15–30 hari 2; lebih dari 30 hari atau deadline lewat tanpa data 0.
+  `discipline_rate = total skor / (10 x jumlah batch dinilai)`.
+- **Batch belum jatuh tempo dan belum tayang** berstatus `upcoming`, tidak diberi 0, dan tidak masuk
+  penyebut karena belum bisa terlambat. Batch yang sudah tayang sebelum deadline tetap dinilai 10.
+- **Kartu pengiklan** hanya memuat: Nama, Tiket Terjual + delta vs bulan kalender sebelumnya, ROAS
+  (menggantikan Closing Rate), Kedisiplinan, Top 2 Event (level produk), dan Lihat Detail.
+- **Detail pengiklan** memuat Total Spend, Total Omzet, Total Tiket, Profit/Boncos, Closing Rate,
+  ROAS, Kedisiplinan beserta rincian band, dan Top 3 Event (level produk).
+- **Izin baru** `action.manage_ad_calendar` (default Manajer + Admin). Melihat tab memakai izin
+  Kalender Event yang sudah ada.
+
+### Implementasi
+
+- Migrasi `20261119120000_ad_calendar_dan_performance_discipline.sql` (`schema_version` 80):
+  tabel `ad_calendar`, helper `ad_calendar_publish_date`/`ad_calendar_scores`, RPC
+  `ad_calendar_page`, dan `advertiser_performance` diperluas dengan `prev_tickets` + field
+  `discipline_*`.
+- API: `packages/api/src/ad-calendar/handlers.ts`, route `GET/POST/PATCH/DELETE /api/ad-calendar`,
+  error `DF025 -> AD_CALENDAR_EXISTS`.
+- Web: `pages/calendar/CalendarPage.tsx`, `AdCalendarTab.tsx`, `lib/ad-calendar.ts`,
+  `PerformancePage` (kartu, tabel, detail), navigasi `Kalender`.
+- Tes: `packages/api/test/ad-calendar.test.ts`, `apps/web/test/ad-calendar.test.tsx`,
+  pgTAP `supabase/tests/44_ad_calendar.sql`, update tes navigasi dan Performa.

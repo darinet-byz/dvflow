@@ -27,7 +27,7 @@ describe('sidebar MVP (CLAUDE.md §5)', () => {
       'OTS',
       'Scan QR',
       'Presensi Acara',
-      'Kalender Event',
+      'Kalender',
       'Order',
       'Order Refund',
       'Order Unmapped',

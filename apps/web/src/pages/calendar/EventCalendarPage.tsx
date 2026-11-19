@@ -13,7 +13,6 @@ import { MONTH_NAMES, WEEKDAYS, monthGrid, toIsoDate } from '../../lib/date-rang
 import { hasPermission } from '../../lib/roles'
 import { useAsyncData } from '../../lib/useAsyncData'
 import { useSession } from '../../lib/useSession'
-import { PageHeader } from '../../layout/PageHeader'
 import { Badge, type BadgeTone } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
@@ -65,8 +64,9 @@ function displayDate(value: string): string {
  *
  * Menampilkan jadwal Seminar / Webinar / Workshop dalam tampilan bulan plus
  * agenda. Pemegang izin kelola dapat menambah, mengubah, dan menghapus.
+ * Sejak A80 konten ini menjadi tab pertama halaman Kalender.
  */
-export function EventCalendarPage() {
+export function EventCalendarTab() {
   const { profile } = useSession()
   const toast = useToast()
   const canManage = hasPermission(profile, 'action.manage_event_calendar')
@@ -186,12 +186,6 @@ export function EventCalendarPage() {
 
   return (
     <>
-      <PageHeader
-        title="Kalender Event"
-        description="Jadwal Seminar, Webinar, dan Workshop per produk."
-        action={canManage ? <Button variant="primary" onClick={() => startCreate(today)}>+ Tambah Event</Button> : undefined}
-      />
-
       <Card>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -200,7 +194,10 @@ export function EventCalendarPage() {
             <Button size="sm" variant="secondary" onClick={() => shiftMonth(1)} aria-label="Bulan berikutnya">›</Button>
             <Button size="sm" variant="ghost" onClick={() => setMonth(new Date(new Date().getFullYear(), new Date().getMonth(), 1))}>Hari Ini</Button>
           </div>
-          <p className="text-[12px] text-ink-muted">{events.length} event bulan ini</p>
+          <div className="flex items-center gap-2">
+            <p className="text-[12px] text-ink-muted">{events.length} event bulan ini</p>
+            {canManage ? <Button variant="primary" size="sm" onClick={() => startCreate(today)}>+ Tambah Event</Button> : null}
+          </div>
         </div>
 
         <div className="mb-2 flex flex-wrap items-center gap-3 text-[11px] text-ink-soft">

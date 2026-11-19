@@ -31,7 +31,7 @@ import { OrderPage } from './pages/order/OrderPage'
 import { OrderRefundPage } from './pages/refund/OrderRefundPage'
 import { OrderUnmappedPage } from './pages/order/OrderUnmappedPage'
 import { PresensiPage } from './pages/presensi/PresensiPage'
-import { EventCalendarPage } from './pages/calendar/EventCalendarPage'
+import { CalendarPage } from './pages/calendar/CalendarPage'
 import { RoleConfigPage } from './pages/config/RoleConfigPage'
 import { ResetDataPage } from './pages/developer/ResetDataPage'
 import { Card } from './ui/Card'
@@ -90,7 +90,7 @@ export function App() {
           <Route path="/order-refund" element={<RoleGuard path="/order-refund"><OrderRefundPage /></RoleGuard>} />
           <Route path="/order-unmapped" element={<RoleGuard path="/order-unmapped"><OrderUnmappedPage /></RoleGuard>} />
           <Route path="/presensi" element={<PresensiPage />} />
-          <Route path="/kalender" element={<RoleGuard path="/kalender"><EventCalendarPage /></RoleGuard>} />
+          <Route path="/kalender" element={<RoleGuard path="/kalender"><CalendarPage /></RoleGuard>} />
           <Route path="/konfigurasi-produk" element={<RoleGuard path="/konfigurasi-produk"><KonfigurasiProdukPage /></RoleGuard>} />
           <Route path="/template-follow-up" element={<RoleGuard path="/template-follow-up"><FollowUpTemplatePage /></RoleGuard>} />
           <Route path="/konfigurasi-tax" element={<RoleGuard path="/konfigurasi-tax"><KonfigurasiTaxPage /></RoleGuard>} />

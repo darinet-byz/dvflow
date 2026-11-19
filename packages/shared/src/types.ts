@@ -54,6 +54,8 @@ export const CHAT_SEND_PERMISSION = 'action.send_chat'
 /** A79: kalender event — izin lihat dan kelola terpisah agar bisa diatur per role. */
 export const EVENT_CALENDAR_VIEW_PERMISSION = 'operasional.event_calendar'
 export const EVENT_CALENDAR_MANAGE_PERMISSION = 'action.manage_event_calendar'
+/** A80: deadline tayang iklan per batch di tab Kalender Iklan. */
+export const AD_CALENDAR_MANAGE_PERMISSION = 'action.manage_ad_calendar'
 
 /** Izin yang hanya boleh dipegang role tertentu; role penuh (developer/owner) pun tidak. */
 const ROLE_RESTRICTED_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
@@ -86,6 +88,7 @@ export type AppPermissionKey =
   | 'action.send_chat'
   | 'operasional.event_calendar'
   | 'action.manage_event_calendar'
+  | 'action.manage_ad_calendar'
   | 'config.produk'
   | 'config.tax'
   | 'config.report_tax'

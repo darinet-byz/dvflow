@@ -52,7 +52,7 @@ vi.mock('../src/lib/session', async (importOriginal) => {
   return { ...actual, authorizedRequest: requestMock }
 })
 
-const { EventCalendarPage } = await import('../src/pages/calendar/EventCalendarPage')
+const { CalendarPage } = await import('../src/pages/calendar/CalendarPage')
 
 beforeEach(() => {
   requestMock.mockClear()
@@ -64,7 +64,7 @@ function renderCalendar() {
   render(
     <MemoryRouter>
       <ToastProvider>
-        <EventCalendarPage />
+        <CalendarPage />
       </ToastProvider>
     </MemoryRouter>,
   )

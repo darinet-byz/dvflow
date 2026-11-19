@@ -433,6 +433,20 @@ Sama dengan POST, sukses 200. `DELETE /api/event-calendar/:id` menghapus event, 
 ### Saran batch
 RPC langsung `recent_batches(p_product_code, p_advertiser_code, p_limit)` dari browser (grant authenticated). Maks 3 batch terbaru; nilai batch tetap boleh diketik bebas.
 
+## A80 - Kalender Iklan dan kedisiplinan pengiklan
+
+### GET /api/ad-calendar
+Izin `operasional.event_calendar`. Query `from`, `to` (YYYY-MM-DD, opsional; maks 400 hari). Respons: `rows[]` (`id`, `event_id`, `event_date`, `category`, `start_time`, `location`, `product_code`, `product_name`, `advertiser_code`, `advertiser_name`, `batch`, `deadline_date`, `publish_date`, `publish_source`, `days_late`, `score`, `status`), `products[]`, `advertisers[]`, dan `events[]`. `publish_date` diturunkan server: order/lead pertama (selain OTS), lalu `date_from` report spend pertama bila belum ada lead.
+
+### POST /api/ad-calendar
+Izin `action.manage_ad_calendar`. Body: `event_id`, `advertiser_code`, `batch` (maks 32, dinormalisasi), `deadline_date` (YYYY-MM-DD). Produk diambil dari event. Satu deadline per pengiklan + produk + batch; duplikat -> `409 AD_CALENDAR_EXISTS`. Sukses 201.
+
+### PATCH /api/ad-calendar/:id dan DELETE /api/ad-calendar/:id
+Izin `action.manage_ad_calendar`. PATCH memakai body yang sama; DELETE menghapus deadline. ID tidak valid/tidak ada -> 404.
+
+### Performa
+`advertiser_performance` tidak berubah signature. Dashboard menambahkan `prev_tickets` dan field `discipline_*`; detail menambahkan field yang sama di `summary`. Kartu pengiklan memakai Tiket Terjual + delta bulan kalender sebelumnya, ROAS, Kedisiplinan, Top 2 Event, dan Lihat Detail; detail menampilkan Total Spend, Total Omzet, Total Tiket, Profit/Boncos, Closing Rate, ROAS, Kedisiplinan, dan Top 3 Event.
+
 ### GET /api/ots/report
 Izin `action.ots`. Query: `from`, `to`, `product_code`, `batch`, `session`, `city`, `method`. Respons: `summary`, `batches[]`, `sessions[]`, `from`, `to`. Tanggal memakai WIB; from > to atau tanggal/metode tidak valid -> 400.
 

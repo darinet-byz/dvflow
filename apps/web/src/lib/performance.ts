@@ -33,11 +33,27 @@ export type TopProduct = {
   omzet: Numeric
 }
 
-export type AdvertiserPerformance = PerformanceMetrics & {
+/** A80: skor kedisiplinan deadline iklan per batch. */
+export type DisciplineMetrics = {
+  /** Total skor / (10 x batch dinilai); null bila belum ada batch dinilai. */
+  discipline_rate: number | null
+  discipline_score: number
+  discipline_batches: number
+  discipline_on_time: number
+  discipline_late: number
+  discipline_unpublished: number
+  discipline_upcoming: number
+}
+
+export type AdvertiserPerformance = PerformanceMetrics & DisciplineMetrics & {
   advertiser_code: string | null
   advertiser_name: string | null
+  /** A80: tiket Paid bulan kalender sebelumnya (pembanding kartu). */
+  prev_tickets: number
   top_products: TopProduct[]
 }
+
+export type PerformanceSummary = PerformanceMetrics & DisciplineMetrics
 
 export type PerformanceDashboard = {
   advertisers: AdvertiserPerformance[]
@@ -64,7 +80,7 @@ export type BatchPerformance = {
 }
 
 export type PerformanceDetail = {
-  summary: PerformanceMetrics
+  summary: PerformanceSummary
   rows: PerformancePeriodRow[]
   top_products: TopProduct[]
   products: TopProduct[]

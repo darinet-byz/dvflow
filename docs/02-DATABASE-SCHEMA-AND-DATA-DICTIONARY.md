@@ -428,6 +428,27 @@ RLS aktif; kedua tabel hanya dapat dibaca/ditulis `service_role`. RPC: `chat_rec
 
 RLS aktif; baca dan tulis lewat Worker. Izin `operasional.event_calendar` (lihat) dan `action.manage_event_calendar` (kelola).
 
+### ad_calendar (A80)
+Satu baris = satu deadline tayang untuk satu **batch** per pengiklan. Deadline berlaku untuk seluruh jadwal di batch itu; event hanya konteks/prefill.
+
+- id UUID PK
+- event_id UUID NULL FK event_calendar(id) ON DELETE SET NULL
+- advertiser_id UUID NOT NULL FK advertisers(id) ON DELETE RESTRICT
+- product_code TEXT NOT NULL FK products(code) ON UPDATE CASCADE ON DELETE RESTRICT
+- batch TEXT NOT NULL CHECK (sudah `normalize_batch`, tidak kosong, maks 32)
+- deadline_date DATE NOT NULL
+- created_by / updated_by UUID NULL FK users(id) ON DELETE SET NULL
+- created_at / updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+- UNIQUE (advertiser_id, product_code, batch)
+
+RLS aktif; tabel hanya untuk `service_role`. Tanggal tayang **tidak disimpan**: `ad_calendar_publish_date(advertiser_id, product_id, batch)` mengambil order/lead pertama (selain OTS); bila tidak ada lead sama sekali, memakai `date_from` report spend pertama.
+
+`ad_calendar_page(p_from, p_to)` (izin `operasional.event_calendar`) mengembalikan baris deadline + `publish_date`, `publish_source` (`order`/`report`), `days_late`, `score`, `status` (`on_time`/`late`/`unpublished`/`upcoming`), plus opsi produk/pengiklan/event.
+
+`ad_calendar_scores(...)` menghitung skor per batch: tepat waktu 10; telat 1–3 hari 8; 4–7 hari 6; 8–14 hari 4; 15–30 hari 2; >30 hari atau deadline lewat tanpa data 0. Batch belum jatuh tempo dan belum tayang berstatus `upcoming` dan tidak masuk penyebut. `advertiser_performance` menambahkan `prev_tickets` (bulan kalender penuh sebelumnya) serta `discipline_rate`, `discipline_score`, `discipline_batches`, `discipline_on_time`, `discipline_late`, `discipline_unpublished`, `discipline_upcoming`.
+
+Izin: `action.manage_ad_calendar` (default Manajer + Admin).
+
 ### RPC recent_batches
 `recent_batches(p_product_code text, p_advertiser_code text default null, p_limit integer default 3)` mengembalikan `{batches:[{batch,product_code,product_name,advertiser_code,advertiser_name,last_activity,orders,tickets}]}`. Maksimal 3 batch berbeda dari order Online, urut aktivitas order terakhir, dalam scope `actor_can_product`. Ini hanya saran; filter batch tetap teks bebas.
 

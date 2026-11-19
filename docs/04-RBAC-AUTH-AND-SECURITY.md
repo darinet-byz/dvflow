@@ -45,6 +45,9 @@ Versi: 1.0
   **Kalender Event** memakai `operasional.event_calendar` (lihat, default semua role) +
   `action.manage_event_calendar` (kelola, default Manajer + Admin). Izin lama
   `operasional.advertiser_notes`/`action.manage_advertiser_notes` dihapus bersama fitur Notes.
+- A80: tab **Kalender Iklan** memakai izin lihat `operasional.event_calendar` yang sama dan
+  `action.manage_ad_calendar` (kelola deadline, default Manajer + Admin). Skor kedisiplinan
+  ditampilkan di Performa/Analitik bagi pemegang `operasional.analytics`.
 
 ## 2. No Supabase Auth UI
 Tidak ada:

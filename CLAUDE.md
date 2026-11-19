@@ -339,6 +339,7 @@ OTS
 Acara
   Scan QR
   Presensi Acara
+  Kalender                (A80: tab Kalender Event + Kalender Iklan)
 
 Order
   Order

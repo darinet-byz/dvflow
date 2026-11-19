@@ -21,6 +21,7 @@ import { getFollowUpContext, getFollowUpSummaries, getFollowUpTemplates, markFol
 import { createAdSpend, deleteAdSpend, updateAdSpend } from './ad-spend/handlers'
 import { listChatMessages, listChatRecipients, listChatThreads, sendChatMessage } from './chat/handlers'
 import { createEventCalendar, deleteEventCalendar, listEventCalendar, updateEventCalendar } from './event-calendar/handlers'
+import { createAdCalendar, deleteAdCalendar, listAdCalendar, updateAdCalendar } from './ad-calendar/handlers'
 import { orderOnlineWebhook } from './webhooks/handlers'
 import { batchRemapOrders, deleteAlias, deleteUnmappedOrders, listAliases, listUnmappedOrders, saveAlias } from './aliases/handlers'
 import { getDataSummary, purgeExpiredUnmapped, resetData } from './developer/handlers'
@@ -156,6 +157,11 @@ export const ROUTES: Route[] = [
   { method: 'POST', path: '/api/event-calendar', handler: createEventCalendar, auth: 'access' },
   { method: 'PATCH', path: '/api/event-calendar/:id', handler: updateEventCalendar, auth: 'access' },
   { method: 'DELETE', path: '/api/event-calendar/:id', handler: deleteEventCalendar, auth: 'access' },
+  // A80: Kalender Iklan — deadline tayang per batch pengiklan.
+  { method: 'GET', path: '/api/ad-calendar', handler: listAdCalendar, auth: 'access' },
+  { method: 'POST', path: '/api/ad-calendar', handler: createAdCalendar, auth: 'access' },
+  { method: 'PATCH', path: '/api/ad-calendar/:id', handler: updateAdCalendar, auth: 'access' },
+  { method: 'DELETE', path: '/api/ad-calendar/:id', handler: deleteAdCalendar, auth: 'access' },
   // A37: Report Spend Iklan (tulis; laporan dibaca lewat RPC ad_spend_report).
   { method: 'POST', path: '/api/ad-spend-reports', handler: createAdSpend, auth: 'access' },
   { method: 'PATCH', path: '/api/ad-spend-reports/:id', handler: updateAdSpend, auth: 'access' },

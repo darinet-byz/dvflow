@@ -12,6 +12,8 @@ import {
   PRODUCT_RECENT_BATCHES,
   advertiserLabel,
   costPerTicket,
+  deltaClass,
+  formatDeltaPercent,
   formatPeriodRangeLabel,
   formatRoas,
   metricNumber,
@@ -33,7 +35,6 @@ import {
   type TopProduct,
 } from '../../lib/performance'
 import { PageHeader } from '../../layout/PageHeader'
-import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card, CardHeader, KpiCard } from '../../ui/Card'
 import { ComparisonChart } from '../../ui/ComparisonChart'
@@ -77,6 +78,14 @@ function profitClass(value: Numeric): string {
   if (number > 0) return 'text-success'
   if (number < 0) return 'text-danger'
   return ''
+}
+
+/** A80: warna kedisiplinan — hijau >= 80%, kuning >= 50%, merah di bawahnya. */
+function disciplineClass(rate: number | null): string {
+  if (rate === null) return 'text-ink-soft'
+  if (rate >= 0.8) return 'text-success'
+  if (rate >= 0.5) return 'text-warning'
+  return 'text-danger'
 }
 
 /** Label sumbu/tabel: "01 Okt", "Okt 2026", atau "2026". */
@@ -400,7 +409,7 @@ export function PerformancePage() {
     <>
       <PageHeader
         title="Performa / Analitik"
-        description="Track record tiap pengiklan: spend, omzet, profit, closing rate, tiket, dan ROAS. Data iklan/online, tanpa OTS."
+        description="Track record tiap pengiklan: tiket, ROAS, kedisiplinan iklan, profit, dan closing rate. Data iklan/online, tanpa OTS."
       />
 
       {controls}
@@ -559,25 +568,32 @@ function AdvertiserCard({ row, onOpen }: { row: AdvertiserPerformance; onOpen: (
     >
       <span className="flex min-w-0 items-start justify-between gap-2">
         <span className="min-w-0">
+          <span className="block text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Pengiklan</span>
           <span className="block truncate text-[14px] font-semibold text-ink">{advertiserLabel(row)}</span>
-          <span className="block text-[11px] text-ink-soft">Total Spend {formatMoney(row.total_spend)}</span>
         </span>
-        <Badge tone="primary">ROAS {formatRoas(row.roas)}</Badge>
+      </span>
+
+      <span className="mt-3 block border-t border-line pt-2.5">
+        <span className="block text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Tiket Terjual</span>
+        <span className="block text-[24px] font-bold leading-tight text-ink">{formatCount(row.tickets)}</span>
+        <span className={`block text-[12px] font-semibold ${deltaClass(row.tickets, row.prev_tickets)}`}>
+          {formatDeltaPercent(row.tickets, row.prev_tickets)}
+          <span className="ml-1 font-normal text-ink-soft">vs bulan lalu ({formatCount(row.prev_tickets)} tiket)</span>
+        </span>
       </span>
 
       <span className="mt-3 grid grid-cols-2 gap-x-3 gap-y-2">
-        <Metric label="Omzet" value={formatMoney(row.omzet)} />
-        <Metric label="Profit / Boncos" value={formatMoney(row.profit)} valueClassName={profitClass(row.profit)} />
-        <Metric label="Tiket Terjual" value={formatCount(row.tickets)} hint={`${formatCount(row.paid)} order Paid`} />
+        <Metric label="ROAS" value={formatRoas(row.roas)} hint="Omzet ÷ Total Spend" />
         <Metric
-          label="Closing Rate"
-          value={formatRate(row.closing_rate)}
-          hint={`${formatCount(row.tickets)} tiket / ${formatCount(row.leads)} leads`}
+          label="Kedisiplinan"
+          value={formatRate(row.discipline_rate)}
+          hint={`${formatCount(row.discipline_batches)} batch dinilai`}
+          valueClassName={disciplineClass(row.discipline_rate)}
         />
       </span>
 
       <span className="mt-3 block border-t border-line pt-2">
-        <span className="block text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Top 2 Produk (tiket)</span>
+        <span className="block text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Top 2 Event (tiket)</span>
         {row.top_products.length === 0 ? (
           <span className="mt-1 block text-[12px] text-ink-soft">Belum ada tiket Paid.</span>
         ) : (
@@ -590,7 +606,7 @@ function AdvertiserCard({ row, onOpen }: { row: AdvertiserPerformance; onOpen: (
         )}
       </span>
 
-      <span className="mt-3 block text-[11px] font-semibold text-primary group-hover:underline">Lihat detail →</span>
+      <span className="mt-3 block text-[11px] font-semibold text-primary group-hover:underline">Lihat Detail →</span>
     </button>
   )
 }
@@ -600,10 +616,10 @@ const ADVERTISER_COLUMNS: readonly TableColumn[] = [
   { key: 'spend', header: 'Total Spend', align: 'right', minWidth: 130 },
   { key: 'omzet', header: 'Omzet', align: 'right', minWidth: 130 },
   { key: 'profit', header: 'Profit / Boncos', align: 'right', minWidth: 140 },
-  { key: 'tickets', header: 'Tiket', align: 'right', minWidth: 90 },
-  { key: 'closing', header: 'Closing Rate', align: 'right', minWidth: 120 },
+  { key: 'tickets', header: 'Tiket', align: 'right', minWidth: 120 },
+  { key: 'discipline', header: 'Kedisiplinan', align: 'right', minWidth: 120 },
   { key: 'roas', header: 'ROAS', align: 'right', minWidth: 90 },
-  { key: 'top', header: 'Top 2 Produk', minWidth: 240 },
+  { key: 'top', header: 'Top 2 Event', minWidth: 240 },
 ]
 
 function AdvertiserTable({ rows, onOpen }: { rows: AdvertiserPerformance[]; onOpen: (row: AdvertiserPerformance) => void }) {
@@ -626,10 +642,15 @@ function AdvertiserTable({ rows, onOpen }: { rows: AdvertiserPerformance[]; onOp
             <TableCell align="right">
               <span className={profitClass(row.profit)}>{formatMoney(row.profit)}</span>
             </TableCell>
-            <TableCell align="right">{formatCount(row.tickets)}</TableCell>
             <TableCell align="right">
-              {formatRate(row.closing_rate)}
-              <span className="block text-[10px] text-ink-soft">{formatCount(row.tickets)} / {formatCount(row.leads)}</span>
+              {formatCount(row.tickets)}
+              <span className={`block text-[10px] ${deltaClass(row.tickets, row.prev_tickets)}`}>
+                {formatDeltaPercent(row.tickets, row.prev_tickets)}
+              </span>
+            </TableCell>
+            <TableCell align="right">
+              <span className={disciplineClass(row.discipline_rate)}>{formatRate(row.discipline_rate)}</span>
+              <span className="block text-[10px] text-ink-soft">{formatCount(row.discipline_batches)} batch</span>
             </TableCell>
             <TableCell align="right">{formatRoas(row.roas)}</TableCell>
             <TableCell>{topProductsText(row.top_products)}</TableCell>
@@ -692,7 +713,7 @@ function PerformanceDetailView({
         <h2 className="min-w-0 truncate text-[16px] font-semibold text-ink">{title}</h2>
       </div>
 
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           size="lg"
           label="Total Spend"
@@ -700,7 +721,13 @@ function PerformanceDetailView({
           hint={`Spend ${formatMoney(summary.spend)} + PPN ${formatMoney(summary.tax_amount)}`}
           highlight
         />
-        <KpiCard size="lg" label="Omzet" value={formatMoney(summary.omzet)} hint="Gross order Paid" />
+        <KpiCard size="lg" label="Total Omzet" value={formatMoney(summary.omzet)} hint="Gross order Paid" />
+        <KpiCard
+          size="lg"
+          label="Total Tiket"
+          value={formatCount(summary.tickets)}
+          hint={`${formatCount(summary.paid)} order Paid`}
+        />
         <KpiCard
           size="lg"
           label={profit < 0 ? 'Boncos' : 'Profit'}
@@ -712,16 +739,26 @@ function PerformanceDetailView({
 
       <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-3">
         <KpiCard
-          label="Tiket Terjual"
-          value={formatCount(summary.tickets)}
-          hint={`${formatCount(summary.paid)} order Paid`}
-        />
-        <KpiCard
           label="Closing Rate"
           value={formatRate(summary.closing_rate)}
           hint={`${formatCount(summary.tickets)} tiket ÷ ${formatCount(summary.leads)} leads`}
         />
         <KpiCard label="ROAS" value={formatRoas(summary.roas)} hint="Omzet ÷ (Spend + PPN)" />
+        <KpiCard
+          label="Kedisiplinan Iklan"
+          value={formatRate(summary.discipline_rate)}
+          valueClassName={disciplineClass(summary.discipline_rate)}
+          hint={`${formatCount(summary.discipline_score)} / ${formatCount(summary.discipline_batches * 10)} poin · ${formatCount(summary.discipline_batches)} batch`}
+        />
+      </div>
+
+      <div className="mt-3 rounded-md border border-line bg-soft/40 px-3 py-2 text-[12px] text-ink-soft">
+        <span className="font-semibold text-ink">Rincian kedisiplinan:</span>{' '}
+        {formatCount(summary.discipline_on_time)} tepat waktu · {formatCount(summary.discipline_late)} terlambat ·{' '}
+        {formatCount(summary.discipline_unpublished)} belum tayang · {formatCount(summary.discipline_upcoming)} belum jatuh tempo.
+        <span className="block text-[11px]">
+          Skor per batch 0–10: tepat waktu 10, telat 1–3 hari 8, 4–7 hari 6, 8–14 hari 4, 15–30 hari 2, lebih dari 30 hari/tidak tayang 0.
+        </span>
       </div>
 
       <p className="mt-2 text-[12px] text-ink-soft">
@@ -757,12 +794,12 @@ function PerformanceDetailView({
       </Card>
 
       <Card className="mt-3">
-        <CardHeader title="Top 2 Produk" description="Berdasarkan tiket terjual (order Paid), level produk, pada periode filter." />
-        {detail.top_products.length === 0 ? (
+        <CardHeader title="Top 3 Event" description="Berdasarkan tiket terjual (order Paid), level produk, pada periode filter." />
+        {detail.products.length === 0 ? (
           <p className="text-[13px] text-ink-soft">Belum ada tiket Paid pada periode ini.</p>
         ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {detail.top_products.map((product, index) => (
+          <div className="grid gap-2 sm:grid-cols-3">
+            {detail.products.slice(0, 3).map((product, index) => (
               <div key={`${product.product_code ?? product.product_name ?? index}`} className="flex min-w-0 items-center justify-between gap-3 rounded-md border border-line bg-soft/50 p-3">
                 <div className="min-w-0">
                   <p className="truncate text-[13px] font-semibold text-ink">{index + 1}. {productLabel(product)}</p>

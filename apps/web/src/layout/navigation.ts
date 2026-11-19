@@ -38,7 +38,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { label: 'Scan QR', path: OPERASIONAL_PATH, icon: 'scan-line', keywords: ['scan', 'kamera', 'checkin', 'tiket'] },
       { label: 'Presensi Acara', path: '/presensi', icon: 'user-check', keywords: ['kehadiran', 'hadir', 'peserta', 'seminar', 'webinar'] },
-      { label: 'Kalender Event', path: '/kalender', icon: 'calendar-days', keywords: ['kalender', 'jadwal', 'seminar', 'webinar', 'workshop', 'event'] },
+      { label: 'Kalender', path: '/kalender', icon: 'calendar-days', keywords: ['kalender', 'jadwal', 'seminar', 'webinar', 'workshop', 'event', 'iklan', 'deadline', 'tayang'] },
     ],
   },
   {

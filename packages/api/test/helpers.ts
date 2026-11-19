@@ -85,6 +85,7 @@ export const DEFAULT_PERMISSIONS = [
   { key: 'action.delete_master', name: 'Hapus Data Master', module: 'aksi', description: 'Hapus master', sort_order: 42 },
   { key: 'action.send_chat', name: 'Kirim Chat', module: 'aksi', description: 'Kirim pesan chat', sort_order: 44 },
   { key: 'action.manage_event_calendar', name: 'Kelola Kalender Event', module: 'aksi', description: 'Kelola jadwal event', sort_order: 46 },
+  { key: 'action.manage_ad_calendar', name: 'Kelola Kalender Iklan', module: 'aksi', description: 'Kelola deadline tayang iklan per batch', sort_order: 47 },
 ]
 
 export const DEFAULT_ROLE_PERMISSIONS: Array<{ role_id: string; permission_key: string }> = [
@@ -113,6 +114,7 @@ export const DEFAULT_ROLE_PERMISSIONS: Array<{ role_id: string; permission_key: 
     ['operasional.chat', 'action.send_chat', 'operasional.event_calendar'].map((permission_key) => ({ role_id, permission_key })),
   ),
   ...['manajer', 'admin'].map((role_id) => ({ role_id, permission_key: 'action.manage_event_calendar' })),
+  ...['manajer', 'admin'].map((role_id) => ({ role_id, permission_key: 'action.manage_ad_calendar' })),
 ]
 
 export type FakeState = {
@@ -149,6 +151,9 @@ export type FakeState = {
   chatMessages: Array<Record<string, unknown>>
   /** A79: kalender event. */
   eventCalendar: Array<Record<string, unknown>>
+  /** A80: kalender iklan + report spend untuk tanggal tayang turunan. */
+  adCalendar: Array<Record<string, unknown>>
+  adSpendReports: Array<Record<string, unknown>>
   /** Semua panggilan RPC, untuk memastikan handler tidak melewati database. */
   rpcCalls: Array<{ name: string; args: Record<string, unknown> }>
 }
@@ -199,6 +204,8 @@ export function createFakeState(
     chatThreads: [],
     chatMessages: [],
     eventCalendar: [],
+    adCalendar: [],
+    adSpendReports: [],
     rpcCalls: [],
   }
 }
@@ -1130,6 +1137,90 @@ export function createFakeDb(state: FakeState): Db {
         } as T
       }
 
+      if (name === 'ad_calendar_page') {
+        const from = args['p_from'] === null || args['p_from'] === undefined ? null : String(args['p_from'])
+        const to = args['p_to'] === null || args['p_to'] === undefined ? null : String(args['p_to'])
+        const today = new Date().toISOString().slice(0, 10)
+        const rows = state.adCalendar
+          .filter((row) => {
+            const deadline = String(row['deadline_date'] ?? '')
+            return (from === null || deadline >= from) && (to === null || deadline <= to)
+          })
+          .map((row) => {
+            const product = state.config.products.find(
+              (item) => String(item['code'] ?? '').toUpperCase() === String(row['product_code'] ?? '').toUpperCase(),
+            )
+            const advertiser = state.config.advertisers.find((item) => item['id'] === row['advertiser_id'])
+            const event = state.eventCalendar.find((item) => item['id'] === row['event_id'])
+            const batch = String(row['batch'] ?? '')
+            const orderDates = state.orders
+              .filter((order) => {
+                const productCode = String(order['product_code'] ?? '').toUpperCase()
+                const advertiserCode = String(order['advertiser_code'] ?? '').toUpperCase()
+                return productCode === String(row['product_code'] ?? '').toUpperCase()
+                  && advertiserCode === String(advertiser?.['code'] ?? '').toUpperCase()
+                  && String(order['batch'] ?? '') === batch
+                  && order['source'] !== 'ots'
+                  && order['product_parse_status'] !== 'invalid'
+              })
+              .map((order) => String(order['source_created_at'] ?? order['created_at'] ?? '').slice(0, 10))
+              .filter((value) => value !== '')
+              .sort()
+            const reportDates = state.adSpendReports
+              .filter((report) => report['advertiser_id'] === row['advertiser_id']
+                && (report['product_id'] === product?.['id'] || report['product_code'] === row['product_code'])
+                && String(report['batch'] ?? '') === batch)
+              .map((report) => String(report['date_from'] ?? '').slice(0, 10))
+              .filter((value) => value !== '')
+              .sort()
+            const publishDate = orderDates[0] ?? reportDates[0] ?? null
+            const publishSource = orderDates[0] !== undefined ? 'order' : reportDates[0] !== undefined ? 'report' : null
+            const deadline = String(row['deadline_date'] ?? '')
+            const daysLate = publishDate === null ? null : Math.round((Date.parse(`${publishDate}T00:00:00Z`) - Date.parse(`${deadline}T00:00:00Z`)) / 86_400_000)
+            const upcoming = publishDate === null && deadline > today
+            const score = upcoming ? null
+              : publishDate === null ? 0
+              : daysLate !== null && daysLate <= 0 ? 10
+              : daysLate !== null && daysLate <= 3 ? 8
+              : daysLate !== null && daysLate <= 7 ? 6
+              : daysLate !== null && daysLate <= 14 ? 4
+              : daysLate !== null && daysLate <= 30 ? 2
+              : 0
+            const status = upcoming ? 'upcoming'
+              : publishDate === null ? 'unpublished'
+              : daysLate !== null && daysLate <= 0 ? 'on_time'
+              : 'late'
+            return {
+              id: row['id'],
+              event_id: row['event_id'],
+              event_date: event?.['event_date'] ?? null,
+              category: event?.['category'] ?? null,
+              start_time: event?.['start_time'] ?? null,
+              location: event?.['location'] ?? null,
+              product_code: row['product_code'],
+              product_name: product?.['name'] ?? row['product_code'],
+              advertiser_code: advertiser?.['code'] ?? null,
+              advertiser_name: advertiser?.['name'] ?? null,
+              batch: row['batch'],
+              deadline_date: row['deadline_date'],
+              publish_date: publishDate,
+              publish_source: publishSource,
+              days_late: daysLate,
+              score,
+              status,
+            }
+          })
+        return {
+          rows,
+          products: state.config.products.filter((row) => row['active'] !== false).map((row) => ({ code: row['code'], name: row['name'] })),
+          advertisers: state.config.advertisers.filter((row) => row['active'] !== false).map((row) => ({ code: row['code'], name: row['name'] })),
+          events: state.eventCalendar.map((event) => {
+            const product = state.config.products.find((row) => row['code'] === event['product_code'])
+            return { ...event, product_name: product?.['name'] ?? event['product_code'] }
+          }),
+        } as T
+      }
+
       throw new Error(`RPC tidak dikenal di tiruan: ${name}`)
     },
 
@@ -1280,6 +1371,10 @@ function rowsOf(state: FakeState, table: string): Array<Record<string, unknown>>
       return state.chatMessages
     case 'event_calendar':
       return state.eventCalendar
+    case 'ad_calendar':
+      return state.adCalendar
+    case 'ad_spend_reports':
+      return state.adSpendReports
     default:
       throw new Error(`tabel tidak dikenal di tiruan: ${table}`)
   }

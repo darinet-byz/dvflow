@@ -46,6 +46,14 @@ const dashboard: PerformanceDashboard = {
       closing_rate: 5 / 3,
       roas: 950000 / 433000,
       coverage: 0.2,
+      prev_tickets: 4,
+      discipline_rate: 0.8,
+      discipline_score: 8,
+      discipline_batches: 1,
+      discipline_on_time: 1,
+      discipline_late: 0,
+      discipline_unpublished: 0,
+      discipline_upcoming: 0,
       top_products: [
         { product_code: 'PBBB', product_name: 'Produk B', tickets: 4, omzet: 800000 },
         { product_code: 'PAAA', product_name: 'Produk A', tickets: 1, omzet: 150000 },
@@ -65,6 +73,14 @@ const dashboard: PerformanceDashboard = {
       closing_rate: 2,
       roas: 600000 / 333000,
       coverage: 0.75,
+      prev_tickets: 2,
+      discipline_rate: 0.5,
+      discipline_score: 5,
+      discipline_batches: 1,
+      discipline_on_time: 0,
+      discipline_late: 1,
+      discipline_unpublished: 0,
+      discipline_upcoming: 0,
       top_products: [{ product_code: 'PAAA', product_name: 'Produk A', tickets: 4, omzet: 600000 }],
     },
   ],
@@ -83,6 +99,13 @@ const detail: PerformanceDetail = {
     closing_rate: 5 / 3,
     roas: 950000 / 433000,
     coverage: 0.2,
+    discipline_rate: 0.8,
+    discipline_score: 8,
+    discipline_batches: 1,
+    discipline_on_time: 1,
+    discipline_late: 0,
+    discipline_unpublished: 0,
+    discipline_upcoming: 1,
   },
   rows: [
     {
@@ -228,13 +251,14 @@ describe('Performa / Analitik: halaman', () => {
     expect(await screen.findByText('Semua Pengiklan')).toBeTruthy()
     expect(screen.getByText('Zul (01)')).toBeTruthy()
     expect(screen.getByText('Rina (02)')).toBeTruthy()
-    expect(screen.getAllByText(/Top 2 Produk/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Top 2 Event/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Kedisiplinan/).length).toBeGreaterThan(0)
     expect(supabaseRpc).toHaveBeenCalledWith('advertiser_performance', expect.objectContaining({ p_advertiser_code: null }))
 
     fireEvent.click(screen.getByRole('button', { name: /Zul \(01\)/ }))
 
     expect(await screen.findByRole('heading', { name: '01 - Zul' })).toBeTruthy()
-    expect(screen.getByText('Top 2 Produk')).toBeTruthy()
+    expect(screen.getByText('Top 3 Event')).toBeTruthy()
     expect(screen.queryByText('Periode')).toBeNull()
     expect(screen.getByRole('img', { name: 'Grafik total spend dan tiket terjual' })).toBeTruthy()
     expect(screen.queryByRole('img', { name: 'Grafik garis omzet' })).toBeNull()
