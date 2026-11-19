@@ -117,6 +117,7 @@ const detail: PerformanceDetail = {
       period_start: '2026-09-01',
       period_end: '2026-09-30',
       is_partial: false,
+      is_frozen: true,
       spend: 400000,
       tax_amount: 33000,
       total_spend: 433000,
@@ -265,6 +266,7 @@ describe('Performa / Analitik: halaman', () => {
     expect(await screen.findByRole('heading', { name: '01 - Zul' })).toBeTruthy()
     expect(screen.getByText('Top 3 Event')).toBeTruthy()
     expect(screen.getByText('Rincian Bulanan')).toBeTruthy()
+    expect(screen.queryByText('Beku')).toBeNull()
     expect(screen.queryByText('Periode')).toBeNull()
     expect(screen.getByRole('img', { name: 'Grafik total spend dan tiket terjual' })).toBeTruthy()
     expect(screen.queryByRole('img', { name: 'Grafik garis omzet' })).toBeNull()
@@ -422,7 +424,8 @@ describe('Performa / Analitik: halaman', () => {
 
     render(<PerformancePage />)
 
-    const input = await screen.findByPlaceholderText('mis. 100')
+    const input = await screen.findByPlaceholderText('Atur KPI Pengiklan')
+    expect(screen.getByLabelText(/Atur KPI pengiklan/)).toBe(input)
     fireEvent.change(input, { target: { value: '7' } })
     fireEvent.click(screen.getByRole('button', { name: 'Simpan' }))
 

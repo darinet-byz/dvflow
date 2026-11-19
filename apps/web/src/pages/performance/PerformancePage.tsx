@@ -589,39 +589,15 @@ function PerformanceDashboardView({
 }) {
   return (
     <div className="mt-4">
-      <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2.5">
-        <div className="min-w-0">
-          <h2 className="text-[15px] font-semibold text-ink">Semua Pengiklan</h2>
-          <p className="text-[12px] text-ink-soft">
-            {advertisers.length === total ? `${formatCount(total)} pengiklan` : `${formatCount(advertisers.length)} dari ${formatCount(total)} pengiklan`}
-          </p>
-        </div>
-        {showKpi ? (
-          <div className="flex min-w-0 flex-wrap items-end gap-2">
-            <div className="w-[230px]">
-              <TextInput
-                id="kpi-performa"
-                type="number"
-                inputMode="numeric"
-                label={kpiMonthLabel === '' ? 'KPI tiket / pengiklan / bulan' : `KPI ${kpiMonthLabel}`}
-                value={kpiInput}
-                placeholder="mis. 100"
-                disabled={kpiBusy}
-                onChange={onKpiInput}
-              />
-            </div>
-            <Button size="sm" variant="primary" loading={kpiBusy} onClick={onSaveKpi}>Simpan</Button>
-            {kpiMessage === null ? null : (
-              <span className={`text-[11px] font-semibold ${kpiMessage.tone === 'success' ? 'text-success' : 'text-danger'}`}>
-                {kpiMessage.text}
-              </span>
-            )}
-          </div>
-        ) : (
-          <span className="text-[11px] text-ink-soft">KPI hanya untuk periode satu bulan.</span>
-        )}
-        <SearchInput id="cari-pengiklan-performa" value={search} onChange={onSearch} placeholder="Cari pengiklan…" />
-        <div className="flex items-center gap-2">
+      <div className="mb-2 flex min-w-0 flex-wrap items-center gap-2.5">
+        <h2 className="min-w-0 text-[15px] font-semibold text-ink">
+          Semua Pengiklan
+          <span className="ml-1.5 text-[12px] font-normal text-ink-soft">
+            · {advertisers.length === total ? `${formatCount(total)} pengiklan` : `${formatCount(advertisers.length)} dari ${formatCount(total)} pengiklan`}
+          </span>
+        </h2>
+        <div className="ml-auto flex min-w-0 flex-wrap items-center gap-2">
+          <SearchInput id="cari-pengiklan-performa" value={search} onChange={onSearch} placeholder="Cari pengiklan…" />
           <Select
             id="urut-pengiklan-performa"
             ariaLabel="Urutkan pengiklan"
@@ -630,12 +606,12 @@ function PerformanceDashboardView({
             options={ADVERTISER_SORT_OPTIONS.map((option) => ({ value: option.value, label: `Urut: ${option.label}` }))}
             onChange={(value) => onSort(value as AdvertiserSortKey)}
           />
-          <div className="inline-flex rounded-sm border border-line bg-card p-0.5" role="group" aria-label="Tampilan daftar pengiklan">
+          <div className="inline-flex items-center rounded-sm border border-line bg-card p-0.5" role="group" aria-label="Tampilan daftar pengiklan">
             <button
               type="button"
               aria-pressed={view === 'cards'}
               onClick={() => onView('cards')}
-              className={`rounded-xs px-3 py-1.5 text-[12px] font-semibold ${view === 'cards' ? 'bg-primary text-white' : 'text-ink-soft hover:text-ink'}`}
+              className={`h-8 rounded-xs px-3 text-[12px] font-semibold ${view === 'cards' ? 'bg-primary text-white' : 'text-ink-soft hover:text-ink'}`}
             >
               Kartu
             </button>
@@ -643,13 +619,38 @@ function PerformanceDashboardView({
               type="button"
               aria-pressed={view === 'table'}
               onClick={() => onView('table')}
-              className={`rounded-xs px-3 py-1.5 text-[12px] font-semibold ${view === 'table' ? 'bg-primary text-white' : 'text-ink-soft hover:text-ink'}`}
+              className={`h-8 rounded-xs px-3 text-[12px] font-semibold ${view === 'table' ? 'bg-primary text-white' : 'text-ink-soft hover:text-ink'}`}
             >
               Tabel
             </button>
           </div>
         </div>
       </div>
+
+      {showKpi ? (
+        <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2">
+          <div className="w-[230px] max-w-full">
+            <TextInput
+              id="kpi-performa"
+              type="number"
+              inputMode="numeric"
+              ariaLabel={kpiMonthLabel === '' ? 'Atur KPI pengiklan' : `Atur KPI pengiklan ${kpiMonthLabel}`}
+              value={kpiInput}
+              placeholder="Atur KPI Pengiklan"
+              disabled={kpiBusy}
+              onChange={onKpiInput}
+            />
+          </div>
+          <Button size="sm" variant="primary" className="h-9" loading={kpiBusy} onClick={onSaveKpi}>Simpan</Button>
+          {kpiMessage === null ? null : (
+            <span className={`text-[11px] font-semibold ${kpiMessage.tone === 'success' ? 'text-success' : 'text-danger'}`}>
+              {kpiMessage.text}
+            </span>
+          )}
+        </div>
+      ) : (
+        <p className="mb-3 text-[11px] text-ink-soft">KPI hanya untuk periode satu bulan.</p>
+      )}
 
       {total === 0 ? (
         <EmptyState
@@ -816,13 +817,13 @@ const MONTHLY_COLUMNS: readonly TableColumn[] = [
   { key: 'kpi', header: 'KPI', align: 'right', minWidth: 120 },
 ]
 
-/** A83: rincian 12 bulan; bulan beku memakai snapshot, 3 bulan terakhir live. */
+/** A83: rincian 12 bulan; bulan lama memakai snapshot, 3 bulan terakhir live. */
 function PerformanceMonthlyTable({ rows, year }: { rows: PerformancePeriodRow[]; year: number }) {
   return (
     <Card className="mt-3">
       <CardHeader
         title="Rincian Bulanan"
-        description={`Tahun ${year}. Bulan berjalan + 2 bulan sebelumnya dihitung live; bulan yang lebih lama memakai snapshot beku.`}
+        description={`Tahun ${year}.`}
       />
       <DataTable rowNumbers columns={MONTHLY_COLUMNS} maxRows={null}>
         {rows.map((row) => {
@@ -834,7 +835,6 @@ function PerformanceMonthlyTable({ rows, year }: { rows: PerformancePeriodRow[];
                 <span className="flex flex-wrap items-center gap-1">
                   <span className="font-semibold text-ink">{formatPeriodLabel(row.period_start, 'month')}</span>
                   {row.is_partial === true ? <Badge tone="warning">Berjalan</Badge> : null}
-                  {row.is_frozen === true ? <Badge tone="neutral">Beku</Badge> : null}
                 </span>
               </TableCell>
               <TableCell align="right">{future ? '—' : formatCount(row.leads)}</TableCell>
