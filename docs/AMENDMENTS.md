@@ -2063,3 +2063,12 @@ dengan pembanding bulan lalu, ROAS, kedisiplinan, Top 2 Event, dan halaman detai
   `PerformancePage` (kartu, tabel, detail), navigasi `Kalender`.
 - Tes: `packages/api/test/ad-calendar.test.ts`, `apps/web/test/ad-calendar.test.tsx`,
   pgTAP `supabase/tests/44_ad_calendar.sql`, update tes navigasi dan Performa.
+
+### Perbaikan A80 — `ad_calendar_page` memakai aktor (19 November 2026)
+
+Backend memanggil PostgREST dengan service key, sehingga `auth.uid()` di dalam RPC bernilai NULL dan
+pengecekan izin internal selalu menolak — developer/owner pun mendapat `FORBIDDEN` saat membuka tab
+Kalender Iklan. Migrasi `20261119130000_ad_calendar_page_actor.sql` (`schema_version` 81) mengubah
+`ad_calendar_page` menjadi `ad_calendar_page(p_actor, p_from, p_to)`, memeriksa
+`actor_has_permission(p_actor, 'operasional.event_calendar')` + `actor_can_product`, dan hanya
+memberi EXECUTE ke `service_role`. Handler `GET /api/ad-calendar` mengirim `p_actor` dari sesi.

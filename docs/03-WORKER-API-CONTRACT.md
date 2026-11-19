@@ -436,7 +436,7 @@ RPC langsung `recent_batches(p_product_code, p_advertiser_code, p_limit)` dari b
 ## A80 - Kalender Iklan dan kedisiplinan pengiklan
 
 ### GET /api/ad-calendar
-Izin `operasional.event_calendar`. Query `from`, `to` (YYYY-MM-DD, opsional; maks 400 hari). Respons: `rows[]` (`id`, `event_id`, `event_date`, `category`, `start_time`, `location`, `product_code`, `product_name`, `advertiser_code`, `advertiser_name`, `batch`, `deadline_date`, `publish_date`, `publish_source`, `days_late`, `score`, `status`), `products[]`, `advertisers[]`, dan `events[]`. `publish_date` diturunkan server: order/lead pertama (selain OTS), lalu `date_from` report spend pertama bila belum ada lead.
+Izin `operasional.event_calendar`. Backend memanggil RPC service-only `ad_calendar_page(p_actor, p_from, p_to)` dengan aktor dari sesi; RPC memeriksa izin dan scope produk aktor. Query `from`, `to` (YYYY-MM-DD, opsional; maks 400 hari). Respons: `rows[]` (`id`, `event_id`, `event_date`, `category`, `start_time`, `location`, `product_code`, `product_name`, `advertiser_code`, `advertiser_name`, `batch`, `deadline_date`, `publish_date`, `publish_source`, `days_late`, `score`, `status`), `products[]`, `advertisers[]`, dan `events[]`. `publish_date` diturunkan server: order/lead pertama (selain OTS), lalu `date_from` report spend pertama bila belum ada lead.
 
 ### POST /api/ad-calendar
 Izin `action.manage_ad_calendar`. Body: `event_id`, `advertiser_code`, `batch` (maks 32, dinormalisasi), `deadline_date` (YYYY-MM-DD). Produk diambil dari event. Satu deadline per pengiklan + produk + batch; duplikat -> `409 AD_CALENDAR_EXISTS`. Sukses 201.

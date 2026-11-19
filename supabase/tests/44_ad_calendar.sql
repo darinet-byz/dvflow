@@ -14,6 +14,12 @@ select is(has_table_privilege('authenticated', 'public.ad_calendar', 'select'), 
   'ad_calendar tertutup untuk authenticated');
 select is(has_table_privilege('authenticated', 'public.ad_calendar', 'insert'), false,
   'ad_calendar tidak dapat ditulis browser');
+select is(has_function_privilege('authenticated', 'public.ad_calendar_page(uuid,date,date)', 'execute'), false,
+  'ad_calendar_page hanya untuk backend/service_role');
+select is(has_function_privilege('service_role', 'public.ad_calendar_page(uuid,date,date)', 'execute'), true,
+  'service_role dapat memanggil ad_calendar_page');
+select is(to_regprocedure('public.ad_calendar_page(date,date)'), null::regprocedure,
+  'overload lama tanpa aktor sudah dihapus');
 
 insert into public.products(id,name,code,active) values
   ('ad000000-0000-0000-0000-0000000000aa','Produk Iklan','ADCX',true);
@@ -65,11 +71,9 @@ select is((select publish_date::text from public.ad_calendar_publish_date(
     'ad000000-0000-0000-0000-000000000001','ad000000-0000-0000-0000-0000000000aa','393')),
   (current_date - 12)::text, 'tanpa lead, report date_from menjadi tanggal tayang');
 
--- Halaman Kalender Iklan.
-set local role authenticated;
-set local request.jwt.claims = '{"sub":"ad000000-0000-0000-0000-0000000000c1","app_role":"manajer"}';
+-- Halaman Kalender Iklan (RPC service-only, aktor dikirim backend).
 create temp table adc_page on commit drop as
-  select public.ad_calendar_page(current_date - 30, current_date + 30) as v;
+  select public.ad_calendar_page('ad000000-0000-0000-0000-0000000000c1', current_date - 30, current_date + 30) as v;
 
 select is((select jsonb_array_length(v->'rows') from adc_page), 4, 'empat deadline tampil');
 select is((select x->>'publish_date' from adc_page, jsonb_array_elements(v->'rows') x where x->>'batch' = '400'), null,
@@ -90,6 +94,8 @@ select is((select x->>'publish_source' from adc_page, jsonb_array_elements(v->'r
   'halaman membawa sumber tayang');
 
 -- Performa: pembanding bulan lalu + skor kedisiplinan.
+set local role authenticated;
+set local request.jwt.claims = '{"sub":"ad000000-0000-0000-0000-0000000000c1","app_role":"manajer"}';
 create temp table adc_perf on commit drop as
   select public.advertiser_performance(null,null,null,date_trunc('month', current_date)::date,current_date,'month') as v;
 select is((select (x->>'prev_tickets')::int from adc_perf, jsonb_array_elements(v->'advertisers') x

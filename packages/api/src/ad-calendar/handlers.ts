@@ -31,7 +31,7 @@ type AdCalendarRow = { id: string }
 
 /** GET /api/ad-calendar?from=YYYY-MM-DD&to=YYYY-MM-DD */
 export async function listAdCalendar(context: RouteContext): Promise<Response> {
-  await requirePermission(context, 'operasional.event_calendar')
+  const actor = await requirePermission(context, 'operasional.event_calendar')
   const params = context.url.searchParams
   const from = (params.get('from') ?? '').trim()
   const to = (params.get('to') ?? '').trim()
@@ -46,6 +46,7 @@ export async function listAdCalendar(context: RouteContext): Promise<Response> {
   }
 
   const page = await context.db.rpc<Record<string, unknown>>('ad_calendar_page', {
+    p_actor: actor.id,
     p_from: from === '' ? null : from,
     p_to: to === '' ? null : to,
   })

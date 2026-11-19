@@ -443,7 +443,7 @@ Satu baris = satu deadline tayang untuk satu **batch** per pengiklan. Deadline b
 
 RLS aktif; tabel hanya untuk `service_role`. Tanggal tayang **tidak disimpan**: `ad_calendar_publish_date(advertiser_id, product_id, batch)` mengambil order/lead pertama (selain OTS); bila tidak ada lead sama sekali, memakai `date_from` report spend pertama.
 
-`ad_calendar_page(p_from, p_to)` (izin `operasional.event_calendar`) mengembalikan baris deadline + `publish_date`, `publish_source` (`order`/`report`), `days_late`, `score`, `status` (`on_time`/`late`/`unpublished`/`upcoming`), plus opsi produk/pengiklan/event.
+`ad_calendar_page(p_actor, p_from, p_to)` (RPC service-only; `p_actor` dikirim backend) mengembalikan baris deadline + `publish_date`, `publish_source` (`order`/`report`), `days_late`, `score`, `status` (`on_time`/`late`/`unpublished`/`upcoming`), plus opsi produk/pengiklan/event.
 
 `ad_calendar_scores(...)` menghitung skor per batch: tepat waktu 10; telat 1–3 hari 8; 4–7 hari 6; 8–14 hari 4; 15–30 hari 2; >30 hari atau deadline lewat tanpa data 0. Batch belum jatuh tempo dan belum tayang berstatus `upcoming` dan tidak masuk penyebut. `advertiser_performance` menambahkan `prev_tickets` (bulan kalender penuh sebelumnya) serta `discipline_rate`, `discipline_score`, `discipline_batches`, `discipline_on_time`, `discipline_late`, `discipline_unpublished`, `discipline_upcoming`.
 
