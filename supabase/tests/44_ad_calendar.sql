@@ -54,7 +54,7 @@ insert into public.orders(order_id,product_code,product_name,advertiser_code,adv
    ((current_date - 9)::timestamp at time zone 'Asia/Jakarta'),'orderonline'),
   ('adc-ots','ADCX','Produk Iklan','92','Pengiklan OTS','400','S1','Solo','r','valid','Webinar Online','Paid',100000,1,
    ((current_date - 20)::timestamp at time zone 'Asia/Jakarta'),'ots'),
-  ('adc-prev','ADCX','Produk Iklan','91','Pengiklan Iklan','392','S1','Solo','r','valid','Webinar Online','Paid',200000,2,
+  ('adc-prev','ADCX','Produk Iklan','91','Pengiklan Iklan','398','S1','Solo','r','valid','Webinar Online','Paid',200000,2,
    ((date_trunc('month', current_date) - interval '1 month' + interval '3 days')::timestamp at time zone 'Asia/Jakarta'),'orderonline');
 insert into public.ad_spend_reports(advertiser_id,product_id,batch,event_type,date_from,date_to,spend,tax_percent) values
   ('ad000000-0000-0000-0000-000000000001','ad000000-0000-0000-0000-0000000000aa','392','Webinar Online',current_date - 12,current_date - 12,50000,0),
@@ -97,7 +97,7 @@ select is((select x->>'publish_source' from adc_page, jsonb_array_elements(v->'r
 set local role authenticated;
 set local request.jwt.claims = '{"sub":"ad000000-0000-0000-0000-0000000000c1","app_role":"manajer"}';
 create temp table adc_perf on commit drop as
-  select public.advertiser_performance(null,null,null,date_trunc('month', current_date)::date,current_date,'month') as v;
+  select public.advertiser_performance(null,null,null,date_trunc('month', current_date)::date,(date_trunc('month', current_date) + interval '1 month' - interval '1 day')::date,'month') as v;
 select is((select (x->>'prev_tickets')::int from adc_perf, jsonb_array_elements(v->'advertisers') x
   where x->>'advertiser_code' = '91'), 2, 'prev_tickets = tiket Paid bulan kalender sebelumnya');
 select is((select (x->>'discipline_rate')::numeric from adc_perf, jsonb_array_elements(v->'advertisers') x
@@ -113,7 +113,7 @@ select is((select (x->>'discipline_upcoming')::int from adc_perf, jsonb_array_el
 
 -- Detail pengiklan juga membawa ringkasan kedisiplinan.
 create temp table adc_detail on commit drop as
-  select public.advertiser_performance('91',null,null,date_trunc('month', current_date)::date,current_date,'month') as v;
+  select public.advertiser_performance('91',null,null,date_trunc('month', current_date)::date,(date_trunc('month', current_date) + interval '1 month' - interval '1 day')::date,'month') as v;
 select is((select (v->'summary'->>'discipline_rate')::numeric from adc_detail), 0.9::numeric,
   'detail: kedisiplinan 90%');
 select is((select (v->'summary'->>'discipline_batches')::int from adc_detail), 2,

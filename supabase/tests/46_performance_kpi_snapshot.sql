@@ -76,6 +76,7 @@ select is(round((select roas from prf_resume where advertiser_code = '77' and pr
           round(100000::numeric / 55000::numeric, 4), 'resume: roas');
 
 -- KPI: baca boleh, tulis tidak.
+grant select on prf_bounds to authenticated;
 insert into public.performance_kpi_targets(period_month, target_tickets)
 values ((select m_start from prf_bounds), 100);
 

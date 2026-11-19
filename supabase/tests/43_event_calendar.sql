@@ -28,7 +28,7 @@ insert into public.users(id,username,display_name,password_hash,role,has_all_pro
 
 select is((select count(*)::int from public.app_role_permissions
   where permission_key = 'operasional.event_calendar'),
-  (select count(*)::int from public.app_roles), 'semua role dapat melihat kalender');
+  (select count(*)::int from public.app_roles where is_assignable), 'semua role dapat melihat kalender');
 select is((select count(*)::int from public.app_role_permissions
   where permission_key = 'action.manage_event_calendar' and role_id in ('manajer','admin')), 2,
   'Manajer + Admin default dapat mengelola');
