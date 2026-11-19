@@ -319,6 +319,8 @@ describe('A. Authentication', () => {
       '/checkin/:orderId',
       // Fitur 3.0: dipanggil cron Worker; otorisasinya secret header (X-WA-Cron-Secret).
       '/api/internal/wa-reminders/run',
+      // A82: webhook masuk Fonnte; otorisasinya secret pada path.
+      '/api/webhooks/fonnte/:webhookSecret',
     ])
   })
 

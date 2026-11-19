@@ -16,6 +16,7 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d(:[0-5]\d)?$/
 const CATEGORIES = ['Seminar', 'Webinar', 'Workshop'] as const
 const MAX_LOCATION = 200
+const MAX_CITY = 80
 const MAX_RANGE_DAYS = 400
 
 type EventRow = {
@@ -25,6 +26,9 @@ type EventRow = {
   event_date: string
   start_time: string
   location: string
+  city: string | null
+  source: string
+  ai_draft_id: string | null
   created_by: string | null
   updated_by: string | null
   created_at: string
@@ -61,7 +65,7 @@ export async function listEventCalendar(context: RouteContext): Promise<Response
     context.db.selectRows<EventRow>(
       'event_calendar',
       query,
-      'id,product_code,category,event_date,start_time,location,created_by,updated_by,created_at,updated_at',
+      'id,product_code,category,event_date,start_time,location,city,source,ai_draft_id,created_by,updated_by,created_at,updated_at',
     ),
     context.db.selectRows<ProductRow>('products', { active: 'is.true', order: 'code.asc' }, 'code,name'),
   ])
@@ -88,6 +92,8 @@ export async function createEventCalendar(context: RouteContext): Promise<Respon
       event_date: input.eventDate,
       start_time: input.startTime,
       location: input.location,
+      city: input.city,
+      source: 'manual',
       created_by: actor.id,
       updated_by: actor.id,
     },
@@ -111,6 +117,7 @@ export async function updateEventCalendar(context: RouteContext): Promise<Respon
       event_date: input.eventDate,
       start_time: input.startTime,
       location: input.location,
+      city: input.city,
       updated_by: context.claims?.sub ?? null,
     },
   )
@@ -133,6 +140,7 @@ async function readEventInput(context: RouteContext): Promise<{
   eventDate: string
   startTime: string
   location: string
+  city: string | null
 }> {
   const body = await readJsonObject(context.request)
   const productCode = (readString(body, 'product_code') ?? '').trim()
@@ -140,6 +148,7 @@ async function readEventInput(context: RouteContext): Promise<{
   const eventDate = (readString(body, 'event_date') ?? '').trim()
   const startTime = (readString(body, 'start_time') ?? '').trim()
   const location = (readString(body, 'location') ?? '').trim()
+  const cityRaw = (readString(body, 'city') ?? '').trim()
 
   if (productCode === '') throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih produk terlebih dahulu.')
   if (!(CATEGORIES as readonly string[]).includes(category)) {
@@ -149,6 +158,9 @@ async function readEventInput(context: RouteContext): Promise<{
   if (!TIME_PATTERN.test(startTime)) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Jam mulai tidak valid.')
   if (location === '' || location.length > MAX_LOCATION) {
     throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Lokasi/platform wajib diisi (maks 200 karakter).')
+  }
+  if (cityRaw.length > MAX_CITY) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Kota terlalu panjang (maks 80 karakter).')
   }
 
   const code = normalizeCode(productCode) ?? ''
@@ -164,6 +176,7 @@ async function readEventInput(context: RouteContext): Promise<{
     // Simpan "HH:MM" agar konsisten dengan input jam di browser.
     startTime: startTime.slice(0, 5),
     location,
+    city: cityRaw === '' ? null : cityRaw,
   }
 }
 

@@ -34,6 +34,11 @@ export type Env = {
    * Bila kosong, endpoint internal ditolak 404 (gagal-tertutup).
    */
   WA_CRON_SECRET?: string
+  /**
+   * Secret path webhook masuk Fonnte (A82). Bila kosong, webhook Citta
+   * ditolak 404 — gagal-tertutup.
+   */
+  FONNTE_WEBHOOK_SECRET?: string
   /** Override base URL Fonnte; dipakai test dan bila gateway memakai domain lain. */
   WA_FONNTE_BASE_URL?: string
   /** Maksimum pesan per pemanggilan cron (default 10, dibatasi 25). */

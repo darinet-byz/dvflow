@@ -22,6 +22,8 @@ import { createAdSpend, deleteAdSpend, updateAdSpend } from './ad-spend/handlers
 import { listChatMessages, listChatRecipients, listChatThreads, sendChatMessage } from './chat/handlers'
 import { createEventCalendar, deleteEventCalendar, listEventCalendar, updateEventCalendar } from './event-calendar/handlers'
 import { createAdCalendar, deleteAdCalendar, listAdCalendar, updateAdCalendar } from './ad-calendar/handlers'
+import { cancelAiDraft, fonnteWebhook, getAiSettings, listAiDrafts, listAiRuns, saveAiSettings, testAiSettings } from './ai/handlers'
+import { getPerformanceKpi, savePerformanceKpi } from './performance/handlers'
 import { orderOnlineWebhook } from './webhooks/handlers'
 import { batchRemapOrders, deleteAlias, deleteUnmappedOrders, listAliases, listUnmappedOrders, saveAlias } from './aliases/handlers'
 import { getDataSummary, purgeExpiredUnmapped, resetData } from './developer/handlers'
@@ -186,6 +188,19 @@ export const ROUTES: Route[] = [
   { method: 'POST', path: '/api/wa-bot/test-send', handler: waBotTestSend, auth: 'access' },
   // Dipanggil cron Worker; autentikasi memakai X-WA-Cron-Secret, bukan JWT.
   { method: 'POST', path: '/api/internal/wa-reminders/run', handler: runWaReminders, auth: 'none' },
+
+  // A82: Citta - DVFLOW AI (pengaturan + audit). Webhook Fonnte tanpa JWT.
+  { method: 'GET', path: '/api/ai/settings', handler: getAiSettings, auth: 'access' },
+  { method: 'PUT', path: '/api/ai/settings', handler: saveAiSettings, auth: 'access' },
+  { method: 'POST', path: '/api/ai/settings/test', handler: testAiSettings, auth: 'access' },
+  { method: 'GET', path: '/api/ai/drafts', handler: listAiDrafts, auth: 'access' },
+  { method: 'POST', path: '/api/ai/drafts/:id/cancel', handler: cancelAiDraft, auth: 'access' },
+  { method: 'GET', path: '/api/ai/runs', handler: listAiRuns, auth: 'access' },
+  { method: 'POST', path: '/api/webhooks/fonnte/:webhookSecret', handler: fonnteWebhook, auth: 'none' },
+
+  // A83: KPI tiket global per bulan untuk halaman Performa.
+  { method: 'GET', path: '/api/performance/kpi', handler: getPerformanceKpi, auth: 'access' },
+  { method: 'PUT', path: '/api/performance/kpi', handler: savePerformanceKpi, auth: 'access' },
 
   // Konfigurasi (tulis saja; baca langsung lewat RLS).
   // Rute statis sebelum :resource (A15).

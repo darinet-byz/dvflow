@@ -27,7 +27,7 @@ const CATEGORY_OPTIONS = EVENT_CATEGORIES.map((category) => ({ value: category, 
 type EventForm = SaveEventInput
 
 function emptyForm(eventDate: string): EventForm {
-  return { product_code: '', category: 'Seminar', event_date: eventDate, start_time: '', location: '' }
+  return { product_code: '', category: 'Seminar', event_date: eventDate, start_time: '', location: '', city: '' }
 }
 
 function categoryTone(category: string): BadgeTone {
@@ -137,6 +137,7 @@ export function EventCalendarTab() {
       event_date: event.event_date,
       start_time: shortTime(event.start_time),
       location: event.location,
+      city: event.city ?? '',
     })
     setFormError(null)
     setSelected(null)
@@ -150,11 +151,17 @@ export function EventCalendarTab() {
     if (form.event_date === '') { setFormError('Tanggal wajib diisi.'); return }
     if (form.start_time === '') { setFormError('Jam mulai wajib diisi.'); return }
     if (form.location.trim() === '') { setFormError('Lokasi / platform wajib diisi.'); return }
+    if ((form.city ?? '').trim().length > 80) { setFormError('Kota maksimal 80 karakter.'); return }
 
     setSaving(true)
     setFormError(null)
     try {
-      const payload = { ...form, location: form.location.trim() }
+      const { city, ...rest } = form
+      const payload = {
+        ...rest,
+        location: rest.location.trim(),
+        ...((city ?? '').trim() === '' ? {} : { city: (city ?? '').trim() }),
+      }
       if (editing === null) await createEventCalendar(payload)
       else await updateEventCalendar(editing.id, payload)
       toast.show(editing === null ? 'Event ditambahkan ke kalender.' : 'Event diperbarui.', 'success')
@@ -282,7 +289,7 @@ export function EventCalendarTab() {
                   <button type="button" onClick={() => setSelected(event)} className="flex w-full flex-wrap items-center gap-x-3 gap-y-1 py-2.5 text-left hover:bg-soft lg:flex-nowrap">
                     <span className="w-[122px] shrink-0 whitespace-nowrap text-[12px] font-semibold text-ink">{displayDate(event.event_date)}</span>
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">{event.product_code} — {event.product_name}</span>
-                    <span className="w-full break-words text-[12px] text-ink-soft lg:w-[42ch] lg:min-w-[260px] lg:shrink-0">{event.location}</span>
+                    <span className="w-full break-words text-[12px] text-ink-soft lg:w-[42ch] lg:min-w-[260px] lg:shrink-0">{event.city ? `${event.city} · ${event.location}` : event.location}</span>
                     <span className="w-[46px] shrink-0 text-right text-[12px] text-ink-soft">{shortTime(event.start_time)}</span>
                     <Badge tone={categoryTone(event.category)}>{event.category}</Badge>
                   </button>
@@ -325,7 +332,7 @@ export function EventCalendarTab() {
                   <span className="w-[46px] shrink-0 text-[12px] font-semibold text-ink">{shortTime(event.start_time)}</span>
                   <Badge tone={categoryTone(event.category)}>{event.category}</Badge>
                   <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-ink">{event.product_code} — {event.product_name}</span>
-                  <span className="w-full truncate text-[12px] text-ink-soft sm:w-auto">{event.location}</span>
+                  <span className="w-full truncate text-[12px] text-ink-soft sm:w-auto">{event.city ? `${event.city} · ${event.location}` : event.location}</span>
                 </button>
               </li>
             ))}
@@ -350,6 +357,7 @@ export function EventCalendarTab() {
           <TextInput id="event-date" label="Tanggal" type="date" value={form.event_date} onChange={(value) => setForm((current) => ({ ...current, event_date: value }))} disabled={saving} />
           <TextInput id="event-time" label="Jam Mulai" type="time" value={form.start_time} onChange={(value) => setForm((current) => ({ ...current, start_time: value }))} disabled={saving} />
           <TextInput id="event-location" label="Lokasi / Platform" value={form.location} onChange={(value) => setForm((current) => ({ ...current, location: value }))} maxLength={200} placeholder="mis. Hotel Solo / Zoom" disabled={saving} />
+          <TextInput id="event-city" label="Kota (opsional)" value={form.city ?? ''} onChange={(value) => setForm((current) => ({ ...current, city: value }))} maxLength={80} placeholder="mis. Pekalongan" disabled={saving} />
           {formError === null ? null : <p className="text-[12px] text-danger">{formError}</p>}
           {products.length === 0 ? <p className="text-[12px] text-ink-soft">Belum ada produk aktif. Tambahkan produk terlebih dahulu di Konfigurasi Produk.</p> : null}
         </div>
@@ -373,6 +381,7 @@ export function EventCalendarTab() {
             <dt className="text-ink-soft">Jenis Acara</dt><dd><Badge tone={categoryTone(selected.category)}>{selected.category}</Badge></dd>
             <dt className="text-ink-soft">Tanggal</dt><dd className="font-medium text-ink">{displayDate(selected.event_date)}</dd>
             <dt className="text-ink-soft">Jam Mulai</dt><dd className="font-medium text-ink">{shortTime(selected.start_time)} WIB</dd>
+            <dt className="text-ink-soft">Kota</dt><dd className="font-medium text-ink">{selected.city ?? '-'}</dd>
             <dt className="text-ink-soft">Lokasi / Platform</dt><dd className="break-words font-medium text-ink">{selected.location}</dd>
           </dl>
         )}

@@ -13,6 +13,7 @@ const COLUMNS: readonly TableColumn[] = [
   { key: 'product', header: 'Produk', minWidth: 180 },
   { key: 'group', header: 'Grup WhatsApp', minWidth: 160 },
   { key: 'advertisers', header: 'Pengiklan (penerima)', minWidth: 260 },
+  { key: 'citta', header: 'Citta AI', minWidth: 90 },
   { key: 'status', header: 'Status', minWidth: 100 },
   { key: 'actions', header: 'Aksi', minWidth: 130 },
 ]
@@ -22,9 +23,10 @@ type FormState = {
   productId: string
   groupId: string
   isActive: boolean
+  aiEnabled: boolean
 }
 
-const EMPTY: FormState = { id: null, productId: '', groupId: '', isActive: true }
+const EMPTY: FormState = { id: null, productId: '', groupId: '', isActive: true, aiEnabled: false }
 
 export function ProductSection({ overview, reload }: { overview: WaOverview; reload: () => void }) {
   const toast = useToast()
@@ -59,6 +61,7 @@ export function ProductSection({ overview, reload }: { overview: WaOverview; rel
       productId: product.id,
       groupId: product.group.fonnte_group_id,
       isActive: product.group.is_active,
+      aiEnabled: product.group.ai_enabled,
     })
   }
 
@@ -77,6 +80,7 @@ export function ProductSection({ overview, reload }: { overview: WaOverview; rel
             product_id: form.productId,
             fonnte_group_id: form.groupId.trim(),
             is_active: form.isActive,
+            ai_enabled: form.aiEnabled,
           },
         },
       )
@@ -145,6 +149,15 @@ export function ProductSection({ overview, reload }: { overview: WaOverview; rel
                       <Badge key={advertiser.id} tone="neutral">{advertiser.name}</Badge>
                     ))}
                   </div>
+                )}
+              </TableCell>
+              <TableCell>
+                {product.group === null ? (
+                  <Badge tone="neutral">Belum diatur</Badge>
+                ) : (
+                  <Badge tone={product.group.ai_enabled ? 'success' : 'neutral'}>
+                    {product.group.ai_enabled ? 'Aktif' : 'Mati'}
+                  </Badge>
                 )}
               </TableCell>
               <TableCell>
@@ -229,6 +242,21 @@ export function ProductSection({ overview, reload }: { overview: WaOverview; rel
               onChange={(event) => setForm((current) => current === null ? current : { ...current, isActive: event.target.checked })}
             />
             Bot aktif untuk produk ini
+          </label>
+          <label className="flex items-start gap-2 text-[13px]">
+            <input
+              type="checkbox"
+              className="mt-0.5"
+              checked={form?.aiEnabled ?? false}
+              disabled={busy}
+              onChange={(event) => setForm((current) => current === null ? current : { ...current, aiEnabled: event.target.checked })}
+            />
+            <span>
+              Aktifkan Citta AI di grup ini
+              <span className="mt-0.5 block text-[11px] text-ink-soft">
+                Anggota grup bisa mengirim /add dan /delete untuk menambah atau menghapus jadwal produk ini.
+              </span>
+            </span>
           </label>
           {failure ? <p role="alert" className="text-[12px] text-danger">{failure}</p> : null}
         </div>

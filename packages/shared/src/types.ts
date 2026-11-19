@@ -56,6 +56,11 @@ export const EVENT_CALENDAR_VIEW_PERMISSION = 'operasional.event_calendar'
 export const EVENT_CALENDAR_MANAGE_PERMISSION = 'action.manage_event_calendar'
 /** A80: deadline tayang iklan per batch di tab Kalender Iklan. */
 export const AD_CALENDAR_MANAGE_PERMISSION = 'action.manage_ad_calendar'
+/** A82: pengaturan Citta AI (API key + kill switch). Hanya Developer/Owner. */
+export const AI_CITTA_PERMISSION = 'config.ai_citta'
+/** A82: user sistem Citta. Tidak bisa login dan tidak muncul di Add Team. */
+export const CITTA_AI_USERNAME = 'citta_ai'
+export const CITTA_AI_USER_ID = '00000000-0000-4000-8000-0000000000a1'
 
 /** Izin yang hanya boleh dipegang role tertentu; role penuh (developer/owner) pun tidak. */
 const ROLE_RESTRICTED_PERMISSIONS: Readonly<Record<string, readonly string[]>> = {
@@ -63,6 +68,8 @@ const ROLE_RESTRICTED_PERMISSIONS: Readonly<Record<string, readonly string[]>> =
   [AD_SPEND_INPUT_PERMISSION]: AD_SPEND_INPUT_ROLES,
   // A50: Konfigurasi Role tetap khusus Developer/Owner. `team.manage` boleh didelegasikan.
   'config.roles': ['developer', 'owner'],
+  // A82: key LLM dan kill switch Citta hanya boleh dipegang Developer/Owner.
+  [AI_CITTA_PERMISSION]: ['developer', 'owner'],
 }
 
 export function permissionAllowedForRole(permission: string, roleId: string | null | undefined): boolean {
@@ -97,6 +104,7 @@ export type AppPermissionKey =
   | 'config.integrasi'
   | 'config.wa_bot'
   | 'action.wa_bot_send'
+  | 'config.ai_citta'
   | 'config.roles'
   | 'team.manage'
   | 'account.profile'
@@ -112,6 +120,8 @@ export type AppRoleItem = {
   name: string
   description?: string | null
   is_system: boolean
+  /** A82: role sistem (Citta) tidak boleh di-assign atau diubah lewat UI. */
+  is_assignable?: boolean
   user_count?: number
   permission_count?: number
   permissions?: string[]

@@ -1,6 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from 'react'
 import { formatCount, formatDate, formatMoney, formatRate } from '../../lib/format'
 import { hasAllProductAccess } from '../../lib/roles'
+import { authorizedRequest } from '../../lib/session'
 import { useAsyncData } from '../../lib/useAsyncData'
 import { supabaseRpc, supabaseSelect } from '../../lib/supabase-rest'
 import { useSession } from '../../lib/useSession'
@@ -13,9 +14,12 @@ import {
   advertiserLabel,
   costPerTicket,
   deltaClass,
+  fetchPerformanceKpi,
   formatDeltaPercent,
   formatPeriodRangeLabel,
   formatRoas,
+  isSingleMonthPeriod,
+  kpiMeets,
   metricNumber,
   periodPresetRange,
   productLabel,
@@ -30,15 +34,17 @@ import {
   type PerformanceDashboard,
   type PerformanceDetail,
   type PerformanceMetrics,
+  type PerformancePeriodRow,
   type PeriodPresetKey,
   type ProductPerformance,
   type TopProduct,
 } from '../../lib/performance'
 import { PageHeader } from '../../layout/PageHeader'
+import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card, CardHeader, KpiCard } from '../../ui/Card'
 import { ComparisonChart } from '../../ui/ComparisonChart'
-import { Select, SearchInput } from '../../ui/Field'
+import { Select, SearchInput, TextInput } from '../../ui/Field'
 import { SuggestInput } from '../../ui/SuggestInput'
 import { describeRecentBatch, useRecentBatches } from '../../lib/recent-batches'
 import { EmptyState, ErrorState, SkeletonRows } from '../../ui/Feedback'
@@ -110,7 +116,10 @@ export function formatAxisMoney(value: number): string {
 
 function coverageHint(metrics: PerformanceMetrics): string {
   if (metrics.tickets <= 0) return 'Belum ada tiket Paid pada periode ini.'
-  const covered = Math.round((metrics.coverage ?? 0) * metrics.tickets)
+  if (metrics.coverage === null || metrics.coverage === undefined) {
+    return 'Coverage report tidak dihitung pada tampilan tahunan.'
+  }
+  const covered = Math.round(metrics.coverage * metrics.tickets)
   return `${formatRate(metrics.coverage)} tiket tercakup report spend (${formatCount(covered)} dari ${formatCount(metrics.tickets)}).`
 }
 
@@ -184,23 +193,40 @@ export function PerformancePage() {
   const effectiveGranularity = resolveGranularity(granularityMode, filters.dateFrom, filters.dateTo)
   const periodKey = customPeriod ? 'custom' : currentPeriodKey(filters)
   const effectiveAdvertiserCode = ownScope ? ownAdvertiser : filters.advertiserCode
+  // A83: detail memakai tahun kalender berjalan dan hanya filter pengiklan/produk.
+  const detailMode = effectiveAdvertiserCode.trim() !== ''
+  const yearRange = periodPresetRange('thisYear')
+  const singleMonth = !detailMode && isSingleMonthPeriod(filters.dateFrom, filters.dateTo)
+  const periodMonth = singleMonth ? filters.dateFrom.slice(0, 7) : null
+  const [kpiTarget, setKpiTarget] = useState<number | null>(null)
+  const [kpiInput, setKpiInput] = useState('')
+  const [kpiBusy, setKpiBusy] = useState(false)
+  const [kpiMessage, setKpiMessage] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null)
   const { batches: recentBatches } = useRecentBatches(filters.productCode, effectiveAdvertiserCode)
   const batchSuggestions = recentBatches.map((batch) => {
     const described = describeRecentBatch(batch)
     return { value: batch.batch, label: described.label, hint: described.hint }
   })
 
-  const appliedKey = JSON.stringify([filters, effectiveAdvertiserCode, effectiveGranularity])
+  const loadKey = detailMode
+    ? JSON.stringify(['year', effectiveAdvertiserCode, filters.productCode])
+    : JSON.stringify([filters, effectiveAdvertiserCode, effectiveGranularity])
   const { data, loading, error, reload } = useAsyncData<PerformanceDashboard | PerformanceDetail>(() => {
-    return supabaseRpc<PerformanceDashboard | PerformanceDetail>('advertiser_performance', {
-      p_advertiser_code: emptyToNull(effectiveAdvertiserCode),
+    if (detailMode) {
+      return supabaseRpc<PerformanceDetail>('advertiser_performance_year', {
+        p_advertiser_code: effectiveAdvertiserCode,
+        p_product_code: emptyToNull(filters.productCode),
+      })
+    }
+    return supabaseRpc<PerformanceDashboard>('advertiser_performance', {
+      p_advertiser_code: null,
       p_product_code: emptyToNull(filters.productCode),
       p_batch: emptyToNull(filters.batch),
       p_date_from: emptyToNull(filters.dateFrom),
       p_date_to: emptyToNull(filters.dateTo),
       p_granularity: effectiveGranularity,
     })
-  }, [appliedKey])
+  }, [loadKey])
 
   const detail = data !== null && 'summary' in data ? data : null
   const dashboard = data !== null && 'advertisers' in data ? data : null
@@ -209,7 +235,7 @@ export function PerformancePage() {
   // punya parameter tanggal. Hanya pengiklan + filter produk/batch yang diteruskan.
   // `key` disimpan bersama hasil agar data pengiklan lama tidak tampil sesaat
   // ketika pengguna berpindah pengiklan (useAsyncData menahan data sebelumnya).
-  const breakdownKey = JSON.stringify([effectiveAdvertiserCode, filters.productCode, filters.batch])
+  const breakdownKey = JSON.stringify([effectiveAdvertiserCode, filters.productCode, detailMode ? '' : filters.batch])
   const {
     data: breakdownState,
     loading: breakdownLoading,
@@ -221,7 +247,7 @@ export function PerformancePage() {
     return supabaseRpc<PerformanceBreakdown>('advertiser_breakdown', {
       p_advertiser_code: code,
       p_product_code: emptyToNull(filters.productCode),
-      p_batch: emptyToNull(filters.batch),
+      p_batch: detailMode ? null : emptyToNull(filters.batch),
       p_limit: 200,
       // A57: produk = 2 batch terakhir per produk; batch = 5 terakhir (dipakai
       // hanya setelah produk dipilih).
@@ -236,6 +262,55 @@ export function PerformancePage() {
   useEffect(() => {
     if (dashboard !== null) setAdvertiserChoices(dashboard.advertisers)
   }, [dashboard])
+
+  // A83: KPI dibaca lewat RLS (izin operasional.analytics), ditulis lewat backend.
+  useEffect(() => {
+    if (periodMonth === null) {
+      setKpiTarget(null)
+      setKpiInput('')
+      setKpiMessage(null)
+      return
+    }
+    let active = true
+    fetchPerformanceKpi(periodMonth)
+      .then((kpi) => {
+        if (!active) return
+        setKpiTarget(kpi.target_tickets)
+        setKpiInput(kpi.target_tickets === null ? '' : String(kpi.target_tickets))
+      })
+      .catch(() => {
+        if (!active) return
+        setKpiTarget(null)
+        setKpiInput('')
+      })
+    return () => {
+      active = false
+    }
+  }, [periodMonth])
+
+  async function saveKpi(): Promise<void> {
+    if (periodMonth === null || kpiBusy) return
+    const value = Number(kpiInput)
+    if (!Number.isInteger(value) || value < 1) {
+      setKpiMessage({ tone: 'danger', text: 'KPI harus bilangan bulat minimal 1.' })
+      return
+    }
+    setKpiBusy(true)
+    setKpiMessage(null)
+    try {
+      const result = await authorizedRequest<{ target_tickets: number }>('/api/performance/kpi', {
+        method: 'PUT',
+        body: { month: periodMonth, target_tickets: value },
+      })
+      setKpiTarget(result.target_tickets)
+      setKpiInput(String(result.target_tickets))
+      setKpiMessage({ tone: 'success', text: 'KPI disimpan.' })
+    } catch (failure) {
+      setKpiMessage({ tone: 'danger', text: failure instanceof Error ? failure.message : 'KPI gagal disimpan.' })
+    } finally {
+      setKpiBusy(false)
+    }
+  }
 
   const advertiserOptions = ownScope
     ? [{
@@ -319,12 +394,12 @@ export function PerformancePage() {
       label: `Produk: ${productOptions.find((item) => item.value === filters.productCode)?.label ?? filters.productCode}`,
       onRemove: () => changeFilters({ productCode: '' }),
     },
-    filters.batch.trim() === '' ? null : {
+    detailMode || filters.batch.trim() === '' ? null : {
       key: 'batch',
       label: `Batch: ${filters.batch}`,
       onRemove: () => changeFilters({ batch: '' }),
     },
-    {
+    detailMode ? null : {
       key: 'period',
       label: `Periode: ${periodLabel}`,
       onRemove: () => choosePeriod(DEFAULT_PERIOD),
@@ -343,15 +418,17 @@ export function PerformancePage() {
           options={productOptions}
           onChange={(value) => changeFilters({ productCode: value })}
         />
-        <SuggestInput
-          id="filter-batch-performa"
-          ariaLabel="Filter batch"
-          className={CONTROL_WIDTH}
-          value={filters.batch}
-          placeholder={filters.productCode === '' ? 'Batch (pilih produk untuk saran)' : 'Batch (mis. 392)'}
-          options={batchSuggestions}
-          onChange={(value) => changeFilters({ batch: value })}
-        />
+        {detailMode ? null : (
+          <SuggestInput
+            id="filter-batch-performa"
+            ariaLabel="Filter batch"
+            className={CONTROL_WIDTH}
+            value={filters.batch}
+            placeholder={filters.productCode === '' ? 'Batch (pilih produk untuk saran)' : 'Batch (mis. 392)'}
+            options={batchSuggestions}
+            onChange={(value) => changeFilters({ batch: value })}
+          />
+        )}
         {ownScope ? null : (
           <Select
             id="filter-pengiklan-performa"
@@ -363,31 +440,37 @@ export function PerformancePage() {
             onChange={(value) => changeFilters({ advertiserCode: value })}
           />
         )}
-        <Select
-          id="filter-periode-performa"
-          ariaLabel="Filter periode"
-          className={CONTROL_WIDTH}
-          value={periodKey === 'custom' ? 'custom' : periodKey}
-          options={PERIOD_PRESETS.map((preset) => ({ value: preset.key, label: preset.label }))}
-          onChange={(value) => choosePeriod(value as PeriodPresetKey)}
-        />
-        {periodKey === 'custom' ? (
-          <DateRangeField
-            className={CONTROL_WIDTH}
-            from={filters.dateFrom}
-            to={filters.dateTo}
-            onChange={chooseDateRange}
-          />
-        ) : null}
-        {effectiveAdvertiserCode === '' ? null : (
-          <Select
-            id="filter-granularitas-performa"
-            ariaLabel="Granularitas grafik"
-            className={CONTROL_WIDTH}
-            value={granularityMode}
-            options={GRANULARITY_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
-            onChange={(value) => setGranularityMode(value as 'auto' | Granularity)}
-          />
+        {detailMode ? (
+          <span className="text-[12px] font-semibold text-ink-soft">Tahun {yearRange.from.slice(0, 4)}</span>
+        ) : (
+          <>
+            <Select
+              id="filter-periode-performa"
+              ariaLabel="Filter periode"
+              className={CONTROL_WIDTH}
+              value={periodKey === 'custom' ? 'custom' : periodKey}
+              options={PERIOD_PRESETS.map((preset) => ({ value: preset.key, label: preset.label }))}
+              onChange={(value) => choosePeriod(value as PeriodPresetKey)}
+            />
+            {periodKey === 'custom' ? (
+              <DateRangeField
+                className={CONTROL_WIDTH}
+                from={filters.dateFrom}
+                to={filters.dateTo}
+                onChange={chooseDateRange}
+              />
+            ) : null}
+            {effectiveAdvertiserCode === '' ? null : (
+              <Select
+                id="filter-granularitas-performa"
+                ariaLabel="Granularitas grafik"
+                className={CONTROL_WIDTH}
+                value={granularityMode}
+                options={GRANULARITY_OPTIONS.map((option) => ({ value: option.value, label: option.label }))}
+                onChange={(value) => setGranularityMode(value as 'auto' | Granularity)}
+              />
+            )}
+          </>
         )}
       </div>
       <div className="flex min-w-0 flex-wrap items-center gap-1.5">
@@ -396,10 +479,10 @@ export function PerformancePage() {
         ))}
         <button
           type="button"
-          onClick={clearAll}
+          onClick={detailMode ? () => changeFilters({ productCode: '' }) : clearAll}
           className="ml-auto text-[12px] font-semibold text-ink-soft underline-offset-2 hover:text-ink hover:underline"
         >
-          Clear All
+          {detailMode ? 'Clear Produk' : 'Clear All'}
         </button>
       </div>
     </div>
@@ -433,9 +516,9 @@ export function PerformancePage() {
           breakdownLoading={breakdownLoading || breakdownPending}
           breakdownError={breakdownError}
           onReloadBreakdown={reloadBreakdown}
-          granularity={effectiveGranularity}
-          dateFrom={filters.dateFrom}
-          dateTo={filters.dateTo}
+          granularity={detailMode ? 'month' : effectiveGranularity}
+          dateFrom={detailMode ? yearRange.from : filters.dateFrom}
+          dateTo={detailMode ? yearRange.to : filters.dateTo}
           productSelected={filters.productCode !== ''}
           selectedProductLabel={selectedProductLabel}
           advertiserName={advertiserOptions.find((item) => item.value === effectiveAdvertiserCode)?.label ?? effectiveAdvertiserCode}
@@ -448,6 +531,14 @@ export function PerformancePage() {
           view={view}
           sortKey={sortKey}
           search={search}
+          kpiTarget={kpiTarget}
+          kpiInput={kpiInput}
+          kpiMonthLabel={periodMonth === null ? '' : formatPeriodLabel(`${periodMonth}-01`, 'month')}
+          kpiBusy={kpiBusy}
+          kpiMessage={kpiMessage}
+          showKpi={singleMonth}
+          onKpiInput={setKpiInput}
+          onSaveKpi={() => void saveKpi()}
           onSearch={setSearch}
           onSort={setSortKey}
           onView={setView}
@@ -464,6 +555,14 @@ function PerformanceDashboardView({
   view,
   sortKey,
   search,
+  kpiTarget,
+  kpiInput,
+  kpiMonthLabel,
+  kpiBusy,
+  kpiMessage,
+  showKpi,
+  onKpiInput,
+  onSaveKpi,
   onSearch,
   onSort,
   onView,
@@ -474,6 +573,15 @@ function PerformanceDashboardView({
   view: 'cards' | 'table'
   sortKey: AdvertiserSortKey
   search: string
+  /** A83: KPI global bulan berjalan; null bila belum diatur. */
+  kpiTarget: number | null
+  kpiInput: string
+  kpiMonthLabel: string
+  kpiBusy: boolean
+  kpiMessage: { tone: 'success' | 'danger'; text: string } | null
+  showKpi: boolean
+  onKpiInput: (value: string) => void
+  onSaveKpi: () => void
   onSearch: (value: string) => void
   onSort: (value: AdvertiserSortKey) => void
   onView: (value: 'cards' | 'table') => void
@@ -488,6 +596,30 @@ function PerformanceDashboardView({
             {advertisers.length === total ? `${formatCount(total)} pengiklan` : `${formatCount(advertisers.length)} dari ${formatCount(total)} pengiklan`}
           </p>
         </div>
+        {showKpi ? (
+          <div className="flex min-w-0 flex-wrap items-end gap-2">
+            <div className="w-[230px]">
+              <TextInput
+                id="kpi-performa"
+                type="number"
+                inputMode="numeric"
+                label={kpiMonthLabel === '' ? 'KPI tiket / pengiklan / bulan' : `KPI ${kpiMonthLabel}`}
+                value={kpiInput}
+                placeholder="mis. 100"
+                disabled={kpiBusy}
+                onChange={onKpiInput}
+              />
+            </div>
+            <Button size="sm" variant="primary" loading={kpiBusy} onClick={onSaveKpi}>Simpan</Button>
+            {kpiMessage === null ? null : (
+              <span className={`text-[11px] font-semibold ${kpiMessage.tone === 'success' ? 'text-success' : 'text-danger'}`}>
+                {kpiMessage.text}
+              </span>
+            )}
+          </div>
+        ) : (
+          <span className="text-[11px] text-ink-soft">KPI hanya untuk periode satu bulan.</span>
+        )}
         <SearchInput id="cari-pengiklan-performa" value={search} onChange={onSearch} placeholder="Cari pengiklan…" />
         <div className="flex items-center gap-2">
           <Select
@@ -529,7 +661,7 @@ function PerformanceDashboardView({
       ) : view === 'cards' ? (
         <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {advertisers.map((row) => (
-            <AdvertiserCard key={row.advertiser_code ?? advertiserLabel(row)} row={row} onOpen={() => onOpen(row)} />
+            <AdvertiserCard key={row.advertiser_code ?? advertiserLabel(row)} row={row} kpiTarget={kpiTarget} onOpen={() => onOpen(row)} />
           ))}
         </div>
       ) : (
@@ -559,7 +691,8 @@ function Metric({
   )
 }
 
-function AdvertiserCard({ row, onOpen }: { row: AdvertiserPerformance; onOpen: () => void }) {
+function AdvertiserCard({ row, kpiTarget, onOpen }: { row: AdvertiserPerformance; kpiTarget: number | null; onOpen: () => void }) {
+  const kpi = kpiMeets(row.tickets, kpiTarget)
   return (
     <button
       type="button"
@@ -571,6 +704,11 @@ function AdvertiserCard({ row, onOpen }: { row: AdvertiserPerformance; onOpen: (
           <span className="block text-[10px] font-semibold uppercase tracking-wide text-ink-muted">Pengiklan</span>
           <span className="block truncate text-[14px] font-semibold text-ink">{advertiserLabel(row)}</span>
         </span>
+        {kpi === null ? null : (
+          <Badge tone={kpi ? 'success' : 'danger'} className="shrink-0">
+            {kpi ? 'Memenuhi KPI' : 'Tidak Memenuhi KPI'}
+          </Badge>
+        )}
       </span>
 
       <span className="mt-3 block border-t border-line pt-2.5">
@@ -666,6 +804,61 @@ const CHART_TOP = 12
 
 const EMPTY_BREAKDOWN: PerformanceBreakdown = { products: [], batches: [] }
 
+const MONTHLY_COLUMNS: readonly TableColumn[] = [
+  { key: 'month', header: 'Bulan', minWidth: 130 },
+  { key: 'leads', header: 'Leads', align: 'right', minWidth: 70 },
+  { key: 'paid', header: 'Paid', align: 'right', minWidth: 70 },
+  { key: 'tickets', header: 'Tiket', align: 'right', minWidth: 80 },
+  { key: 'omzet', header: 'Omzet', align: 'right', minWidth: 130 },
+  { key: 'spend', header: 'Total Spend', align: 'right', minWidth: 130 },
+  { key: 'profit', header: 'Profit', align: 'right', minWidth: 130 },
+  { key: 'roas', header: 'ROAS', align: 'right', minWidth: 80 },
+  { key: 'kpi', header: 'KPI', align: 'right', minWidth: 120 },
+]
+
+/** A83: rincian 12 bulan; bulan beku memakai snapshot, 3 bulan terakhir live. */
+function PerformanceMonthlyTable({ rows, year }: { rows: PerformancePeriodRow[]; year: number }) {
+  return (
+    <Card className="mt-3">
+      <CardHeader
+        title="Rincian Bulanan"
+        description={`Tahun ${year}. Bulan berjalan + 2 bulan sebelumnya dihitung live; bulan yang lebih lama memakai snapshot beku.`}
+      />
+      <DataTable rowNumbers columns={MONTHLY_COLUMNS} maxRows={null}>
+        {rows.map((row) => {
+          const future = row.is_future === true
+          const meets = future ? null : kpiMeets(row.tickets, row.kpi_target)
+          return (
+            <TableRow key={row.period_start}>
+              <TableCell>
+                <span className="flex flex-wrap items-center gap-1">
+                  <span className="font-semibold text-ink">{formatPeriodLabel(row.period_start, 'month')}</span>
+                  {row.is_partial === true ? <Badge tone="warning">Berjalan</Badge> : null}
+                  {row.is_frozen === true ? <Badge tone="neutral">Beku</Badge> : null}
+                </span>
+              </TableCell>
+              <TableCell align="right">{future ? '—' : formatCount(row.leads)}</TableCell>
+              <TableCell align="right">{future ? '—' : formatCount(row.paid)}</TableCell>
+              <TableCell align="right"><span className="font-semibold">{future ? '—' : formatCount(row.tickets)}</span></TableCell>
+              <TableCell align="right">{future ? '—' : formatMoney(row.omzet)}</TableCell>
+              <TableCell align="right">{future ? '—' : formatMoney(row.total_spend)}</TableCell>
+              <TableCell align="right"><span className={future ? 'text-ink-soft' : profitClass(row.profit)}>{future ? '—' : formatMoney(row.profit)}</span></TableCell>
+              <TableCell align="right">{future ? '—' : formatRoas(row.roas)}</TableCell>
+              <TableCell align="right">
+                {meets === null ? (
+                  <span className="text-ink-soft">—</span>
+                ) : (
+                  <Badge tone={meets ? 'success' : 'danger'}>{meets ? 'Memenuhi' : 'Tidak'}</Badge>
+                )}
+              </TableCell>
+            </TableRow>
+          )
+        })}
+      </DataTable>
+    </Card>
+  )
+}
+
 function PerformanceDetailView({
   detail,
   breakdown,
@@ -696,12 +889,14 @@ function PerformanceDetailView({
   onBack?: () => void
 }) {
   const summary = detail.summary
-  const labels = detail.rows.map((row) => formatPeriodLabel(row.period_start, granularity))
+  // A83: bulan yang belum berjalan tidak masuk grafik.
+  const chartRows = detail.rows.filter((row) => row.is_future !== true)
+  const labels = chartRows.map((row) => formatPeriodLabel(row.period_start, granularity))
   // A56 revisi: grafik utama memakai Total Spend (spend + PPN) agar konsisten dengan
   // KPI, grafik per batch/produk, dan tabel breakdown. Nilai per bucket dijumlahkan
   // dari `total_spend`, jadi totalnya sama dengan KPI Total Spend.
-  const totalSpendValues = detail.rows.map((row) => metricNumber(row.total_spend))
-  const ticketValues = detail.rows.map((row) => row.tickets)
+  const totalSpendValues = chartRows.map((row) => metricNumber(row.total_spend))
+  const ticketValues = chartRows.map((row) => row.tickets)
   const profit = metricNumber(summary.profit)
   const title = advertiserName.trim() === '' ? 'Detail Pengiklan' : advertiserName
   const rangeLabel = formatPeriodRangeLabel(dateFrom, dateTo, granularity)
@@ -711,6 +906,7 @@ function PerformanceDetailView({
       <div className="mb-3 flex min-w-0 flex-wrap items-center gap-2">
         {onBack === undefined ? null : <Button variant="ghost" size="sm" onClick={onBack}>← Semua pengiklan</Button>}
         <h2 className="min-w-0 truncate text-[16px] font-semibold text-ink">{title}</h2>
+        {detail.year === undefined ? null : <Badge tone="neutral">Tahun {detail.year}</Badge>}
       </div>
 
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
@@ -774,7 +970,7 @@ function PerformanceDetailView({
               : `${rangeLabel} · Total Spend (spend + PPN) di sumbu kiri, tiket Paid di sumbu kanan.`
           }
         />
-        {detail.rows.length === 0 ? (
+        {chartRows.length === 0 ? (
           <p className="text-[13px] text-ink-soft">Belum ada data pada rentang ini.</p>
         ) : (
           <TrendChart
@@ -792,6 +988,8 @@ function PerformanceDetailView({
           />
         )}
       </Card>
+
+      <PerformanceMonthlyTable rows={detail.rows} year={detail.year ?? new Date().getFullYear()} />
 
       <Card className="mt-3">
         <CardHeader title="Top 3 Event" description="Berdasarkan tiket terjual (order Paid), level produk, pada periode filter." />

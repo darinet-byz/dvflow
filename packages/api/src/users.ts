@@ -21,6 +21,8 @@ export type UserRow = {
   has_all_product_access?: boolean
   /** A20: hanya role advertiser; menentukan scope order. */
   advertiser_id?: string | null
+  /** A82: akun sistem (Citta) tidak boleh memakai API aplikasi. */
+  is_system?: boolean
 }
 
 export type VerifiedUser = {
@@ -49,7 +51,7 @@ export type Profile = {
 }
 
 /** Kolom aman saja — tidak memuat kolom kredensial. */
-export const USER_COLUMNS = 'id,username,display_name,role,avatar_emoji,active,has_all_product_access,advertiser_id'
+export const USER_COLUMNS = 'id,username,display_name,role,avatar_emoji,active,has_all_product_access,advertiser_id,is_system'
 
 export const DISPLAY_NAME_MAX_LENGTH = 200
 export const AVATAR_EMOJI_MAX_LENGTH = 16
@@ -154,6 +156,7 @@ export async function requireActiveUser(context: RouteContext): Promise<UserRow>
   const rows = await context.db.selectRows<UserRow>('users', { id: `eq.${userId}` }, USER_COLUMNS)
   const user = rows[0]
   if (user === undefined) throw new ApiFailure('SESSION_INVALID', 'user tidak ditemukan')
+  if (user.is_system === true) throw new ApiFailure('SESSION_INVALID', 'akun sistem tidak dapat memakai API')
   if (!user.active) throw new ApiFailure('USER_DISABLED', `user ${userId} nonaktif`)
 
   return user

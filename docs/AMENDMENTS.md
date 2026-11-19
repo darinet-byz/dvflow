@@ -2072,3 +2072,50 @@ Kalender Iklan. Migrasi `20261119130000_ad_calendar_page_actor.sql` (`schema_ver
 `ad_calendar_page` menjadi `ad_calendar_page(p_actor, p_from, p_to)`, memeriksa
 `actor_has_permission(p_actor, 'operasional.event_calendar')` + `actor_can_product`, dan hanya
 memberi EXECUTE ke `service_role`. Handler `GET /api/ad-calendar` mengirim `p_actor` dari sesi.
+
+## A82 - Citta - DVFLOW AI via grup WhatsApp (19 November 2026)
+
+Permintaan pengguna: Citta cukup menangani tiga hal - reminder yang sudah ada, menulis jadwal terbaru, dan menghapus jadwal. Komunikasi lewat grup WhatsApp, bukan chat in-app. Citta hanya dipanggil oleh perintah `/add` atau `/delete`; tanpa prefix itu tidak ada panggilan AI, baca data, tulis data, atau balasan. Produk tidak perlu disebut karena sudah ditentukan oleh grup di `wa_product_groups`.
+
+### Keputusan
+
+- **Kanal v1 hanya grup WhatsApp.** Chat in-app Citta ditunda.
+- **Pemicu ketat**: `^\s*/(add|delete)\b`; pesan lain berhenti sebelum database disentuh. `YA`/`BATAL` hanya diproses bila ada draft pending di grup itu (tidak memanggil AI).
+- **Produk dari grup**, bukan dari teks. Grup harus `is_active` dan `ai_enabled` (kolom baru, default **mati**). Grup pengiklan yang sudah ada tidak otomatis boleh memerintah.
+- **Preview wajib**: blok konfirmasi dirender server dari draft, bukan ditulis model. Konfirmasi lewat `YA` (atau `YA 2` bila lebih dari satu baris) / `BATAL`. Draft berlaku 60 menit dan terikat ke grup.
+- **Hanya membuat dan menghapus** `event_calendar`. Kalender Iklan belum termasuk. `/delete` menolak event yang punya baris `ad_calendar`; snapshot baris disimpan sebelum delete.
+- **Jenis acara** eksplisit dipakai apa adanya; bila tidak disebut, lokasi online (Zoom/GMeet/online/virtual) -> Webinar, tempat fisik -> Seminar, selain itu tanya. Preview menandai `(dari lokasi)`.
+- **Kota** disimpan di kolom baru `event_calendar.city`.
+- **Akun sistem Citta**: role `citta_ai` (`is_system`, `is_assignable=false`) + user `citta_ai` (`users.is_system`, tidak bisa login, tidak muncul di Add Team). Semua baris buatan Citta memakai `source='ai'` + `ai_draft_id`.
+- **API key LLM di dashboard**: halaman WA Admin Bot > tab **Citta AI**, key disimpan terenkripsi memakai `INTEGRATION_ENCRYPTION_KEY` dan tidak pernah dikembalikan ke browser. Ada tombol **Tes Koneksi**. Model default `deepseek-flash`, base URL `https://api.deepseek.com`, thinking dimatikan.
+- **Izin baru** `config.ai_citta` (Developer/Owner). Checkbox `ai_enabled` per grup tetap memakai `config.wa_bot`.
+- **Webhook Fonnte** memakai secret path `FONNTE_WEBHOOK_SECRET`; 404 bila kosong/salah. Dedupe `inboxid` (fallback hash). Hanya pesan grup yang dikenal yang diproses. Retensi: `ai_runs` + `wa_ai_inbox` 30 hari, `ai_drafts` non-pending 90 hari.
+
+### Implementasi
+
+- Migrasi `20261119140000_citta_ai_grup.sql` (`schema_version` 82): role/user sistem, `wa_product_groups.ai_enabled`, `event_calendar.city/source/ai_draft_id`, tabel `ai_settings`/`ai_drafts`/`ai_runs`/`wa_ai_inbox`, RPC `ai_confirm_draft`/`ai_cancel_draft`, izin `config.ai_citta`.
+- API: `packages/api/src/ai/{deepseek,parser,handlers}.ts`, route `/api/ai/*` + `POST /api/webhooks/fonnte/:webhookSecret`. `sendWhatsAppMessage` menerima `inboxid`.
+- Web: tab **Citta AI** di `WaBotPage` + `AiCittaSection`; checkbox Citta pada dialog grup produk; kolom Kota di Kalender Event.
+- Tes: `packages/api/test/ai-citta.test.ts` (11 kasus), update `apps/web/test/wa-bot.test.tsx`; seluruh suite lulus.
+
+## A83 - KPI Performa global + detail tahun + snapshot bulanan (20 November 2026)
+
+Permintaan pengguna: di halaman Performa/Analitik ada input KPI tiket; tiap kartu pengiklan mengevaluasi tiket terhadap KPI dan menampilkan badge di pojok kanan. Detail pengiklan harus memuat tahun kalender penuh (bukan hanya bulan ini dan bulan lalu), dengan filter hanya pengiklan dan produk. Bulan berjalan + 2 bulan sebelumnya tetap live; bulan yang lebih lama dibekukan agar pengambilan data tidak berat.
+
+### Keputusan
+
+- **KPI satu angka global per bulan** untuk semua pengiklan, disimpan di `performance_kpi_targets`. Badge: tiket >= KPI = Memenuhi KPI; tiket < KPI = Tidak Memenuhi KPI; belum ada KPI = tanpa badge.
+- **Badge/input KPI hanya untuk periode satu bulan** (bulan berjalan atau satu bulan penuh). Periode multi-bulan menyembunyikan badge karena perbandingan total multi-bulan dengan KPI bulanan menyesatkan.
+- **Izin input KPI memakai `operasional.analytics`** (tanpa izin baru). Browser membaca KPI lewat RLS; penulisan lewat backend `PUT /api/performance/kpi`.
+- **Detail memakai tahun kalender berjalan** (Jan-Des), tanpa pilihan tahun. Filter detail hanya Pengiklan dan Produk; batch/periode/granularitas disembunyikan.
+- **Live = bulan berjalan + 2 bulan sebelumnya.** Bulan yang lebih lama dibekukan sebagai snapshot per pengiklan x produk. Cron harian 01.00 WIB memanggil `performance_freeze()`.
+- **Satu rumus**: `performance_month_resume(p_month)` dipakai freeze, detail live, dan dashboard satu bulan, sehingga angka live dan snapshot tidak berbeda rumus.
+- **Snapshot tidak berubah** walau ada refund/edit order setelah bulan dibekukan. Snapshot menyimpan nama pengiklan/produk agar histori tidak berubah saat nama diubah.
+- **Dashboard tetap memakai `advertiser_performance` live**; detail tahun memakai `advertiser_performance_year` yang menggabungkan snapshot dan live.
+
+### Implementasi
+
+- Migrasi `20261120100000_performance_kpi_dan_snapshot.sql` (`schema_version` 83): tabel `performance_kpi_targets`, `performance_monthly`, `performance_frozen_months`; fungsi `performance_month_resume`, `performance_freeze`; RPC `advertiser_performance_year`; cron `dvflow_performance_freeze`.
+- API: `packages/api/src/performance/handlers.ts` + route `GET/PUT /api/performance/kpi`.
+- Web: input KPI + badge di kartu; detail tahun dengan tabel Rincian Bulanan; filter detail hanya pengiklan/produk; label Beku/Berjalan; baris KPI per bulan.
+- Tes: `packages/api/test/performance-kpi.test.ts`, update `apps/web/test/performance.test.tsx`; pgTAP `supabase/tests/46_performance_kpi_snapshot.sql`.

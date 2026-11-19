@@ -43,6 +43,15 @@ export async function login(context: RouteContext): Promise<Response> {
     throw new ApiFailure('INTERNAL_ERROR', 'verify_login tidak mengembalikan user_id')
   }
 
+  const [systemCheck] = await context.db.selectRows<{ is_system: boolean }>(
+    'users',
+    { id: `eq.${verified.user_id}` },
+    'is_system',
+  )
+  if (systemCheck?.is_system === true) {
+    throw new ApiFailure('INVALID_CREDENTIALS', 'akun sistem tidak dapat login')
+  }
+
   const token = generateSessionToken()
   const tokenHash = await hashSessionToken(token)
 

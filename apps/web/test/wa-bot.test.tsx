@@ -4,6 +4,10 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter } from 'react-router-dom'
 import { ToastProvider } from '../src/ui/Toast'
 
+const sessionState = vi.hoisted(() => ({
+  permissions: ['config.wa_bot', 'action.wa_bot_send'] as string[],
+}))
+
 vi.mock('../src/lib/useSession', () => ({
   useSession: () => ({
     status: 'authenticated',
@@ -13,7 +17,7 @@ vi.mock('../src/lib/useSession', () => ({
       role: 'admin',
       display_name: 'Admin',
       avatar_emoji: null,
-      permissions: ['config.wa_bot', 'action.wa_bot_send'],
+      permissions: sessionState.permissions,
     },
   }),
 }))
@@ -27,7 +31,8 @@ const overview = {
     active: true,
     group: {
       id: 'group-1', product_id: 'prod-1', fonnte_group_id: '111@g.us',
-      is_active: true, created_at: '2026-11-11T01:00:00Z', updated_at: '2026-11-11T01:00:00Z',
+      is_active: true, ai_enabled: false,
+      created_at: '2026-11-11T01:00:00Z', updated_at: '2026-11-11T01:00:00Z',
     },
     advertisers: [{ id: 'adv-1', code: '01', name: 'Zul', active: true }],
   }],
@@ -90,6 +95,14 @@ vi.mock('../src/lib/session', async (importOriginal) => {
       if (path === '/api/wa-bot/settings/verify') return deviceCheck
       if (path === '/api/wa-bot/test-preview') return preview
       if (path === '/api/wa-bot/test-send') return { sent: true, error: null, message: preview.message, group_id: preview.group_id }
+      if (path === '/api/ai/settings') {
+        return { enabled: true, base_url: 'https://api.deepseek.com', model: 'deepseek-flash', has_key: true, updated_at: null }
+      }
+      if (path === '/api/ai/drafts') return { drafts: [] }
+      if (path === '/api/ai/runs') return { runs: [] }
+      if (path === '/api/ai/settings/test') {
+        return { ok: true, reachable: true, model: 'deepseek-flash', error: null, detail: null, reply: 'OK' }
+      }
       if (path === '/api/wa-bot' && options?.method === undefined) return overviewResponse
       throw new Error(`Unexpected request: ${options?.method ?? 'GET'} ${path}`)
     }),
@@ -103,6 +116,7 @@ afterEach(() => {
   cleanup()
   vi.clearAllMocks()
   overviewResponse = overview
+  sessionState.permissions = ['config.wa_bot', 'action.wa_bot_send']
 })
 
 function renderPage() {
@@ -189,5 +203,20 @@ describe('WA Admin Bot page', () => {
     expect(screen.getByText(/Pagi Mas @Zul/)).toBeTruthy()
     expect(authorizedRequest).toHaveBeenCalledWith('/api/wa-bot/test-preview', expect.anything())
     expect(authorizedRequest).not.toHaveBeenCalledWith('/api/wa-bot/test-send', expect.anything())
+  })
+
+  it('tab Citta AI hanya muncul dengan config.ai_citta dan tidak menampilkan key', async () => {
+    sessionState.permissions = ['config.wa_bot', 'action.wa_bot_send', 'config.ai_citta']
+    renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: 'Citta AI' }))
+
+    expect(await screen.findByLabelText('API Key')).toBeTruthy()
+    expect(screen.getByPlaceholderText('Tersimpan - isi untuk mengganti')).toBeTruthy()
+    expect(screen.queryByDisplayValue('sk-test')).toBeNull()
+    expect(authorizedRequest).toHaveBeenCalledWith('/api/ai/settings')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Tes Koneksi' }))
+    expect(await screen.findByText('Koneksi berhasil.')).toBeTruthy()
+    expect(authorizedRequest).toHaveBeenCalledWith('/api/ai/settings/test', expect.anything())
   })
 })

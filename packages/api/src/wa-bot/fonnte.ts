@@ -45,9 +45,12 @@ export async function sendWhatsAppMessage(
   token: string,
   target: string,
   message: string,
+  options: { inboxId?: string } = {},
 ): Promise<FonnteSendResult> {
   const base = (env.WA_FONNTE_BASE_URL ?? 'https://api.fonnte.com').replace(/\/$/, '')
   const body = new URLSearchParams({ target, message, countryCode: '62' })
+  // A82: `inboxid` membuat balasan Citta tampil sebagai balasan pesan aslinya.
+  if (options.inboxId !== undefined && options.inboxId !== '') body.set('inboxid', options.inboxId)
 
   let response: Response
   try {

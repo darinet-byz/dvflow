@@ -11,6 +11,7 @@ import { LogSection } from './LogSection'
 import { ProductSection } from './ProductSection'
 import { ScheduleSection } from './ScheduleSection'
 import { TemplateSection } from './TemplateSection'
+import { AiCittaSection } from './AiCittaSection'
 import type { WaOverview } from './types'
 
 const TABS = [
@@ -21,7 +22,7 @@ const TABS = [
   { id: 'logs', label: 'Riwayat' },
 ] as const
 
-type TabId = (typeof TABS)[number]['id']
+type TabId = (typeof TABS)[number]['id'] | 'ai'
 
 /**
  * WA Admin Bot (Fitur 3.0).
@@ -34,8 +35,10 @@ type TabId = (typeof TABS)[number]['id']
 export function WaBotPage() {
   const session = useSession()
   const canSend = hasPermission(session.profile, 'action.wa_bot_send')
+  const canManageAi = hasPermission(session.profile, 'config.ai_citta')
   const { data, loading, error, reload } = useAsyncData(() => authorizedRequest<WaOverview>('/api/wa-bot'), [])
   const [tab, setTab] = useState<TabId>('connection')
+  const tabs = canManageAi ? [...TABS, { id: 'ai' as const, label: 'Citta AI' }] : TABS
 
   return (
     <>
@@ -51,7 +54,7 @@ export function WaBotPage() {
       ) : data ? (
         <div className="flex flex-col gap-4">
           <div role="tablist" aria-label="Bagian WA Admin Bot" className="flex flex-wrap gap-1.5">
-            {TABS.map((item) => (
+            {tabs.map((item) => (
               <Button
                 key={item.id}
                 role="tab"
@@ -69,6 +72,7 @@ export function WaBotPage() {
           {tab === 'templates' ? <TemplateSection overview={data} reload={reload} /> : null}
           {tab === 'schedules' ? <ScheduleSection overview={data} reload={reload} /> : null}
           {tab === 'logs' ? <LogSection overview={data} canSend={canSend} /> : null}
+          {tab === 'ai' ? <AiCittaSection /> : null}
         </div>
       ) : null}
     </>

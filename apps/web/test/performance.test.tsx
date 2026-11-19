@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { canAccessPath } from '../src/lib/roles'
-import { supabaseRpc } from '../src/lib/supabase-rest'
+import { authorizedRequest } from '../src/lib/session'
+import { supabaseRpc, supabaseSelect } from '../src/lib/supabase-rest'
 import { useSession } from '../src/lib/useSession'
 import {
   advertiserLabel,
@@ -20,6 +21,10 @@ import {
 
 /** A46: Performa / Analitik — daftar semua pengiklan lalu detail satu pengiklan. */
 vi.mock('../src/lib/useSession', () => ({ useSession: vi.fn() }))
+vi.mock('../src/lib/session', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/lib/session')>()),
+  authorizedRequest: vi.fn(),
+}))
 vi.mock('../src/lib/supabase-rest', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/supabase-rest')>()),
   supabaseRpc: vi.fn(),
@@ -259,6 +264,7 @@ describe('Performa / Analitik: halaman', () => {
 
     expect(await screen.findByRole('heading', { name: '01 - Zul' })).toBeTruthy()
     expect(screen.getByText('Top 3 Event')).toBeTruthy()
+    expect(screen.getByText('Rincian Bulanan')).toBeTruthy()
     expect(screen.queryByText('Periode')).toBeNull()
     expect(screen.getByRole('img', { name: 'Grafik total spend dan tiket terjual' })).toBeTruthy()
     expect(screen.queryByRole('img', { name: 'Grafik garis omzet' })).toBeNull()
@@ -281,8 +287,8 @@ describe('Performa / Analitik: halaman', () => {
     expect(screen.getByRole('img', { name: 'Grafik per batch' }).querySelector('polyline')).toBeNull()
 
     expect(supabaseRpc).toHaveBeenCalledWith(
-      'advertiser_performance',
-      expect.objectContaining({ p_advertiser_code: '01', p_granularity: 'day' }),
+      'advertiser_performance_year',
+      expect.objectContaining({ p_advertiser_code: '01', p_product_code: 'PAAA' }),
     )
     expect(supabaseRpc).toHaveBeenCalledWith(
       'advertiser_breakdown',
@@ -348,7 +354,7 @@ describe('Performa / Analitik: halaman', () => {
     expect(screen.queryByLabelText('Filter pengiklan')).toBeNull()
     expect(screen.queryByText('← Semua pengiklan')).toBeNull()
     expect(supabaseRpc).toHaveBeenCalledWith(
-      'advertiser_performance',
+      'advertiser_performance_year',
       expect.objectContaining({ p_advertiser_code: '01' }),
     )
   }, 20_000)
@@ -382,5 +388,51 @@ describe('Performa / Analitik: halaman', () => {
     const select = screen.getByLabelText('Filter pengiklan') as HTMLSelectElement
     expect(Array.from(select.options).map((option) => option.value)).toEqual(['', '01'])
     expect(Array.from(select.options).map((option) => option.text)).toEqual(['Semua pengiklan', '01 - Zul'])
+  }, 20_000)
+
+  it('A83: badge KPI global muncul saat KPI bulan berjalan diatur', async () => {
+    vi.mocked(supabaseSelect).mockImplementation(async (table: string) => {
+      if (table === 'products') return [{ code: 'PAAA', name: 'Produk A' }]
+      if (table === 'advertisers') return [{ code: '01', name: 'Zul' }, { code: '02', name: 'Rina' }]
+      if (table === 'performance_kpi_targets') return [{ target_tickets: 5 }]
+      return []
+    })
+    vi.mocked(supabaseRpc).mockResolvedValue(dashboard)
+
+    render(<PerformancePage />)
+
+    expect(await screen.findByText('Memenuhi KPI')).toBeTruthy()
+    expect(screen.getByText('Tidak Memenuhi KPI')).toBeTruthy()
+    expect(supabaseSelect).toHaveBeenCalledWith(
+      'performance_kpi_targets',
+      expect.objectContaining({ period_month: expect.stringMatching(/^eq\.\d{4}-\d{2}-01$/) }),
+      'target_tickets,updated_at',
+    )
+  }, 20_000)
+
+  it('A83: KPI disimpan lewat backend dan badge langsung berubah', async () => {
+    vi.mocked(supabaseSelect).mockImplementation(async (table: string) => {
+      if (table === 'products') return [{ code: 'PAAA', name: 'Produk A' }]
+      if (table === 'advertisers') return [{ code: '01', name: 'Zul' }, { code: '02', name: 'Rina' }]
+      if (table === 'performance_kpi_targets') return [{ target_tickets: 5 }]
+      return []
+    })
+    vi.mocked(supabaseRpc).mockResolvedValue(dashboard)
+    vi.mocked(authorizedRequest).mockResolvedValue({ target_tickets: 7 })
+
+    render(<PerformancePage />)
+
+    const input = await screen.findByPlaceholderText('mis. 100')
+    fireEvent.change(input, { target: { value: '7' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan' }))
+
+    await waitFor(() => {
+      expect(authorizedRequest).toHaveBeenCalledWith('/api/performance/kpi', {
+        method: 'PUT',
+        body: { month: expect.stringMatching(/^\d{4}-\d{2}$/), target_tickets: 7 },
+      })
+    })
+    expect(await screen.findByText('KPI disimpan.')).toBeTruthy()
+    expect(screen.getAllByText('Tidak Memenuhi KPI').length).toBeGreaterThanOrEqual(2)
   }, 20_000)
 })

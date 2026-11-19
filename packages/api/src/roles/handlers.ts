@@ -34,7 +34,7 @@ export async function listRoles(context: RouteContext): Promise<Response> {
   const roles = await context.db.selectRows<AppRoleItem>(
     'app_roles',
     { order: 'created_at.asc' },
-    'id,name,description,is_system,created_at,updated_at',
+    'id,name,description,is_system,is_assignable,created_at,updated_at',
   )
 
   const users = await context.db.selectRows<{ role: string }>('users', {}, 'role')
@@ -59,7 +59,8 @@ export async function listRoles(context: RouteContext): Promise<Response> {
 
   // Pemegang team.manage hanya melihat role yang boleh ia berikan.
   // Ini juga mencegah form Add Team menawarkan Owner/Developer/Manajer/Admin.
-  let visibleRoles = roles
+  // A82: role sistem non-assignable (Citta) tidak pernah muncul.
+  let visibleRoles = roles.filter((role) => role.is_assignable !== false)
   if (!master) {
     const actorPerms = permsByRole.get(actor.role) ?? new Set<string>()
     const blocked = new Set(['developer', 'owner', 'manajer', 'admin'])
@@ -146,9 +147,10 @@ export async function getRole(context: RouteContext): Promise<Response> {
   const roleId = (context.params['id'] ?? '').trim()
   if (!roleId) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Role ID tidak valid')
 
-  const roles = await context.db.selectRows<AppRoleItem>('app_roles', { id: `eq.${roleId}` }, 'id,name,description,is_system')
+  const roles = await context.db.selectRows<AppRoleItem>('app_roles', { id: `eq.${roleId}` }, 'id,name,description,is_system,is_assignable')
   const role = roles[0]
   if (!role) throw new ApiFailure('RESOURCE_NOT_FOUND', undefined, 'Role tidak ditemukan')
+  if (role.is_assignable === false) throw new ApiFailure('FORBIDDEN', 'Role sistem tidak dapat diubah')
 
   const rolePerms = await context.db.selectRows<{ permission_key: string }>(
     'app_role_permissions',
@@ -178,9 +180,10 @@ export async function updateRolePermissions(context: RouteContext): Promise<Resp
   const roleId = (context.params['id'] ?? '').trim()
   if (!roleId) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Role ID tidak valid')
 
-  const roles = await context.db.selectRows<AppRoleItem>('app_roles', { id: `eq.${roleId}` }, 'id')
+  const roles = await context.db.selectRows<AppRoleItem>('app_roles', { id: `eq.${roleId}` }, 'id,is_assignable')
   const role = roles[0]
   if (!role) throw new ApiFailure('RESOURCE_NOT_FOUND', undefined, 'Role tidak ditemukan')
+  if (role.is_assignable === false) throw new ApiFailure('FORBIDDEN', 'Role sistem tidak dapat diubah')
 
   const body = await readJsonObject(context.request)
   if (!Array.isArray(body['permissions'])) {

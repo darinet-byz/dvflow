@@ -44,6 +44,7 @@ type ProductGroupRow = {
   product_id: string
   fonnte_group_id: string
   is_active: boolean
+  ai_enabled: boolean
   created_at: string
   updated_at: string
 }
@@ -116,7 +117,7 @@ type PreviewResult =
 
 const PRODUCT_COLUMNS = 'id,code,name,active'
 const ADVERTISER_COLUMNS = 'id,code,name,active'
-const PRODUCT_GROUP_COLUMNS = 'id,product_id,fonnte_group_id,is_active,created_at,updated_at'
+const PRODUCT_GROUP_COLUMNS = 'id,product_id,fonnte_group_id,is_active,ai_enabled,created_at,updated_at'
 const TEMPLATE_COLUMNS = 'id,name,message_content,is_active,created_at,updated_at'
 const SCHEDULE_COLUMNS = 'id,execution_time,template_id,days,only_if_missing_report,mention_scope,is_active,created_at,updated_at'
 const LOG_COLUMNS =
@@ -360,6 +361,7 @@ export async function saveWaBotProductGroup(context: RouteContext): Promise<Resp
     product_id: productId,
     fonnte_group_id: groupId,
     is_active: isActive,
+    ai_enabled: readBoolean(body, 'ai_enabled', existing?.ai_enabled ?? false),
   }
 
   if (id === null) {

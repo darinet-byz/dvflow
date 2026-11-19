@@ -154,6 +154,13 @@ export type FakeState = {
   /** A80: kalender iklan + report spend untuk tanggal tayang turunan. */
   adCalendar: Array<Record<string, unknown>>
   adSpendReports: Array<Record<string, unknown>>
+  /** A82: Citta AI. */
+  aiSettings: Array<Record<string, unknown>>
+  aiDrafts: Array<Record<string, unknown>>
+  aiRuns: Array<Record<string, unknown>>
+  waAiInbox: Array<Record<string, unknown>>
+  /** A83: KPI tiket global per bulan. */
+  performanceKpiTargets: Array<Record<string, unknown>>
   /** Semua panggilan RPC, untuk memastikan handler tidak melewati database. */
   rpcCalls: Array<{ name: string; args: Record<string, unknown> }>
 }
@@ -206,6 +213,11 @@ export function createFakeState(
     eventCalendar: [],
     adCalendar: [],
     adSpendReports: [],
+    aiSettings: [],
+    aiDrafts: [],
+    aiRuns: [],
+    waAiInbox: [],
+    performanceKpiTargets: [],
     rpcCalls: [],
   }
 }
@@ -1221,6 +1233,96 @@ export function createFakeDb(state: FakeState): Db {
         } as T
       }
 
+      if (name === 'ai_cancel_draft') {
+        const draft = state.aiDrafts.find((row) => row['id'] === args['p_draft_id'])
+        if (!draft) return { status: 'NOT_FOUND' } as T
+        if (draft['wa_group_id'] !== args['p_group_id']) return { status: 'WRONG_GROUP' } as T
+        if (draft['status'] !== 'pending') return { status: 'NOT_PENDING' } as T
+        draft['status'] = 'cancelled'
+        return { status: 'CANCELLED' } as T
+      }
+
+      if (name === 'ai_confirm_draft') {
+        const draft = state.aiDrafts.find((row) => row['id'] === args['p_draft_id'])
+        if (!draft) return { status: 'NOT_FOUND' } as T
+        if (draft['wa_group_id'] !== args['p_group_id']) return { status: 'WRONG_GROUP' } as T
+        if (draft['status'] !== 'pending') return { status: 'NOT_PENDING' } as T
+        if (Date.parse(String(draft['expires_at'])) <= Date.parse('2026-10-13T08:00:00.000Z')) {
+          draft['status'] = 'expired'
+          return { status: 'EXPIRED' } as T
+        }
+
+        const selection = Array.isArray(args['p_selection']) ? (args['p_selection'] as number[]) : null
+        const chosen = (index: number): boolean => selection === null || selection.length === 0 || selection.includes(index)
+        const product = state.config.products.find((row) => row['code'] === draft['product_code'])
+        if (!product || product['active'] === false) {
+          draft['status'] = 'failed'
+          return { status: 'FAILED', reason: 'PRODUCT_INACTIVE' } as T
+        }
+
+        const created: string[] = []
+        const deleted: string[] = []
+        let skipped = 0
+
+        if (draft['command'] === 'add') {
+          const payload = draft['payload'] as { items?: Array<Record<string, unknown>> }
+          const items = payload.items ?? []
+          items.forEach((item, index) => {
+            if (!chosen(index + 1)) return
+            if (item['valid'] !== true) { skipped += 1; return }
+            const duplicate = state.eventCalendar.some((row) =>
+              row['product_code'] === draft['product_code']
+              && row['event_date'] === item['event_date']
+              && String(row['start_time'] ?? '').slice(0, 5) === item['start_time']
+              && String(row['location'] ?? '').toLowerCase() === String(item['location'] ?? '').toLowerCase())
+            if (duplicate) { skipped += 1; return }
+            const id = generatedUuid(state.eventCalendar.length + 5000)
+            state.eventCalendar.push({
+              id,
+              product_code: draft['product_code'],
+              category: item['category'],
+              event_date: item['event_date'],
+              start_time: `${String(item['start_time'])}:00`,
+              location: item['location'],
+              city: item['city'] ?? null,
+              source: 'ai',
+              ai_draft_id: draft['id'],
+              created_by: args['p_actor'],
+              updated_by: args['p_actor'],
+            })
+            created.push(id)
+          })
+        } else {
+          const payload = draft['payload'] as { candidates?: Array<Record<string, unknown>> }
+          const candidates = payload.candidates ?? []
+          candidates.forEach((candidate, index) => {
+            if (!chosen(index + 1)) return
+            const eventIndex = state.eventCalendar.findIndex((row) => row['id'] === candidate['id'])
+            if (eventIndex === -1) { skipped += 1; return }
+            const event = state.eventCalendar[eventIndex] as Record<string, unknown>
+            if (event['product_code'] !== draft['product_code']) { skipped += 1; return }
+            if (state.adCalendar.some((row) => row['event_id'] === event['id'])) { skipped += 1; return }
+            const snapshot = Array.isArray(draft['deleted_snapshot']) ? draft['deleted_snapshot'] as unknown[] : []
+            draft['deleted_snapshot'] = [...snapshot, { ...event }]
+            state.eventCalendar.splice(eventIndex, 1)
+            deleted.push(String(event['id']))
+          })
+        }
+
+        draft['status'] = created.length + deleted.length > 0 ? 'confirmed' : 'failed'
+        draft['created_ids'] = created
+        draft['deleted_ids'] = deleted
+        draft['confirmed_at'] = '2026-10-13T08:00:00.000Z'
+        draft['error'] = created.length + deleted.length === 0 ? 'NO_ROW_SAVED' : null
+        return {
+          status: created.length + deleted.length > 0 ? 'CONFIRMED' : 'FAILED',
+          saved: created.length + deleted.length,
+          skipped,
+          created_ids: created,
+          deleted_ids: deleted,
+        } as T
+      }
+
       throw new Error(`RPC tidak dikenal di tiruan: ${name}`)
     },
 
@@ -1375,6 +1477,16 @@ function rowsOf(state: FakeState, table: string): Array<Record<string, unknown>>
       return state.adCalendar
     case 'ad_spend_reports':
       return state.adSpendReports
+    case 'ai_settings':
+      return state.aiSettings
+    case 'ai_drafts':
+      return state.aiDrafts
+    case 'ai_runs':
+      return state.aiRuns
+    case 'wa_ai_inbox':
+      return state.waAiInbox
+    case 'performance_kpi_targets':
+      return state.performanceKpiTargets
     default:
       throw new Error(`tabel tidak dikenal di tiruan: ${table}`)
   }
@@ -1433,6 +1545,7 @@ function matchesQuery(row: Record<string, unknown>, query: Record<string, string
 
     if (expression === 'is.null') return value === null || value === undefined
     if (expression === 'is.true') return value === true
+    if (expression === 'is.false') return value === false || value === undefined
     if (expression.startsWith('gte.')) return typeof value === 'string' && value >= expression.slice(4)
     if (expression.startsWith('gt.')) return typeof value === 'string' && value > expression.slice(3)
     if (expression.startsWith('eq.')) return String(value ?? '') === expression.slice(3)

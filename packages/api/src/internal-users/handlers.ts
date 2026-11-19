@@ -128,9 +128,16 @@ export async function createUser(context: RouteContext): Promise<Response> {
   const trimmedRole = role.trim()
   const isKnownRole = APP_ROLES.includes(trimmedRole as AppRole)
   if (!isKnownRole) {
-    const roles = await context.db.selectRows<{ id: string }>('app_roles', { id: `eq.${trimmedRole}` }, 'id')
+    const roles = await context.db.selectRows<{ id: string; is_assignable: boolean }>(
+      'app_roles',
+      { id: `eq.${trimmedRole}` },
+      'id,is_assignable',
+    )
     if (roles.length === 0) {
       throw new ApiFailure('INVALID_ARGUMENT', `role=${trimmedRole}`)
+    }
+    if (roles[0]?.is_assignable === false) {
+      throw new ApiFailure('FORBIDDEN', 'Role sistem tidak dapat diberikan ke pengguna')
     }
   }
 
@@ -235,7 +242,7 @@ export async function listUsers(context: RouteContext): Promise<Response> {
   for (let offset = 0; ; offset += 500) {
     const rows = await context.db.selectRows<UserRow>(
       'users',
-      { order: 'username.asc,id.asc', limit: '500', offset: String(offset) },
+      { is_system: 'is.false', order: 'username.asc,id.asc', limit: '500', offset: String(offset) },
       USER_COLUMNS,
     )
     users.push(
@@ -277,6 +284,7 @@ export async function updateUser(context: RouteContext): Promise<Response> {
 
   const [existing] = await context.db.selectRows<UserRow>('users', { id: `eq.${targetId}` }, USER_COLUMNS)
   if (!existing) throw new ApiFailure('RESOURCE_NOT_FOUND', undefined, 'User tidak ditemukan')
+  if (existing.is_system === true) throw new ApiFailure('FORBIDDEN', 'Akun sistem tidak dapat diubah')
 
   const body = await readJsonObject(context.request)
   const displayName = (readString(body, 'display_name') ?? existing.display_name).trim()
@@ -290,9 +298,16 @@ export async function updateUser(context: RouteContext): Promise<Response> {
 
   const isKnownRole = APP_ROLES.includes(role as AppRole)
   if (!isKnownRole) {
-    const roles = await context.db.selectRows<{ id: string }>('app_roles', { id: `eq.${role}` }, 'id')
+    const roles = await context.db.selectRows<{ id: string; is_assignable: boolean }>(
+      'app_roles',
+      { id: `eq.${role}` },
+      'id,is_assignable',
+    )
     if (roles.length === 0) {
       throw new ApiFailure('INVALID_ARGUMENT', `role=${role}`)
+    }
+    if (roles[0]?.is_assignable === false) {
+      throw new ApiFailure('FORBIDDEN', 'Role sistem tidak dapat diberikan ke pengguna')
     }
   }
 
@@ -361,8 +376,7 @@ export async function deleteUser(context: RouteContext): Promise<Response> {
 
   const [existing] = await context.db.selectRows<UserRow>('users', { id: `eq.${targetId}` }, USER_COLUMNS)
   if (!existing) throw new ApiFailure('RESOURCE_NOT_FOUND', undefined, 'User tidak ditemukan')
-
-  // Hierarchy (full roles only by Developer) is enforced in the RPC; sessions cascade.
+  if (existing.is_system === true) throw new ApiFailure('FORBIDDEN', 'Akun sistem tidak dapat dihapus')
   await context.db.rpc('admin_delete_user', { p_actor: actor.id, p_target: existing.id })
   return ok({ deleted: existing.id })
 }

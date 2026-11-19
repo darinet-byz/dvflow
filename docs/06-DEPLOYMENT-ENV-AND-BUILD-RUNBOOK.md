@@ -58,6 +58,15 @@ Fitur 3.0 (WA Admin Bot):
 - WA_SEND_DELAY_MS (opsional, default 1500)
 - WA_FONNTE_BASE_URL (opsional, untuk uji lokal)
 
+A82 (Citta - DVFLOW AI):
+- FONNTE_WEBHOOK_SECRET (wajib bila Citta dipakai; 32+ karakter acak; 404 bila kosong/salah)
+- INTEGRATION_ENCRYPTION_KEY (sudah ada; dipakai juga untuk API key LLM)
+
+Set webhook device Fonnte ke
+`https://<domain>/api/webhooks/fonnte/<FONNTE_WEBHOOK_SECRET>` dan nyalakan
+**auto read**. API key DeepSeek diisi dari dashboard (WA Admin Bot > Citta AI),
+bukan dari environment.
+
 Cron Worker `apps/wa-cron` membutuhkan secret `WA_CRON_SECRET` dan var
 `APP_BASE_URL`; token Fonnte TIDAK dipasang di Worker (diisi dari dashboard).
 

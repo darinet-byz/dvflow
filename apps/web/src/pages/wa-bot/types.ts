@@ -15,6 +15,8 @@ export type WaProductGroup = {
   product_id: string
   fonnte_group_id: string
   is_active: boolean
+  /** A82: grup ini boleh memerintah Citta lewat /add dan /delete. */
+  ai_enabled: boolean
   created_at: string
   updated_at: string
 }
@@ -120,4 +122,49 @@ export const WA_STATUS_LABEL: Record<WaLog['status'], string> = {
   queued: 'Menunggu',
   sent: 'Terkirim',
   failed: 'Gagal',
+}
+
+/** A82: pengaturan Citta (key tidak pernah dikirim; hanya `has_key`). */
+export type AiSettings = {
+  enabled: boolean
+  base_url: string
+  model: string
+  has_key: boolean
+  updated_at: string | null
+}
+
+export type AiTestResult = {
+  ok: boolean
+  reachable: boolean
+  model: string
+  error: string | null
+  detail: string | null
+  reply: string | null
+}
+
+export type AiDraft = {
+  id: string
+  wa_group_id: string
+  command: 'add' | 'delete'
+  product_code: string
+  status: 'pending' | 'confirmed' | 'cancelled' | 'expired' | 'failed'
+  code: string
+  created_ids: string[]
+  deleted_ids: string[]
+  error: string | null
+  expires_at: string
+  confirmed_at: string | null
+  created_at: string
+}
+
+export type AiRun = {
+  id: string
+  wa_group_id: string
+  command: 'add' | 'delete'
+  model: string | null
+  input_tokens: number | null
+  output_tokens: number | null
+  status: 'ok' | 'invalid_json' | 'failed'
+  error: string | null
+  created_at: string
 }

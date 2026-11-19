@@ -15,6 +15,9 @@ export type CalendarEvent = {
   /** "HH:MM" atau "HH:MM:SS" dari kolom time. */
   start_time: string
   location: string
+  /** A82: kota opsional; diisi manual atau oleh Citta. */
+  city: string | null
+  source?: 'manual' | 'ai'
   created_at: string
   updated_at: string
 }
@@ -30,6 +33,7 @@ export type SaveEventInput = {
   event_date: string
   start_time: string
   location: string
+  city?: string
 }
 
 export async function fetchEventCalendar(from: string, to: string): Promise<EventCalendarPage> {

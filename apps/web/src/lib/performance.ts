@@ -1,4 +1,5 @@
 import { parseIsoDate, toIsoDate } from './date-range'
+import { supabaseSelect } from './supabase-rest'
 
 /**
  * A46: angka dan tipe halaman "Performa / Analitik".
@@ -64,8 +65,14 @@ export type PerformancePeriodRow = PerformanceMetrics & {
   period_end: string
   /** Bucket pertama/terakhir yang tidak penuh; delta disembunyikan. */
   is_partial: boolean
-  prev: PerformanceMetrics | null
-  yoy: PerformanceMetrics | null
+  /** A83: bulan beku memakai snapshot; bulan berjalan/2 sebelumnya live. */
+  is_frozen?: boolean
+  /** A83: bulan yang belum berjalan di tahun kalender. */
+  is_future?: boolean
+  /** A83: KPI global bulan itu; null bila belum diatur. */
+  kpi_target?: number | null
+  prev?: PerformanceMetrics | null
+  yoy?: PerformanceMetrics | null
 }
 
 export type BatchPerformance = {
@@ -80,6 +87,8 @@ export type BatchPerformance = {
 }
 
 export type PerformanceDetail = {
+  /** A83: tahun kalender untuk RPC detail tahunan. */
+  year?: number
   summary: PerformanceSummary
   rows: PerformancePeriodRow[]
   top_products: TopProduct[]
@@ -318,4 +327,39 @@ export function productLabel(product: Pick<TopProduct, 'product_name' | 'product
   if (name !== '') return name
   const code = (product.product_code ?? '').trim()
   return code !== '' ? code : 'Tanpa produk'
+}
+
+/** A83: KPI hanya dibandingkan bila periode tepat satu bulan kalender. */
+export function isSingleMonthPeriod(from: string, to: string): boolean {
+  if (from === '' || to === '') return false
+  if (parseIsoDate(from) === null || parseIsoDate(to) === null) return false
+  if (to < from) return false
+  return from.endsWith('-01') && from.slice(0, 7) === to.slice(0, 7)
+}
+
+export type PerformanceKpi = {
+  month: string
+  target_tickets: number | null
+  updated_at?: string | null
+}
+
+/** A83: satu angka KPI global per bulan; null bila belum diatur. */
+export async function fetchPerformanceKpi(month: string): Promise<PerformanceKpi> {
+  const rows = await supabaseSelect<{ target_tickets: number; updated_at?: string }>(
+    'performance_kpi_targets',
+    { period_month: `eq.${month}-01` },
+    'target_tickets,updated_at',
+  )
+  const row = rows[0]
+  return {
+    month,
+    target_tickets: row?.target_tickets ?? null,
+    updated_at: row?.updated_at ?? null,
+  }
+}
+
+/** true = memenuhi, false = tidak, null = KPI belum diatur. */
+export function kpiMeets(tickets: number, target: number | null | undefined): boolean | null {
+  if (target === null || target === undefined) return null
+  return tickets >= target
 }
