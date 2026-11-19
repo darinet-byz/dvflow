@@ -2142,3 +2142,19 @@ Permintaan pengguna: saat draft `/add` dikonfirmasi, Citta langsung membuat dead
 - API: parser mengekstrak `batch` + `advertiser_codes` (dibatasi ke pengiklan aktif produk); preview menampilkan batch/pengiklan/deadline + peringatan `(!)`; endpoint `POST /api/ai/drafts/:id/confirm`; `renderConfirmResult` menambahkan ringkasan Kalender Iklan.
 - Web: tombol **Konfirmasi** + modal di tab Citta AI (kolom Baris + badge `!`), tombol **Konfirmasi** mengirim ringkasan ke grup; `AdCalendarTab` menampilkan `!` dan peringatan di modal edit.
 - Tes: `packages/api/test/ai-citta.test.ts` (4 kasus A84), `apps/web/test/wa-bot.test.tsx` (1 kasus tombol Konfirmasi), pgTAP `supabase/tests/47_ad_calendar_auto.sql` (H-21/H-14, incomplete, manual skip, halaman, hapus deadline AI).
+
+## A85 - Perapian toolbar KPI Performa + hapus penanda beku (20 November 2026)
+
+Permintaan pengguna: toolbar pengiklan di halaman Performa/Analitik tidak rapi karena field KPI memakai label visual `KPI Nov 2026` dan bercampur dengan pencarian/urut/toggle; field KPI diminta memakai placeholder `Atur KPI Pengiklan` seperti field cari pengiklan. Di halaman detail pengiklan, badge `Beku` pada tabel Rincian Bulanan dinilai tidak perlu; badge `Berjalan` tetap.
+
+### Keputusan
+
+- **Field KPI tanpa label visual**: placeholder `Atur KPI Pengiklan`; konteks bulan hanya di `aria-label` untuk pembaca layar, mengikuti pola `TextInput` toolbar filter. Nilai, validasi, dan endpoint KPI tidak berubah.
+- **Header dua baris**: baris pertama judul + jumlah pengiklan dengan kontrol cari/urut/tampilan di kanan; baris kedua input KPI + Simpan. Semua kontrol setinggi 36px (toggle 32px di dalam wadah 36px) dan memakai `items-center` agar sejajar.
+- **Badge `Beku` dihapus** dari tabel Rincian Bulanan; deskripsi tabel tidak lagi menjelaskan snapshot beku. `is_frozen` tetap ada di respons RPC dan tipe data, hanya tidak dirender.
+- **Badge `Berjalan` dipertahankan** untuk bulan berjalan/parsial.
+
+### Implementasi
+
+- Web: `apps/web/src/pages/performance/PerformancePage.tsx` — toolbar `PerformanceDashboardView` dua baris + placeholder/`ariaLabel` KPI; `PerformanceMonthlyTable` tanpa badge Beku.
+- Tes: `apps/web/test/performance.test.tsx` — fixture detail `is_frozen`, assertion tidak ada teks `Beku`, dan placeholder/`aria-label` KPI baru. Tanpa migrasi (`schema_version` tetap 84).
