@@ -44,3 +44,20 @@ export function readString(body: Record<string, unknown>, key: string): string |
   const value = body[key]
   return typeof value === 'string' ? value : null
 }
+
+/**
+ * Ambil nilai skalar (string atau angka) sebagai string yang sudah di-trim.
+ *
+ * Webhook Fonnte mengirim `inboxid` dan `timestamp` sebagai angka. Membacanya
+ * dengan `readString` saja membuat keduanya `null`, sehingga kunci dedupe jatuh
+ * ke hash isi pesan dan pesan berulang seperti `YA` selalu dibuang (A86).
+ */
+export function readScalarString(body: Record<string, unknown>, key: string): string | null {
+  const value = body[key]
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    return trimmed === '' ? null : trimmed
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) return String(value)
+  return null
+}

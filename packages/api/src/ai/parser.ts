@@ -363,6 +363,7 @@ function text(value: unknown): string | null {
 }
 
 const MONTH_SHORT = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+const DAY_ID = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
 
 /** 2026-11-30 -> "30 Nov 2026". */
 export function formatDateId(iso: string): string {
@@ -370,6 +371,21 @@ export function formatDateId(iso: string): string {
   if (match === null) return iso
   const month = MONTH_SHORT[Number(match[2]) - 1] ?? match[2]
   return `${Number(match[3])} ${month} ${match[1]}`
+}
+
+/**
+ * 2026-11-30 -> "Senin, 30 Nov 2026".
+ *
+ * Dipakai di semua pesan WhatsApp Citta supaya operator tidak perlu menghitung
+ * hari sendiri dari tanggal. `formatDateId` tetap dipakai saat tanggal bukan
+ * untuk dibaca manusia (mis. perbandingan).
+ */
+export function formatDateIdWithDay(iso: string): string {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  if (match === null) return iso
+  const day = new Date(`${iso}T00:00:00Z`).getUTCDay()
+  const dayName = DAY_ID[day] ?? ''
+  return `${dayName}, ${formatDateId(iso)}`
 }
 
 /** 09:00 -> "09:00"; 09:00:00 -> "09:00". */

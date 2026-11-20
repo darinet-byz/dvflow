@@ -2,7 +2,7 @@ import { AI_CITTA_PERMISSION, CITTA_AI_USER_ID } from '@dvflow/shared'
 import { DbError } from '../db/types'
 import { decrypt, encrypt } from '../integrations/crypto'
 import { ApiFailure } from '../http/errors'
-import { ok, readJsonObject, readString } from '../http/response'
+import { ok, readJsonObject, readScalarString, readString } from '../http/response'
 import { requirePermission } from '../permissions'
 import type { RouteContext } from '../router'
 import { sendWhatsAppMessage } from '../wa-bot/fonnte'
@@ -12,7 +12,7 @@ import {
   MAX_INPUT_CHARS,
   buildAddPrompt,
   buildDeletePrompt,
-  formatDateId,
+  formatDateIdWithDay,
   normalizeAdd,
   normalizeDelete,
   shortTime,
@@ -335,10 +335,10 @@ export async function fonnteWebhook(context: RouteContext): Promise<Response> {
 
   const body = await readJsonObject(context.request)
   const message = (readString(body, 'message') ?? '').trim()
-  const sender = (readString(body, 'sender') ?? '').trim()
-  const member = (readString(body, 'member') ?? '').trim()
-  const inboxId = (readString(body, 'inboxid') ?? '').trim()
-  const timestamp = (readString(body, 'timestamp') ?? '').trim()
+  const sender = readScalarString(body, 'sender') ?? ''
+  const member = readScalarString(body, 'member') ?? ''
+  const inboxId = readScalarString(body, 'inboxid') ?? readScalarString(body, 'msgid') ?? ''
+  const timestamp = readScalarString(body, 'timestamp') ?? ''
 
   const addMatch = ADD_COMMAND.exec(message)
   const deleteMatch = DELETE_COMMAND.exec(message)
@@ -374,11 +374,20 @@ export async function fonnteWebhook(context: RouteContext): Promise<Response> {
     return ok({ ignored: true, reason: 'RATE_LIMIT' })
   }
 
-  const dedupeKey = inboxId !== ''
-    ? inboxId
-    : await sha256Hex(`${group.group.fonnte_group_id}|${member}|${message}|${timestamp}`)
+  const dedupeKey = await dedupeKeyFor(
+    group.group.fonnte_group_id,
+    member,
+    message,
+    inboxId,
+    timestamp,
+    context.now.getTime(),
+  )
   const duplicate = await context.db.selectRows<{ id: string }>('wa_ai_inbox', { inbox_id: `eq.${dedupeKey}` }, 'id')
-  if (duplicate.length > 0) return ok({ duplicate: true })
+  if (duplicate.length > 0) {
+    // Sengaja hanya dicatat: pesan ganda tidak boleh memicu query lain.
+    console.log('[ai] webhook duplikat diabaikan')
+    return ok({ duplicate: true })
+  }
 
   const command = addMatch !== null ? 'add' : deleteMatch !== null ? 'delete' : (confirmMatch?.[1]?.toLowerCase() === 'batal' ? 'cancel' : 'confirm')
   await context.db.insertRow('wa_ai_inbox', {
@@ -389,32 +398,39 @@ export async function fonnteWebhook(context: RouteContext): Promise<Response> {
     received_at: context.now.toISOString(),
   }, 'id')
 
-  if (addMatch !== null || deleteMatch !== null) {
-    const product = await loadProduct(context, group.group.product_id)
-    if (product === null || !product.active) {
-      await reply(context, group.target, 'Produk grup ini tidak aktif. Citta tidak bisa menambah jadwal.', null)
-      return ok({ ignored: true, reason: 'PRODUCT_INACTIVE' })
+  try {
+    if (addMatch !== null || deleteMatch !== null) {
+      const product = await loadProduct(context, group.group.product_id)
+      if (product === null || !product.active) {
+        await reply(context, group.target, 'Produk grup ini tidak aktif. Citta tidak bisa menambah jadwal.', null)
+        return ok({ ignored: true, reason: 'PRODUCT_INACTIVE' })
+      }
+
+      const text = (addMatch?.[1] ?? deleteMatch?.[1] ?? '').trim()
+      if (text.length > MAX_INPUT_CHARS) {
+        await reply(context, group.target, `Teks terlalu panjang (maks ${MAX_INPUT_CHARS} karakter).`, null)
+        return ok({ ignored: true, reason: 'TOO_LONG' })
+      }
+
+      // Perintah baru membatalkan draft lama di grup yang sama.
+      await context.db.updateRows(
+        'ai_drafts',
+        { wa_group_id: `eq.${group.group.fonnte_group_id}`, status: 'eq.pending' },
+        { status: 'cancelled' },
+      )
+
+      return addMatch !== null
+        ? await handleAdd(context, group, product, settings, text, member)
+        : await handleDelete(context, group, product, settings, text, member)
     }
 
-    const text = (addMatch?.[1] ?? deleteMatch?.[1] ?? '').trim()
-    if (text.length > MAX_INPUT_CHARS) {
-      await reply(context, group.target, `Teks terlalu panjang (maks ${MAX_INPUT_CHARS} karakter).`, null)
-      return ok({ ignored: true, reason: 'TOO_LONG' })
-    }
-
-    // Perintah baru membatalkan draft lama di grup yang sama.
-    await context.db.updateRows(
-      'ai_drafts',
-      { wa_group_id: `eq.${group.group.fonnte_group_id}`, status: 'eq.pending' },
-      { status: 'cancelled' },
-    )
-
-    return addMatch !== null
-      ? handleAdd(context, group, product, settings, text, member)
-      : handleDelete(context, group, product, settings, text, member)
+    return await handleConfirmation(context, group, confirmMatch as RegExpExecArray)
+  } catch (error) {
+    // Klaim dedupe dilepas supaya percobaan ulang Fonnte tidak ikut tertelan:
+    // tanpa ini satu error sesaat mengunci pesan itu selamanya (A86).
+    await releaseInboxClaim(context, dedupeKey)
+    throw error
   }
-
-  return handleConfirmation(context, group, confirmMatch as RegExpExecArray)
 }
 
 // ---------------------------------------------------------------------------
@@ -555,7 +571,7 @@ async function handleDelete(
     .slice(0, MAX_DELETE_CANDIDATES)
 
   if (candidates.length === 0) {
-    await reply(context, group.target, `Tidak ada jadwal ${product.code} pada ${formatDateId(normalized.match.event_date)}${normalized.match.city ? ` di ${normalized.match.city}` : ''}.`, null)
+    await reply(context, group.target, `Tidak ada jadwal ${product.code} pada ${formatDateIdWithDay(normalized.match.event_date)}${normalized.match.city ? ` di ${normalized.match.city}` : ''}.`, null)
     return ok({ ignored: true, reason: 'NO_CANDIDATE' })
   }
 
@@ -571,7 +587,7 @@ async function handleDelete(
     await reply(
       context,
       group.target,
-      `Semua jadwal ${product.code} pada ${formatDateId(normalized.match.event_date)} punya deadline iklan manual. Hapus dulu di Kalender Iklan.`,
+      `Semua jadwal ${product.code} pada ${formatDateIdWithDay(normalized.match.event_date)} punya deadline iklan manual. Hapus dulu di Kalender Iklan.`,
       null,
     )
     return ok({ ignored: true, reason: 'BLOCKED_BY_AD_CALENDAR' })
@@ -900,7 +916,7 @@ function renderAddPreview(
       return
     }
     lines.push(`${index + 1}. ${item.category}${item.category_source === 'location' ? ' (dari lokasi)' : ''}`)
-    lines.push(`   ${formatDateId(item.event_date)}, ${item.start_time} WIB`)
+    lines.push(`   ${formatDateIdWithDay(item.event_date)}, ${item.start_time} WIB`)
     if (item.city !== null) lines.push(`   Kota: ${item.city}`)
     lines.push(`   Lokasi: ${item.location}`)
     lines.push('')
@@ -912,7 +928,7 @@ function renderAddPreview(
   lines.push(`Batch iklan: ${batch ?? '?'}${batch === null ? ' (!)' : ''}`)
   lines.push(`Pengiklan: ${advertiserLabels.length > 0 ? advertiserLabels.join(', ') : 'belum disebut (!)'}`)
   if (adDeadline !== null) {
-    lines.push(`Kalender iklan: deadline ${formatDateId(adDeadline.date)} (${adDeadline.rule})`)
+    lines.push(`Kalender iklan: deadline ${formatDateIdWithDay(adDeadline.date)} (${adDeadline.rule})`)
   }
   if (batch === null || advertiserLabels.length === 0) {
     lines.push('Data bertanda (!) tetap disimpan dan bisa dilengkapi di Kalender Iklan.')
@@ -950,7 +966,7 @@ function renderDeletePreview(product: ProductRow, candidates: CandidateRow[]): s
     '',
   ]
   candidates.forEach((candidate, index) => {
-    lines.push(`${index + 1}. ${candidate.category} • ${formatDateId(candidate.event_date)}, ${shortTime(candidate.start_time)} WIB`)
+    lines.push(`${index + 1}. ${candidate.category} • ${formatDateIdWithDay(candidate.event_date)}, ${shortTime(candidate.start_time)} WIB`)
     if (candidate.city) lines.push(`   Kota: ${candidate.city}`)
     lines.push(`   Lokasi: ${candidate.location}`)
     if (candidate.blocked === true) lines.push('   ! Punya deadline iklan manual - tidak bisa dihapus dari sini.')
@@ -984,7 +1000,7 @@ function renderConfirmResult(draft: DraftRow, result: ConfirmResult, number: num
         : []
     lines.push(`✅ ${saved} jadwal disimpan.`)
     for (const item of chosen.slice(0, saved)) {
-      lines.push(`${formatDateId(item.event_date)}, ${item.start_time} • ${item.location}`)
+      lines.push(`${item.category} • ${formatDateIdWithDay(item.event_date)}, ${item.start_time} WIB • ${item.location}`)
     }
   } else {
     const candidates = draft.payload.candidates ?? []
@@ -995,7 +1011,7 @@ function renderConfirmResult(draft: DraftRow, result: ConfirmResult, number: num
         : []
     lines.push(`✅ ${saved} jadwal dihapus.`)
     for (const candidate of chosen.slice(0, saved)) {
-      lines.push(`${formatDateId(candidate.event_date)}, ${shortTime(candidate.start_time)} • ${candidate.location}`)
+      lines.push(`${candidate.category} • ${formatDateIdWithDay(candidate.event_date)}, ${shortTime(candidate.start_time)} WIB • ${candidate.location}`)
     }
   }
 
@@ -1005,7 +1021,7 @@ function renderConfirmResult(draft: DraftRow, result: ConfirmResult, number: num
       lines.push(`Kalender iklan: ${result.ad_calendar_saved} deadline dibuat.`)
       lines.push(`Batch: ${result.ad_batch ?? '?'}${result.ad_batch === '?' || result.ad_batch === null ? ' (!)' : ''}`)
       if (result.ad_deadline_date) {
-        lines.push(`Deadline: ${formatDateId(result.ad_deadline_date)} (${result.ad_deadline_rule ?? '-'})`)
+        lines.push(`Deadline: ${formatDateIdWithDay(result.ad_deadline_date)} (${result.ad_deadline_rule ?? '-'})`)
       }
       if (result.ad_calendar_incomplete === true) {
         lines.push('! Batch/pengiklan belum lengkap. Lengkapi di Kalender Iklan.')
@@ -1055,6 +1071,39 @@ function randomCode(): string {
   const bytes = new Uint8Array(4)
   crypto.getRandomValues(bytes)
   return Array.from(bytes, (byte) => CODE_ALPHABET[byte % CODE_ALPHABET.length]).join('')
+}
+
+/**
+ * Kunci dedupe webhook (A86).
+ *
+ * Fonnte mengirim `inboxid`/`timestamp` sebagai angka. Selama keduanya dibaca
+ * dengan `readString`, kunci jatuh ke hash isi pesan: `YA` pertama diproses,
+ * semua `YA` berikutnya dari grup dan member yang sama dianggap duplikat dan
+ * dibuang diam-diam. Urutan di sini: id pesan asli -> hash + timestamp ->
+ * hash berjendela 60 detik (cukup menahan retry Fonnte, tidak menahan pesan
+ * manusia yang dikirim beberapa menit kemudian).
+ */
+async function dedupeKeyFor(
+  groupId: string,
+  member: string,
+  message: string,
+  inboxId: string,
+  timestamp: string,
+  nowMs: number,
+): Promise<string> {
+  if (inboxId !== '') return `inbox:${inboxId}`
+  if (timestamp !== '') return `hash:${await sha256Hex(`${groupId}|${member}|${message}|${timestamp}`)}`
+  const window = Math.floor(nowMs / 60_000)
+  return `hash:${await sha256Hex(`${groupId}|${member}|${message}|${window}`)}`
+}
+
+/** Lepas klaim dedupe setelah pemrosesan gagal, agar pesan bisa dicoba ulang. */
+async function releaseInboxClaim(context: RouteContext, dedupeKey: string): Promise<void> {
+  try {
+    await context.db.deleteRows('wa_ai_inbox', { inbox_id: `eq.${dedupeKey}` })
+  } catch (error) {
+    console.error(`[ai] gagal melepas klaim inbox: ${error instanceof Error ? error.message : 'unknown'}`)
+  }
 }
 
 async function sha256Hex(value: string): Promise<string> {

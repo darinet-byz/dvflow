@@ -2158,3 +2158,22 @@ Permintaan pengguna: toolbar pengiklan di halaman Performa/Analitik tidak rapi k
 
 - Web: `apps/web/src/pages/performance/PerformancePage.tsx` — toolbar `PerformanceDashboardView` dua baris + placeholder/`ariaLabel` KPI; `PerformanceMonthlyTable` tanpa badge Beku.
 - Tes: `apps/web/test/performance.test.tsx` — fixture detail `is_frozen`, assertion tidak ada teks `Beku`, dan placeholder/`aria-label` KPI baru. Tanpa migrasi (`schema_version` tetap 84).
+
+## A86 - Perbaikan konfirmasi `YA` Citta + tanggal berhari + label Workshop (20 November 2026)
+
+Laporan pengguna: setiap `/add` menerima preview, tetapi balasan `YA`/`YA 2` di grup tidak pernah diproses - draft "masuk ke sistem" (muncul di dashboard), tidak ada balasan yang terkirim ke Fonnte, dan konfirmasi akhirnya harus dilakukan manual lewat web.
+
+### Keputusan
+
+- **Akar masalah: kunci dedupe berbasis isi pesan.** Webhook Fonnte mengirim `inboxid` dan `timestamp` sebagai **angka**; `readString` hanya menerima string sehingga keduanya menjadi kosong dan kunci jatuh ke `sha256(grup|member|pesan)`. `YA` pertama diproses, semua `YA` berikutnya dari grup + member yang sama dianggap duplikat dan dibuang sebelum draft dibaca. Bukti produksi: satu-satunya baris `confirm` dari WhatsApp (`2026-11-19T06:13:10Z`) berkunci `sha256("120363323062166008@g.us|161460789498025@lid|YA|")`; draft 20 November dikonfirmasi dari dashboard tanpa baris inbox.
+- **`readScalarString`** menerima string atau angka; dipakai untuk `sender`, `member`, `inboxid`/`msgid`, dan `timestamp`.
+- **Urutan kunci dedupe**: `inbox:<id>` -> `hash:` dengan timestamp -> `hash:` dengan jendela 60 detik dari clock server. Jendela hanya menahan retry Fonnte; `YA` yang dikirim manusia beberapa menit kemudian tetap diproses. Kunci baru diberi prefix agar tidak bentrok dengan baris lama.
+- **Klaim dedupe dilepas saat pemrosesan gagal** (`releaseInboxClaim`) supaya satu error sesaat tidak mengunci pesan itu selamanya; percobaan ulang Fonnte tetap bisa diproses. Pesan duplikat kini dicatat di log, tidak lagi senyap.
+- **Tanggal di pesan WhatsApp memakai nama hari** (`formatDateIdWithDay`, mis. `Senin, 30 Nov 2026`) pada preview `/add`, ringkasan simpan/hapus, preview `/delete`, deadline Kalender Iklan, dan pesan "tidak ada jadwal"/"deadline manual".
+- **Ringkasan simpan/hapus menampilkan jenis acara**, sehingga baris `Workshop` ditandai jelas sebagai `Workshop`.
+- Tanpa migrasi; semua data lama tetap sah (baris `wa_ai_inbox` lama tidak perlu dihapus karena kunci baru berprefix).
+
+### Implementasi
+
+- API: `packages/api/src/http/response.ts` (`readScalarString`), `packages/api/src/ai/parser.ts` (`formatDateIdWithDay`), `packages/api/src/ai/handlers.ts` (kunci dedupe, pelepasan klaim, format pesan).
+- Tes: `packages/api/test/ai-citta.test.ts` - `inboxid` numerik, `timestamp` numerik, jendela dedupe tanpa id pesan, dan pesan chat berisi nama hari + label Workshop.

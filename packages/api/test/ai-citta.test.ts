@@ -37,7 +37,7 @@ const DELETE_AI_REPLY = {
   issues: [],
 }
 
-async function setup() {
+async function setup(options: { now?: () => Date } = {}) {
   const state = createFakeState({
     users: [fakeUser({ role: 'owner', username: 'owner1' })],
     config: sampleConfig(),
@@ -60,6 +60,7 @@ async function setup() {
       WA_FONNTE_BASE_URL: 'https://fonnte.test',
       FONNTE_WEBHOOK_SECRET: WEBHOOK_SECRET,
     },
+    ...(options.now === undefined ? {} : { now: options.now }),
   })
   const { accessToken } = await loginAndGetToken(api, 'owner1')
   const request = (method: 'GET' | 'POST' | 'PATCH' | 'DELETE' | 'PUT', path: string, body?: unknown) =>
@@ -515,5 +516,83 @@ describe('A82: Citta AI', () => {
     expect(body.data).toMatchObject({ status: 'CONFIRMED', saved: 1, ad_calendar_saved: 1, group_message_sent: true })
     expect(state.adCalendar).toHaveLength(1)
     expect(calls.some((call) => call.url.endsWith('/send'))).toBe(true)
+  })
+
+  it('A86: inboxid numerik membuat YA berulang tetap diproses', async () => {
+    const { api, state } = await setup()
+    stubAi(ADD_AI_REPLY)
+
+    await webhook(api, { sender: GROUP_ID, member: '628111', message: '/add 30 Nov 2026 09.00 Hotel Aston Pekalongan', inboxid: 7001, timestamp: 1795000000 })
+    await webhook(api, { sender: GROUP_ID, member: '628111', message: 'YA', inboxid: 7002, timestamp: 1795000005 })
+
+    // Jadwal kedua berbeda supaya bukan duplikat; teks "YA" sengaja sama persis.
+    stubAi({
+      items: [
+        { category: 'Seminar', event_date: '2026-12-01', start_time: '09:00', city: 'Tegal', location: 'Hotel Prime Biz Tegal' },
+      ],
+      issues: [],
+    })
+    await webhook(api, { sender: GROUP_ID, member: '628111', message: '/add 1 Des 2026 09.00 Hotel Prime Biz Tegal', inboxid: 7003, timestamp: 1795000060 })
+    await webhook(api, { sender: GROUP_ID, member: '628111', message: 'YA', inboxid: 7004, timestamp: 1795000065 })
+
+    expect(state.waAiInbox.map((row) => row['inbox_id'])).toEqual([
+      'inbox:7001',
+      'inbox:7002',
+      'inbox:7003',
+      'inbox:7004',
+    ])
+    expect(state.aiDrafts).toHaveLength(2)
+    expect(state.aiDrafts.every((draft) => draft['status'] !== 'pending')).toBe(true)
+  })
+
+  it('A86: timestamp numerik membedakan dua pesan YA yang teksnya sama', async () => {
+    const { api, state } = await setup()
+    stubAi(ADD_AI_REPLY)
+
+    await webhook(api, { sender: GROUP_ID, member: '628111', message: 'YA', timestamp: 1795000000 })
+    await webhook(api, { sender: GROUP_ID, member: '628111', message: 'YA', timestamp: 1795000100 })
+
+    const keys = state.waAiInbox.map((row) => String(row['inbox_id']))
+    expect(keys).toHaveLength(2)
+    expect(new Set(keys).size).toBe(2)
+    expect(keys.every((key) => key.startsWith('hash:'))).toBe(true)
+  })
+
+  it('A86: tanpa id pesan, YA yang sama tetap diproses setelah jendela dedupe lewat', async () => {
+    let now = new Date('2026-10-13T08:00:00.000Z')
+    const { api, state } = await setup({ now: () => now })
+    stubAi(ADD_AI_REPLY)
+
+    const first = await webhook(api, { sender: GROUP_ID, member: '628111', message: 'YA' })
+    expect((await readBody<{ data: { duplicate?: boolean } }>(first)).data.duplicate).toBeUndefined()
+
+    const repeat = await webhook(api, { sender: GROUP_ID, member: '628111', message: 'YA' })
+    expect((await readBody<{ data: { duplicate?: boolean } }>(repeat)).data.duplicate).toBe(true)
+    expect(state.waAiInbox).toHaveLength(1)
+
+    now = new Date(now.getTime() + 61_000)
+    await webhook(api, { sender: GROUP_ID, member: '628111', message: 'YA' })
+    expect(state.waAiInbox).toHaveLength(2)
+  })
+
+  it('A86: pesan chat memuat nama hari dan label Workshop', async () => {
+    const { api } = await setup()
+    const { calls } = stubAi({
+      items: [
+        { category: 'Workshop', event_date: '2026-11-30', start_time: '09:00', city: 'Pekalongan', location: 'Hotel Aston Pekalongan' },
+      ],
+      issues: [],
+    })
+
+    await webhook(api, { sender: GROUP_ID, member: '628111', message: '/add workshop Pekalongan', inboxid: 'fmt-1' })
+    await webhook(api, { sender: GROUP_ID, member: '628111', message: 'YA', inboxid: 'fmt-2' })
+
+    const messages = calls
+      .filter((call) => call.url.endsWith('/send'))
+      .map((call) => new URLSearchParams(call.body).get('message') ?? '')
+    expect(messages[0]).toContain('Senin, 30 Nov 2026')
+    expect(messages[0]).toContain('Workshop')
+    expect(messages[1]).toContain('Senin, 30 Nov 2026')
+    expect(messages[1]).toContain('Workshop •')
   })
 })
