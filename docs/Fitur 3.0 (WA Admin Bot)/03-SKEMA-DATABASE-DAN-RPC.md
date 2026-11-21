@@ -41,8 +41,10 @@ Sejak A71 tidak ada nomor HP yang disalin dari tabel ini.
 Placeholder yang ditawarkan: `{{mention}}`, `{{advertiser_name}}`,
 `{{advertiser_code}}`, `{{product_name}}`, `{{product_code}}`, `{{event_type}}`,
 `{{date}}`, `{{report_url}}`.
-`{{mention}}` dirender sebagai `@Nama Pengiklan` (bukan `@nomor`): Fonnte tidak
-memiliki parameter tag WhatsApp, sehingga nomor hanya akan tampil sebagai teks.
+`{{mention}}` dirender sebagai daftar nama dengan sapaan, mis. `Mas Zul, Mbak Rina`
+(bukan `@nomor`): Fonnte tidak memiliki parameter tag WhatsApp, sehingga nomor
+hanya akan tampil sebagai teks. Sapaan diambil dari `advertisers.salutation`
+(kolom baru A90, maks. 20 karakter; kosong = nama saja).
 Warisan yang tetap dirender: `{{store_name}}`, `{{leads}}`, `{{paid}}`.
 Divalidasi backend + `packages/shared`.
 
@@ -52,8 +54,8 @@ Divalidasi backend + `packages/shared`.
 | `execution_time` | time | Jam WIB. |
 | `template_id` | uuid → templates | `ON DELETE RESTRICT`. |
 | `days` | smallint[] | 0 = Minggu; default semua hari; tidak boleh kosong. |
-| `only_if_missing_report` | boolean | Default true. Gerbang kirim: bila false, pesan mode `all` selalu dikirim untuk produk beraktivitas. |
-| `mention_scope` | text | `all` (default) = sebut semua pengiklan beraktivitas; `missing` = sebut hanya yang belum lapor. |
+| `only_if_missing_report` | boolean | Default true. Gerbang kirim: bila false, pesan mode `all`/`assigned` selalu dikirim untuk produk beraktivitas. |
+| `mention_scope` | text | `all` (default) = sebut semua pengiklan beraktivitas; `assigned` = sebut semua pengiklan aktif yang ditugaskan ke produk; `missing` = sebut hanya yang belum lapor. |
 | `is_active` | boolean | |
 
 ### `wa_reminder_logs`
@@ -96,18 +98,21 @@ Langkah:
 3. Pilih jadwal aktif yang template-nya aktif, hari cocok (`days @> dow`), dan
    `now` berada di `[jam, jam+60 menit)` WIB.
 4. Ambil produk dengan grup aktif, lalu pengiklan aktif yang ditugaskan ke produk
-   itu (`product_advertisers`) dan punya order kemarin.
+   itu (`product_advertisers`); order kemarin di-LEFT JOIN per pengiklan.
 5. Hitung order kemarin per pengiklan + produk + **jenis acara**:
    `source = 'orderonline'`, batas hari WIB, `leads`/`paid`, plus penanda
    `has_missing` (belum ada `ad_spend_reports` untuk jenis acara sama).
-6. Gabungkan per produk + jenis acara: daftar nama, daftar kode, total leads/paid.
-7. Buang grup yang tidak punya order kemarin.
+6. Gabungkan per produk + jenis acara: daftar nama/label, daftar kode, total leads/paid.
+7. Buang grup yang tidak punya order kemarin untuk jenis acara itu.
 8. Bila `mention_scope = 'missing'`, pakai hanya pengiklan dengan
    `has_missing`; bila tidak ada, grup itu tidak menghasilkan task. Bila
-   `mention_scope = 'all'`, pakai semua pengiklan beraktivitas dan
-   `only_if_missing_report` menentukan apakah grup dikirim.
+   `mention_scope = 'all'`, pakai pengiklan beraktivitas dan
+   `only_if_missing_report` menentukan apakah grup dikirim. Bila
+   `mention_scope = 'assigned'`, pakai semua pengiklan aktif yang ditugaskan,
+   termasuk yang tidak punya order untuk jenis acara itu.
 9. Buang yang sudah 3× `failed` pada tanggal itu untuk kunci grup yang sama.
-10. Render template lewat `wa_render_reminder` (`{{mention}}` = `@A, @B`).
+10. Render template lewat `wa_render_reminder` (`{{mention}}` = `Mas A, Mbak B`,
+    tanpa `@`).
 11. Insert satu `queued` per grup + jenis acara dengan `on conflict do nothing`,
     batasi `p_limit`.
 
@@ -117,11 +122,13 @@ tidak berubah (`updated: false`) — mencegah penandaan ganda.
 
 ### `wa_reminder_preview(p_now, p_product_code, p_template_id, p_event_type, p_base_url, p_mention_scope)`
 Menghasilkan pesan final + angka kemarin untuk **Kirim Tes**, menyebut pengiklan
-sesuai `p_mention_scope` (`all` default / `missing`). Bila `p_event_type` kosong,
+sesuai `p_mention_scope` (`all` default / `assigned` / `missing`). Bila `p_event_type` kosong,
 dipakai jenis acara order terbaru kemarin. Mengembalikan `{found:false, reason}`
 bila template/produk/grup tidak ada, tidak ada order untuk jenis acara itu, atau
-mode `missing` tetapi semua sudah lapor (`NO_MISSING_REPORT`).
-Respons sukses memuat `advertisers: [{ code, name }]` dan `mention_scope`.
+mode `missing` tetapi semua sudah lapor (`NO_MISSING_REPORT`). Mode `assigned`
+tetap bisa dipreview walau belum ada order, selama ada pengiklan yang ditugaskan.
+Respons sukses memuat `advertisers: [{ code, name, label }]`, `mention_scope`, dan
+`message` dengan sapaan per pengiklan.
 
 ### `wa_reminder_purge(p_now timestamptz, p_keep_days integer)`
 Menghapus log lebih tua dari `p_keep_days` (default 3). Dipanggil klaim dan
@@ -130,7 +137,7 @@ tersedia untuk operator.
 ### `wa_render_reminder(...)`
 Fungsi murni pengganti placeholder, dipakai klaim & preview agar isi pesan
 tidak pernah berbeda antara dua jalur. `{{mention}}` memakai `p_mention` (daftar
-`@A, @B` yang dirakit pemanggil); `{{advertiser_name}}` dan
+`Mas A, Mbak B` tanpa `@` yang dirakit pemanggil); `{{advertiser_name}}` dan
 `{{advertiser_code}}` juga menerima daftar.
 
 ## 3. Izin

@@ -2198,8 +2198,8 @@ Permintaan pengguna: input report spend saat ini memaksa memilih produk, batch, 
 ### Implementasi
 
 - Migrasi `20261121120000_ad_spend_cards.sql` (`schema_version` 85): tabel `ad_spend_cards`, `card_id` + index di `ad_spend_reports`, trigger `ad_spend_reports_set_card`, backfill card/2 batch terakhir, izin `action.manage_spend`, RPC `save_ad_spend_card`/`delete_ad_spend_card`, dan `ad_spend_report` baru (`summary`, `cards`, `rows`, `sessions`, `comparison`; `spends[]` per card).
-- API: `packages/api/src/ad-spend/handlers.ts` + route `POST/PATCH/DELETE /api/ad-spend-cards`; validasi 1–20 baris, tanggal, spend, PPN, dan id baris.
-- Web: `apps/web/src/pages/report-spend/ReportSpendPage.tsx` — grid card Berjalan, modal card multi-budget, tabel resume Selesai; `Modal` menerima ukuran `lg`; `DateRangeField` menerima `id` unik untuk beberapa baris.
+- API: `packages/api/src/ad-spend/handlers.ts` + route `POST/PATCH/DELETE /api/ad-spend-cards`; validasi 1ï¿½20 baris, tanggal, spend, PPN, dan id baris.
+- Web: `apps/web/src/pages/report-spend/ReportSpendPage.tsx` ï¿½ grid card Berjalan, modal card multi-budget, tabel resume Selesai; `Modal` menerima ukuran `lg`; `DateRangeField` menerima `id` unik untuk beberapa baris.
 - Tes: pgTAP `supabase/tests/48_ad_spend_cards.sql`, update `24_ad_spend_reports.sql` (satu baris per card) dan `44_ad_calendar.sql` (rentang cek upcoming yang tidak bergantung akhir bulan); API `packages/api/test/ad-spend.test.ts`; web `apps/web/test/report-spend-card.test.tsx`.
 
 ## A88 - Card Report sebagai template + laporan harian + resume draft 3 bulan + sync penugasan produk (21 November 2026)
@@ -2230,3 +2230,44 @@ Permintaan pengguna: card Report Spend jangan menampilkan budget 1, budget 2, ds
 - API: route card + `.../reports` + `.../finish` + `.../activate`; error `DF027 -> AD_SPEND_CARD_ARCHIVED`, `DF028 -> AD_SPEND_ENTRY_OVERLAP`, `DF029 -> AD_SPEND_NO_REPORTS`; advertiser dipaksa `has_all_product_access=false`.
 - Web: `ReportSpendPage` card grid settings-only, modal Tambah Laporan, tab Laporan Berjalan/Selesai, detail resume + Aktifkan; `TeamPage` menyembunyikan Semua Produk untuk Advertiser; label Status Produk diperbarui.
 - Tes: `supabase/tests/48_ad_spend_cards.sql`, `49_product_assignment_sync.sql`, update `24_ad_spend_reports.sql`; API `ad-spend.test.ts`; web `report-spend.test.tsx`, `report-spend-card.test.tsx`, `team-advertiser.test.tsx`.
+
+## A89 - Card Report privat per pengiklan + Tambah Deadline multi-pengiklan (22 November 2026)
+
+Permintaan pengguna: (1) Card Report milik pengiklan lain masih muncul di akun Advertiser yang ditugaskan ke produk yang sama; card harus privat per pengiklan. (2) Saat menambah deadline di Kalender Iklan, pengiklan seharusnya bisa dipilih lebih dari satu.
+
+### Keputusan
+
+- **Hanya grid Card Report yang privat.** Akun Advertiser hanya melihat card milik pengiklannya sendiri. Laporan Berjalan/Selesai, KPI, tabel tiket per sesi, dan perbandingan pengiklan tetap memakai scope produk (A44), sehingga pengiklan di produk yang sama tetap saling melihat laporan.
+- **Akun staff tetap melihat semua card** dalam scope produknya (manajer, owner, developer, pimpro, dan admin yang ditugaskan). Akun Advertiser tetap dibatasi walau role-nya diberi izin kelola.
+- **Tambah Deadline boleh centang beberapa pengiklan.** Satu submission membuat **satu baris deadline per pengiklan** dengan event, batch, dan tanggal deadline yang sama. Status, tanggal tayang, dan skor tetap dihitung per pengiklan.
+- **Pengiklan yang sudah punya deadline untuk produk + batch itu dilewati**, sisanya tetap dibuat dan dilaporkan di respons. Bila semua sudah ada, API membalas `409 AD_CALENDAR_EXISTS`.
+- **PATCH tetap satu pengiklan per baris**, karena mengedit satu deadline. Body lama `advertiser_code` tetap didukung untuk kompatibilitas.
+- **Tidak ada perubahan skema untuk multi-pengiklan**; unique constraint `(advertiser_id, product_code, batch)` yang sudah ada tetap menjadi penjaga.
+
+### Implementasi
+
+- Migrasi `20261122120000_ad_spend_card_privacy.sql` (`schema_version` 90): `ad_spend_report` menambahkan CTE `visible_cards` yang dipakai hanya oleh `cards[]`; `entries`, `resumes`, `summary`, `sessions`, dan `comparison` tetap memakai `card_base`.
+- API: `packages/api/src/ad-calendar/handlers.ts` menerima `advertiser_codes[]` (maks 50), satu insert per pengiklan, respons `{ calendars[], skipped[] }`; PATCH menolak lebih dari satu pengiklan. Izin dan scope produk tetap sama.
+- Web: `apps/web/src/lib/ad-calendar.ts` tipe `CreateAdCalendarInput`/`CreateAdCalendarResult`; `AdCalendarTab` memakai checkbox pengiklan saat membuat deadline dan Select tunggal saat mengedit, dengan toast jumlah dibuat/dilewati.
+- Tes: update `supabase/tests/24_ad_spend_reports.sql` (card privat, laporan/KPI tetap bersama), `packages/api/test/ad-calendar.test.ts` (multi, sebagian duplikat, semua duplikat, daftar tidak valid, PATCH multi), `apps/web/test/ad-calendar.test.tsx` (checkbox satu dan dua pengiklan).
+
+
+## A90 - Reminder WA Admin Bot menyebut semua pengiklan produk dengan sapaan (22 November 2026)
+
+Permintaan pengguna: reminder WA Admin Bot ke grup harus menyebut nama pengiklan satu per satu dalam satu pesan, sekaligus dengan sapaan, mis. `Mas Zul, Mas Andre, Mas Yosef`. Ini bukan Citta AI; alur `/add` dan `/delete` Citta tidak berubah.
+
+### Keputusan
+
+- **Cakupan baru `mention_scope = 'assigned'`**: sebut SEMUA pengiklan aktif yang ditugaskan ke produk grup (`product_advertisers`), termasuk yang tidak punya order kemarin untuk jenis acara itu. Pilihan lama `all` (beraktivitas) dan `missing` (belum lapor) tetap.
+- **Sapaan per pengiklan** lewat kolom baru `advertisers.salutation` (maks. 20 karakter, boleh kosong), diisi di Config > Pengiklan. Nama master tidak diubah.
+- **Format `{{mention}}`**: `Mas Zul, Mas Andre` tanpa tanda `@`. Fonnte tetap mengirimnya sebagai teks biasa; tag WhatsApp tidak tersedia.
+- **`{{advertiser_name}}` tetap nama tanpa sapaan** agar nama tidak tampil dua kali.
+- **Tetap satu pesan per grup + jenis acara**; daftar semua pengiklan berada di dalam pesan yang sama.
+- **Reminder tetap memerlukan minimal satu order kemarin** untuk menentukan jenis acara, sama seperti perilaku sebelumnya.
+
+### Implementasi
+
+- Migrasi `20261122130000_wa_reminder_assigned_salutation.sql` (`schema_version` 91): kolom `advertisers.salutation` + constraint panjang, perluasan constraint `mention_scope`, `wa_reminder_claim` dan `wa_reminder_preview` versi baru (LEFT JOIN order per pengiklan, label sapaan, mode `assigned`).
+- API: `packages/api/src/wa-bot/handlers.ts` menerima `mention_scope = 'assigned'`; `types.ts` web diperluas.
+- Web: opsi **Semua pengiklan yang ditugaskan ke produk** di Jadwal dan Kirim Tes; field **Sapaan** di Config > Pengiklan (`specs.tsx`) dan validasi `config/resources.ts`. `packages/shared` `waMention(name, salutation)` mengembalikan `Mas Zul` tanpa `@`.
+- Tes: pgTAP `37_wa_admin_bot.sql` (sapaan, assigned, tanpa `@`), API `wa-bot.test.ts` + helper preview, web `wa-bot.test.tsx`, shared `wa-reminder.test.ts`.

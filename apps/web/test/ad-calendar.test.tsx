@@ -50,7 +50,7 @@ const adPage = {
     },
   ],
   products: [{ code: 'BM', name: 'Bisnis Masteri' }],
-  advertisers: [{ code: '01', name: 'Zul' }],
+  advertisers: [{ code: '01', name: 'Zul' }, { code: '02', name: 'Rina' }],
   events: [
     {
       id: EVENT_ID,
@@ -69,7 +69,7 @@ const requestMock = vi.fn(async (path: string, init?: { method?: string; body?: 
     return { events: [], products: [{ code: 'BM', name: 'Bisnis Masteri' }] }
   }
   if (path.startsWith('/api/ad-calendar') && (init?.method === undefined || init.method === 'GET')) return adPage
-  if (path === '/api/ad-calendar' && init?.method === 'POST') return { calendar: { id: 'new-id' } }
+  if (path === '/api/ad-calendar' && init?.method === 'POST') return { calendars: [{ id: 'new-id', advertiser_code: '01' }], skipped: [] }
   if (path.startsWith('/api/ad-calendar/') && init?.method === 'PATCH') return { updated: true }
   if (path.startsWith('/api/ad-calendar/') && init?.method === 'DELETE') return { deleted: true }
   throw new Error(`Unexpected request: ${path}`)
@@ -116,7 +116,7 @@ describe('A80: Kalender Iklan', () => {
     fireEvent.click(await screen.findByRole('button', { name: '+ Tambah Deadline' }))
 
     fireEvent.change(screen.getByLabelText('Event'), { target: { value: EVENT_ID } })
-    fireEvent.change(screen.getByLabelText('Pengiklan'), { target: { value: '01' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: /01/ }))
     fireEvent.change(screen.getByLabelText('Batch'), { target: { value: '392' } })
     fireEvent.change(screen.getByLabelText('Tanggal Deadline Tayang'), { target: { value: '2026-11-20' } })
     fireEvent.click(screen.getByRole('button', { name: 'Simpan' }))
@@ -124,7 +124,27 @@ describe('A80: Kalender Iklan', () => {
     await waitFor(() => {
       expect(requestMock).toHaveBeenCalledWith('/api/ad-calendar', expect.objectContaining({
         method: 'POST',
-        body: expect.objectContaining({ event_id: EVENT_ID, advertiser_code: '01', batch: '392', deadline_date: '2026-11-20' }),
+        body: expect.objectContaining({ event_id: EVENT_ID, advertiser_codes: ['01'], batch: '392', deadline_date: '2026-11-20' }),
+      }))
+    })
+  })
+
+  it('bisa memilih lebih dari satu pengiklan dalam satu deadline', async () => {
+    renderCalendar()
+    fireEvent.click(screen.getByRole('tab', { name: 'Kalender Iklan' }))
+    fireEvent.click(await screen.findByRole('button', { name: '+ Tambah Deadline' }))
+
+    fireEvent.change(screen.getByLabelText('Event'), { target: { value: EVENT_ID } })
+    fireEvent.click(screen.getByRole('checkbox', { name: /01/ }))
+    fireEvent.click(screen.getByRole('checkbox', { name: /02/ }))
+    fireEvent.change(screen.getByLabelText('Batch'), { target: { value: '392' } })
+    fireEvent.change(screen.getByLabelText('Tanggal Deadline Tayang'), { target: { value: '2026-11-20' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan' }))
+
+    await waitFor(() => {
+      expect(requestMock).toHaveBeenCalledWith('/api/ad-calendar', expect.objectContaining({
+        method: 'POST',
+        body: expect.objectContaining({ advertiser_codes: ['01', '02'] }),
       }))
     })
   })

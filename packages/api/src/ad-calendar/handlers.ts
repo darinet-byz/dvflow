@@ -53,53 +53,83 @@ export async function listAdCalendar(context: RouteContext): Promise<Response> {
   return ok(page)
 }
 
-/** POST /api/ad-calendar */
+/** POST /api/ad-calendar — satu baris deadline per pengiklan yang dipilih. */
 export async function createAdCalendar(context: RouteContext): Promise<Response> {
   const actor = await requirePermission(context, 'action.manage_ad_calendar')
   const input = await readAdCalendarInput(context, actor)
-  await assertNoDuplicate(context, input.advertiser.id, input.event.product_code, input.batch, null)
 
-  const created = await context.db.insertRow<AdCalendarRow>(
+  const existing = await context.db.selectRows<{ id: string; advertiser_id: string }>(
     'ad_calendar',
     {
-      event_id: input.event.id,
-      advertiser_id: input.advertiser.id,
-      product_code: input.event.product_code,
-      batch: input.batch,
-      deadline_date: input.deadlineDate,
-      source: 'manual',
-      created_by: actor.id,
-      updated_by: actor.id,
+      product_code: `eq.${input.event.product_code}`,
+      batch: `eq.${input.batch}`,
+      advertiser_id: `in.(${input.advertisers.map((advertiser) => `"${advertiser.id}"`).join(',')})`,
     },
-    'id',
+    'id,advertiser_id',
   )
-  return ok({
-    calendar: {
-      ...created,
+  const existingIds = new Set(existing.map((row) => row.advertiser_id))
+  const created: Array<Record<string, unknown>> = []
+  const skipped: string[] = []
+
+  for (const advertiser of input.advertisers) {
+    if (existingIds.has(advertiser.id)) {
+      skipped.push(advertiser.code)
+      continue
+    }
+    const row = await context.db.insertRow<AdCalendarRow>(
+      'ad_calendar',
+      {
+        event_id: input.event.id,
+        advertiser_id: advertiser.id,
+        product_code: input.event.product_code,
+        batch: input.batch,
+        deadline_date: input.deadlineDate,
+        source: 'manual',
+        created_by: actor.id,
+        updated_by: actor.id,
+      },
+      'id',
+    )
+    created.push({
+      ...row,
       product_code: input.event.product_code,
       product_name: input.event.product_code,
-      advertiser_code: input.advertiser.code,
-      advertiser_name: input.advertiser.name,
+      advertiser_code: advertiser.code,
+      advertiser_name: advertiser.name,
       batch: input.batch,
       deadline_date: input.deadlineDate,
-    },
-  }, { status: 201 })
+    })
+  }
+
+  if (created.length === 0) throw new ApiFailure('AD_CALENDAR_EXISTS')
+  return ok({ calendars: created, skipped }, { status: 201 })
 }
 
-/** PATCH /api/ad-calendar/:id */
+/** PATCH /api/ad-calendar/:id — edit satu baris (satu pengiklan). */
 export async function updateAdCalendar(context: RouteContext): Promise<Response> {
   const actor = await requirePermission(context, 'action.manage_ad_calendar')
   const id = calendarId(context)
   const input = await readAdCalendarInput(context, actor)
+  if (input.advertisers.length !== 1) {
+    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Satu deadline hanya untuk satu pengiklan.')
+  }
+  const advertiser = input.advertisers[0]
+  if (advertiser === undefined) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih pengiklan.')
+
   await assertCalendarExists(context, id)
-  await assertNoDuplicate(context, input.advertiser.id, input.event.product_code, input.batch, id)
+  const duplicates = await context.db.selectRows<AdCalendarRow>(
+    'ad_calendar',
+    { advertiser_id: `eq.${advertiser.id}`, product_code: `eq.${input.event.product_code}`, batch: `eq.${input.batch}` },
+    'id',
+  )
+  if (duplicates.some((row) => row.id !== id)) throw new ApiFailure('AD_CALENDAR_EXISTS')
 
   await context.db.updateRows(
     'ad_calendar',
     { id: `eq.${id}` },
     {
       event_id: input.event.id,
-      advertiser_id: input.advertiser.id,
+      advertiser_id: advertiser.id,
       product_code: input.event.product_code,
       batch: input.batch,
       deadline_date: input.deadlineDate,
@@ -121,20 +151,19 @@ export async function deleteAdCalendar(context: RouteContext): Promise<Response>
 
 async function readAdCalendarInput(context: RouteContext, actor: UserRow): Promise<{
   event: EventRow
-  advertiser: AdvertiserRow
+  advertisers: AdvertiserRow[]
   batch: string
   deadlineDate: string
 }> {
   const body = await readJsonObject(context.request)
   const eventId = (readString(body, 'event_id') ?? '').trim()
-  const advertiserCode = (readString(body, 'advertiser_code') ?? '').trim()
+  const advertiserCodes = readAdvertiserCodes(body)
   const batchRaw = (readString(body, 'batch') ?? '').trim()
   const deadlineDate = (readString(body, 'deadline_date') ?? '').trim()
 
   if (!UUID_PATTERN.test(eventId)) {
     throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih event dari Kalender Event.')
   }
-  if (advertiserCode === '') throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih pengiklan.')
   if (!isDate(deadlineDate)) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Tanggal deadline tidak valid.')
 
   const batch = normalizeBatch(batchRaw)
@@ -150,33 +179,57 @@ async function readAdCalendarInput(context: RouteContext, actor: UserRow): Promi
     ),
     context.db.selectRows<AdvertiserRow>(
       'advertisers',
-      { code: `eq.${normalizeCode(advertiserCode) ?? ''}`, active: 'is.true' },
+      {
+        code: `in.(${advertiserCodes.map((code) => `"${code}"`).join(',')})`,
+        active: 'is.true',
+      },
       'id,code,name',
     ),
   ])
   const event = events[0]
   if (event === undefined) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Event tidak dikenal.')
-  const advertiser = advertisers[0]
-  if (advertiser === undefined) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pengiklan tidak dikenal atau nonaktif.')
+
+  const byCode = new Map(advertisers.map((row) => [normalizeCode(row.code), row]))
+  const resolved: AdvertiserRow[] = []
+  for (const code of advertiserCodes) {
+    const advertiser = byCode.get(code)
+    if (advertiser === undefined) {
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pengiklan tidak dikenal atau nonaktif.')
+    }
+    resolved.push(advertiser)
+  }
 
   assertProductAccess(await productAccess(context, actor), event.product_code)
 
-  return { event, advertiser, batch, deadlineDate }
+  return { event, advertisers: resolved, batch, deadlineDate }
 }
 
-async function assertNoDuplicate(
-  context: RouteContext,
-  advertiserId: string,
-  productCode: string,
-  batch: string,
-  currentId: string | null,
-): Promise<void> {
-  const rows = await context.db.selectRows<AdCalendarRow>(
-    'ad_calendar',
-    { advertiser_id: `eq.${advertiserId}`, product_code: `eq.${productCode}`, batch: `eq.${batch}` },
-    'id',
-  )
-  if (rows.some((row) => row.id !== currentId)) throw new ApiFailure('AD_CALENDAR_EXISTS')
+/** Satu deadline boleh dibuat untuk beberapa pengiklan sekaligus (maks 50). */
+const MAX_ADVERTISERS = 50
+
+function readAdvertiserCodes(body: Record<string, unknown>): string[] {
+  const raw = body['advertiser_codes']
+  if (raw !== undefined) {
+    if (!Array.isArray(raw)) {
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih minimal satu pengiklan.')
+    }
+    if (raw.length === 0 || raw.length > MAX_ADVERTISERS) {
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih minimal 1 dan maksimal 50 pengiklan.')
+    }
+    const codes: string[] = []
+    for (const item of raw) {
+      const value = typeof item === 'string' ? item.trim() : ''
+      const code = value === '' ? null : normalizeCode(value)
+      if (code === null) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Kode pengiklan tidak valid.')
+      codes.push(code)
+    }
+    return [...new Set(codes)]
+  }
+
+  const single = (readString(body, 'advertiser_code') ?? '').trim()
+  const code = single === '' ? null : normalizeCode(single)
+  if (code === null) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih pengiklan.')
+  return [code]
 }
 
 async function assertCalendarExists(context: RouteContext, id: string): Promise<void> {

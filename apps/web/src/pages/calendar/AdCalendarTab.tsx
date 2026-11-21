@@ -26,10 +26,16 @@ import { useToast } from '../../ui/Toast'
 import { cn } from '../../ui/cn'
 import { shortTime } from '../../lib/event-calendar'
 
-type FormState = SaveAdCalendarInput & { id: string | null }
+type FormState = {
+  id: string | null
+  event_id: string
+  advertiserCodes: string[]
+  batch: string
+  deadline_date: string
+}
 
 function emptyForm(deadline: string): FormState {
-  return { id: null, event_id: '', advertiser_code: '', batch: '', deadline_date: deadline }
+  return { id: null, event_id: '', advertiserCodes: [], batch: '', deadline_date: deadline }
 }
 
 function displayDate(value: string): string {
@@ -124,7 +130,7 @@ export function AdCalendarTab() {
   }, [rows])
 
   const selectedEvent = events.find((event) => event.id === form.event_id)
-  const { batches: recentBatches } = useRecentBatches(selectedEvent?.product_code ?? '', form.advertiser_code)
+  const { batches: recentBatches } = useRecentBatches(selectedEvent?.product_code ?? '', form.advertiserCodes[0] ?? '')
   const batchSuggestions = recentBatches.map((batch) => {
     const described = describeRecentBatch(batch)
     return { value: batch.batch, label: described.label, hint: described.hint }
@@ -154,7 +160,7 @@ export function AdCalendarTab() {
     setForm({
       id: row.id,
       event_id: row.event_id ?? '',
-      advertiser_code: row.advertiser_code ?? '',
+      advertiserCodes: row.advertiser_code === null ? [] : [row.advertiser_code],
       batch: row.batch,
       deadline_date: row.deadline_date,
     })
@@ -163,25 +169,50 @@ export function AdCalendarTab() {
     setFormOpen(true)
   }
 
+  function toggleAdvertiser(code: string, checked: boolean): void {
+    setForm((current) => ({
+      ...current,
+      advertiserCodes: checked
+        ? [...current.advertiserCodes.filter((item) => item !== code), code]
+        : current.advertiserCodes.filter((item) => item !== code),
+    }))
+    setFormError(null)
+  }
+
   async function submitForm(): Promise<void> {
     if (saving) return
     if (form.event_id === '') { setFormError('Pilih event dari Kalender Event.'); return }
-    if (form.advertiser_code === '') { setFormError('Pilih pengiklan.'); return }
+    if (form.advertiserCodes.length === 0) { setFormError('Pilih minimal satu pengiklan.'); return }
     if (form.batch.trim() === '') { setFormError('Batch wajib diisi.'); return }
     if (form.deadline_date === '') { setFormError('Tanggal deadline wajib diisi.'); return }
 
     setSaving(true)
     setFormError(null)
     try {
-      const payload: SaveAdCalendarInput = {
-        event_id: form.event_id,
-        advertiser_code: form.advertiser_code,
-        batch: form.batch.trim(),
-        deadline_date: form.deadline_date,
+      if (form.id === null) {
+        const result = await createAdCalendar({
+          event_id: form.event_id,
+          advertiser_codes: form.advertiserCodes,
+          batch: form.batch.trim(),
+          deadline_date: form.deadline_date,
+        })
+        const created = result.calendars.length
+        toast.show(
+          result.skipped.length > 0
+            ? `${created} deadline ditambahkan, ${result.skipped.length} dilewati karena sudah ada.`
+            : `${created} deadline ditambahkan.`,
+          'success',
+        )
+      } else {
+        const payload: SaveAdCalendarInput = {
+          event_id: form.event_id,
+          advertiser_code: form.advertiserCodes[0] ?? '',
+          batch: form.batch.trim(),
+          deadline_date: form.deadline_date,
+        }
+        await updateAdCalendar(form.id, payload)
+        toast.show('Deadline iklan diperbarui.', 'success')
       }
-      if (form.id === null) await createAdCalendar(payload)
-      else await updateAdCalendar(form.id, payload)
-      toast.show(form.id === null ? 'Deadline iklan ditambahkan.' : 'Deadline iklan diperbarui.', 'success')
       setFormOpen(false)
       reload()
     } catch (failure) {
@@ -383,15 +414,42 @@ export function AdCalendarTab() {
             onChange={(value) => setForm((current) => ({ ...current, event_id: value }))}
             disabled={saving}
           />
-          <Select
-            id="ad-calendar-advertiser"
-            label="Pengiklan"
-            value={form.advertiser_code}
-            placeholder="Pilih pengiklan"
-            options={advertiserOptions}
-            onChange={(value) => setForm((current) => ({ ...current, advertiser_code: value }))}
-            disabled={saving}
-          />
+          {form.id === null ? (
+            <fieldset className="rounded-md border border-line p-3">
+              <legend className="px-1 text-[12px] font-semibold text-ink">Pengiklan</legend>
+              <p className="mb-2 text-[11px] text-ink-soft">
+                Boleh pilih lebih dari satu; tiap pengiklan mendapat deadline sendiri.
+              </p>
+              <div className="grid max-h-40 grid-cols-2 gap-2 overflow-y-auto p-1 sm:grid-cols-3">
+                {advertisers.map((advertiser) => {
+                  const checked = form.advertiserCodes.includes(advertiser.code)
+                  return (
+                    <label key={advertiser.code} className="flex cursor-pointer items-center gap-2 rounded p-1 text-[12px] hover:bg-soft">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        disabled={saving}
+                        onChange={(event) => toggleAdvertiser(advertiser.code, event.target.checked)}
+                        className="h-3.5 w-3.5 rounded border-line text-primary focus:ring-primary"
+                      />
+                      <span className="truncate text-ink">{advertiser.code} — {advertiser.name}</span>
+                    </label>
+                  )
+                })}
+              </div>
+              {advertisers.length === 0 ? <p className="mt-1 text-[12px] text-ink-soft">Belum ada pengiklan aktif.</p> : null}
+            </fieldset>
+          ) : (
+            <Select
+              id="ad-calendar-advertiser"
+              label="Pengiklan"
+              value={form.advertiserCodes[0] ?? ''}
+              placeholder="Pilih pengiklan"
+              options={advertiserOptions}
+              onChange={(value) => setForm((current) => ({ ...current, advertiserCodes: value === '' ? [] : [value] }))}
+              disabled={saving}
+            />
+          )}
           <div>
             <label htmlFor="ad-calendar-batch" className="mb-1 block text-[12px] font-semibold text-ink">Batch</label>
             <SuggestInput
@@ -415,9 +473,9 @@ export function AdCalendarTab() {
             Satu deadline berlaku untuk seluruh jadwal dalam batch ini. Tanggal tayang dihitung otomatis
             dari order/lead pertama, atau report spend pertama bila belum ada lead.
           </p>
-          {(form.advertiser_code === '' || form.batch === '?' || form.batch.trim() === '') ? (
+          {(form.advertiserCodes.length === 0 || form.batch === '?' || form.batch.trim() === '') ? (
             <p className="rounded-sm border border-danger/30 bg-danger-soft px-3 py-2 text-[12px] text-danger">
-              ! {[form.advertiser_code === '' ? 'Pengiklan' : null, form.batch === '?' || form.batch.trim() === '' ? 'Batch' : null].filter(Boolean).join(' dan ')} belum lengkap. Lengkapi di sini agar deadline dihitung normal.
+              ! {[form.advertiserCodes.length === 0 ? 'Pengiklan' : null, form.batch === '?' || form.batch.trim() === '' ? 'Batch' : null].filter(Boolean).join(' dan ')} belum lengkap. Lengkapi di sini agar deadline dihitung normal.
             </p>
           ) : null}
           {formError === null ? null : <p className="text-[12px] text-danger">{formError}</p>}

@@ -55,13 +55,26 @@ export type SaveAdCalendarInput = {
   deadline_date: string
 }
 
+/** A89: satu submission boleh membuat deadline untuk beberapa pengiklan. */
+export type CreateAdCalendarInput = {
+  event_id: string
+  advertiser_codes: string[]
+  batch: string
+  deadline_date: string
+}
+
+export type CreateAdCalendarResult = {
+  calendars: Array<{ id: string; advertiser_code: string }>
+  skipped: string[]
+}
+
 export async function fetchAdCalendar(from: string, to: string): Promise<AdCalendarPage> {
   const params = new URLSearchParams({ from, to })
   return authorizedRequest<AdCalendarPage>(`/api/ad-calendar?${params.toString()}`)
 }
 
-export async function createAdCalendar(input: SaveAdCalendarInput): Promise<void> {
-  await authorizedRequest('/api/ad-calendar', { method: 'POST', body: input })
+export async function createAdCalendar(input: CreateAdCalendarInput): Promise<CreateAdCalendarResult> {
+  return authorizedRequest<CreateAdCalendarResult>('/api/ad-calendar', { method: 'POST', body: input })
 }
 
 export async function updateAdCalendar(id: string, input: SaveAdCalendarInput): Promise<void> {

@@ -12,6 +12,7 @@ import type { WaDeviceCheck, WaOverview, WaPreview } from './types'
 
 const MENTION_SCOPE_OPTIONS = [
   { value: 'all', label: 'Semua pengiklan yang beraktivitas' },
+  { value: 'assigned', label: 'Semua pengiklan produk' },
   { value: 'missing', label: 'Hanya yang belum lapor' },
 ]
 
@@ -26,7 +27,7 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
   const [testOpen, setTestOpen] = useState(false)
   const [productCode, setProductCode] = useState('')
   const [eventType, setEventType] = useState('Seminar Offline')
-  const [mentionScope, setMentionScope] = useState<'all' | 'missing'>('all')
+  const [mentionScope, setMentionScope] = useState<'all' | 'missing' | 'assigned'>('all')
   const [templateId, setTemplateId] = useState('')
   const [preview, setPreview] = useState<WaPreview | null>(null)
   const [previewBusy, setPreviewBusy] = useState(false)
@@ -291,7 +292,7 @@ export function ConnectionSection({ overview, reload, canSend }: { overview: WaO
             value={mentionScope}
             options={MENTION_SCOPE_OPTIONS}
             disabled={previewBusy || sendBusy}
-            onChange={(value) => { setMentionScope(value === 'missing' ? 'missing' : 'all'); setPreview(null) }}
+            onChange={(value) => { setMentionScope(value === 'missing' ? 'missing' : value === 'assigned' ? 'assigned' : 'all'); setPreview(null) }}
           />
           <Select
             id="wa-test-template"

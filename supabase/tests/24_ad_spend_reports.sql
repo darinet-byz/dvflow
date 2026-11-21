@@ -93,6 +93,13 @@ select is((select count(*) from public.ad_spend_reports)::int, 4, 'advertiser: t
 create temp table r on commit drop as select public.ad_spend_report('2026-10-20','2026-10-22',p_advertiser_code => '91') as v;
 select is((select jsonb_array_length(v->'cards') from r), 2, 'filter pengiklan 91: 2 card aktif');
 select is((select jsonb_array_length(v->'entries') from r), 2, 'filter pengiklan 91: 2 laporan harian');
+-- A89: grid Card Report privat, laporan/KPI tetap bersama.
+create temp table r_all on commit drop as select public.ad_spend_report('2026-10-20','2026-10-22') as v;
+select is((select jsonb_array_length(v->'cards') from r_all), 2, 'A89: advertiser hanya melihat card milik sendiri');
+select is((select jsonb_array_length(v->'entries') from r_all), 3, 'A89: laporan berjalan tetap bersama di produk');
+select is((select (v->'summary'->>'reports')::int from r_all), 3, 'A89: KPI tetap menghitung semua pengiklan produk');
+select is((select bool_and((x->>'own')::boolean) from jsonb_array_elements((select v->'cards' from r_all)) x), true,
+  'A89: semua card yang tampil adalah milik sendiri');
 -- Report 20–22 Okt batch 122: sp-1 (Paid, 00:30 WIB 20 Okt), sp-3 (Paid), sp-4 (Cancelled).
 -- sp-2 (Webinar Online) tidak cocok dengan jenis card; sp-5/6/7 di luar scope.
 select is((select (x->>'spend')::numeric from r, jsonb_array_elements(v->'entries') x where x->>'batch' = '122'),
@@ -139,6 +146,8 @@ select is((public.ad_spend_report(p_event_type => 'Webinar Online')->'summary'->
 -- Role lihat saja (semua produk): semua pengiklan.
 set local request.jwt.claims = '{"sub":"f8000000-0000-0000-0000-0000000000c1","app_role":"spend_viewer"}';
 select is((public.ad_spend_report('2026-10-20','2026-10-22')->'summary'->>'reports')::int, 3, 'viewer: semua pengiklan');
+select is(jsonb_array_length(public.ad_spend_report('2026-10-20','2026-10-22')->'cards'), 3,
+  'viewer: staff melihat semua card (A89)');
 select is((select bool_or((x->>'own')::boolean) from jsonb_array_elements(public.ad_spend_report('2026-10-20','2026-10-22')->'entries') x), false,
   'viewer: tidak ada laporan "milik sendiri"');
 select is((select jsonb_agg(x->'advertisers' order by x->>'session')

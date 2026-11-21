@@ -1185,12 +1185,15 @@ export function createFakeDb(state: FakeState): Db {
           .map((link) => link['advertiser_id'])
         const advertisers = state.config.advertisers
           .filter((row) => assignedIds.includes(row['id']) && row['active'] !== false)
-          .map((row) => ({ code: String(row['code']), name: String(row['name']) }))
+          .map((row) => ({ code: String(row['code']), name: String(row['name']), salutation: row['salutation'] === undefined ? null : String(row['salutation'] ?? '') }))
           .sort((left, right) => left.name.localeCompare(right.name, 'id') || left.code.localeCompare(right.code, 'id'))
         if (advertisers.length === 0) return { found: false, reason: 'EVENT_TYPE_NOT_FOUND' } as T
         const eventType = String(args['p_event_type'] ?? '') === '' ? 'Seminar Offline' : String(args['p_event_type'])
-        const mentionScope = args['p_mention_scope'] === 'missing' ? 'missing' : 'all'
+        const mentionScope = args['p_mention_scope'] === 'missing'
+          ? 'missing'
+          : args['p_mention_scope'] === 'assigned' ? 'assigned' : 'all'
         const names = advertisers.map((row) => row.name)
+        const labels = advertisers.map((row) => `${row.salutation === null || row.salutation.trim() === '' ? '' : `${row.salutation.trim()} `}${row.name}`)
         const codes = advertisers.map((row) => row.code)
         const reportUrl = `${args['p_base_url']}/report-spend?productCode=${product['code']}&eventType=${eventType.replaceAll(' ', '%20')}`
         return {
@@ -1198,7 +1201,7 @@ export function createFakeDb(state: FakeState): Db {
           group_id: group['fonnte_group_id'],
           mention_scope: mentionScope,
           message: String(template['message_content'])
-            .replaceAll('{{mention}}', `@${names.join(', @')}`)
+            .replaceAll('{{mention}}', labels.join(', '))
             .replaceAll('{{advertiser_name}}', names.join(', '))
             .replaceAll('{{store_name}}', names.join(', '))
             .replaceAll('{{advertiser_code}}', codes.join(', '))

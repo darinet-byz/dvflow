@@ -35,7 +35,7 @@ Sistem ini membutuhkan antarmuka di Dashboard Admin yang mencakup modul-modul be
 *   **Fitur Input:**
     *   Nama Template (Contoh: "Template Pagi", "Template Eskalasi").
     *   Teks Editor dengan dukungan **Variabel Placeholder**:
-        *   `{{mention}}` : Akan diganti menjadi `@Nama Pengiklan` (Fonnte tidak mendukung tag WhatsApp).
+        *   `{{mention}}` : Akan diganti menjadi daftar nama dengan sapaan, mis. `Mas Zul, Mbak Rina` (Fonnte tidak mendukung tag WhatsApp).
         *   `{{store_name}}` : Nama toko/brand.
         *   `{{leads}}` : Total leads kemarin.
         *   `{{paid}}` : Total paid kemarin.

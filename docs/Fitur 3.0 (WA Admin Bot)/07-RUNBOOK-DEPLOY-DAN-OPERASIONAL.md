@@ -149,7 +149,7 @@ Catatan: jalankan Worker pada port yang berbeda dari backend, dan samakan
 | `target invalid` / pesan tidak sampai | ID grup salah atau device tidak tergabung | Salin ulang ID grup dari Fonnte. |
 | Pesan masuk tetapi status `failed` | Respons Fonnte tidak berstatus `true` | Lihat kolom Keterangan; kirim ulang setelah token benar. |
 | Semua produk diingatkan padahal sudah lapor | Rentang tanggal report tidak mencakup kemarin, atau jenis acaranya beda | Periksa tanggal + jenis acara report; batch memang diabaikan. |
-| Pengiklan tidak disebut | Pengiklan tidak ditugaskan ke produk, nonaktif, atau tidak punya order kemarin untuk jenis acara itu | Cek mapping `product_advertisers`, status aktif, dan order D-1. Tag WhatsApp memang tidak tersedia di Fonnte; yang muncul hanya teks `@Nama`. |
+| Pengiklan tidak disebut | Pengiklan tidak ditugaskan ke produk, nonaktif, atau tidak punya order kemarin untuk jenis acara itu (mode `all`) | Cek mapping `product_advertisers`, status aktif, dan order D-1. Untuk menyebut semua pengiklan yang ditugaskan, pilih mode `assigned`. Tag WhatsApp memang tidak tersedia di Fonnte; yang muncul hanya teks `Mas Nama`. |
 | Produk tidak diingatkan | Tidak ada order kemarin, grup produk nonaktif, atau pengiklan tidak ditugaskan | Cek order D-1, status grup, dan mapping `product_advertisers`. |
 | Log lama masih terlihat | `pg_cron` tidak tersedia dan cron belum berjalan | Panggil `select public.wa_reminder_purge(now(), 3);` atau biarkan klaim berikutnya membersihkan. |
 | Tidak ada pesan sama sekali | Cron Worker belum deploy / `APP_BASE_URL` salah | Cek trigger & deployment Worker. |

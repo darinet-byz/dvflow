@@ -126,10 +126,62 @@ describe('A80: Kalender Iklan', () => {
     expect((await request('POST', '/api/ad-calendar', { ...valid, deadline_date: '2026-11-15' })).status).toBe(409)
   })
 
+  it('membuat satu deadline per pengiklan yang dipilih', async () => {
+    const { request, state } = await setup(canManage)
+    state.config.advertisers.push({ id: '33333333-3333-4333-8333-333333333333', name: 'Rina', code: '02', active: true })
+
+    const response = await request('POST', '/api/ad-calendar', { ...valid, advertiser_codes: ['01', '02'] })
+    expect(response.status).toBe(201)
+    const body = await readBody<{ data: { calendars: Array<{ advertiser_code: string }>; skipped: string[] } }>(response)
+    expect(body.data.calendars.map((row) => row.advertiser_code)).toEqual(['01', '02'])
+    expect(body.data.skipped).toEqual([])
+    expect(state.adCalendar).toHaveLength(2)
+  })
+
+  it('pengiklan yang sudah punya deadline dilewati, sisanya tetap dibuat', async () => {
+    const { request, state } = await setup(canManage)
+    state.config.advertisers.push({ id: '33333333-3333-4333-8333-333333333333', name: 'Rina', code: '02', active: true })
+    expect((await request('POST', '/api/ad-calendar', valid)).status).toBe(201)
+
+    const response = await request('POST', '/api/ad-calendar', { ...valid, advertiser_codes: ['01', '02'] })
+    expect(response.status).toBe(201)
+    const body = await readBody<{ data: { calendars: Array<{ advertiser_code: string }>; skipped: string[] } }>(response)
+    expect(body.data.calendars.map((row) => row.advertiser_code)).toEqual(['02'])
+    expect(body.data.skipped).toEqual(['01'])
+    expect(state.adCalendar).toHaveLength(2)
+
+    const allExisting = await request('POST', '/api/ad-calendar', { ...valid, advertiser_codes: ['01', '02'] })
+    expect(allExisting.status).toBe(409)
+  })
+
+  it('daftar pengiklan tidak valid ditolak sebelum menyentuh tabel', async () => {
+    const { request, state } = await setup(canManage)
+    state.config.advertisers.push({ id: '33333333-3333-4333-8333-333333333333', name: 'Rina', code: '02', active: true })
+
+    for (const bad of [
+      { advertiser_codes: [] },
+      { advertiser_codes: ['01', 'TIDAK_ADA'] },
+      { advertiser_codes: [''] },
+      { advertiser_codes: '01' },
+    ]) {
+      expect((await request('POST', '/api/ad-calendar', { ...valid, ...bad })).status, JSON.stringify(bad)).toBe(400)
+    }
+    expect(state.adCalendar).toHaveLength(0)
+  })
+
+  it('edit hanya menerima satu pengiklan per baris', async () => {
+    const { request, state } = await setup(canManage)
+    state.config.advertisers.push({ id: '33333333-3333-4333-8333-333333333333', name: 'Rina', code: '02', active: true })
+    const created = await request('POST', '/api/ad-calendar', valid)
+    const id = (await readBody<{ data: { calendars: Array<{ id: string }> } }>(created)).data.calendars[0]!.id
+
+    expect((await request('PATCH', `/api/ad-calendar/${id}`, { ...valid, advertiser_codes: ['01', '02'] })).status).toBe(400)
+  })
+
   it('edit dan hapus; id tidak valid / tidak ada -> 404', async () => {
     const { request, state } = await setup(canManage)
     const created = await request('POST', '/api/ad-calendar', valid)
-    const id = (await readBody<{ data: { calendar: { id: string } } }>(created)).data.calendar.id
+    const id = (await readBody<{ data: { calendars: Array<{ id: string }> } }>(created)).data.calendars[0]!.id
 
     const updated = await request('PATCH', `/api/ad-calendar/${id}`, { ...valid, batch: '393', deadline_date: '2026-11-20' })
     expect(updated.status).toBe(200)

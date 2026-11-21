@@ -57,13 +57,15 @@ type TemplateRow = {
   created_at: string
   updated_at: string
 }
+type MentionScope = 'all' | 'missing' | 'assigned'
+
 type ScheduleRow = {
   id: string
   execution_time: string
   template_id: string
   days: number[]
   only_if_missing_report: boolean
-  mention_scope: 'all' | 'missing'
+  mention_scope: MentionScope
   is_active: boolean
   created_at: string
   updated_at: string
@@ -107,8 +109,8 @@ type PreviewResult =
       message: string
       leads: number
       paid: number
-      advertisers: Array<{ code: string; name: string }>
-      mention_scope: 'all' | 'missing'
+      advertisers: Array<{ code: string; name: string; label?: string }>
+      mention_scope: MentionScope
       product_code: string
       product_name: string
       event_type: string
@@ -493,7 +495,7 @@ type TestTarget = {
   productCode: string
   templateId: string
   eventType: string | null
-  mentionScope: 'all' | 'missing'
+  mentionScope: MentionScope
 }
 
 /** POST /api/wa-bot/test-preview — render pesan tanpa mengirim apa pun. */
@@ -640,10 +642,10 @@ function readBoolean(body: Record<string, unknown>, key: string, fallback: boole
   return typeof value === 'boolean' ? value : fallback
 }
 
-function readMentionScope(body: Record<string, unknown>, fallback: 'all' | 'missing'): 'all' | 'missing' {
+function readMentionScope(body: Record<string, unknown>, fallback: MentionScope): MentionScope {
   const value = (readString(body, 'mention_scope') ?? '').trim()
   if (value === '') return fallback
-  if (value !== 'all' && value !== 'missing') {
+  if (value !== 'all' && value !== 'missing' && value !== 'assigned') {
     throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilihan pengiklan yang disebut tidak valid.')
   }
   return value

@@ -270,12 +270,16 @@ No hard delete endpoint.
 - `DELETE ?permanent=true` untuk sesi juga hanya `developer`, dan tetap ditolak `MASTER_IN_USE` bila order/alias memakai kode tersebut.
 - Menyunting nama sesi tetap boleh untuk pemegang `config.produk`.
 
-## 12a. Card Report Spend Iklan (A37/A87/A88)
+## 12a. Card Report Spend Iklan (A37/A87/A88/A89)
 Halaman membaca lewat RPC `ad_spend_report(p_date_from, p_date_to, p_product_code, p_advertiser_code, p_batch, p_event_type)`.
 Hasil RPC: `summary` (semua data: laporan harian aktif + resume), `cards[]` (template aktif), `entries[]`
 (Laporan Berjalan, satu baris per laporan harian + `spends[]`), `resumes[]` (Laporan Selesai + `entries[]` harian
 selama draft), `sessions` (A43), dan `comparison` (A46, laporan harian aktif). KPI selalu semua data dan tetap
 mengikuti filter halaman; tab tidak mengubah KPI.
+
+A89: `cards[]` **privat per akun Advertiser** - akun Advertiser hanya menerima card milik pengiklannya sendiri.
+`entries[]`, `resumes[]`, `summary`, `sessions`, dan `comparison` tetap memakai scope produk (A44), jadi laporan
+pengiklan lain di produk yang sama tetap terlihat bersama. Akun staff (tanpa `advertiser_id`) melihat semua card.
 
 ### Card (setting saja)
 - `POST /api/ad-spend-cards` → 201 (200 `action: "existing"` bila card scope itu sudah ada)
@@ -470,10 +474,10 @@ RPC langsung `recent_batches(p_product_code, p_advertiser_code, p_limit)` dari b
 Izin `operasional.event_calendar`. Backend memanggil RPC service-only `ad_calendar_page(p_actor, p_from, p_to)` dengan aktor dari sesi; RPC memeriksa izin dan scope produk aktor. Query `from`, `to` (YYYY-MM-DD, opsional; maks 400 hari). Respons: `rows[]` (`id`, `event_id`, `event_date`, `category`, `start_time`, `location`, `product_code`, `product_name`, `advertiser_code`, `advertiser_name`, `batch`, `deadline_date`, `publish_date`, `publish_source`, `days_late`, `score`, `status`), `products[]`, `advertisers[]`, dan `events[]`. `publish_date` diturunkan server: order/lead pertama (selain OTS), lalu `date_from` report spend pertama bila belum ada lead.
 
 ### POST /api/ad-calendar
-Izin `action.manage_ad_calendar`. Body: `event_id`, `advertiser_code`, `batch` (maks 32, dinormalisasi), `deadline_date` (YYYY-MM-DD). Produk diambil dari event. Satu deadline per pengiklan + produk + batch; duplikat -> `409 AD_CALENDAR_EXISTS`. Sukses 201.
+Izin `action.manage_ad_calendar`. Body: `event_id`, `advertiser_codes` (array kode, 1-50; `advertiser_code` lama tetap diterima untuk satu pengiklan), `batch` (maks 32, dinormalisasi), `deadline_date` (YYYY-MM-DD). Produk diambil dari event. Satu deadline per pengiklan + produk + batch; setiap submission membuat satu baris per pengiklan. Pengiklan yang sudah punya baris untuk produk + batch itu dilewati. Respons 201: `{ calendars: [...], skipped: ["01"] }`; bila semua sudah ada -> `409 AD_CALENDAR_EXISTS`.
 
 ### PATCH /api/ad-calendar/:id dan DELETE /api/ad-calendar/:id
-Izin `action.manage_ad_calendar`. PATCH memakai body yang sama; DELETE menghapus deadline. ID tidak valid/tidak ada -> 404.
+Izin `action.manage_ad_calendar`. PATCH hanya menerima satu pengiklan (`advertiser_code` atau `advertiser_codes` berisi tepat satu); lebih dari satu -> `400`. DELETE menghapus deadline. ID tidak valid/tidak ada -> 404.
 
 ### Performa
 `advertiser_performance` tidak berubah signature. Dashboard menambahkan `prev_tickets` dan field `discipline_*`; detail menambahkan field yang sama di `summary`. Kartu pengiklan memakai Tiket Terjual + delta bulan kalender sebelumnya, ROAS, Kedisiplinan, Top 2 Event, dan Lihat Detail; detail menampilkan Total Spend, Total Omzet, Total Tiket, Profit/Boncos, Closing Rate, ROAS, Kedisiplinan, dan Top 3 Event.

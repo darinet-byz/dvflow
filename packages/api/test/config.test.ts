@@ -526,3 +526,32 @@ describe('fee rule (PRD §77)', () => {
     expect(afterDeactivate.status).toBe(201)
   })
 })
+
+describe('A90: sapaan pengiklan', () => {
+  it('menyimpan sapaan, mengosongkan, dan menolak lebih dari 20 karakter', async () => {
+    const ctx = await setup()
+    const created = await write(ctx, ctx.admin, {
+      method: 'POST',
+      path: '/api/config/advertisers',
+      body: { name: 'Zul', code: '05', salutation: 'Mas' },
+    })
+    expect(created.status).toBe(201)
+    const item = (await readBody<ItemBody>(created)).data.item
+    expect(item['salutation']).toBe('Mas')
+
+    const cleared = await write(ctx, ctx.admin, {
+      method: 'PATCH',
+      path: `/api/config/advertisers/${String(item['id'])}`,
+      body: { salutation: '' },
+    })
+    expect(cleared.status).toBe(200)
+    expect((await readBody<ItemBody>(cleared)).data.item['salutation']).toBeNull()
+
+    const tooLong = await write(ctx, ctx.admin, {
+      method: 'PATCH',
+      path: `/api/config/advertisers/${String(item['id'])}`,
+      body: { salutation: 'x'.repeat(21) },
+    })
+    expect(tooLong.status).toBe(400)
+  })
+})

@@ -75,7 +75,7 @@ let overviewResponse: typeof overview = overview
 const preview = {
   found: true,
   group_id: '111@g.us',
-  message: 'Pagi Mas @Zul, jangan lupa report kemarin ya.',
+  message: 'Pagi Mas Zul, jangan lupa report kemarin ya.',
   leads: 2,
   paid: 1,
   advertisers: [{ code: '01', name: 'Zul' }],
@@ -152,6 +152,7 @@ describe('WA Admin Bot page', () => {
     fireEvent.click(await screen.findByRole('tab', { name: 'Jadwal' }))
     fireEvent.click(await screen.findByRole('button', { name: '+ Tambah Jadwal' }))
     expect(await screen.findByLabelText('Siapa yang disebut')).toBeTruthy()
+    expect(screen.getByRole('option', { name: 'Semua pengiklan yang ditugaskan ke produk' })).toBeTruthy()
     expect(screen.getByRole('option', { name: 'Hanya pengiklan yang belum lapor' })).toBeTruthy()
   })
 
@@ -200,7 +201,7 @@ describe('WA Admin Bot page', () => {
     fireEvent.click(await screen.findByRole('button', { name: 'Preview' }))
     expect(await screen.findByText(/Tujuan 111@g.us/)).toBeTruthy()
     expect(await screen.findByText(/Disebut: Zul/)).toBeTruthy()
-    expect(screen.getByText(/Pagi Mas @Zul/)).toBeTruthy()
+    expect(screen.getByText(/Pagi Mas Zul/)).toBeTruthy()
     expect(authorizedRequest).toHaveBeenCalledWith('/api/wa-bot/test-preview', expect.anything())
     expect(authorizedRequest).not.toHaveBeenCalledWith('/api/wa-bot/test-send', expect.anything())
   })

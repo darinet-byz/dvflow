@@ -109,11 +109,14 @@ export function renderWaTemplate(content: string, values: Partial<WaTemplateValu
 /**
  * Sapaan mention untuk grup.
  *
- * Fonnte tidak punya parameter tag WhatsApp, jadi ini hanya teks `@Nama`.
- * Daftar semua pengiklan dirakit di SQL (`wa_reminder_claim`/`wa_reminder_preview`).
+ * Fonnte tidak punya parameter tag WhatsApp, jadi ini hanya teks. A90: sapaan
+ * per pengiklan (mis. "Mas") dan tanpa tanda `@`; daftar dirakit di SQL
+ * (`wa_reminder_claim`/`wa_reminder_preview`).
  */
-export function waMention(name: string): string {
-  return `@${name}`
+export function waMention(name: string, salutation?: string | null): string {
+  const prefix = (salutation ?? '').trim()
+  const cleanName = name.trim()
+  return prefix === '' ? cleanName : `${prefix} ${cleanName}`
 }
 
 /** Nama hari untuk tampilan jadwal (0 = Minggu, mengikuti PostgreSQL DOW). */

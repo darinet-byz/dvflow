@@ -130,10 +130,10 @@ tidak dikenal.
 }
 ```
 
-`mention_scope` (`all` default / `missing`) menentukan siapa yang disebut:
-semua pengiklan beraktivitas atau hanya yang belum lapor. Waktu dinormalisasi
-menjadi `HH:MM:00`; minimal satu hari; template harus ada. Mode `missing`
-memaksa `only_if_missing_report = true` di server.
+`mention_scope` (`all` default / `assigned` / `missing`) menentukan siapa yang disebut:
+semua pengiklan beraktivitas, semua pengiklan yang ditugaskan ke produk, atau hanya yang
+belum lapor. Waktu dinormalisasi menjadi `HH:MM:00`; minimal satu hari; template harus ada.
+Mode `missing` memaksa `only_if_missing_report = true` di server.
 
 ### GET /api/wa-bot/logs
 
@@ -155,8 +155,8 @@ untuk pesan grup.
 }
 ```
 
-`mention_scope` opsional (`all` default). Respons sama dengan data preview:
-`group_id`, `message`, `leads`, `paid`, `advertisers: [{code,name}]`,
+`mention_scope` opsional (`all` default / `assigned` / `missing`). Respons sama dengan data preview:
+`group_id`, `message`, `leads`, `paid`, `advertisers: [{code,name,label}]`,
 `mention_scope`, `product_code`, `product_name`, `event_type`.
 Mode `missing` mengembalikan `INVALID_ARGUMENT` dengan pesan "semua sudah
 melaporkan" bila tidak ada yang belum lapor.

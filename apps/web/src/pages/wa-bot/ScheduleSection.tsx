@@ -25,7 +25,7 @@ type FormState = {
   templateId: string
   days: number[]
   onlyIfMissing: boolean
-  mentionScope: 'all' | 'missing'
+  mentionScope: 'all' | 'missing' | 'assigned'
   isActive: boolean
 }
 
@@ -37,6 +37,7 @@ const EMPTY: FormState = {
 
 const SCOPE_OPTIONS = [
   { value: 'all', label: 'Semua pengiklan yang beraktivitas kemarin' },
+  { value: 'assigned', label: 'Semua pengiklan yang ditugaskan ke produk' },
   { value: 'missing', label: 'Hanya pengiklan yang belum lapor' },
 ]
 
@@ -202,7 +203,7 @@ export function ScheduleSection({ overview, reload }: { overview: WaOverview; re
               disabled={busy}
               onChange={(value) => setForm((current) => current === null ? current : {
                 ...current,
-                mentionScope: value === 'missing' ? 'missing' : 'all',
+                mentionScope: value === 'missing' ? 'missing' : value === 'assigned' ? 'assigned' : 'all',
                 onlyIfMissing: value === 'missing' ? true : current.onlyIfMissing,
               })}
             />

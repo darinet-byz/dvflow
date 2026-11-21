@@ -240,6 +240,8 @@ export type ProductConfigRow = {
 
 export type AdvertiserConfigRow = {
   name: string
+  /** A90: sapaan WhatsApp, mis. "Mas"; null/kosong = tanpa sapaan. */
+  salutation?: string | null
   code: string
   active: boolean
 }

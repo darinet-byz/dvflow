@@ -49,10 +49,12 @@ Permission ditegakkan di backend dan RPC, bukan hanya dengan menyembunyikan menu
 
 ### 4.3 Mention pengiklan
 - Mention memakai **nama** pengiklan, bukan nomor: `{{mention}}` menjadi
-  `@Nama`. Fonnte tidak punya parameter tag WhatsApp, jadi mention ini adalah
-  teks sapaan, bukan tag yang memberi notifikasi.
-- Satu pesan grup menyebut **semua** pengiklan yang beraktivitas kemarin untuk
-  jenis acara itu: `Pagi Mas @A, @B, @C. Jangan lupa report kemarin ya.`
+  `Mas Zul, Mbak Rina` (tanpa `@`). Sapaan diambil dari `advertisers.salutation`.
+  Fonnte tidak punya parameter tag WhatsApp, jadi mention ini adalah teks
+  sapaan, bukan tag yang memberi notifikasi.
+- Cakupan sebutan dapat dipilih per jadwal: **semua pengiklan yang beraktivitas
+  kemarin**, **semua pengiklan yang ditugaskan ke produk**, atau **hanya yang
+  belum lapor**. Contoh: `Pagi Mas Zul, Mas Andre. Jangan lupa report kemarin ya.`
 
 ### 4.4 Template pesan
 - Nama unik (tanpa membedakan besar/kecil huruf).

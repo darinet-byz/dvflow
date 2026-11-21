@@ -42,10 +42,10 @@ export const CONFIG_RESOURCES: Record<ConfigResourceName, ConfigResource> = {
   advertisers: {
     urlName: 'advertisers',
     table: 'advertisers',
-    columns: ['id', 'name', 'code', 'active', 'created_at', 'updated_at'],
+    columns: ['id', 'name', 'salutation', 'code', 'active', 'created_at', 'updated_at'],
     identityColumn: 'code',
     participatesInCodeCombinations: true,
-    writableColumns: ['name', 'code', 'active'],
+    writableColumns: ['name', 'salutation', 'code', 'active'],
   },
   'event-types': {
     urlName: 'event-types',
@@ -126,6 +126,14 @@ export function validateConfigBody(
       throw new ApiFailure('INVALID_ARGUMENT', undefined, `Nama produk tidak boleh mengandung "${PRODUCT_SEGMENT_SEPARATOR.trim()}".`)
     }
     patch['name'] = name
+  }
+
+  if (resource.urlName === 'advertisers' && has('salutation')) {
+    const salutation = readText(body['salutation'])
+    if (salutation !== null && salutation.length > 20) {
+      throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Sapaan maksimal 20 karakter.')
+    }
+    patch['salutation'] = salutation
   }
 
   if (has(resource.identityColumn)) {

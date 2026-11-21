@@ -25,6 +25,7 @@ function baseState(role = 'admin', permissions: string[] = ['config.wa_bot', 'ac
   }))
   config.advertisers = config.advertisers.map((row) => ({
     ...row,
+    salutation: row['salutation'] ?? 'Mas',
     code_normalized: String(row['code'] ?? '').trim().toUpperCase(),
   }))
   const state = createFakeState({
@@ -221,6 +222,13 @@ describe('WA Admin Bot — akses & konfigurasi', () => {
     expect(created?.['mention_scope']).toBe('missing')
     // Mode "missing" selalu mematikan pesan bila semua sudah lapor.
     expect(created?.['only_if_missing_report']).toBe(true)
+
+    expect((await request('POST', '/api/wa-bot/schedules', {
+      execution_time: '10:30', template_id: TEMPLATE_ID, days: [2],
+      mention_scope: 'assigned', only_if_missing_report: false,
+    })).status).toBe(201)
+    expect(state.waReminderSchedules.at(-1)?.['mention_scope']).toBe('assigned')
+    expect(state.waReminderSchedules.at(-1)?.['only_if_missing_report']).toBe(false)
   })
 })
 
@@ -241,11 +249,33 @@ describe('WA Admin Bot — pengiriman', () => {
     expect(body.data.found).toBe(true)
     expect(body.data.group_id).toBe('111@g.us')
     expect(body.data.mention_scope).toBe('missing')
-    expect(body.data.message).toContain('@Zul')
+    expect(body.data.message).toContain('Mas Zul')
+    expect(body.data.message).not.toContain('@Zul')
     expect(body.data.message).toContain('Webinar Online')
     expect(body.data.message).toContain('eventType=Webinar%20Online')
     expect(fetchMock).not.toHaveBeenCalled()
     expect(state.rpcCalls.at(-1)?.args['p_mention_scope']).toBe('missing')
+  })
+
+  it('preview mode assigned menyebut semua pengiklan produk dengan sapaan', async () => {
+    const fetchMock = vi.fn(async () => okSend())
+    vi.stubGlobal('fetch', fetchMock)
+    const { request, state } = await setup()
+
+    const response = await request('POST', '/api/wa-bot/test-preview', {
+      product_code: 'KM',
+      template_id: TEMPLATE_ID,
+      event_type: 'Seminar Offline',
+      mention_scope: 'assigned',
+    })
+    expect(response.status).toBe(200)
+    const body = (await response.json()) as { data: { found: boolean; message: string; mention_scope: string } }
+    expect(body.data.found).toBe(true)
+    expect(body.data.mention_scope).toBe('assigned')
+    expect(body.data.message).toContain('Mas Zul')
+    expect(body.data.message).not.toContain('@Mas Zul')
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(state.rpcCalls.at(-1)?.args['p_mention_scope']).toBe('assigned')
   })
 
   it('kirim tes memakai token tersimpan dan mencatat log', async () => {

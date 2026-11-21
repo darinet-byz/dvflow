@@ -71,8 +71,9 @@ describe('WA Admin Bot — jenis acara & retensi', () => {
 
 describe('WA Admin Bot — sapaan mention', () => {
   it('memakai nama pengiklan, bukan nomor', () => {
-    expect(waMention('Zul')).toBe('@Zul')
-    expect(waMention('Advertiser Satu')).toBe('@Advertiser Satu')
+    expect(waMention('Zul', 'Mas')).toBe('Mas Zul')
+    expect(waMention('Advertiser Satu', null)).toBe('Advertiser Satu')
+    expect(waMention('Rina', '')).toBe('Rina')
   })
 })
 

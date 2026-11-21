@@ -100,11 +100,20 @@ export const ADVERTISER_SPEC: ConfigSpec = {
   resource: 'advertisers',
   title: 'Pengiklan',
   tableName: 'advertisers',
-  readColumns: 'id,name,code,active,status',
+  readColumns: 'id,name,salutation,code,active,status',
   identityKey: 'code',
   statusManaged: true,
   fields: [
     { key: 'name', label: 'Nama', maxLength: 200, type: 'text' as const, initial: '', placeholder: 'mis. Zul' },
+    {
+      key: 'salutation',
+      label: 'Sapaan',
+      type: 'text' as const,
+      initial: '',
+      placeholder: 'mis. Mas / Mbak / Kak',
+      maxLength: 20,
+      help: 'Dipakai di sapaan reminder WhatsApp, mis. "Mas Zul". Kosongkan bila tidak perlu.',
+    },
     {
       key: 'code',
       label: 'Kode',
@@ -116,8 +125,16 @@ export const ADVERTISER_SPEC: ConfigSpec = {
       help: 'Tepat 2 digit angka numerik (mis. 01, 02, 99).',
     },
   ],
-  columns: [...CODE_COLUMNS.filter((column) => column.key !== 'active'), { key: 'status', header: 'Status', minWidth: 120 }],
-  render: { ...CODE_RENDER, status: AdvertiserStatusBadge },
+  columns: [
+    ...CODE_COLUMNS.filter((column) => column.key !== 'active'),
+    { key: 'salutation', header: 'Sapaan', minWidth: 100 },
+    { key: 'status', header: 'Status', minWidth: 120 },
+  ],
+  render: {
+    ...CODE_RENDER,
+    salutation: (row: ConfigRow) => String(row['salutation'] ?? '-'),
+    status: AdvertiserStatusBadge,
+  },
 }
 
 const KIND_LABELS = {
