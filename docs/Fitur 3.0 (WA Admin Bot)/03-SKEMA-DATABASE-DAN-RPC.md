@@ -38,14 +38,15 @@ Sejak A71 tidak ada nomor HP yang disalin dari tabel ini.
 | `message_content` | text | Maks. 4.000 karakter. |
 | `is_active` | boolean | Template nonaktif membuat jadwalnya tidak berjalan. |
 
-Placeholder yang ditawarkan: `{{mention}}`, `{{advertiser_name}}`,
-`{{advertiser_code}}`, `{{product_name}}`, `{{product_code}}`, `{{event_type}}`,
-`{{date}}`, `{{report_url}}`.
-`{{mention}}` dirender sebagai daftar nama dengan sapaan, mis. `Mas Zul, Mbak Rina`
-(bukan `@nomor`): Fonnte tidak memiliki parameter tag WhatsApp, sehingga nomor
-hanya akan tampil sebagai teks. Sapaan diambil dari `advertisers.salutation`
-(kolom baru A90, maks. 20 karakter; kosong = nama saja).
-Warisan yang tetap dirender: `{{store_name}}`, `{{leads}}`, `{{paid}}`.
+Placeholder yang ditawarkan: `{{advertiser_name}}`, `{{advertiser_code}}`,
+`{{product_name}}`, `{{product_code}}`, `{{event_type}}`, `{{date}}`,
+`{{report_url}}`.
+`{{advertiser_name}}` dirender sebagai daftar nama dengan sapaan, mis.
+`Mas Zul, Mbak Rina` (bukan `@nomor`): Fonnte tidak memiliki parameter tag
+WhatsApp, sehingga nomor hanya akan tampil sebagai teks. Sapaan diambil dari
+`advertisers.salutation` (kolom A90, maks. 20 karakter; kosong = nama saja).
+Warisan yang tetap dirender: `{{mention}}` (alias lama, hasilnya sama dengan
+`{{advertiser_name}}`), `{{store_name}}`, `{{leads}}`, `{{paid}}`.
 Divalidasi backend + `packages/shared`.
 
 ### `wa_reminder_schedules`
@@ -111,8 +112,8 @@ Langkah:
    `mention_scope = 'assigned'`, pakai semua pengiklan aktif yang ditugaskan,
    termasuk yang tidak punya order untuk jenis acara itu.
 9. Buang yang sudah 3× `failed` pada tanggal itu untuk kunci grup yang sama.
-10. Render template lewat `wa_render_reminder` (`{{mention}}` = `Mas A, Mbak B`,
-    tanpa `@`).
+10. Render template lewat `wa_render_reminder` (`{{advertiser_name}}` =
+    `Mas A, Mbak B`, tanpa `@`).
 11. Insert satu `queued` per grup + jenis acara dengan `on conflict do nothing`,
     batasi `p_limit`.
 
@@ -136,9 +137,9 @@ tersedia untuk operator.
 
 ### `wa_render_reminder(...)`
 Fungsi murni pengganti placeholder, dipakai klaim & preview agar isi pesan
-tidak pernah berbeda antara dua jalur. `{{mention}}` memakai `p_mention` (daftar
-`Mas A, Mbak B` tanpa `@` yang dirakit pemanggil); `{{advertiser_name}}` dan
-`{{advertiser_code}}` juga menerima daftar.
+tidak pernah berbeda antara dua jalur. `{{advertiser_name}}` memakai `p_mention`
+(daftar `Mas A, Mbak B` tanpa `@` yang dirakit pemanggil); `{{mention}}` adalah
+alias lama dengan hasil yang sama; `{{advertiser_code}}` menerima daftar kode.
 
 ## 3. Izin
 

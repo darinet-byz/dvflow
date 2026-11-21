@@ -24,21 +24,21 @@ const COLUMNS: readonly TableColumn[] = [
 ]
 
 const PREVIEW_VALUES = {
-  mention: '@Zul',
-  advertiser_name: 'Zul',
+  mention: 'Mas Zul, Mas Andre',
+  advertiser_name: 'Mas Zul, Mas Andre',
   advertiser_code: '01',
   product_name: 'Kuliner Masteri',
   product_code: 'KM',
   event_type: 'Seminar Offline',
   date: '2026-11-11',
   report_url: 'https://app.example.com/report-spend?advertiserCode=01&productCode=KM&eventType=Seminar%20Offline',
-  store_name: 'Zul',
+  store_name: 'Mas Zul, Mas Andre',
   leads: 12,
   paid: 3,
 }
 
 const DEFAULT_CONTENT =
-  '{{mention}} mohon input Report Spend {{event_type}} produk {{product_name}} untuk tanggal {{date}}.\n{{report_url}}'
+  '{{advertiser_name}} mohon input Report Spend {{event_type}} produk {{product_name}} untuk tanggal {{date}}.\n{{report_url}}'
 
 type FormState = { id: string | null; name: string; content: string; isActive: boolean }
 const EMPTY: FormState = { id: null, name: '', content: DEFAULT_CONTENT, isActive: true }
@@ -187,6 +187,9 @@ export function TemplateSection({ overview, reload }: { overview: WaOverview; re
               </button>
             ))}
           </div>
+          <p className="text-[11px] text-ink-soft">
+            <code>{'{{advertiser_name}}'}</code> sudah memakai sapaan pengiklan, mis. &quot;Mas Zul, Mas Andre&quot;.
+          </p>
           <div className="rounded-sm border border-line bg-soft p-2.5">
             <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">Preview</p>
             <p className="whitespace-pre-line text-[12px] text-ink">{renderWaTemplate(form?.content ?? '', PREVIEW_VALUES)}</p>

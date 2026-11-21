@@ -36,7 +36,7 @@ function baseState(role = 'admin', permissions: string[] = ['config.wa_bot', 'ac
   state.waReminderTemplates.push({
     id: TEMPLATE_ID,
     name: 'Pagi',
-    message_content: 'Halo {{mention}}, {{advertiser_name}} {{product_name}} {{event_type}} {{date}}. {{report_url}}',
+    message_content: 'Halo {{advertiser_name}}, {{product_name}} {{event_type}} {{date}}. {{report_url}}',
     is_active: true,
   })
   state.waProductGroups.push({

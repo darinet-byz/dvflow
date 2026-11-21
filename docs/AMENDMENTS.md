@@ -2271,3 +2271,23 @@ Permintaan pengguna: reminder WA Admin Bot ke grup harus menyebut nama pengiklan
 - API: `packages/api/src/wa-bot/handlers.ts` menerima `mention_scope = 'assigned'`; `types.ts` web diperluas.
 - Web: opsi **Semua pengiklan yang ditugaskan ke produk** di Jadwal dan Kirim Tes; field **Sapaan** di Config > Pengiklan (`specs.tsx`) dan validasi `config/resources.ts`. `packages/shared` `waMention(name, salutation)` mengembalikan `Mas Zul` tanpa `@`.
 - Tes: pgTAP `37_wa_admin_bot.sql` (sapaan, assigned, tanpa `@`), API `wa-bot.test.ts` + helper preview, web `wa-bot.test.tsx`, shared `wa-reminder.test.ts`.
+
+## A91 - Satu variabel sapaan: `{{advertiser_name}}` (22 November 2026)
+
+Permintaan pengguna: preview di modal Template masih menampilkan `@Zul`, dan `{{mention}}` vs `{{advertiser_name}}` membingungkan. Gunakan satu variabel saja, yaitu `{{advertiser_name}}`, dan variabel itu langsung memakai sapaan pengiklan.
+
+### Keputusan
+
+- **`{{advertiser_name}}` adalah satu-satunya placeholder yang ditawarkan** untuk menyebut pengiklan. Nilainya sudah memakai sapaan, mis. `Mas Zul, Mas Andre`.
+- **`{{mention}}` menjadi alias lama**: tetap dikenali dan dirender sama agar template lama tidak rusak, tetapi tidak lagi muncul di picker template.
+- **`{{store_name}}` (warisan) ikut memakai sapaan** karena memang alias nama pengiklan.
+- **Preview di modal Template memakai contoh `Mas Zul, Mas Andre`**, bukan `@Zul`, sehingga tidak lagi menyesatkan.
+- **Template default baru memakai `{{advertiser_name}}`**, bukan `{{mention}}`.
+- Template produksi **Pagi** sudah memakai `{{advertiser_name}}`, jadi tidak perlu diubah lagi; setelah migrasi 92 hasilnya langsung `Pagi Mas Zul, Mas Andre, ...`.
+
+### Implementasi
+
+- Migrasi `20261122140000_wa_advertiser_name_salutation.sql` (`schema_version` 92): `wa_render_reminder` memetakan `{{advertiser_name}}`, `{{mention}}`, dan `{{store_name}}` ke daftar label bersapaan (`p_mention`), dengan fallback `p_advertiser_name`.
+- Shared: `WA_TEMPLATE_OFFERED_PLACEHOLDERS` tanpa `mention`; `mention` masuk daftar legacy. Helper `waMention` dihapus.
+- Web: `TemplateSection` memakai `PREVIEW_VALUES.advertiser_name = 'Mas Zul, Mas Andre'`, default content `{{advertiser_name}}`, dan keterangan bahwa variabel itu sudah bersapaan.
+- Tes: shared placeholder list, API preview helper, web preview template, pgTAP `37_wa_admin_bot.sql` memakai `{{advertiser_name}}`.

@@ -111,7 +111,7 @@ perlu dilengkapi.
 ### POST/PATCH template
 
 ```json
-{ "name": "Template Pagi", "message_content": "Halo {{mention}} …", "is_active": true }
+{ "name": "Template Pagi", "message_content": "Halo {{advertiser_name}} …", "is_active": true }
 ```
 
 Ditolak bila nama kosong/ganda, isi kosong/>4.000 karakter, atau placeholder

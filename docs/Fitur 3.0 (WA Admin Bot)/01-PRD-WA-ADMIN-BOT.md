@@ -48,20 +48,22 @@ Permission ditegakkan di backend dan RPC, bukan hanya dengan menyembunyikan menu
   produk otomatis disebut namanya di pesan grup.
 
 ### 4.3 Mention pengiklan
-- Mention memakai **nama** pengiklan, bukan nomor: `{{mention}}` menjadi
+- Mention memakai **nama** pengiklan, bukan nomor: `{{advertiser_name}}` menjadi
   `Mas Zul, Mbak Rina` (tanpa `@`). Sapaan diambil dari `advertisers.salutation`.
   Fonnte tidak punya parameter tag WhatsApp, jadi mention ini adalah teks
-  sapaan, bukan tag yang memberi notifikasi.
+  sapaan, bukan tag yang memberi notifikasi. `{{mention}}` adalah alias lama yang
+  tetap dikenali, tetapi template baru cukup memakai `{{advertiser_name}}`.
 - Cakupan sebutan dapat dipilih per jadwal: **semua pengiklan yang beraktivitas
   kemarin**, **semua pengiklan yang ditugaskan ke produk**, atau **hanya yang
   belum lapor**. Contoh: `Pagi Mas Zul, Mas Andre. Jangan lupa report kemarin ya.`
 
 ### 4.4 Template pesan
 - Nama unik (tanpa membedakan besar/kecil huruf).
-- Placeholder yang ditawarkan: `{{mention}}`, `{{advertiser_name}}`,
+- Placeholder yang ditawarkan: `{{advertiser_name}}`,
   `{{advertiser_code}}`, `{{product_name}}`, `{{product_code}}`,
   `{{event_type}}`, `{{date}}`, `{{report_url}}`.
-- Warisan yang tetap dirender: `{{store_name}}`, `{{leads}}`, `{{paid}}`.
+- Warisan yang tetap dirender: `{{mention}}` (alias lama `{{advertiser_name}}`),
+  `{{store_name}}`, `{{leads}}`, `{{paid}}`.
 - Placeholder asing atau kurung kurawal rusak **ditolak saat simpan**.
 - Preview dirender dengan data contoh sebelum disimpan.
 

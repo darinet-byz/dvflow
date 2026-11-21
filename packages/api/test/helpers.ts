@@ -1192,7 +1192,6 @@ export function createFakeDb(state: FakeState): Db {
         const mentionScope = args['p_mention_scope'] === 'missing'
           ? 'missing'
           : args['p_mention_scope'] === 'assigned' ? 'assigned' : 'all'
-        const names = advertisers.map((row) => row.name)
         const labels = advertisers.map((row) => `${row.salutation === null || row.salutation.trim() === '' ? '' : `${row.salutation.trim()} `}${row.name}`)
         const codes = advertisers.map((row) => row.code)
         const reportUrl = `${args['p_base_url']}/report-spend?productCode=${product['code']}&eventType=${eventType.replaceAll(' ', '%20')}`
@@ -1202,8 +1201,8 @@ export function createFakeDb(state: FakeState): Db {
           mention_scope: mentionScope,
           message: String(template['message_content'])
             .replaceAll('{{mention}}', labels.join(', '))
-            .replaceAll('{{advertiser_name}}', names.join(', '))
-            .replaceAll('{{store_name}}', names.join(', '))
+            .replaceAll('{{advertiser_name}}', labels.join(', '))
+            .replaceAll('{{store_name}}', labels.join(', '))
             .replaceAll('{{advertiser_code}}', codes.join(', '))
             .replaceAll('{{product_name}}', String(product['name']))
             .replaceAll('{{product_code}}', String(product['code']))

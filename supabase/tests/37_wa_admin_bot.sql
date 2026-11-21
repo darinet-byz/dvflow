@@ -33,7 +33,7 @@ insert into public.wa_product_groups (id, product_id, fonnte_group_id, is_active
 
 insert into public.wa_reminder_templates (id, name, message_content) values
   ('aa000000-0000-0000-0000-000000000031', 'Pagi',
-   'Halo {{mention}}, laporan {{store_name}} produk {{product_name}} {{event_type}} tanggal {{date}} belum diisi. Leads {{leads}}, Paid {{paid}}. {{report_url}}');
+   'Halo {{advertiser_name}}, laporan {{store_name}} produk {{product_name}} {{event_type}} tanggal {{date}} belum diisi. Leads {{leads}}, Paid {{paid}}. {{report_url}}');
 
 insert into public.wa_reminder_schedules (id, execution_time, template_id) values
   ('aa000000-0000-0000-0000-000000000041', '09:00', 'aa000000-0000-0000-0000-000000000031');
@@ -248,7 +248,7 @@ select is((public.wa_reminder_preview('2026-11-11 09:00:00+07', 'WAAA',
   'assigned', 'preview mode assigned diterima');
 select is((public.wa_reminder_preview('2026-11-11 09:00:00+07', 'WAAA',
   'aa000000-0000-0000-0000-000000000031', 'Webinar Online', 'https://app.example.com', 'assigned'))->>'message',
-  'Halo Mbak Advertiser Dua, Mas Advertiser Satu, laporan Advertiser Dua, Advertiser Satu produk Produk Satu Webinar Online tanggal 2026-11-10 belum diisi. Leads 1, Paid 1. https://app.example.com/report-spend?productCode=WAAA&eventType=Webinar%20Online',
+  'Halo Mbak Advertiser Dua, Mas Advertiser Satu, laporan Mbak Advertiser Dua, Mas Advertiser Satu produk Produk Satu Webinar Online tanggal 2026-11-10 belum diisi. Leads 1, Paid 1. https://app.example.com/report-spend?productCode=WAAA&eventType=Webinar%20Online',
   'mode assigned menyebut semua pengiklan produk dengan sapaan');
 select ok(position('@' in (public.wa_reminder_preview('2026-11-11 09:00:00+07', 'WAAA',
   'aa000000-0000-0000-0000-000000000031', 'Webinar Online', 'https://app.example.com', 'assigned'))->>'message') = 0,
@@ -258,7 +258,7 @@ select is(jsonb_array_length((public.wa_reminder_preview('2026-11-11 09:00:00+07
   2, 'mode assigned membawa pengiklan tanpa order pada jenis acara itu');
 select is((public.wa_reminder_preview('2026-11-11 09:00:00+07', 'WAAA',
   'aa000000-0000-0000-0000-000000000031', 'Webinar Online', 'https://app.example.com', 'all'))->>'message',
-  'Halo Mas Advertiser Satu, laporan Advertiser Satu produk Produk Satu Webinar Online tanggal 2026-11-10 belum diisi. Leads 1, Paid 1. https://app.example.com/report-spend?productCode=WAAA&eventType=Webinar%20Online',
+  'Halo Mas Advertiser Satu, laporan Mas Advertiser Satu produk Produk Satu Webinar Online tanggal 2026-11-10 belum diisi. Leads 1, Paid 1. https://app.example.com/report-spend?productCode=WAAA&eventType=Webinar%20Online',
   'mode all tetap hanya pengiklan yang beraktivitas');
 
 -- ---------------------------------------------------------------------------

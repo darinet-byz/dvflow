@@ -41,7 +41,7 @@ const overview = {
     products: [{ code: 'KM', name: 'Kuliner Masteri' }],
   }],
   templates: [{
-    id: 'tpl-1', name: 'Pagi', message_content: 'Halo {{mention}} {{advertiser_name}}',
+    id: 'tpl-1', name: 'Pagi', message_content: 'Halo {{advertiser_name}}',
     is_active: true, created_at: '2026-11-11T01:00:00Z', updated_at: '2026-11-11T01:00:00Z',
   }],
   schedules: [{
@@ -154,6 +154,15 @@ describe('WA Admin Bot page', () => {
     expect(await screen.findByLabelText('Siapa yang disebut')).toBeTruthy()
     expect(screen.getByRole('option', { name: 'Semua pengiklan yang ditugaskan ke produk' })).toBeTruthy()
     expect(screen.getByRole('option', { name: 'Hanya pengiklan yang belum lapor' })).toBeTruthy()
+  })
+
+  it('preview template memakai sapaan dan tanpa @', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByRole('tab', { name: 'Template' }))
+    fireEvent.click(await screen.findByRole('button', { name: '+ Tambah Template' }))
+
+    expect((await screen.findAllByText(/Mas Zul, Mas Andre/)).length).toBeGreaterThan(0)
+    expect(screen.queryByText(/@Zul/)).toBeNull()
   })
 
   it('menolak placeholder asing sebelum memanggil server', async () => {

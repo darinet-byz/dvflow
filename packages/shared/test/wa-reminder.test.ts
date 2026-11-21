@@ -5,14 +5,14 @@ import {
   listWaTemplatePlaceholders,
   renderWaTemplate,
   validateWaTemplate,
-  waMention,
   WA_LOG_RETENTION_DAYS,
+  WA_TEMPLATE_OFFERED_PLACEHOLDERS,
 } from '../src'
 
 describe('WA Admin Bot — template', () => {
   it('menerima placeholder yang didokumentasikan', () => {
     const result = validateWaTemplate(
-      'Halo {{mention}}, laporan {{advertiser_name}} ({{advertiser_code}}) produk {{product_name}} {{product_code}} {{event_type}} tanggal {{date}} belum diisi. {{report_url}}',
+      'Halo {{advertiser_name}}, laporan {{advertiser_name}} ({{advertiser_code}}) produk {{product_name}} {{product_code}} {{event_type}} tanggal {{date}} belum diisi. {{report_url}}',
     )
     expect(result.ok).toBe(true)
     if (result.ok) {
@@ -21,12 +21,13 @@ describe('WA Admin Bot — template', () => {
         'advertiser_name',
         'date',
         'event_type',
-        'mention',
         'product_code',
         'product_name',
         'report_url',
       ])
     }
+    expect(WA_TEMPLATE_OFFERED_PLACEHOLDERS).toContain('advertiser_name')
+    expect(WA_TEMPLATE_OFFERED_PLACEHOLDERS).not.toContain('mention')
   })
 
   it('tetap mengenali placeholder warisan', () => {
@@ -66,14 +67,6 @@ describe('WA Admin Bot — jenis acara & retensi', () => {
     expect(isWaEventType('Hybrid')).toBe(true)
     expect(isWaEventType('Workshop')).toBe(false)
     expect(WA_LOG_RETENTION_DAYS).toBe(3)
-  })
-})
-
-describe('WA Admin Bot — sapaan mention', () => {
-  it('memakai nama pengiklan, bukan nomor', () => {
-    expect(waMention('Zul', 'Mas')).toBe('Mas Zul')
-    expect(waMention('Advertiser Satu', null)).toBe('Advertiser Satu')
-    expect(waMention('Rina', '')).toBe('Rina')
   })
 })
 

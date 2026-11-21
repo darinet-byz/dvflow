@@ -24,7 +24,6 @@ export const WA_TEMPLATE_PLACEHOLDERS = [
 
 /** Placeholder yang ditawarkan di UI. */
 export const WA_TEMPLATE_OFFERED_PLACEHOLDERS = [
-  'mention',
   'advertiser_name',
   'advertiser_code',
   'product_name',
@@ -34,8 +33,14 @@ export const WA_TEMPLATE_OFFERED_PLACEHOLDERS = [
   'report_url',
 ] as const
 
-/** Placeholder warisan: dirender, tetapi tidak ditawarkan lagi. */
-export const WA_TEMPLATE_LEGACY_PLACEHOLDERS = ['store_name', 'leads', 'paid'] as const
+/**
+ * Placeholder warisan: dirender, tetapi tidak ditawarkan lagi.
+ *
+ * A91: `{{mention}}` adalah alias lama `{{advertiser_name}}`. Keduanya sekarang
+ * menghasilkan daftar nama dengan sapaan; template baru cukup memakai
+ * `{{advertiser_name}}`.
+ */
+export const WA_TEMPLATE_LEGACY_PLACEHOLDERS = ['mention', 'store_name', 'leads', 'paid'] as const
 
 export const WA_EVENT_TYPES = ['Seminar Offline', 'Webinar Online', 'Hybrid'] as const
 
@@ -107,17 +112,9 @@ export function renderWaTemplate(content: string, values: Partial<WaTemplateValu
 }
 
 /**
- * Sapaan mention untuk grup.
- *
- * Fonnte tidak punya parameter tag WhatsApp, jadi ini hanya teks. A90: sapaan
- * per pengiklan (mis. "Mas") dan tanpa tanda `@`; daftar dirakit di SQL
- * (`wa_reminder_claim`/`wa_reminder_preview`).
+ * Sapaan mention untuk grup sudah menjadi bagian dari `{{advertiser_name}}`.
+ * Fonnte tidak punya parameter tag WhatsApp, jadi sapaan hanya teks.
  */
-export function waMention(name: string, salutation?: string | null): string {
-  const prefix = (salutation ?? '').trim()
-  const cleanName = name.trim()
-  return prefix === '' ? cleanName : `${prefix} ${cleanName}`
-}
 
 /** Nama hari untuk tampilan jadwal (0 = Minggu, mengikuti PostgreSQL DOW). */
 export const WA_DAY_LABELS: Readonly<Record<number, string>> = {

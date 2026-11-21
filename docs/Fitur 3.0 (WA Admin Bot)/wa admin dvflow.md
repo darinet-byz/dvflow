@@ -35,7 +35,7 @@ Sistem ini membutuhkan antarmuka di Dashboard Admin yang mencakup modul-modul be
 *   **Fitur Input:**
     *   Nama Template (Contoh: "Template Pagi", "Template Eskalasi").
     *   Teks Editor dengan dukungan **Variabel Placeholder**:
-        *   `{{mention}}` : Akan diganti menjadi daftar nama dengan sapaan, mis. `Mas Zul, Mbak Rina` (Fonnte tidak mendukung tag WhatsApp).
+        *   `{{advertiser_name}}` : Akan diganti menjadi daftar nama dengan sapaan, mis. `Mas Zul, Mbak Rina` (Fonnte tidak mendukung tag WhatsApp).
         *   `{{store_name}}` : Nama toko/brand.
         *   `{{leads}}` : Total leads kemarin.
         *   `{{paid}}` : Total paid kemarin.
@@ -73,7 +73,7 @@ CREATE TABLE wa_reminder_groups (
 CREATE TABLE wa_reminder_templates (
     id INT AUTO_INCREMENT PRIMARY KEY,
     name VARCHAR(50) NOT NULL,
-    message_content TEXT NOT NULL COMMENT 'Berisi teks dengan placeholder {{mention}}, dll',
+    message_content TEXT NOT NULL COMMENT 'Berisi teks dengan placeholder {{advertiser_name}}, dll',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
@@ -110,7 +110,7 @@ CREATE TABLE wa_reminder_schedules (
     *   Kecualikan toko yang sudah mengisi laporan di tabel `ad_reports`.
 5.  **Backend Merakit Pesan (Replace Placeholder):**
     *   Backend mengambil template yang berelasi dengan jadwal saat itu.
-    *   Backend mengganti variabel placeholder (`{{mention}}`, `{{leads}}`, dll) dengan data riil dari masing-masing toko.
+    *   Backend mengganti variabel placeholder (`{{advertiser_name}}`, `{{leads}}`, dll) dengan data riil dari masing-masing toko.
 6.  **Backend Mengembalikan JSON ke Worker:**
     *   Format respon berisi daftar tugas siap kirim: `[ { "target_group": "123@g.us", "message": "Teks final..." }, ... ]`
 7.  **Cloudflare Worker Mengirim ke Fonnte:**
@@ -148,7 +148,7 @@ $readyToSend = [];
 // 4. Rakit Pesan
 foreach ($pendingStores as $store) {
     $message = str_replace(
-        ['{{mention}}', '{{store_name}}', '{{leads}}', '{{paid}}', '{{report_url}}'],
+        ['{{advertiser_name}}', '{{store_name}}', '{{leads}}', '{{paid}}', '{{report_url}}'],
         ['@'.$store->pic_phone, $store->store_name, $store->total_leads, $store->total_paid, 'https://appkamu.com/report?id='.$store->store_id],
         $template->message_content
     );
