@@ -63,7 +63,15 @@ describe('Add Team: role Advertiser', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Tambah member' }))
     await waitFor(() => expect(authorizedRequest).toHaveBeenCalledWith('/api/internal/users', {
       method: 'POST',
-      body: { username: 'iklanbaru', display_name: 'iklanbaru', initial_password: 'password123', role: 'advertiser', advertiser_id: 'adv-1' },
+      body: {
+        username: 'iklanbaru',
+        display_name: 'iklanbaru',
+        initial_password: 'password123',
+        role: 'advertiser',
+        advertiser_id: 'adv-1',
+        has_all_product_access: false,
+        product_codes: [],
+      },
     }))
   })
 })

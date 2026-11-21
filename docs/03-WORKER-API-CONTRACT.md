@@ -270,55 +270,66 @@ No hard delete endpoint.
 - `DELETE ?permanent=true` untuk sesi juga hanya `developer`, dan tetap ditolak `MASTER_IN_USE` bila order/alias memakai kode tersebut.
 - Menyunting nama sesi tetap boleh untuk pemegang `config.produk`.
 
-## 12a. Card Report Spend Iklan (A37/A87)
+## 12a. Card Report Spend Iklan (A37/A87/A88)
 Halaman membaca lewat RPC `ad_spend_report(p_date_from, p_date_to, p_product_code, p_advertiser_code, p_batch, p_event_type)`.
-Hasil RPC: `summary` (semua card yang beririsan filter), `cards[]` (status `berjalan`), `rows[]` (status `selesai`),
-`sessions` (A43), dan `comparison` (A46). Setiap card membawa `spends[]` (baris budget: `date_from`, `date_to`,
-`spend`, `tax_percent`, `tax_amount`), plus `own` dan `can_edit`.
+Hasil RPC: `summary` (semua data: laporan harian aktif + resume), `cards[]` (template aktif), `entries[]`
+(Laporan Berjalan, satu baris per laporan harian + `spends[]`), `resumes[]` (Laporan Selesai + `entries[]` harian
+selama draft), `sessions` (A43), dan `comparison` (A46, laporan harian aktif). KPI selalu semua data dan tetap
+mengikuti filter halaman; tab tidak mengubah KPI.
 
-Sejak A87, satu card = pengiklan + produk + batch + jenis acara. Budget boleh banyak baris; tiap baris punya PPN
-sendiri. Leads/Paid/Tiket/Omzet dihitung sekali per card (`distinct order_id`), bukan sekali per baris budget.
-
-### Buat/ubah/hapus card
+### Card (setting saja)
 - `POST /api/ad-spend-cards` → 201 (200 `action: "existing"` bila card scope itu sudah ada)
-- `PATCH /api/ad-spend-cards/:id` → 200
-- `DELETE /api/ad-spend-cards/:id` → 200 (hard delete card + semua baris)
+- `PATCH /api/ad-spend-cards/:id` → 200 (nama)
+- `DELETE /api/ad-spend-cards/:id` → 200 (hanya card Berjalan; card Selesai harus Aktifkan dulu)
 
-Body POST:
+Body POST: `{ "name": "Card Batch 122", "product_code": "KULI", "batch": "122", "event_type": "Seminar Offline" }`.
+Card tidak menyimpan budget; budget masuk lewat laporan harian.
+
+### Laporan harian
+- `POST /api/ad-spend-cards/:id/reports` → 201
+- `PATCH /api/ad-spend-cards/:id/reports/:entryId` → 200
+- `DELETE /api/ad-spend-cards/:id/reports/:entryId` → 200
+
+Body:
 ```json
 {
-  "name": "Produk A · Batch 122 · Seminar Offline",
-  "product_code": "KULI",
-  "batch": "122",
-  "event_type": "Seminar Offline",
+  "date_from": "2026-10-21",
+  "date_to": "2026-10-21",
   "spends": [
-    { "date_from": "2026-10-21", "date_to": "2026-10-21", "spend": 6000000, "tax_percent": 11 },
-    { "date_from": "2026-10-21", "date_to": "2026-10-21", "spend": 4000000, "tax_percent": 0 }
+    { "spend": 6000000, "tax_percent": 11 },
+    { "spend": 4000000, "tax_percent": 0 }
   ]
 }
 ```
-Body PATCH: `{ "name", "status": "berjalan"|"selesai", "spends": [...] }`. Baris lama boleh membawa `id`; baris
-baru memakai `id: null`. Scope produk/batch/jenis acara terkunci setelah card dibuat.
+Baris lama boleh membawa `id`; baris baru `id: null`. Tanggal milik laporan, bukan per baris. Tanggal tidak boleh
+bertumpuk dengan laporan lain di card yang sama (`AD_SPEND_ENTRY_OVERLAP`).
 
-Izin: buat card hanya `action.input_spend` + akun advertiser (pengiklan dari akun, bukan body). Edit/hapus:
-advertiser pemilik atau role dengan `action.manage_spend` (manajer/owner/developer), dalam scope produk yang diakses.
+### Selesai / Aktifkan
+- `POST /api/ad-spend-cards/:id/finish` → 200; minimal 1 laporan; membuat resume snapshot.
+- `POST /api/ad-spend-cards/:id/activate` → 200 (hanya resume draft); menghapus resume sementara, card kembali Berjalan.
+- `GET /api/ad-spend-cards` tidak ada; daftar dibaca lewat RPC `ad_spend_report`.
 
-Error: `AD_SPEND_NOT_FOUND` 404, `FORBIDDEN` 403, `INVALID_ARGUMENT` 400.
+Izin: buat card hanya `action.input_spend` + akun advertiser. Laporan/finish/activate/hapus: advertiser pemilik
+atau role `action.manage_spend` (manajer/owner/developer) dalam scope produk yang diakses.
+
+Error: `AD_SPEND_NOT_FOUND` 404, `AD_SPEND_CARD_ARCHIVED` 409 (harus Aktifkan dulu), `AD_SPEND_ENTRY_OVERLAP` 409,
+`AD_SPEND_NO_REPORTS` 409, `FORBIDDEN` 403, `INVALID_ARGUMENT` 400.
 
 ### Jalur lama (tetap ada)
 - `POST /api/ad-spend-reports` → 201
-- `PATCH /api/ad-spend-reports/:id` → 200 (hanya report pengiklan sendiri)
-- `DELETE /api/ad-spend-reports/:id` → 200 (hard delete baris; card kosong ikut dihapus)
+- `PATCH /api/ad-spend-reports/:id` → 200
+- `DELETE /api/ad-spend-reports/:id` → 200 (hapus satu baris; entry/card kosong ikut dibersihkan)
 
-Body lama: `{ "product_code", "batch", "event_type", "date_from", "date_to", "spend", "tax_percent", "confirm_overlap" }`.
-Baris tanpa `card_id` otomatis dimasukkan ke card scope-nya. `AD_SPEND_OVERLAP` 409 masih berlaku untuk jalur lama.
+Baris tanpa `card_id`/`entry_id` otomatis dimasukkan ke card + entry scope-nya. Card baru dari jalur lama dibuat
+Berjalan. `AD_SPEND_OVERLAP` 409 masih berlaku untuk jalur lama; card Selesai menolak perubahan (`AD_SPEND_CARD_ARCHIVED`).
 
-### Status Produk & Pengiklan (A52)
+### Status Produk & Pengiklan (A52/A88)
 - `product_status_list()` → array produk `{id,code,name,status,active,advertisers[]}`.
 - `advertiser_status_list()` → array pengiklan `{id,code,name,status,active,products[]}`.
 - `set_product_status(p_product_id, p_status)` dan `set_advertiser_status(p_advertiser_id, p_status)`.
 - `set_product_advertisers(p_product_id, p_advertiser_ids[])` dan `set_advertiser_products(p_advertiser_id, p_product_ids[])`.
-- Semua RPC memakai izin `operasional.product_status` / `operasional.advertiser_status`; mapping hanya label (tabel `product_advertisers`).
+- A88: perubahan mapping **langsung mengubah `user_product_access`** semua akun Advertiser pengiklan itu; Add Team
+  yang mengubah produk user juga memperbarui mapping. Role Advertiser tidak memakai `has_all_product_access`.
 - `set_advertiser_status('Resign')` menonaktifkan user terkait + sesi; status aktif kembali mengaktifkan user terkait.
 
 ## 12b. Hapus Order Unmapped (A40)

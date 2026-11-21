@@ -67,12 +67,17 @@ Tidak ada UI menu khusus.
 - created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 - updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 
-## 5b. product_advertisers (A52, label only)
+## 5b. product_advertisers (A52/A88, sinkron dengan akses produk)
 - product_id UUID FK products
 - advertiser_id UUID FK advertisers
 - created_at / created_by / updated_by
 - PK (product_id, advertiser_id)
-- Tidak mempengaruhi akses/order/report; hanya label di halaman Status.
+- A88: mapping ini **sinkron dua arah** dengan `user_product_access` milik akun Advertiser.
+  - Add Team mengganti produk user → mapping pengiklan ikut berubah.
+  - Status Produk/Pengiklan mengganti mapping → akses semua akun Advertiser pengiklan itu ikut berubah.
+  - Role Advertiser tidak memakai `has_all_product_access`; produk harus eksplisit. Advertiser dengan
+    Semua Produk lama dikosongkan saat migrasi 0086.
+  - Mapping tetap disimpan untuk pengiklan yang tidak punya akun Advertiser (historis).
 
 ## 6. event_types
 Purpose: mapping Seminar Offline / Webinar Online.
@@ -250,37 +255,53 @@ Jangan menambah key lain tanpa requirement.
 Retention 7 hari.
 Jangan simpan credential/secret header.
 
-## 12a. ad_spend_cards + ad_spend_reports (A37/A87, 0048/0085)
-Sejak A87, satu **Card Report** = satu `ad_spend_cards` (pengiklan + produk + batch + jenis acara). Card berisi
-banyak baris budget di `ad_spend_reports`; tiap baris punya tanggal, spend, dan PPN sendiri. Leads/Paid/Tiket/Omzet
-TIDAK disimpan: dihitung live oleh RPC `ad_spend_report` dari `orders`, sekali per card.
+## 12a. ad_spend_cards + entries + reports + resumes (A37/A87/A88, 0048/0085/0087/0088)
+Sejak A88 ada tiga level:
+
+```text
+ad_spend_cards (template)
+  └── ad_spend_report_entries (laporan harian)
+        └── ad_spend_reports (baris budget + PPN)
+```
 
 **`ad_spend_cards`**
 - id UUID PK; advertiser_id/product_id FK RESTRICT; batch TEXT NOT NULL (A33); event_type TEXT NULL (A63)
 - name TEXT NOT NULL (1–120); status TEXT (`berjalan`/`selesai`); finished_at TIMESTAMPTZ
-- date_from/date_to DATE NULL: rentang tampilan; untuk card tanpa baris budget (template dari order) dipakai
-  sebagai rentang pencocokan order
-- created_by / updated_by / created_at / updated_at
-- UNIQUE (advertiser_id, product_id, batch, event_type) `NULLS NOT DISTINCT`
-- RLS: baca dengan `operasional.report_spend` + scope produk (A44); tulis hanya lewat Worker (service_role)
-- Izin `action.manage_spend` (manajer/owner/developer) untuk mengubah card semua pengiklan di produk yang diakses
+- date_from/date_to DATE NULL: rekap rentang tampilan
+- UNIQUE (advertiser_id, product_id, batch, event_type) `NULLS NOT DISTINCT` (satu card per scope, termasuk draft)
+- RLS: baca `operasional.report_spend` + scope produk (A44); tulis hanya lewat Worker (service_role)
+- Izin `action.manage_spend` (manajer/owner/developer)
 
-**`ad_spend_reports` (baris budget, struktur lama dipertahankan)**
-- id UUID PK; `card_id` UUID FK ad_spend_cards(id) ON DELETE CASCADE
-- advertiser_id/product_id/batch/event_type/date_from/date_to/spend/tax_percent (sama seperti A37/A63)
-- PPN = round(spend × tax_percent / 100, 2) per baris; Total Spend card = jumlah spend + jumlah PPN baris
-- Trigger `ad_spend_reports_set_card` mengisi `card_id` untuk jalur lama/tes yang menulis baris tanpa card
-- Card yang barisnya habis dihapus lewat `delete_ad_spend_report`; hard delete card lewat `delete_ad_spend_card`
+**`ad_spend_report_entries`**
+- id UUID PK; card_id FK CASCADE; date_from/date_to; created_by/updated_by/timestamps
+- CONSTRAINT EXCLUDE (card_id =, daterange(date_from,date_to,'[]') &&): laporan harian tidak boleh bertumpuk
+  dalam satu card. Beberapa akun dengan tanggal sama digabung dalam satu entry.
+- Trigger `ad_spend_reports_set_entry` mengisi `entry_id` untuk jalur lama/tes.
 
-**Migrasi 0085.** Tiap kombinasi pengiklan + produk + batch + jenis acara dari report lama dibungkus jadi satu card
-(nilai report tidak diubah). Untuk tiap produk + jenis acara, dua batch dengan aktivitas terbaru (report atau order)
-berstatus `berjalan`; sisanya `selesai`. Batch yang punya order tetapi belum punya report mendapat card template
-`berjalan` dengan rentang tanggal order, tanpa baris budget palsu (agar Kalender Iklan tidak menganggapnya sudah lapor).
+**`ad_spend_reports` (baris budget, dipertahankan)**
+- id UUID PK; card_id FK CASCADE; entry_id FK CASCADE; advertiser_id/product_id/batch/event_type/date_from/date_to/
+  spend/tax_percent
+- PPN = round(spend × tax_percent / 100, 2) per baris; entry/card = jumlah baris.
+- Trigger `ad_spend_reports_set_card` mengisi card; card baru dari jalur lama berstatus Berjalan.
+- Trigger `ad_spend_reports_block_finished` menolak perubahan baris pada card Selesai (harus Aktifkan dulu).
 
-**A46 — `comparison`.** `ad_spend_report` juga mengembalikan `comparison: { totals, rows[] }`: roll-up per
-(produk, batch, jenis acara, pengiklan) berisi `spend`, `tax_amount`, `total_spend`, `leads`, `paid`, `tickets`, `omzet`.
-Angka order memakai himpunan `distinct order_id` yang sama dengan `summary`; baris budget bertumpuk tetap dijumlahkan
-tetapi order dihitung sekali per card.
+**`ad_spend_resumes` (snapshot)**
+- id UUID PK; card_id UUID NULL FK ON DELETE SET NULL; advertiser_id NULL; advertiser_code/name, product_code/name,
+  batch, event_type, name, date_from/date_to, spend, tax_amount, total_spend, leads, paid, tickets, omzet,
+  finished_at, frozen_at, timestamps.
+- Dibuat/dihitung ulang oleh `refresh_ad_spend_resume` saat card Selesai.
+- `purge_ad_spend_drafts()` (cron harian 02.00 WIB) menghapus card + entry + baris budget yang `finished_at` lebih
+  dari **3 bulan**, membekukan resume (`frozen_at`, `card_id = null`). Resume tetap ada setelah card hilang.
+- Aktifkan (`activate_ad_spend_card`) hanya untuk resume draft: menghapus resume sementara, card kembali Berjalan,
+  lalu laporan harian bisa diedit/ditambah. Selesai lagi membuat resume baru dengan timer baru.
+
+**Migrasi 0087/0088.** Baris budget lama dikelompokkan menjadi entry per card menurut rentang yang bertumpuk/bersambung;
+card Selesai lama dibuatkan resume snapshot. Transisi satu kali membuat card untuk 2 batch terakhir per produk + jenis
+acara hanya untuk advertiser yang memegang produk (setelah sync A88) **dan** punya report/lead di batch itu.
+
+**A46 — `comparison`.** `ad_spend_report` mengembalikan `cards[]` (template aktif), `entries[]` (Laporan Berjalan),
+`resumes[]` (Laporan Selesai), `summary` (semua data), `sessions`, dan `comparison` (laporan harian aktif). Angka order
+memakai `distinct order_id`; entry tidak bertumpuk sehingga order dihitung sekali per card.
 
 ### 12b. RPC dashboard_session_summary (A59, 0064)
 Data per Sesi di Dashboard (dipindahkan dari Resume Batch): tiket Paid (`sum(quantity)`, order `app_status = Paid`,

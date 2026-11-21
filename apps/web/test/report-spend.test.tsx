@@ -6,10 +6,10 @@ import { formatSpendRoi, parseSpendInput, parseTaxPercent, ReportSpendPage, sess
 
 /** A45: kartu Jumlah Tiket memakai tiket (sum quantity), bukan jumlah Order ID seperti `paid`. */
 const spendFixture = vi.hoisted(() => ({
-  summary: { reports: 1, spend: 6000000, tax_amount: 660000, total_spend: 6660000, leads: 9, paid: 8, omzet: 9000000 },
+  summary: { reports: 1, spend: 6000000, tax_amount: 660000, total_spend: 6660000, leads: 9, paid: 8, tickets: 9, omzet: 9000000 },
   cards: [],
-  rows: [{
-    id: 'r1', name: 'Produk A · Batch 122 · Seminar Offline', status: 'selesai',
+  entries: [{
+    id: 'e1', card_id: 'c1', card_name: 'Produk A · Batch 122 · Seminar Offline',
     date_from: '2026-10-18', date_to: '2026-10-26', product_code: 'AAAA', product_name: 'Produk A',
     advertiser_code: '91', advertiser_name: 'Zul', batch: '122', event_type: 'Seminar Offline', spend: 6000000, tax_percent: 11,
     tax_amount: 660000, total_spend: 6660000, leads: 9, paid: 8, tickets: 9, omzet: 9000000, own: true, can_edit: true,
@@ -17,6 +17,7 @@ const spendFixture = vi.hoisted(() => ({
       id: 'l1', date_from: '2026-10-18', date_to: '2026-10-26', spend: 6000000, tax_percent: 11, tax_amount: 660000,
     }],
   }],
+  resumes: [],
   sessions: {
     tickets: 9,
     advertisers: [{ advertiser_code: '91', advertiser_name: 'Zul', tickets: 9 }],
@@ -160,6 +161,6 @@ describe('Report Spend Iklan: kartu Jumlah Tiket & kolom Total Tiket (A45)', () 
     // Kartu "Paid" sudah diganti; "Paid" hanya tersisa sebagai kolom tabel report.
     expect(screen.getAllByText('Paid').some((element) => element.tagName === 'TH')).toBe(true)
     expect(screen.getByRole('columnheader', { name: 'Total Tiket' })).toBeTruthy()
-    expect(screen.getByText('Jumlah tiket (quantity) per sesi, bukan jumlah Order ID.')).toBeTruthy()
+    expect(screen.getByText('Jumlah tiket (quantity) per sesi dari laporan harian aktif.')).toBeTruthy()
   })
 })

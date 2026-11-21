@@ -19,12 +19,17 @@ import { deleteOts, listOts, listOtsEvents, otsDuplicates, otsFinanceReport, sav
 import { cancelRefund, refundOrder, rescheduleOrder } from './orders/handlers'
 import { getFollowUpContext, getFollowUpSummaries, getFollowUpTemplates, markFollowUp, saveFollowUpTemplates } from './follow-up/handlers'
 import {
+  activateAdSpendCard,
   createAdSpend,
   createAdSpendCard,
+  createAdSpendEntry,
   deleteAdSpend,
   deleteAdSpendCard,
+  deleteAdSpendEntry,
+  finishAdSpendCard,
   updateAdSpend,
   updateAdSpendCard,
+  updateAdSpendEntry,
 } from './ad-spend/handlers'
 import { listChatMessages, listChatRecipients, listChatThreads, sendChatMessage } from './chat/handlers'
 import { createEventCalendar, deleteEventCalendar, listEventCalendar, updateEventCalendar } from './event-calendar/handlers'
@@ -179,6 +184,11 @@ export const ROUTES: Route[] = [
   { method: 'POST', path: '/api/ad-spend-cards', handler: createAdSpendCard, auth: 'access' },
   { method: 'PATCH', path: '/api/ad-spend-cards/:id', handler: updateAdSpendCard, auth: 'access' },
   { method: 'DELETE', path: '/api/ad-spend-cards/:id', handler: deleteAdSpendCard, auth: 'access' },
+  { method: 'POST', path: '/api/ad-spend-cards/:id/reports', handler: createAdSpendEntry, auth: 'access' },
+  { method: 'PATCH', path: '/api/ad-spend-cards/:id/reports/:entryId', handler: updateAdSpendEntry, auth: 'access' },
+  { method: 'DELETE', path: '/api/ad-spend-cards/:id/reports/:entryId', handler: deleteAdSpendEntry, auth: 'access' },
+  { method: 'POST', path: '/api/ad-spend-cards/:id/finish', handler: finishAdSpendCard, auth: 'access' },
+  { method: 'POST', path: '/api/ad-spend-cards/:id/activate', handler: activateAdSpendCard, auth: 'access' },
 
   // Fitur 3.0: WA Admin Bot (seluruh data lewat backend; token tidak pernah dikirim).
   { method: 'GET', path: '/api/wa-bot', handler: waBotOverview, auth: 'access' },

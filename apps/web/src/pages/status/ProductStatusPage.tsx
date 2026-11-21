@@ -133,7 +133,7 @@ export function ProductStatusPage() {
     <>
       <PageHeader
         title="Status Produk"
-        description="Status operasional semua produk. Pengiklan di kolom kedua hanya label mapping."
+        description="Status operasional semua produk. Pengiklan di kolom kedua sinkron dengan akses produk di Add Team."
       />
 
       <Card>

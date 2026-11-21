@@ -38,6 +38,9 @@ export type ApiErrorCode =
   | 'FORBIDDEN_PRODUCT_ACCESS'
   | 'AD_SPEND_OVERLAP'
   | 'AD_SPEND_NOT_FOUND'
+  | 'AD_SPEND_CARD_ARCHIVED'
+  | 'AD_SPEND_ENTRY_OVERLAP'
+  | 'AD_SPEND_NO_REPORTS'
   | 'AD_CALENDAR_EXISTS'
   | 'WA_LOG_NOT_FOUND'
   | 'SCHEMA_OUT_OF_DATE'
@@ -95,9 +98,12 @@ export const ERROR_CATALOG: Record<ApiErrorCode, { status: number; message: stri
     message: 'User memiliki data historis dan tidak dapat dihapus. Gunakan Non-Aktifkan agar data tetap utuh.',
   },
   FORBIDDEN_PRODUCT_ACCESS: { status: 403, message: 'Anda tidak memiliki akses ke produk ini.' },
-  // A37: Report Spend Iklan.
+  // A37/A88: Card Report Iklan.
   AD_SPEND_OVERLAP: { status: 409, message: 'Tanggal, produk, batch, dan jenis acara sudah ada.' },
   AD_SPEND_NOT_FOUND: { status: 404, message: 'Report spend tidak ditemukan.' },
+  AD_SPEND_CARD_ARCHIVED: { status: 409, message: 'Card sudah Selesai. Aktifkan dulu untuk mengubah laporan.' },
+  AD_SPEND_ENTRY_OVERLAP: { status: 409, message: 'Tanggal sudah dipakai laporan lain di card ini.' },
+  AD_SPEND_NO_REPORTS: { status: 409, message: 'Card belum punya laporan. Tambah laporan dulu sebelum Selesai.' },
   // A80: satu deadline per pengiklan + produk + batch.
   AD_CALENDAR_EXISTS: { status: 409, message: 'Deadline untuk pengiklan, produk, dan batch ini sudah ada.' },
   // Fitur 3.0: WA Admin Bot.
@@ -151,6 +157,9 @@ export const DB_SQLSTATE_TO_API_CODE: Record<string, ApiErrorCode> = {
   DF015: 'MASTER_IN_USE',
   DF016: 'AD_SPEND_OVERLAP',
   DF017: 'AD_SPEND_NOT_FOUND',
+  DF027: 'AD_SPEND_CARD_ARCHIVED',
+  DF028: 'AD_SPEND_ENTRY_OVERLAP',
+  DF029: 'AD_SPEND_NO_REPORTS',
   DF018: 'USER_HAS_DATA',
   // A79: thread chat / jadwal kalender tidak ditemukan.
   DF024: 'RESOURCE_NOT_FOUND',

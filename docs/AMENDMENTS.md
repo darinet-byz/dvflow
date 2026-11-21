@@ -2201,3 +2201,32 @@ Permintaan pengguna: input report spend saat ini memaksa memilih produk, batch, 
 - API: `packages/api/src/ad-spend/handlers.ts` + route `POST/PATCH/DELETE /api/ad-spend-cards`; validasi 1–20 baris, tanggal, spend, PPN, dan id baris.
 - Web: `apps/web/src/pages/report-spend/ReportSpendPage.tsx` — grid card Berjalan, modal card multi-budget, tabel resume Selesai; `Modal` menerima ukuran `lg`; `DateRangeField` menerima `id` unik untuk beberapa baris.
 - Tes: pgTAP `supabase/tests/48_ad_spend_cards.sql`, update `24_ad_spend_reports.sql` (satu baris per card) dan `44_ad_calendar.sql` (rentang cek upcoming yang tidak bergantung akhir bulan); API `packages/api/test/ad-spend.test.ts`; web `apps/web/test/report-spend-card.test.tsx`.
+
+## A88 - Card Report sebagai template + laporan harian + resume draft 3 bulan + sync penugasan produk (21 November 2026)
+
+Permintaan pengguna: card Report Spend jangan menampilkan budget 1, budget 2, dst. Card harus benar-benar hanya untuk input; hasil input masuk tabel terpisah dengan dua tab **Laporan Berjalan** dan **Laporan Selesai**. Tombol "Tambah Budget" berubah menjadi **Tambah Laporan**. Satu card tetap boleh punya beberapa baris budget/akun dengan PPN berbeda, tetapi tampil sebagai satu laporan harian. Card yang sudah Selesai masih bisa diperiksa/diedit lewat draft; setelah 3 bulan hanya resume yang disimpan. Pengguna juga meminta penugasan produk di Add Team dan Status Pengiklan/Pengiklan disinkronkan.
+
+### Keputusan
+
+- **Tiga level**: `ad_spend_cards` (template) ? `ad_spend_report_entries` (laporan harian) ? `ad_spend_reports` (baris budget + PPN).
+- **Card hanya setting**: nama, produk, batch, jenis acara. Tidak ada budget di card/grid card.
+- **Tambah Laporan**: satu entry dengan tanggal dan beberapa baris budget. Entry tidak boleh bertumpuk dalam satu card; akun berbeda digabung dalam satu entry. Leads/Paid/Tiket/Omzet dihitung sekali per entry/card.
+- **Laporan Berjalan** = entry dari card Berjalan. **Laporan Selesai** = resume snapshot card Selesai.
+- **Selesai** membuat `ad_spend_resumes` snapshot. Card + entry + baris budget tetap ada selama **draft 3 bulan** (dihitung dari `finished_at`).
+- **Draft read-only**. Untuk mengedit/menambah laporan, pengguna harus klik **Aktifkan**; resume dihapus sementara, card kembali Berjalan. Saat Selesai lagi, resume baru dibuat dan timer 3 bulan dihitung dari tanggal Selesai baru.
+- **Setelah 3 bulan**, cron `purge_ad_spend_drafts()` menghapus card + entry + baris budget; resume dibekukan (`frozen_at`, `card_id = NULL`) dan tetap tampil sebagai Final.
+- **KPI selalu semua data** (entry aktif + resume), tetap mengikuti filter halaman. Tiket per Sesi/Perbandingan Pengiklan memakai laporan harian aktif.
+- **Card transisi 2 batch terakhir** dibuat sekali saat migrasi: per produk + jenis acara (Offline/Online/Hybrid), hanya advertiser yang memegang produk setelah sync **dan** punya report/lead di batch itu. Tidak ada card kosong. Card lama A87 tidak diduplikasi.
+- **Sinkronisasi produk dua arah**: Add Team (`user_product_access`) ? Status Produk/Pengiklan (`product_advertisers`). Role Advertiser wajib produk eksplisit; `has_all_product_access` dipaksa false dan advertiser lama dengan Semua Produk dikosongkan.
+- **Produksi yang terlihat berubah**: Adnan (03) mendapat mapping CHID+MTIX; Andre (07) EXPN+UMKM; Yosef (08) CHID+TAXX; Riyan (05) kehilangan Semua Produk dan menjadi kosong.
+
+### Implementasi
+
+- Migrasi:
+  - `20261121150000_product_assignment_sync.sql` (`schema_version` 86): helper `sync_advertiser_product_mapping`/`sync_advertiser_user_access`, backfill union, `admin_create_user`/`admin_update_user`/`set_product_advertisers`/`set_advertiser_products` disinkronkan.
+  - `20261121160000_ad_spend_entries_schema.sql` (87): tabel entry, `entry_id`, backfill entry dari baris lama, exclusion anti-tumpuk, trigger kompatibilitas.
+  - `20261121170000_ad_spend_resumes.sql` (88): tabel resume, `refresh_ad_spend_resume`, `finish_ad_spend_card`, `activate_ad_spend_card`, CRUD entry, `save_ad_spend_card` setting-only, block trigger card Selesai, `purge_ad_spend_drafts` + cron, resume backfill, card transisi 2 batch.
+  - `20261121180000_ad_spend_report_read.sql` (89): `ad_spend_report` baru (`summary`, `cards`, `entries`, `resumes`, `sessions`, `comparison`).
+- API: route card + `.../reports` + `.../finish` + `.../activate`; error `DF027 -> AD_SPEND_CARD_ARCHIVED`, `DF028 -> AD_SPEND_ENTRY_OVERLAP`, `DF029 -> AD_SPEND_NO_REPORTS`; advertiser dipaksa `has_all_product_access=false`.
+- Web: `ReportSpendPage` card grid settings-only, modal Tambah Laporan, tab Laporan Berjalan/Selesai, detail resume + Aktifkan; `TeamPage` menyembunyikan Semua Produk untuk Advertiser; label Status Produk diperbarui.
+- Tes: `supabase/tests/48_ad_spend_cards.sql`, `49_product_assignment_sync.sql`, update `24_ad_spend_reports.sql`; API `ad-spend.test.ts`; web `report-spend.test.tsx`, `report-spend-card.test.tsx`, `team-advertiser.test.tsx`.

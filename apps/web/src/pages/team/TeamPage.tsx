@@ -150,7 +150,8 @@ export function TeamPage() {
       setFailure(null)
       return
     }
-    if (!hasAllProducts && selectedProductCodes.length === 0) {
+    const effectiveAllProducts = role === ADVERTISER_ROLE ? false : hasAllProducts
+    if (!effectiveAllProducts && selectedProductCodes.length === 0 && role !== ADVERTISER_ROLE) {
       setFailure('Pilih minimal satu produk jika akses produk dibatasi.')
       return
     }
@@ -168,7 +169,7 @@ export function TeamPage() {
         role,
       }
       if (role === ADVERTISER_ROLE) body.advertiser_id = advertiserId
-      if (!hasAllProducts) {
+      if (!effectiveAllProducts) {
         body.has_all_product_access = false
         body.product_codes = selectedProductCodes
       }
@@ -217,7 +218,8 @@ export function TeamPage() {
       toast.show('Password baru minimal 8 karakter.', 'danger')
       return
     }
-    if (!editHasAllProducts && editSelectedProductCodes.length === 0) {
+    const effectiveEditAllProducts = editRole === ADVERTISER_ROLE ? false : editHasAllProducts
+    if (!effectiveEditAllProducts && editSelectedProductCodes.length === 0 && editRole !== ADVERTISER_ROLE) {
       toast.show('Pilih minimal satu produk jika akses produk dibatasi.', 'danger')
       return
     }
@@ -231,8 +233,8 @@ export function TeamPage() {
         display_name: editDisplayName.trim(),
         role: editRole,
         active: editActive,
-        has_all_product_access: editHasAllProducts,
-        product_codes: editHasAllProducts ? [] : editSelectedProductCodes,
+        has_all_product_access: effectiveEditAllProducts,
+        product_codes: effectiveEditAllProducts ? [] : editSelectedProductCodes,
       }
       if (editRole === ADVERTISER_ROLE) body['advertiser_id'] = editAdvertiserId
       if (editPassword !== '') body['new_password'] = editPassword
@@ -335,7 +337,10 @@ export function TeamPage() {
               id="team-role"
               label="Role"
               value={role}
-              onChange={(value) => setRole(value as AppRole)}
+              onChange={(value) => {
+                setRole(value as AppRole)
+                if (value === ADVERTISER_ROLE) setHasAllProducts(false)
+              }}
               disabled={busy}
               options={roleOptions}
             />
@@ -362,22 +367,24 @@ export function TeamPage() {
           <div className="rounded-lg border border-line bg-page p-3 flex flex-col gap-2">
             <span className="text-[12px] font-semibold text-ink">Akses Produk:</span>
             <div className="flex flex-wrap gap-4 text-[13px]">
-              <label className={`flex items-center gap-2 font-medium ${canAssignAllProducts ? 'cursor-pointer text-ink' : 'cursor-not-allowed text-ink-muted'}`}>
-                <input
-                  type="radio"
-                  name="team-create-scope"
-                  checked={hasAllProducts}
-                  disabled={!canAssignAllProducts || busy}
-                  onChange={() => setHasAllProducts(true)}
-                  className="text-primary focus:ring-primary"
-                />
-                Semua Produk (All Products)
-              </label>
+              {role !== ADVERTISER_ROLE ? (
+                <label className={`flex items-center gap-2 font-medium ${canAssignAllProducts ? 'cursor-pointer text-ink' : 'cursor-not-allowed text-ink-muted'}`}>
+                  <input
+                    type="radio"
+                    name="team-create-scope"
+                    checked={hasAllProducts}
+                    disabled={!canAssignAllProducts || busy}
+                    onChange={() => setHasAllProducts(true)}
+                    className="text-primary focus:ring-primary"
+                  />
+                  Semua Produk (All Products)
+                </label>
+              ) : null}
               <label className="flex items-center gap-2 cursor-pointer font-medium text-ink">
                 <input
                   type="radio"
                   name="team-create-scope"
-                  checked={!hasAllProducts}
+                  checked={role === ADVERTISER_ROLE || !hasAllProducts}
                   disabled={busy}
                   onChange={() => setHasAllProducts(false)}
                   className="text-primary focus:ring-primary"
@@ -391,7 +398,7 @@ export function TeamPage() {
               </p>
             )}
 
-            {!hasAllProducts && (
+            {(role === ADVERTISER_ROLE || !hasAllProducts) && (
               <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 max-h-48 overflow-y-auto p-1">
                 {productOptions.length === 0 ? (
                   <p className="text-[12px] text-ink-muted">Memuat daftar produk...</p>
@@ -535,7 +542,10 @@ export function TeamPage() {
               value={editRole}
               options={roleOptions}
               disabled={busy || isSelf(editing)}
-              onChange={(val) => setEditRole(val as AppRole)}
+              onChange={(val) => {
+                setEditRole(val as AppRole)
+                if (val === ADVERTISER_ROLE) setEditHasAllProducts(false)
+              }}
             />
             {editRole === ADVERTISER_ROLE ? (
               <Select
@@ -570,21 +580,23 @@ export function TeamPage() {
             <div className="rounded-lg border border-line bg-page p-3 flex flex-col gap-2">
               <span className="text-[12px] font-semibold text-ink">Akses Produk:</span>
               <div className="flex flex-wrap gap-4 text-[13px]">
+                {editRole !== ADVERTISER_ROLE ? (
+                  <label className="flex items-center gap-2 cursor-pointer font-medium text-ink">
+                    <input
+                      type="radio"
+                      name="team-edit-scope"
+                      checked={editHasAllProducts}
+                      onChange={() => setEditHasAllProducts(true)}
+                      className="text-primary focus:ring-primary"
+                    />
+                    Semua Produk
+                  </label>
+                ) : null}
                 <label className="flex items-center gap-2 cursor-pointer font-medium text-ink">
                   <input
                     type="radio"
                     name="team-edit-scope"
-                    checked={editHasAllProducts}
-                    onChange={() => setEditHasAllProducts(true)}
-                    className="text-primary focus:ring-primary"
-                  />
-                  Semua Produk
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer font-medium text-ink">
-                  <input
-                    type="radio"
-                    name="team-edit-scope"
-                    checked={!editHasAllProducts}
+                    checked={editRole === ADVERTISER_ROLE || !editHasAllProducts}
                     onChange={() => setEditHasAllProducts(false)}
                     className="text-primary focus:ring-primary"
                   />
@@ -592,7 +604,7 @@ export function TeamPage() {
                 </label>
               </div>
 
-              {!editHasAllProducts && (
+              {(editRole === ADVERTISER_ROLE || !editHasAllProducts) && (
                 <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 max-h-40 overflow-y-auto p-1">
                   {productOptions.map((p) => {
                     const checked = editSelectedProductCodes.includes(p.value)

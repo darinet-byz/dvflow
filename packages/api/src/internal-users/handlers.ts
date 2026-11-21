@@ -158,7 +158,9 @@ export async function createUser(context: RouteContext): Promise<Response> {
     throw new ApiFailure('INVALID_ARGUMENT', 'avatar_emoji tidak valid')
   }
 
-  const hasAllProductAccess = typeof body['has_all_product_access'] === 'boolean' ? body['has_all_product_access'] : true
+  const requestedAllProductAccess = typeof body['has_all_product_access'] === 'boolean' ? body['has_all_product_access'] : true
+  // A88: role Advertiser wajib memakai produk eksplisit; "Semua Produk" hanya untuk role lain.
+  const hasAllProductAccess = trimmedRole === 'advertiser' ? false : requestedAllProductAccess
   const productCodes: string[] = []
   if (Array.isArray(body['product_codes'])) {
     for (const pc of body['product_codes']) {
@@ -168,10 +170,10 @@ export async function createUser(context: RouteContext): Promise<Response> {
     }
   }
 
-  if (!hasAllProductAccess && productCodes.length === 0) {
+  if (!hasAllProductAccess && productCodes.length === 0 && trimmedRole !== 'advertiser') {
     throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih minimal satu produk jika akses dibatasi')
   }
-  if (!hasAllProductAccess) await assertKnownProducts(context, productCodes)
+  if (!hasAllProductAccess && productCodes.length > 0) await assertKnownProducts(context, productCodes)
 
   const isMasterRole = isMasterAdminRole(trimmedRole)
   const allowMaster = context.env.ALLOW_MASTER_ADMIN_CREATE_MASTER === 'true'
@@ -318,10 +320,12 @@ export async function updateUser(context: RouteContext): Promise<Response> {
     throw new ApiFailure('WEAK_PASSWORD', undefined, 'Password baru minimal 8 karakter')
   }
 
-  const hasAllProductAccess =
+  const requestedAllProductAccess =
     typeof body['has_all_product_access'] === 'boolean'
       ? body['has_all_product_access']
       : existing.has_all_product_access ?? true
+  // A88: role Advertiser wajib memakai produk eksplisit.
+  const hasAllProductAccess = role === 'advertiser' ? false : requestedAllProductAccess
 
   const productCodes: string[] = []
   if (Array.isArray(body['product_codes'])) {
@@ -332,10 +336,10 @@ export async function updateUser(context: RouteContext): Promise<Response> {
     }
   }
 
-  if (!hasAllProductAccess && productCodes.length === 0) {
+  if (!hasAllProductAccess && productCodes.length === 0 && role !== 'advertiser') {
     throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih minimal satu produk jika akses dibatasi')
   }
-  if (!hasAllProductAccess) await assertKnownProducts(context, productCodes)
+  if (!hasAllProductAccess && productCodes.length > 0) await assertKnownProducts(context, productCodes)
 
   const isMasterTarget = isMasterAdminRole(role)
   const allowMaster =

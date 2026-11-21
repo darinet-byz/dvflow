@@ -775,13 +775,37 @@ export function createFakeDb(state: FakeState): Db {
             status: 'berjalan',
           }
           state.adSpendCards.push(created)
-          return { action: 'created', ...created, spends: (args['p_spends'] as unknown[]).length } as T
+          return { action: 'created', ...created } as T
         }
         const card = state.adSpendCards.find((item) => item['id'] === cardIdArg)
         if (card === undefined) throw new DbError('DF017', 'fake')
         if (args['p_name'] !== null && args['p_name'] !== undefined) card['name'] = args['p_name']
-        if (args['p_status'] !== null && args['p_status'] !== undefined) card['status'] = args['p_status']
-        return { action: 'updated', id: card['id'], name: card['name'], status: card['status'], spends: (args['p_spends'] as unknown[]).length } as T
+        return { action: 'updated', id: card['id'], name: card['name'], status: card['status'] } as T
+      }
+
+      // A88: laporan harian, finish/activate. Aturan penuh di pgTAP 48.
+      if (name === 'save_ad_spend_entry' || name === 'delete_ad_spend_entry') {
+        const actor = state.users.find((candidate) => candidate.id === String(args['p_actor'] ?? ''))
+        if (actor === undefined) throw new DbError(FORBIDDEN, 'fake')
+        if (name === 'delete_ad_spend_entry') {
+          return { id: args['p_entry_id'], deleted: true } as T
+        }
+        nextId += 1
+        return {
+          action: args['p_entry_id'] ? 'updated' : 'created',
+          id: args['p_entry_id'] ?? `00000000-0000-4000-8000-${String(nextId).padStart(12, '0')}`,
+          card_id: args['p_card_id'],
+          date_from: args['p_date_from'],
+          date_to: args['p_date_to'],
+          spends: (args['p_spends'] as unknown[]).length,
+        } as T
+      }
+
+      if (name === 'finish_ad_spend_card' || name === 'activate_ad_spend_card') {
+        const card = state.adSpendCards.find((item) => item['id'] === String(args['p_card_id'] ?? ''))
+        if (card === undefined) throw new DbError('DF017', 'fake')
+        card['status'] = name === 'finish_ad_spend_card' ? 'selesai' : 'berjalan'
+        return { action: name === 'finish_ad_spend_card' ? 'finished' : 'activated', id: card['id'], status: card['status'] } as T
       }
 
       if (name === 'delete_ots_registration') {
