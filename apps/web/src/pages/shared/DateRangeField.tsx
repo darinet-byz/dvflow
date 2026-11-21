@@ -22,6 +22,7 @@ import { cn } from '../../ui/cn'
  * pilihan baru. Preset langsung diterapkan. Nilai yang dihasilkan tetap dateFrom/dateTo.
  */
 export function DateRangeField({
+  id = 'filter-tanggal',
   from,
   to,
   onChange,
@@ -29,6 +30,8 @@ export function DateRangeField({
   className,
   ariaLabel = 'Filter tanggal',
 }: {
+  /** Unik bila beberapa field tanggal tampil bersamaan (mis. baris budget di modal). */
+  id?: string
   from: string
   to: string
   onChange: (range: { from: string; to: string }) => void
@@ -89,7 +92,7 @@ export function DateRangeField({
     <div ref={rootRef} className={cn('relative min-w-0 max-w-full', className)}>
       <button
         type="button"
-        id="filter-tanggal"
+        id={id}
         aria-label={ariaLabel}
         aria-haspopup="dialog"
         aria-expanded={open}

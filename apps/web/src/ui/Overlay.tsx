@@ -17,12 +17,15 @@ export function Modal({
   onClose,
   children,
   footer,
+  size = 'md',
 }: {
   open: boolean
   title: string
   onClose: () => void
   children: ReactNode
   footer?: ReactNode
+  /** `lg` untuk form bertingkat seperti baris budget Card Report. */
+  size?: 'md' | 'lg'
 }) {
   useEscapeToClose(open, onClose)
   if (!open) return null
@@ -33,7 +36,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-label={title}
-        className="max-h-[calc(100dvh-32px)] w-full max-w-md overflow-y-auto rounded-lg border border-line bg-card p-4 shadow-app"
+        className={`max-h-[calc(100dvh-32px)] w-full overflow-y-auto rounded-lg border border-line bg-card p-4 shadow-app ${size === 'lg' ? 'max-w-3xl' : 'max-w-md'}`}
         onClick={(event) => event.stopPropagation()}
       >
         <header className="mb-3 flex items-center justify-between gap-3">

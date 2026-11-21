@@ -7,10 +7,15 @@ import { formatSpendRoi, parseSpendInput, parseTaxPercent, ReportSpendPage, sess
 /** A45: kartu Jumlah Tiket memakai tiket (sum quantity), bukan jumlah Order ID seperti `paid`. */
 const spendFixture = vi.hoisted(() => ({
   summary: { reports: 1, spend: 6000000, tax_amount: 660000, total_spend: 6660000, leads: 9, paid: 8, omzet: 9000000 },
+  cards: [],
   rows: [{
-    id: 'r1', date_from: '2026-10-18', date_to: '2026-10-26', product_code: 'AAAA', product_name: 'Produk A',
+    id: 'r1', name: 'Produk A · Batch 122 · Seminar Offline', status: 'selesai',
+    date_from: '2026-10-18', date_to: '2026-10-26', product_code: 'AAAA', product_name: 'Produk A',
     advertiser_code: '91', advertiser_name: 'Zul', batch: '122', event_type: 'Seminar Offline', spend: 6000000, tax_percent: 11,
-    tax_amount: 660000, total_spend: 6660000, leads: 9, paid: 8, tickets: 9, omzet: 9000000, own: true,
+    tax_amount: 660000, total_spend: 6660000, leads: 9, paid: 8, tickets: 9, omzet: 9000000, own: true, can_edit: true,
+    spends: [{
+      id: 'l1', date_from: '2026-10-18', date_to: '2026-10-26', spend: 6000000, tax_percent: 11, tax_amount: 660000,
+    }],
   }],
   sessions: {
     tickets: 9,

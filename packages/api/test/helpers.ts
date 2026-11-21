@@ -154,6 +154,8 @@ export type FakeState = {
   /** A80: kalender iklan + report spend untuk tanggal tayang turunan. */
   adCalendar: Array<Record<string, unknown>>
   adSpendReports: Array<Record<string, unknown>>
+  /** A87: card report iklan (header; baris budget tetap di adSpendReports). */
+  adSpendCards: Array<Record<string, unknown>>
   /** A82: Citta AI. */
   aiSettings: Array<Record<string, unknown>>
   aiDrafts: Array<Record<string, unknown>>
@@ -213,6 +215,7 @@ export function createFakeState(
     eventCalendar: [],
     adCalendar: [],
     adSpendReports: [],
+    adSpendCards: [],
     aiSettings: [],
     aiDrafts: [],
     aiRuns: [],
@@ -736,6 +739,49 @@ export function createFakeDb(state: FakeState): Db {
           product_code: args['p_product_code'], batch: args['p_batch'], event_type: args['p_event_type'],
           date_from: args['p_date_from'], date_to: args['p_date_to'],
           spend: String(args['p_spend']), tax_percent: String(args['p_tax_percent']) } as T
+      }
+
+      // A87: tiruan save/delete_ad_spend_card. Aturan penuh (scope, izin, multi-baris) di pgTAP 48.
+      if (name === 'save_ad_spend_card' || name === 'delete_ad_spend_card') {
+        const actor = state.users.find((candidate) => candidate.id === String(args['p_actor'] ?? ''))
+        if (actor === undefined) throw new DbError(FORBIDDEN, 'fake')
+        const cardIdArg = args['p_card_id'] === null || args['p_card_id'] === undefined ? null : String(args['p_card_id'])
+        if (name === 'delete_ad_spend_card') {
+          const index = state.adSpendCards.findIndex((card) => card['id'] === cardIdArg)
+          if (index < 0) throw new DbError('DF017', 'fake')
+          state.adSpendCards.splice(index, 1)
+          return { id: cardIdArg, deleted: true } as T
+        }
+        const productCode = String(args['p_product_code'] ?? '')
+        const batch = String(args['p_batch'] ?? '')
+        const eventType = String(args['p_event_type'] ?? '')
+        if (cardIdArg === null) {
+          const existing = state.adSpendCards.find((card) =>
+            card['advertiser_id'] === actor.advertiser_id &&
+            card['product_code'] === productCode &&
+            card['batch'] === batch &&
+            card['event_type'] === eventType)
+          if (existing !== undefined) {
+            return { action: 'existing', id: existing['id'], name: existing['name'], status: existing['status'] } as T
+          }
+          nextId += 1
+          const created = {
+            id: `00000000-0000-4000-8000-${String(nextId).padStart(12, '0')}`,
+            advertiser_id: actor.advertiser_id ?? null,
+            product_code: productCode,
+            batch,
+            event_type: eventType,
+            name: args['p_name'] ?? `Card ${batch}`,
+            status: 'berjalan',
+          }
+          state.adSpendCards.push(created)
+          return { action: 'created', ...created, spends: (args['p_spends'] as unknown[]).length } as T
+        }
+        const card = state.adSpendCards.find((item) => item['id'] === cardIdArg)
+        if (card === undefined) throw new DbError('DF017', 'fake')
+        if (args['p_name'] !== null && args['p_name'] !== undefined) card['name'] = args['p_name']
+        if (args['p_status'] !== null && args['p_status'] !== undefined) card['status'] = args['p_status']
+        return { action: 'updated', id: card['id'], name: card['name'], status: card['status'], spends: (args['p_spends'] as unknown[]).length } as T
       }
 
       if (name === 'delete_ots_registration') {
@@ -1566,6 +1612,8 @@ function rowsOf(state: FakeState, table: string): Array<Record<string, unknown>>
       return state.adCalendar
     case 'ad_spend_reports':
       return state.adSpendReports
+    case 'ad_spend_cards':
+      return state.adSpendCards
     case 'ai_settings':
       return state.aiSettings
     case 'ai_drafts':

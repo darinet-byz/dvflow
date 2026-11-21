@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { AD_SPEND_INPUT_PERMISSION } from '@dvflow/shared'
-import { ApiError } from '../../lib/api'
 import { presetRange } from '../../lib/date-range'
 import { activeCommonFilters, EMPTY_COMMON_FILTERS, toFilterArgs, type CommonFilters } from '../../lib/filters'
 import { formatCount, formatDate, formatMoney, formatText } from '../../lib/format'
@@ -25,25 +24,35 @@ import { AdvertiserFilter, BatchFilter, DateRangeFilters, EventTypeFilter, Produ
 import { useFilterState } from '../shared/useFilterState'
 
 /**
- * Report Spend Iklan (A37).
+ * Report Spend Iklan (A37/A87).
  *
- * Pengiklan melaporkan biaya iklan per batch untuk satu rentang tanggal. Leads/Paid/Omzet tidak
- * disimpan: RPC `ad_spend_report` menghitungnya live dari order dengan produk + kode pengiklan +
- * batch yang sama, bertanggal order (WIB) di dalam rentang report. Tidak ada order = 0, bukan error.
- *
- * Input hanya untuk akun Advertiser (pengiklannya sendiri); role lain hanya melihat.
+ * Satu card = satu pengiklan + produk + batch + jenis acara. Card berisi banyak baris
+ * budget; tiap baris punya tanggal, spend, dan PPN sendiri. Leads/Paid/Omzet/Tiket TIDAK
+ * disimpan: RPC `ad_spend_report` menghitungnya live dari order dengan produk + pengiklan +
+ * batch + jenis acara yang sama. Order dihitung sekali per card, bukan sekali per baris.
  */
-type SpendRow = {
+export type SpendLine = {
   id: string
   date_from: string
   date_to: string
+  spend: number | string
+  tax_percent: number | string
+  tax_amount: number | string
+}
+
+export type SpendCard = {
+  id: string
+  name: string
+  status: 'berjalan' | 'selesai'
+  date_from: string | null
+  date_to: string | null
   product_code: string
   product_name: string
   advertiser_code: string
   advertiser_name: string
   batch: string
   event_type: string | null
-  /** Spend sebelum PPN. */
+  /** Spend sebelum PPN, jumlah semua baris. */
   spend: number | string
   tax_percent: number | string
   tax_amount: number | string
@@ -51,10 +60,11 @@ type SpendRow = {
   total_spend: number | string
   leads: number
   paid: number
-  /** Tiket Paid report ini = sum(quantity), metrik yang sama dengan tabel sesi (A45). */
   tickets: number
   omzet: number | string
   own: boolean
+  can_edit: boolean
+  spends: SpendLine[]
 }
 
 type SpendReport = {
@@ -67,7 +77,8 @@ type SpendReport = {
     paid: number
     omzet: number | string
   }
-  rows: SpendRow[]
+  cards: SpendCard[]
+  rows: SpendCard[]
   sessions: SessionMatrix
   comparison?: SpendComparison
 }
@@ -87,7 +98,7 @@ type SessionMatrix = {
   rows: SessionMatrixRow[]
 }
 
-/** A46: roll-up per produk + batch + pengiklan, dari report dan order yang sama dengan summary. */
+/** A46: roll-up per produk + batch + jenis acara + pengiklan. */
 export type ComparisonRow = {
   product_code: string
   product_name: string
@@ -125,25 +136,37 @@ const EVENT_TYPE_OPTIONS = [
   { value: 'Hybrid', label: 'Hybrid' },
 ] as const
 
-type FormState = {
+type SpendDraft = {
+  /** ID stabil untuk React; tidak dikirim ke server. */
+  key: string
+  /** ID baris di database; null untuk baris baru. */
   id: string | null
-  productCode: string
-  batch: string
-  eventType: string
   dateFrom: string
   dateTo: string
   spend: string
   taxPercent: string
 }
 
+type CardFormState = {
+  id: string | null
+  name: string
+  productCode: string
+  batch: string
+  eventType: string
+  status: 'berjalan' | 'selesai'
+  spends: SpendDraft[]
+  canEdit: boolean
+}
+
 const COLUMNS: readonly TableColumn[] = [
-  { key: 'date', header: 'Tanggal', minWidth: 150 },
+  { key: 'name', header: 'Nama Card', minWidth: 190 },
+  { key: 'date', header: 'Data Terlapor', minWidth: 170 },
   { key: 'product', header: 'Produk', minWidth: 160 },
   { key: 'advertiser', header: 'Pengiklan', minWidth: 130 },
   { key: 'batch', header: 'Batch', minWidth: 80 },
   { key: 'event_type', header: 'Jenis', minWidth: 130 },
   { key: 'spend', header: 'Spend', align: 'right', minWidth: 130 },
-  { key: 'tax', header: 'PPN', align: 'right', minWidth: 120 },
+  { key: 'tax', header: 'PPN', align: 'right', minWidth: 130 },
   { key: 'total_spend', header: 'Total Spend', align: 'right', minWidth: 140 },
   { key: 'leads', header: 'Leads', align: 'right', minWidth: 80 },
   { key: 'paid', header: 'Paid', align: 'right', minWidth: 80 },
@@ -152,7 +175,7 @@ const COLUMNS: readonly TableColumn[] = [
   { key: 'profit', header: 'Profit / Boncos', align: 'right', minWidth: 140 },
   { key: 'roi', header: '%', align: 'right', minWidth: 80 },
 ]
-const ACTION_COLUMN: TableColumn = { key: 'actions', header: 'Aksi', minWidth: 130 }
+const ACTION_COLUMN: TableColumn = { key: 'actions', header: 'Aksi', minWidth: 150 }
 
 const COMPARISON_COLUMNS: readonly TableColumn[] = [
   { key: 'advertiser', header: 'Pengiklan', minWidth: 160 },
@@ -222,7 +245,7 @@ export function parseTaxPercent(value: string): number | null {
   return parsed <= 100 ? parsed : null
 }
 
-/** PPN iklan per report, sama dengan pembulatan di RPC `ad_spend_report`. */
+/** PPN iklan per baris budget, sama dengan pembulatan di RPC `ad_spend_report`. */
 export function spendTax(spend: number, taxPercent: number): number {
   return Math.round(spend * taxPercent) / 100
 }
@@ -231,7 +254,8 @@ function formatPercent(value: number | string): string {
   return `${Number(value).toLocaleString('id-ID', { maximumFractionDigits: 2 })}%`
 }
 
-function describeDates(from: string, to: string): string {
+function describeDates(from: string | null, to: string | null): string {
+  if (from === null || to === null || from === '' || to === '') return '-'
   return from === to ? formatDate(from) : `${formatDate(from)} – ${formatDate(to)}`
 }
 
@@ -246,19 +270,83 @@ function profitClass(value: number): string {
   return tone === '' ? '' : `font-semibold ${tone}`
 }
 
-/** PPN tiap akun iklan biasanya tetap, jadi form baru memakai PPN report terakhir pengiklan ini. */
-function emptyForm(lastTaxPercent: string): FormState {
-  const range = yesterday()
-  return { id: null, productCode: '', batch: '', eventType: '', dateFrom: range.from, dateTo: range.to, spend: '', taxPercent: lastTaxPercent }
+let draftCounter = 0
+function draftKey(): string {
+  draftCounter += 1
+  return `spend-draft-${draftCounter}`
+}
+
+function newDraft(from?: string, to?: string): SpendDraft {
+  const range = from !== undefined && to !== undefined ? { from, to } : yesterday()
+  return { key: draftKey(), id: null, dateFrom: range.from, dateTo: range.to, spend: '', taxPercent: '' }
+}
+
+function draftFromLine(line: SpendLine): SpendDraft {
+  return {
+    key: draftKey(),
+    id: line.id,
+    dateFrom: line.date_from,
+    dateTo: line.date_to,
+    spend: String(Number(line.spend)),
+    taxPercent: String(Number(line.tax_percent)),
+  }
+}
+
+function draftTax(draft: SpendDraft): { spend: number; taxPercent: number; tax: number; total: number } | null {
+  const spend = parseSpendInput(draft.spend)
+  const taxPercent = parseTaxPercent(draft.taxPercent)
+  if (spend === null || taxPercent === null) return null
+  const tax = spendTax(spend, taxPercent)
+  return { spend, taxPercent, tax, total: spend + tax }
+}
+
+function formTotals(spends: SpendDraft[]): { spend: number; tax: number; total: number } {
+  return spends.reduce(
+    (total, draft) => {
+      const line = draftTax(draft)
+      if (line === null) return total
+      return { spend: total.spend + line.spend, tax: total.tax + line.tax, total: total.total + line.total }
+    },
+    { spend: 0, tax: 0, total: 0 },
+  )
+}
+
+function cardDateLabel(card: SpendCard): string {
+  return describeDates(card.date_from, card.date_to)
+}
+
+function cardLineCount(card: SpendCard): number {
+  return card.spends.length
+}
+
+function cardTaxLabel(card: SpendCard): string {
+  if (card.spends.length === 1) return formatPercent(card.spends[0]?.tax_percent ?? 0)
+  return `${card.spends.length} budget`
+}
+
+function formFromCard(card: SpendCard): CardFormState {
+  return {
+    id: card.id,
+    name: card.name,
+    productCode: card.product_code,
+    batch: card.batch,
+    eventType: card.event_type ?? '',
+    status: card.status,
+    spends: card.spends.length > 0
+      ? card.spends.map(draftFromLine)
+      // Template dari order: baris pertama mengikuti rentang order card, bukan tanggal acak.
+      : [card.date_from !== null && card.date_to !== null ? newDraft(card.date_from, card.date_to) : newDraft()],
+    canEdit: card.can_edit,
+  }
 }
 
 export function ReportSpendPage() {
   const session = useSession()
   const profile = session.profile
   const toast = useToast()
-  // A44: akun Advertiser melihat semua pengiklan di produknya; pengiklan akun hanya menentukan input/edit.
   const ownAdvertiser = profile?.advertiser_code ?? null
-  const canInput = ownAdvertiser !== null && !!profile?.permissions?.includes(AD_SPEND_INPUT_PERMISSION)
+  const permissions = profile?.permissions ?? []
+  const canInput = ownAdvertiser !== null && permissions.includes(AD_SPEND_INPUT_PERMISSION)
 
   // Hanya dipakai sebagai nilai awal (useState); filter bertanggal tidak memicu default "Hari Ini".
   const initialRange = yesterday()
@@ -282,95 +370,179 @@ export function ReportSpendPage() {
     })
   }, [appliedKey, refresh])
 
-  const [form, setForm] = useState<FormState | null>(null)
   const [showMore, setShowMore] = useState(false)
+  const [form, setForm] = useState<CardFormState | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
-  const [overlap, setOverlap] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [deleting, setDeleting] = useState<SpendRow | null>(null)
+  const [deleting, setDeleting] = useState<SpendCard | null>(null)
   const [comparisonSort, setComparisonSort] = useState<ComparisonSort>('tickets')
 
-  function openForm(next: FormState): void {
-    setForm(next)
+  function openCreate(): void {
+    setForm({
+      id: null,
+      name: '',
+      productCode: state.applied.productCode,
+      batch: state.applied.batch.trim(),
+      eventType: state.applied.eventType,
+      status: 'berjalan',
+      spends: [newDraft()],
+      canEdit: true,
+    })
     setFormError(null)
-    setOverlap(false)
+  }
+
+  function openCard(card: SpendCard): void {
+    setForm(formFromCard(card))
+    setFormError(null)
   }
 
   function closeForm(): void {
     if (saving) return
     setForm(null)
-  }
-
-  function changeForm(patch: Partial<FormState>): void {
-    setForm((current) => (current === null ? current : { ...current, ...patch }))
-    // Data berubah: notif "sudah ada" sebelumnya tidak lagi berlaku untuk isian baru.
-    setOverlap(false)
     setFormError(null)
   }
 
-  async function submit(confirmOverlap: boolean): Promise<void> {
+  function changeForm(patch: Partial<CardFormState>): void {
+    setForm((current) => (current === null ? current : { ...current, ...patch }))
+    setFormError(null)
+  }
+
+  /** Setiap baris punya state sendiri; perubahan satu baris tidak menyentuh PPN baris lain. */
+  function changeSpend(key: string, patch: Partial<SpendDraft>): void {
+    setForm((current) => current === null
+      ? current
+      : { ...current, spends: current.spends.map((draft) => (draft.key === key ? { ...draft, ...patch } : draft)) })
+    setFormError(null)
+  }
+
+  function addSpend(): void {
+    setForm((current) => {
+      if (current === null) return current
+      const last = current.spends[current.spends.length - 1]
+      // Tanggal boleh diwarisi untuk kenyamanan, tetapi PPN dan budget selalu kosong:
+      // tidak ada satu nilai PPN yang diam-diam dipakai ulang untuk baris baru.
+      const draft = last === undefined
+        ? newDraft()
+        : newDraft(last.dateFrom, last.dateTo)
+      return { ...current, spends: [...current.spends, draft] }
+    })
+    setFormError(null)
+  }
+
+  function removeSpend(key: string): void {
+    setForm((current) => current === null ? current : { ...current, spends: current.spends.filter((draft) => draft.key !== key) })
+    setFormError(null)
+  }
+
+  async function submit(nextStatus?: 'berjalan' | 'selesai'): Promise<void> {
     if (form === null || saving) return
-    const spend = parseSpendInput(form.spend)
-    if (form.productCode === '') { setFormError('Pilih produk terlebih dahulu.'); return }
-    if (form.batch.trim() === '') { setFormError('Batch wajib diisi.'); return }
-    if (form.eventType === '') { setFormError('Pilih jenis acara: Seminar Offline, Webinar Online, atau Hybrid.'); return }
-    if (form.dateFrom === '' || form.dateTo === '') { setFormError('Pilih rentang tanggal.'); return }
-    if (spend === null) { setFormError('Biaya iklan wajib diisi.'); return }
-    const taxPercent = parseTaxPercent(form.taxPercent)
-    if (taxPercent === null) { setFormError('PPN iklan wajib diisi dalam persen 0–100 (isi 0 bila tanpa PPN).'); return }
+    if (!form.canEdit && form.id !== null) return
+    if (form.spends.length === 0) {
+      setFormError('Isi minimal satu baris budget.')
+      return
+    }
+    if (form.id === null) {
+      if (form.productCode === '') { setFormError('Pilih produk terlebih dahulu.'); return }
+      if (form.batch.trim() === '') { setFormError('Batch wajib diisi.'); return }
+      if (form.eventType === '') { setFormError('Pilih jenis acara: Seminar Offline, Webinar Online, atau Hybrid.'); return }
+    }
+
+    let spends: Array<{ id: string | null; date_from: string; date_to: string; spend: number; tax_percent: number }>
+    try {
+      spends = form.spends.map((draft, index) => {
+        const line = draftTax(draft)
+        const label = `Baris budget ${index + 1}`
+        if (draft.dateFrom === '' || draft.dateTo === '') throw new Error(`${label}: pilih tanggal.`)
+        if (draft.dateTo < draft.dateFrom) throw new Error(`${label}: tanggal akhir tidak boleh sebelum tanggal awal.`)
+        if (line === null) throw new Error(`${label}: budget dan PPN wajib diisi dengan benar.`)
+        return {
+          id: draft.id,
+          date_from: draft.dateFrom,
+          date_to: draft.dateTo,
+          spend: line.spend,
+          tax_percent: line.taxPercent,
+        }
+      })
+    } catch (failure) {
+      setFormError(failure instanceof Error ? failure.message : 'Isian baris budget tidak valid.')
+      return
+    }
 
     setSaving(true)
     setFormError(null)
     try {
-      await authorizedRequest(form.id === null ? '/api/ad-spend-reports' : `/api/ad-spend-reports/${encodeURIComponent(form.id)}`, {
-        method: form.id === null ? 'POST' : 'PATCH',
-        body: {
-          product_code: form.productCode,
-          batch: form.batch.trim(),
-          event_type: form.eventType,
-          date_from: form.dateFrom,
-          date_to: form.dateTo,
-          spend,
-          tax_percent: taxPercent,
-          confirm_overlap: confirmOverlap,
-        },
-      })
-      toast.show(form.id === null ? 'Biaya iklan tersimpan.' : 'Report spend diperbarui.', 'success')
+      const status = nextStatus ?? form.status
+      if (form.id === null) {
+        const result = await authorizedRequest<{ action: string; id: string }>('/api/ad-spend-cards', {
+          method: 'POST',
+          body: {
+            name: form.name.trim(),
+            product_code: form.productCode,
+            batch: form.batch.trim(),
+            event_type: form.eventType,
+            spends,
+          },
+        })
+        if (result.action === 'existing') {
+          toast.show('Card untuk batch ini sudah ada. Buka card tersebut untuk menambah budget.', 'success')
+        } else {
+          toast.show('Card Report dibuat.', 'success')
+        }
+      } else {
+        await authorizedRequest(`/api/ad-spend-cards/${encodeURIComponent(form.id)}`, {
+          method: 'PATCH',
+          body: { name: form.name.trim(), status, spends },
+        })
+        toast.show(status === 'selesai' ? 'Card ditandai Selesai.' : status === 'berjalan' ? 'Card dibuka lagi.' : 'Card Report diperbarui.', 'success')
+      }
       setForm(null)
       setRefresh((value) => value + 1)
     } catch (failure) {
-      if (failure instanceof ApiError && failure.code === 'AD_SPEND_OVERLAP') {
-        setOverlap(true)
-      } else {
-        setFormError(failure instanceof Error ? failure.message : 'Biaya iklan gagal disimpan.')
-      }
+      if (failure instanceof Error) setFormError(failure.message)
+      else setFormError('Card Report gagal disimpan.')
     } finally {
       setSaving(false)
     }
   }
 
-  /** "Cek Report": tampilkan report yang sudah ada untuk produk + batch + rentang yang sama. */
-  function showExisting(): void {
-    if (form === null) return
-    state.clearAll()
-    state.update('dateFrom', form.dateFrom)
-    state.update('dateTo', form.dateTo)
-    state.update('productCode', form.productCode)
-    state.update('batch', form.batch.trim())
-    state.update('eventType', form.eventType)
-    setForm(null)
+  async function finishCard(card: SpendCard): Promise<void> {
+    if (saving || !card.can_edit) return
+    const spends = card.spends.map((line) => ({
+      id: line.id,
+      date_from: line.date_from,
+      date_to: line.date_to,
+      spend: Number(line.spend),
+      tax_percent: Number(line.tax_percent),
+    }))
+    if (spends.length === 0) {
+      toast.show('Isi minimal satu baris budget sebelum menandai Selesai.', 'danger')
+      return
+    }
+    setSaving(true)
+    try {
+      await authorizedRequest(`/api/ad-spend-cards/${encodeURIComponent(card.id)}`, {
+        method: 'PATCH',
+        body: { name: card.name, status: 'selesai', spends },
+      })
+      toast.show('Card ditandai Selesai.', 'success')
+      setRefresh((value) => value + 1)
+    } catch (failure) {
+      toast.show(failure instanceof Error ? failure.message : 'Gagal menandai Selesai.', 'danger')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function confirmDelete(): Promise<void> {
     if (deleting === null || saving) return
     setSaving(true)
     try {
-      await authorizedRequest(`/api/ad-spend-reports/${encodeURIComponent(deleting.id)}`, { method: 'DELETE' })
-      toast.show('Report spend dihapus.', 'success')
+      await authorizedRequest(`/api/ad-spend-cards/${encodeURIComponent(deleting.id)}`, { method: 'DELETE' })
+      toast.show('Card Report dihapus.', 'success')
       setDeleting(null)
       setRefresh((value) => value + 1)
     } catch (failure) {
-      toast.show(failure instanceof Error ? failure.message : 'Gagal menghapus report spend.', 'danger')
+      toast.show(failure instanceof Error ? failure.message : 'Gagal menghapus Card Report.', 'danger')
     } finally {
       setSaving(false)
     }
@@ -385,23 +557,20 @@ export function ReportSpendPage() {
 
   const controls = { filters: state.filters, lists, update: state.update }
   const chips = activeCommonFilters(state.filters)
+  const cards = data?.cards ?? []
   const rows = data?.rows ?? []
-  const columns = canInput ? [...COLUMNS, ACTION_COLUMN] : COLUMNS
+  const columns = [...COLUMNS, ACTION_COLUMN]
   const summary = data?.summary
   const matrix = data?.sessions
   const comparison = data?.comparison
-  // Perbandingan hanya bermakna untuk satu produk + batch; filter lain tetap boleh aktif.
   const showComparison = state.applied.productCode !== '' && state.applied.batch.trim() !== ''
   const comparisonProduct = (lists?.products ?? []).find((item) => item.value === state.applied.productCode)?.label ?? state.applied.productCode
   const totalProfit = summary ? spendProfit(summary.omzet, summary.total_spend) : 0
-  // Jumlah Tiket = metrik A25; sama dengan baris Total tabel sesi, bukan jumlah Order ID seperti `paid`.
   const totalTickets = matrix?.tickets ?? summary?.paid ?? 0
   const productOptions = (lists?.products ?? []).map((item) => ({ value: item.value, label: item.label }))
-  const formSpend = form === null ? null : parseSpendInput(form.spend)
-  const formTaxPercent = form === null ? null : parseTaxPercent(form.taxPercent)
-  // Baris sudah terurut terbaru dulu; report milik sendiri pertama = PPN terakhir yang dipakai.
-  const lastOwn = rows.find((row) => row.own)
-  const lastTaxPercent = lastOwn === undefined ? '' : String(Number(lastOwn.tax_percent))
+  const editingCard = form?.id === null || form?.id === undefined
+    ? null
+    : [...cards, ...rows].find((card) => card.id === form.id) ?? null
 
   // Tautan "Input Report Spend" dari panel Advertiser Notes membawa `new=1`.
   useEffect(() => {
@@ -410,16 +579,7 @@ export function ReportSpendPage() {
       const params = new URLSearchParams(window.location.search)
       if (params.get('new') !== '1') return
       if (state.applied.productCode === '' || state.applied.batch.trim() === '') return
-      openForm({
-        id: null,
-        productCode: state.applied.productCode,
-        batch: state.applied.batch.trim(),
-        eventType: state.applied.eventType,
-        dateFrom: state.applied.dateFrom,
-        dateTo: state.applied.dateTo,
-        spend: '',
-        taxPercent: lastTaxPercent,
-      })
+      openCreate()
       const url = new URL(window.location.href)
       url.searchParams.delete('new')
       window.history.replaceState({}, '', url)
@@ -428,14 +588,14 @@ export function ReportSpendPage() {
     window.addEventListener('dvflow:filter-from-url', openFromQuery)
     return () => window.removeEventListener('dvflow:filter-from-url', openFromQuery)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [canInput, state.applied.productCode, state.applied.batch, state.applied.eventType, state.applied.dateFrom, state.applied.dateTo, lastTaxPercent])
+  }, [canInput, state.applied.productCode, state.applied.batch, state.applied.eventType])
 
   return (
     <>
       <PageHeader
         title="Report Spend Iklan"
-        description="Biaya iklan dan tiket dari OrderOnline. OTS tidak termasuk di laporan ini."
-        action={canInput ? <Button variant="primary" onClick={() => openForm(emptyForm(lastTaxPercent))}>+ Input Biaya Iklan</Button> : undefined}
+        description="Biaya iklan per batch dan tiket dari OrderOnline. OTS tidak termasuk di laporan ini."
+        action={canInput ? <Button variant="primary" onClick={openCreate}>+ Buat Card Report</Button> : undefined}
       />
 
       <div className="filter-bar flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-card p-3.5">
@@ -480,7 +640,6 @@ export function ReportSpendPage() {
 
       {summary === undefined ? null : (
         <div className="mt-4">
-          {/* Fokus utama: Spend dan Profit/Boncos besar di atas, angka pendukung di bawah. */}
           <div className="grid gap-3 md:grid-cols-2">
             <KpiCard
               size="lg"
@@ -510,6 +669,74 @@ export function ReportSpendPage() {
           </div>
         </div>
       )}
+
+      <div className="mt-4">
+        <div className="mb-2 flex min-w-0 flex-wrap items-end justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="text-[14px] font-semibold text-ink">Report Berjalan</h2>
+            <p className="mt-0.5 text-[12px] text-ink-soft">Card aktif. Klik card untuk menambah atau mengubah baris budget.</p>
+          </div>
+        </div>
+        {cards.length === 0 ? (
+          <Card>
+            <p className="py-4 text-center text-ink-soft">
+              {canInput ? 'Belum ada Card Report berjalan. Buat card untuk mulai mencatat budget.' : 'Belum ada Card Report berjalan.'}
+            </p>
+          </Card>
+        ) : (
+          <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {cards.map((card) => {
+              const profit = spendProfit(card.omzet, card.total_spend)
+              return (
+                <Card key={card.id} className="flex min-w-0 flex-col gap-3">
+                  <button type="button" onClick={() => openCard(card)} className="min-w-0 text-left">
+                    <div className="flex min-w-0 items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="break-words text-[14px] font-semibold text-ink">{card.name}</h3>
+                        <p className="mt-0.5 break-words text-[12px] text-ink-soft">
+                          {card.product_name} · Batch {card.batch}{card.event_type === null ? '' : ` · ${card.event_type}`}
+                        </p>
+                      </div>
+                      <Badge tone="warning">Berjalan</Badge>
+                    </div>
+                    <p className="mt-2 text-[12px] text-ink-soft">
+                      Data terlapor {cardDateLabel(card)} · {cardLineCount(card)} baris budget
+                    </p>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-[12px]">
+                      <div className="rounded-md bg-soft px-2.5 py-2">
+                        <p className="text-ink-soft">Total Spend</p>
+                        <p className="font-semibold text-ink">{formatMoney(card.total_spend)}</p>
+                      </div>
+                      <div className="rounded-md bg-soft px-2.5 py-2">
+                        <p className="text-ink-soft">{profit < 0 ? 'Boncos' : 'Profit'}</p>
+                        <p className={`font-semibold ${profitTone(profit) || 'text-ink'}`}>{formatMoney(profit)}</p>
+                      </div>
+                      <div className="rounded-md bg-soft px-2.5 py-2">
+                        <p className="text-ink-soft">Leads / Paid</p>
+                        <p className="font-semibold text-ink">{formatCount(card.leads)} / {formatCount(card.paid)}</p>
+                      </div>
+                      <div className="rounded-md bg-soft px-2.5 py-2">
+                        <p className="text-ink-soft">Omzet</p>
+                        <p className="font-semibold text-ink">{formatMoney(card.omzet)}</p>
+                      </div>
+                    </div>
+                  </button>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Button size="sm" variant="secondary" onClick={() => openCard(card)}>
+                      {card.can_edit ? 'Tambah Budget' : 'Detail'}
+                    </Button>
+                    {card.can_edit ? (
+                      <Button size="sm" variant="ghost" loading={saving} onClick={() => void finishCard(card)}>
+                        Selesai
+                      </Button>
+                    ) : null}
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        )}
+      </div>
 
       {matrix === undefined ? null : (
         <div className="mt-4">
@@ -578,17 +805,20 @@ export function ReportSpendPage() {
                 const profit = spendProfit(row.omzet, row.total_spend)
                 return (
                   <TableRow key={row.id}>
-                    <TableCell>{describeDates(row.date_from, row.date_to)}</TableCell>
+                    <TableCell>
+                      <span className="font-medium text-ink">{row.name}</span>
+                    </TableCell>
+                    <TableCell>{cardDateLabel(row)}</TableCell>
                     <TableCell>{row.product_name}</TableCell>
                     <TableCell>{row.advertiser_name}</TableCell>
                     <TableCell>{row.batch}</TableCell>
                     <TableCell>
-                      {row.event_type == null || row.event_type === '' ? '-' : <Badge tone={eventTypeTone(row.event_type)}>{row.event_type}</Badge>}
+                      {row.event_type === null ? '-' : <Badge tone={eventTypeTone(row.event_type)}>{row.event_type}</Badge>}
                     </TableCell>
                     <TableCell align="right">{formatMoney(row.spend)}</TableCell>
                     <TableCell align="right">
                       {formatMoney(row.tax_amount)}
-                      <span className="block text-[11px] text-ink-soft">{formatPercent(row.tax_percent)}</span>
+                      <span className="block text-[11px] text-ink-soft">{cardTaxLabel(row)}</span>
                     </TableCell>
                     <TableCell align="right">{formatMoney(row.total_spend)}</TableCell>
                     <TableCell align="right">{formatCount(row.leads)}</TableCell>
@@ -601,33 +831,16 @@ export function ReportSpendPage() {
                     <TableCell align="right">
                       <span className={profitClass(profit)}>{formatSpendRoi(row.omzet, row.total_spend)}</span>
                     </TableCell>
-                    {canInput ? (
-                      <TableCell>
-                        {row.own ? (
-                          <div className="flex gap-1.5">
-                            <Button
-                              size="sm"
-                              variant="secondary"
-                              onClick={() => openForm({
-                                id: row.id,
-                                productCode: row.product_code,
-                                batch: row.batch,
-                                eventType: row.event_type ?? '',
-                                dateFrom: row.date_from,
-                                dateTo: row.date_to,
-                                spend: String(Number(row.spend)),
-                                taxPercent: String(Number(row.tax_percent)),
-                              })}
-                            >
-                              Edit
-                            </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setDeleting(row)}>
-                              Hapus
-                            </Button>
-                          </div>
+                    <TableCell>
+                      <div className="flex flex-wrap gap-1.5">
+                        <Button size="sm" variant="secondary" onClick={() => openCard(row)}>
+                          {row.can_edit ? 'Detail / Edit' : 'Detail'}
+                        </Button>
+                        {row.can_edit ? (
+                          <Button size="sm" variant="ghost" onClick={() => setDeleting(row)}>Hapus</Button>
                         ) : null}
-                      </TableCell>
-                    ) : null}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 )
               })}
@@ -635,7 +848,7 @@ export function ReportSpendPage() {
 
             {!loading && data !== null && rows.length === 0 ? (
               <p className="border-t border-line px-3 py-8 text-center text-ink-soft">
-                Belum ada report spend pada rentang tanggal ini.
+                Belum ada Card Report Selesai pada rentang tanggal ini.
               </p>
             ) : null}
           </Card>
@@ -644,95 +857,206 @@ export function ReportSpendPage() {
 
       <Modal
         open={form !== null}
-        title={form?.id ? 'Edit Biaya Iklan' : 'Input Biaya Iklan'}
+        title={form?.id === null ? 'Buat Card Report' : 'Card Report'}
         onClose={closeForm}
-        footer={overlap ? undefined : (
-          <>
-            <Button variant="secondary" onClick={closeForm} disabled={saving}>Batal</Button>
-            <Button variant="primary" onClick={() => void submit(false)} loading={saving}>Simpan</Button>
-          </>
+        size="lg"
+        footer={form === null ? undefined : form.canEdit ? (
+          <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {form.id !== null ? (
+                <Button
+                  variant="danger"
+                  size="sm"
+                  disabled={saving}
+                  onClick={() => {
+                    if (editingCard !== null) {
+                      setDeleting(editingCard)
+                      setForm(null)
+                    }
+                  }}
+                >
+                  Hapus
+                </Button>
+              ) : null}
+              {form.id !== null ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={saving}
+                  onClick={() => void submit(form.status === 'selesai' ? 'berjalan' : 'selesai')}
+                >
+                  {form.status === 'selesai' ? 'Buka Lagi' : 'Tandai Selesai'}
+                </Button>
+              ) : null}
+            </div>
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={closeForm} disabled={saving}>Batal</Button>
+              <Button variant="primary" onClick={() => void submit()} loading={saving}>Simpan</Button>
+            </div>
+          </div>
+        ) : (
+          <Button variant="secondary" onClick={closeForm}>Tutup</Button>
         )}
       >
         {form === null ? null : (
           <div className="flex flex-col gap-3">
-            <Combobox
-              id="spend-product"
-              label="Produk"
-              value={form.productCode}
-              options={productOptions}
-              placeholder="Cari produk…"
-              onChange={(value) => changeForm({ productCode: value })}
-            />
-            <TextInput
-              id="spend-batch"
-              label="Batch"
-              value={form.batch}
-              placeholder="mis. 122"
-              maxLength={32}
-              onChange={(value) => changeForm({ batch: value })}
-            />
-            <Select
-              id="spend-event-type"
-              label="Jenis Acara"
-              value={form.eventType}
-              placeholder="Pilih Seminar / Webinar"
-              options={EVENT_TYPE_OPTIONS}
-              onChange={(value) => changeForm({ eventType: value })}
-            />
-            <div>
-              <p className="mb-1 block text-[12px] font-semibold text-ink-soft">Tanggal</p>
-              <DateRangeField
-                className="w-full"
-                from={form.dateFrom}
-                to={form.dateTo}
-                onChange={(range) => changeForm({ dateFrom: range.from, dateTo: range.to })}
-              />
-            </div>
-            <TextInput
-              id="spend-amount"
-              label="Biaya Iklan (Rp)"
-              value={form.spend}
-              inputMode="numeric"
-              placeholder="mis. 6000000"
-              onChange={(value) => changeForm({ spend: value })}
-            />
-            {formSpend === null ? null : <p className="-mt-2 text-[12px] text-ink-soft">{formatMoney(formSpend)} (sebelum PPN)</p>}
-            <TextInput
-              id="spend-tax"
-              label="PPN Iklan (%)"
-              value={form.taxPercent}
-              inputMode="numeric"
-              placeholder="mis. 11 (isi 0 bila tanpa PPN)"
-              maxLength={6}
-              onChange={(value) => changeForm({ taxPercent: value })}
-            />
-            {formSpend === null || formTaxPercent === null ? null : (
-              <p className="-mt-2 text-[12px] text-ink-soft">
-                Pajak {formatMoney(spendTax(formSpend, formTaxPercent))} · Total {formatMoney(formSpend + spendTax(formSpend, formTaxPercent))}
-              </p>
+            {form.id === null ? (
+              <>
+                <TextInput
+                  id="card-name"
+                  label="Nama Card"
+                  value={form.name}
+                  placeholder="otomatis dari produk · batch · jenis acara"
+                  maxLength={120}
+                  onChange={(value) => changeForm({ name: value })}
+                />
+                <Combobox
+                  id="card-product"
+                  label="Produk"
+                  value={form.productCode}
+                  options={productOptions}
+                  placeholder="Cari produk…"
+                  onChange={(value) => changeForm({ productCode: value })}
+                />
+                <TextInput
+                  id="card-batch"
+                  label="Batch"
+                  value={form.batch}
+                  placeholder="mis. 122"
+                  maxLength={32}
+                  onChange={(value) => changeForm({ batch: value })}
+                />
+                <Select
+                  id="card-event-type"
+                  label="Jenis Acara"
+                  value={form.eventType}
+                  placeholder="Pilih Seminar / Webinar / Hybrid"
+                  options={EVENT_TYPE_OPTIONS}
+                  onChange={(value) => changeForm({ eventType: value })}
+                />
+              </>
+            ) : (
+              <div className="rounded-md border border-line bg-soft px-3 py-2.5">
+                <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-semibold text-ink">{form.name}</p>
+                    <p className="mt-0.5 break-words text-[12px] text-ink-soft">
+                      {form.productCode} · Batch {form.batch}{form.eventType === '' ? '' : ` · ${form.eventType}`}
+                    </p>
+                  </div>
+                  <Badge tone={form.status === 'selesai' ? 'success' : 'warning'}>
+                    {form.status === 'selesai' ? 'Selesai' : 'Berjalan'}
+                  </Badge>
+                </div>
+                {form.canEdit ? (
+                  <div className="mt-2">
+                    <TextInput
+                      id="card-name-edit"
+                      label="Nama Card"
+                      value={form.name}
+                      maxLength={120}
+                      onChange={(value) => changeForm({ name: value })}
+                    />
+                  </div>
+                ) : null}
+              </div>
             )}
 
-            {formError === null ? null : <p className="text-[12px] text-danger">{formError}</p>}
-
-            {overlap ? (
-              <div className="rounded-md border border-warning/40 bg-warning-soft p-3" role="alert">
-                <p className="font-semibold text-ink">Tanggal, produk, batch, dan jenis acara sudah ada.</p>
-                <p className="mt-0.5 text-[12px] text-ink-soft">
-                  Sudah ada report untuk produk, batch, dan jenis acara ini pada tanggal yang sama atau bertumpuk.
-                </p>
-                <div className="mt-3 flex flex-wrap justify-end gap-2">
-                  <Button variant="secondary" onClick={showExisting} disabled={saving}>Cek Report</Button>
-                  <Button onClick={() => void submit(true)} loading={saving}>Tambahkan Data Ini</Button>
-                </div>
+            <div className="flex min-w-0 items-end justify-between gap-2">
+              <div>
+                <h3 className="text-[13px] font-semibold text-ink">Biaya Iklan</h3>
+                <p className="text-[12px] text-ink-soft">Tiap baris punya budget dan PPN sendiri.</p>
               </div>
-            ) : null}
+              {form.canEdit ? (
+                <Button size="sm" variant="secondary" onClick={addSpend} disabled={form.spends.length >= 20}>
+                  + Tambah Budget
+                </Button>
+              ) : null}
+            </div>
+
+            <div className="flex flex-col gap-2.5">
+              {form.spends.map((draft, index) => {
+                const line = draftTax(draft)
+                return (
+                  <div key={draft.key} className="rounded-md border border-line p-3">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                      <p className="text-[12px] font-semibold text-ink">Budget {index + 1}</p>
+                      {form.canEdit && form.spends.length > 1 ? (
+                        <button
+                          type="button"
+                          onClick={() => removeSpend(draft.key)}
+                          className="text-[12px] font-semibold text-danger hover:underline"
+                        >
+                          Hapus baris
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-col gap-2.5">
+                      <DateRangeField
+                        id={`card-spend-date-${draft.key}`}
+                        ariaLabel={`Tanggal budget ${index + 1}`}
+                        from={draft.dateFrom}
+                        to={draft.dateTo}
+                        disabled={!form.canEdit}
+                        onChange={(range) => changeSpend(draft.key, { dateFrom: range.from, dateTo: range.to })}
+                      />
+                      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                        <TextInput
+                          id={`card-spend-amount-${draft.key}`}
+                          label="Budget (Rp)"
+                          value={draft.spend}
+                          inputMode="numeric"
+                          placeholder="mis. 6000000"
+                          disabled={!form.canEdit}
+                          onChange={(value) => changeSpend(draft.key, { spend: value })}
+                        />
+                        <TextInput
+                          id={`card-spend-tax-${draft.key}`}
+                          label="PPN (%)"
+                          value={draft.taxPercent}
+                          inputMode="numeric"
+                          placeholder="mis. 11"
+                          maxLength={6}
+                          disabled={!form.canEdit}
+                          onChange={(value) => changeSpend(draft.key, { taxPercent: value })}
+                        />
+                      </div>
+                      {line === null ? (
+                        <p className="text-[12px] text-ink-soft">Isi budget dan PPN untuk melihat pajak baris ini.</p>
+                      ) : (
+                        <p className="text-[12px] text-ink-soft">
+                          PPN {formatMoney(line.tax)} · Total {formatMoney(line.total)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+
+            {(() => {
+              const totals = formTotals(form.spends)
+              return (
+                <div className="rounded-md bg-primary-soft px-3 py-2.5 text-[13px]">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold text-primary">Total {form.spends.length} baris</span>
+                    <span className="font-semibold text-primary">{formatMoney(totals.total)}</span>
+                  </div>
+                  <p className="mt-0.5 text-[12px] text-ink-soft">
+                    Spend {formatMoney(totals.spend)} + PPN {formatMoney(totals.tax)}
+                  </p>
+                </div>
+              )
+            })()}
+
+            {formError === null ? null : <p className="text-[12px] text-danger">{formError}</p>}
           </div>
         )}
       </Modal>
 
       <Modal
         open={deleting !== null}
-        title="Hapus Report Spend"
+        title="Hapus Card Report"
         onClose={() => (saving ? undefined : setDeleting(null))}
         footer={(
           <>
@@ -743,8 +1067,8 @@ export function ReportSpendPage() {
       >
         {deleting === null ? null : (
           <p>
-            Hapus report {deleting.product_name} batch {deleting.batch} ({describeDates(deleting.date_from, deleting.date_to)}),
-            spend {formatMoney(deleting.spend)}?
+            Hapus card <strong>{deleting.name}</strong> ({deleting.product_name}, batch {deleting.batch},
+            {' '}{cardDateLabel(deleting)}) beserta {cardLineCount(deleting)} baris budget?
           </p>
         )}
       </Modal>
@@ -877,4 +1201,3 @@ export function AdvertiserComparison({
     </Card>
   )
 }
-

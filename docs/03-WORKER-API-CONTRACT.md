@@ -270,10 +270,48 @@ No hard delete endpoint.
 - `DELETE ?permanent=true` untuk sesi juga hanya `developer`, dan tetap ditolak `MASTER_IN_USE` bila order/alias memakai kode tersebut.
 - Menyunting nama sesi tetap boleh untuk pemegang `config.produk`.
 
-## 12a. Report Spend Iklan (A37)
-Tulis saja; laporan dibaca browser lewat RPC `ad_spend_report(p_date_from, p_date_to, p_product_code, p_advertiser_code, p_batch, p_event_type)`.
-Sejak A63, `event_type` (Seminar Offline/Webinar Online/Hybrid) disimpan per report dan wajib dipilih saat input; laporan memisahkan batch yang sama untuk online dan offline.
-Hasil RPC: `summary`, `rows` (per report, termasuk `event_type` dan `tickets` = sum quantity order Paid - A45), `sessions` (A43: tiket Paid per sesi x pengiklan dari order yang sama), dan `comparison` (A46: roll-up per produk + batch + jenis acara + pengiklan dengan `totals` dan `rows[]`; angka order memakai himpunan distinct yang sama dengan `summary`).
+## 12a. Card Report Spend Iklan (A37/A87)
+Halaman membaca lewat RPC `ad_spend_report(p_date_from, p_date_to, p_product_code, p_advertiser_code, p_batch, p_event_type)`.
+Hasil RPC: `summary` (semua card yang beririsan filter), `cards[]` (status `berjalan`), `rows[]` (status `selesai`),
+`sessions` (A43), dan `comparison` (A46). Setiap card membawa `spends[]` (baris budget: `date_from`, `date_to`,
+`spend`, `tax_percent`, `tax_amount`), plus `own` dan `can_edit`.
+
+Sejak A87, satu card = pengiklan + produk + batch + jenis acara. Budget boleh banyak baris; tiap baris punya PPN
+sendiri. Leads/Paid/Tiket/Omzet dihitung sekali per card (`distinct order_id`), bukan sekali per baris budget.
+
+### Buat/ubah/hapus card
+- `POST /api/ad-spend-cards` → 201 (200 `action: "existing"` bila card scope itu sudah ada)
+- `PATCH /api/ad-spend-cards/:id` → 200
+- `DELETE /api/ad-spend-cards/:id` → 200 (hard delete card + semua baris)
+
+Body POST:
+```json
+{
+  "name": "Produk A · Batch 122 · Seminar Offline",
+  "product_code": "KULI",
+  "batch": "122",
+  "event_type": "Seminar Offline",
+  "spends": [
+    { "date_from": "2026-10-21", "date_to": "2026-10-21", "spend": 6000000, "tax_percent": 11 },
+    { "date_from": "2026-10-21", "date_to": "2026-10-21", "spend": 4000000, "tax_percent": 0 }
+  ]
+}
+```
+Body PATCH: `{ "name", "status": "berjalan"|"selesai", "spends": [...] }`. Baris lama boleh membawa `id`; baris
+baru memakai `id: null`. Scope produk/batch/jenis acara terkunci setelah card dibuat.
+
+Izin: buat card hanya `action.input_spend` + akun advertiser (pengiklan dari akun, bukan body). Edit/hapus:
+advertiser pemilik atau role dengan `action.manage_spend` (manajer/owner/developer), dalam scope produk yang diakses.
+
+Error: `AD_SPEND_NOT_FOUND` 404, `FORBIDDEN` 403, `INVALID_ARGUMENT` 400.
+
+### Jalur lama (tetap ada)
+- `POST /api/ad-spend-reports` → 201
+- `PATCH /api/ad-spend-reports/:id` → 200 (hanya report pengiklan sendiri)
+- `DELETE /api/ad-spend-reports/:id` → 200 (hard delete baris; card kosong ikut dihapus)
+
+Body lama: `{ "product_code", "batch", "event_type", "date_from", "date_to", "spend", "tax_percent", "confirm_overlap" }`.
+Baris tanpa `card_id` otomatis dimasukkan ke card scope-nya. `AD_SPEND_OVERLAP` 409 masih berlaku untuk jalur lama.
 
 ### Status Produk & Pengiklan (A52)
 - `product_status_list()` → array produk `{id,code,name,status,active,advertisers[]}`.
@@ -282,24 +320,6 @@ Hasil RPC: `summary`, `rows` (per report, termasuk `event_type` dan `tickets` = 
 - `set_product_advertisers(p_product_id, p_advertiser_ids[])` dan `set_advertiser_products(p_advertiser_id, p_product_ids[])`.
 - Semua RPC memakai izin `operasional.product_status` / `operasional.advertiser_status`; mapping hanya label (tabel `product_advertisers`).
 - `set_advertiser_status('Resign')` menonaktifkan user terkait + sesi; status aktif kembali mengaktifkan user terkait.
-Semua rute butuh izin `action.input_spend` DAN akun yang memegang pengiklan (role advertiser).
-Pengiklan selalu diambil dari akun, tidak pernah dari body.
-`spend` = biaya iklan SEBELUM PPN; `tax_percent` = PPN iklan dalam persen (0–100, wajib; 0 bila tanpa PPN).
-
-- `POST /api/ad-spend-reports` → 201
-- `PATCH /api/ad-spend-reports/:id` → 200 (hanya report pengiklan sendiri)
-- `DELETE /api/ad-spend-reports/:id` → 200 (hard delete, hanya report pengiklan sendiri)
-
-Body POST/PATCH:
-```json
-{ "product_code": "KULI", "batch": "122", "date_from": "2026-10-21", "date_to": "2026-10-21", "spend": 6000000, "tax_percent": 11, "confirm_overlap": false }
-```
-
-Error:
-- `AD_SPEND_OVERLAP` 409 "Tanggal, produk, dan batch sudah ada." — rentang beririsan dengan report produk + batch +
-  pengiklan yang sama. Kirim ulang dengan `confirm_overlap: true` untuk tetap menyimpan.
-- `AD_SPEND_NOT_FOUND` 404 — id tidak ada atau milik pengiklan lain.
-- `FORBIDDEN` 403, `INVALID_ARGUMENT` 400.
 
 ## 12b. Hapus Order Unmapped (A40)
 `POST /api/orders/unmapped/delete` → 200. Butuh izin `operasional.order_unmapped` + `action.delete_master` + akses

@@ -250,33 +250,37 @@ Jangan menambah key lain tanpa requirement.
 Retention 7 hari.
 Jangan simpan credential/secret header.
 
-## 12a. ad_spend_reports (A37, 0048)
-Laporan biaya iklan pengiklan per batch untuk satu rentang tanggal. Leads/Paid/Tiket/Omzet TIDAK disimpan;
-dihitung live oleh RPC `ad_spend_report` dari `orders`.
-PPN = round(spend × tax_percent / 100, 2); Total Spend = spend + PPN (juga dihitung di RPC, tidak disimpan).
-`rows` per report memuat `leads`, `paid` (jumlah Order ID Paid), `tickets` (`sum(quantity)` order Paid, A45), dan `omzet` live.
-- id UUID PK
-- advertiser_id UUID NOT NULL FK advertisers(id) ON DELETE RESTRICT  -- selalu pengiklan akun penginput
-- product_id UUID NOT NULL FK products(id) ON DELETE RESTRICT
-- batch TEXT NOT NULL CHECK (batch = normalize_batch(batch), tidak kosong)  -- A33
-- event_type TEXT NULL CHECK (event_type in ('Seminar Offline','Webinar Online','Hybrid'))  -- A63
-- date_from DATE NOT NULL
-- date_to DATE NOT NULL CHECK (date_to >= date_from)
-- spend NUMERIC(14,2) NOT NULL CHECK (spend >= 0)  -- SEBELUM PPN
-- tax_percent NUMERIC(5,2) NOT NULL DEFAULT 0 CHECK (0..100)  -- PPN iklan per akun iklan, 11 = 11%
-- created_by / updated_by UUID NULL FK users(id) ON DELETE SET NULL
-- created_at / updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+## 12a. ad_spend_cards + ad_spend_reports (A37/A87, 0048/0085)
+Sejak A87, satu **Card Report** = satu `ad_spend_cards` (pengiklan + produk + batch + jenis acara). Card berisi
+banyak baris budget di `ad_spend_reports`; tiap baris punya tanggal, spend, dan PPN sendiri. Leads/Paid/Tiket/Omzet
+TIDAK disimpan: dihitung live oleh RPC `ad_spend_report` dari `orders`, sekali per card.
 
-Tidak ada unique constraint: rentang bertumpuk untuk produk + batch + jenis acara + pengiklan yang sama ditolak oleh
-`save_ad_spend_report` kecuali pengiklan mengonfirmasi ("Tambahkan Data Ini"). Sejak A63, `event_type` memisahkan
-batch yang sama antara Seminar dan Webinar; report lama tanpa jenis acara dianggap bertumpuk dengan jenis apa pun.
-RLS: baca dengan izin `operasional.report_spend` + scope produk (A44). Flag `own` menandai report milik akun
-Advertiser untuk edit/hapus. Tulis hanya lewat Worker (service_role). Hard delete hanya oleh pengiklan pemilik.
+**`ad_spend_cards`**
+- id UUID PK; advertiser_id/product_id FK RESTRICT; batch TEXT NOT NULL (A33); event_type TEXT NULL (A63)
+- name TEXT NOT NULL (1–120); status TEXT (`berjalan`/`selesai`); finished_at TIMESTAMPTZ
+- date_from/date_to DATE NULL: rentang tampilan; untuk card tanpa baris budget (template dari order) dipakai
+  sebagai rentang pencocokan order
+- created_by / updated_by / created_at / updated_at
+- UNIQUE (advertiser_id, product_id, batch, event_type) `NULLS NOT DISTINCT`
+- RLS: baca dengan `operasional.report_spend` + scope produk (A44); tulis hanya lewat Worker (service_role)
+- Izin `action.manage_spend` (manajer/owner/developer) untuk mengubah card semua pengiklan di produk yang diakses
+
+**`ad_spend_reports` (baris budget, struktur lama dipertahankan)**
+- id UUID PK; `card_id` UUID FK ad_spend_cards(id) ON DELETE CASCADE
+- advertiser_id/product_id/batch/event_type/date_from/date_to/spend/tax_percent (sama seperti A37/A63)
+- PPN = round(spend × tax_percent / 100, 2) per baris; Total Spend card = jumlah spend + jumlah PPN baris
+- Trigger `ad_spend_reports_set_card` mengisi `card_id` untuk jalur lama/tes yang menulis baris tanpa card
+- Card yang barisnya habis dihapus lewat `delete_ad_spend_report`; hard delete card lewat `delete_ad_spend_card`
+
+**Migrasi 0085.** Tiap kombinasi pengiklan + produk + batch + jenis acara dari report lama dibungkus jadi satu card
+(nilai report tidak diubah). Untuk tiap produk + jenis acara, dua batch dengan aktivitas terbaru (report atau order)
+berstatus `berjalan`; sisanya `selesai`. Batch yang punya order tetapi belum punya report mendapat card template
+`berjalan` dengan rentang tanggal order, tanpa baris budget palsu (agar Kalender Iklan tidak menganggapnya sudah lapor).
 
 **A46 — `comparison`.** `ad_spend_report` juga mengembalikan `comparison: { totals, rows[] }`: roll-up per
 (produk, batch, jenis acara, pengiklan) berisi `spend`, `tax_amount`, `total_spend`, `leads`, `paid`, `tickets`, `omzet`.
-Angka order memakai himpunan `distinct order_id` yang sama dengan `summary`; report bertumpuk tetap dijumlahkan.
-Tidak ada tabel/kolom baru.
+Angka order memakai himpunan `distinct order_id` yang sama dengan `summary`; baris budget bertumpuk tetap dijumlahkan
+tetapi order dihitung sekali per card.
 
 ### 12b. RPC dashboard_session_summary (A59, 0064)
 Data per Sesi di Dashboard (dipindahkan dari Resume Batch): tiket Paid (`sum(quantity)`, order `app_status = Paid`,

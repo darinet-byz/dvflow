@@ -91,17 +91,28 @@ set local request.jwt.claims = '{"sub":"f8000000-0000-0000-0000-0000000000a1","a
 select is((select count(*) from public.ad_spend_reports)::int, 4, 'advertiser: tabel memuat report pengiklan lain di produk yang sama (A44)');
 -- Angka per pengiklan diuji lewat filter pengiklan 91; tanpa filter, report pengiklan 92 ikut (A44).
 create temp table r on commit drop as select public.ad_spend_report('2026-10-20','2026-10-22',p_advertiser_code => '91') as v;
-select is((select jsonb_array_length(v->'rows') from r), 3, 'filter pengiklan 91: 3 report');
+select is((select jsonb_array_length(v->'rows') from r), 2, 'filter pengiklan 91: 2 card (batch 122 dan 999)');
 -- Report 20–21 Okt batch 122: sp-1 (Paid, 00:30 WIB 20 Okt), sp-2 (Pending), sp-3 (Paid), sp-4 (Cancelled).
 -- sp-5 (pengiklan 92), sp-6 (batch 123), sp-7 (23:30 WIB 19 Okt) tidak ikut.
-select is((select x from r, jsonb_array_elements(v->'rows') x where x->>'date_from' = '2026-10-20' and x->>'batch' = '122')
-  - 'id' - 'product_name' - 'advertiser_name' - 'date_from' - 'date_to' - 'product_code' - 'advertiser_code' - 'event_type',
-  '{"batch":"122","spend":6000000.00,"tax_percent":11.00,"tax_amount":660000.00,"total_spend":6660000.00,"leads":3,"paid":2,"tickets":3,"omzet":450000.00,"own":true}'::jsonb,
-  'leads = semua order, paid = jumlah Order ID Paid, tickets = sum quantity Paid (A45), omzet = gross Paid, batas hari WIB');
+-- Dua report batch 122 (6jt + 1jt) sekarang satu card: spend dijumlah, order tetap sekali.
+select is((select (x->>'spend')::numeric from r, jsonb_array_elements(v->'rows') x where x->>'batch' = '122'),
+  7000000.00::numeric, 'spend card = jumlah semua baris budget');
+select is((select (x->>'tax_amount')::numeric from r, jsonb_array_elements(v->'rows') x where x->>'batch' = '122'),
+  770000.00::numeric, 'PPN card = jumlah PPN tiap baris');
+select is((select jsonb_array_length(x->'spends') from r, jsonb_array_elements(v->'rows') x where x->>'batch' = '122'),
+  2, 'dua baris budget tersimpan di satu card');
+select is((select (x->>'leads')::int from r, jsonb_array_elements(v->'rows') x where x->>'batch' = '122'),
+  3, 'leads = semua order, dihitung sekali walau dua baris budget');
+select is((select (x->>'paid')::int from r, jsonb_array_elements(v->'rows') x where x->>'batch' = '122'),
+  2, 'paid = jumlah Order ID Paid, dihitung sekali');
+select is((select (x->>'tickets')::int from r, jsonb_array_elements(v->'rows') x where x->>'batch' = '122'),
+  3, 'tickets = sum quantity Paid (A45)');
+select is((select (x->>'omzet')::numeric from r, jsonb_array_elements(v->'rows') x where x->>'batch' = '122'),
+  450000.00::numeric, 'omzet = gross Paid, batas hari WIB');
 select is((select x->>'leads' from r, jsonb_array_elements(v->'rows') x where x->>'batch' = '999'), '0', 'tanpa order: leads 0, bukan error');
 select is((select x->>'omzet' from r, jsonb_array_elements(v->'rows') x where x->>'batch' = '999'), '0.00', 'tanpa order: omzet 0');
--- Total: spend 6jt + 1jt + 500rb, PPN 660rb + 110rb + 0 (11%, 11%, 0%); order sp-3/sp-4 tercakup dua report tetapi dihitung sekali.
-select is((select v->'summary' from r), '{"reports":3,"spend":7500000.00,"tax_amount":770000.00,"total_spend":8270000.00,"leads":3,"paid":2,"omzet":450000.00}'::jsonb,
+-- Total: spend 6jt + 1jt + 500rb, PPN 660rb + 110rb + 0 (11%, 11%, 0%); order sp-3/sp-4 tercakup dua baris tetapi dihitung sekali.
+select is((select v->'summary' from r), '{"reports":2,"spend":7500000.00,"tax_amount":770000.00,"total_spend":8270000.00,"leads":3,"paid":2,"omzet":450000.00}'::jsonb,
   'total: spend dijumlah, order tidak dihitung dua kali');
 -- A43: hanya order Paid (sp-2 Pending, sp-4 Cancelled tidak dihitung); sp-3 tercakup dua report dihitung sekali.
 select is((select v->'sessions' from r),
@@ -111,7 +122,7 @@ select is((select v->'sessions' from r),
   'sesi × pengiklan: tiket Paid = sum quantity, urut kota lalu sesi');
 -- A44: produk dikontrol bersama — report + order pengiklan 92 di produk AAAA ikut terlihat, tetapi bukan "milik sendiri".
 select is((public.ad_spend_report('2026-10-20','2026-10-22')->'summary'),
-  '{"reports":4,"spend":9500000.00,"tax_amount":970000.00,"total_spend":10470000.00,"leads":4,"paid":3,"omzet":1449000.00}'::jsonb,
+  '{"reports":3,"spend":9500000.00,"tax_amount":970000.00,"total_spend":10470000.00,"leads":4,"paid":3,"omzet":1449000.00}'::jsonb,
   'advertiser: total semua pengiklan di produknya');
 select is((select bool_or((x->>'own')::boolean) from jsonb_array_elements(public.ad_spend_report('2026-10-20','2026-10-22',p_advertiser_code => '92')->'rows') x),
   false, 'advertiser: report pengiklan lain terlihat tetapi tidak bisa diedit');
@@ -120,13 +131,13 @@ select is((public.ad_spend_report('2026-10-20','2026-10-22')->'sessions'->'adver
   'advertiser: kolom tiket per sesi memuat semua pengiklan di produknya');
 select is((public.ad_spend_report('2026-10-23','2026-10-30')->'summary'->>'reports')::int, 0, 'rentang tidak beririsan tidak tampil');
 select is((public.ad_spend_report('2026-10-22','2026-10-22')->'summary'->>'reports')::int, 1, 'report beririsan dengan filter tampil');
-select is((public.ad_spend_report(p_batch => '0122')->'summary'->>'reports')::int, 3, 'filter batch 0122 = 122');
-select is((public.ad_spend_report(p_event_type => 'Seminar Offline')->'summary'->>'reports')::int, 4, 'filter jenis Seminar Offline');
+select is((public.ad_spend_report(p_batch => '0122')->'summary'->>'reports')::int, 2, 'filter batch 0122 = 122');
+select is((public.ad_spend_report(p_event_type => 'Seminar Offline')->'summary'->>'reports')::int, 3, 'filter jenis Seminar Offline');
 select is((public.ad_spend_report(p_event_type => 'Webinar Online')->'summary'->>'reports')::int, 0, 'filter jenis Webinar Online tidak mencampur Seminar');
 
 -- Role lihat saja (semua produk): semua pengiklan.
 set local request.jwt.claims = '{"sub":"f8000000-0000-0000-0000-0000000000c1","app_role":"spend_viewer"}';
-select is((public.ad_spend_report('2026-10-20','2026-10-22')->'summary'->>'reports')::int, 4, 'viewer: semua pengiklan');
+select is((public.ad_spend_report('2026-10-20','2026-10-22')->'summary'->>'reports')::int, 3, 'viewer: semua pengiklan');
 select is((select bool_or((x->>'own')::boolean) from jsonb_array_elements(public.ad_spend_report('2026-10-20','2026-10-22')->'rows') x), false,
   'viewer: tidak ada report "milik sendiri"');
 select is((select jsonb_agg(x->'advertisers' order by x->>'session')

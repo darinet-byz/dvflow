@@ -2177,3 +2177,27 @@ Laporan pengguna: setiap `/add` menerima preview, tetapi balasan `YA`/`YA 2` di 
 
 - API: `packages/api/src/http/response.ts` (`readScalarString`), `packages/api/src/ai/parser.ts` (`formatDateIdWithDay`), `packages/api/src/ai/handlers.ts` (kunci dedupe, pelepasan klaim, format pesan).
 - Tes: `packages/api/test/ai-citta.test.ts` - `inboxid` numerik, `timestamp` numerik, jendela dedupe tanpa id pesan, dan pesan chat berisi nama hari + label Workshop.
+
+## A87 - Card Report Iklan: banyak budget per batch + koreksi hitung dobel (21 November 2026)
+
+Permintaan pengguna: input report spend saat ini memaksa memilih produk, batch, dan pajak setiap kali. Pengguna ingin membuat **Card Report** dulu (semacam template), lalu cukup menambah budget; card tetap berjalan sampai ditandai **Selesai**, baru masuk tabel resume. Kasus nyata: satu pengiklan memakai dua akun iklan dengan PPN berbeda; report diinput dua kali, sehingga leads/paid di tabel terlihat dihitung dua kali. Solusinya, satu report/card harus bisa memuat banyak baris budget, masing-masing dengan PPN sendiri.
+
+### Keputusan
+
+- **Satu card = pengiklan + produk + batch + jenis acara.** Card punya nama, status `berjalan`/`selesai`, dan `finished_at`. Nama default dari produk + batch + jenis acara, tetap bisa diedit.
+- **Baris budget tetap di `ad_spend_reports`.** Tabel lama tidak diganti agar Performa, Kalender Iklan, WA Bot, dan status tetap membaca data yang sama. Kolom baru `card_id` menghubungkan baris ke card.
+- **PPN per baris.** Tidak ada satu PPN global. PPN card = jumlah PPN tiap baris; spend card = jumlah spend tiap baris. UI memakai state baris yang stabil agar pajak tidak tertukar saat baris lain diubah/ditambah/dihapus.
+- **Order dihitung sekali per card.** RPC `ad_spend_report` mengelompokkan baris per card, mencocokkan order per rentang baris, lalu `distinct order_id`. Dua baris budget yang menutupi order yang sama tidak menggandakan leads/paid/omzet/tiket.
+- **Status Selesai bukan lock.** Advertiser pemilik, owner, manajer, dan developer tetap bisa edit. Izin baru `action.manage_spend`; advertiser tetap memakai `action.input_spend`. Buat card baru tetap hanya advertiser (pengiklan dari akun).
+- **Card Berjalan di grid atas, card Selesai di tabel resume.** KPI menghitung keduanya. Card Selesai bisa "Buka Lagi".
+- **Migrasi data lama tidak mengubah nilai report.** Tiap kombinasi pengiklan + produk + batch + jenis acara dibungkus menjadi satu card; report lama menjadi baris budget di dalamnya.
+- **Dua batch terakhir per produk + jenis acara.** Offline, Online, dan Hybrid dihitung terpisah. Urutan memakai aktivitas terbaru dari report atau order. Dua batch teratas berstatus `berjalan`; sisanya `selesai`.
+- **Batch dari order tanpa report** mendapat card template `berjalan` dengan rentang tanggal order di card, tanpa baris budget 0. Ini mencegah Kalender Iklan menganggap batch sudah dilaporkan.
+- **Manajer otomatis** mendapat `operasional.report_spend` + `action.manage_spend`; owner/developer sudah otomatis penuh lewat aturan full-access.
+
+### Implementasi
+
+- Migrasi `20261121120000_ad_spend_cards.sql` (`schema_version` 85): tabel `ad_spend_cards`, `card_id` + index di `ad_spend_reports`, trigger `ad_spend_reports_set_card`, backfill card/2 batch terakhir, izin `action.manage_spend`, RPC `save_ad_spend_card`/`delete_ad_spend_card`, dan `ad_spend_report` baru (`summary`, `cards`, `rows`, `sessions`, `comparison`; `spends[]` per card).
+- API: `packages/api/src/ad-spend/handlers.ts` + route `POST/PATCH/DELETE /api/ad-spend-cards`; validasi 1–20 baris, tanggal, spend, PPN, dan id baris.
+- Web: `apps/web/src/pages/report-spend/ReportSpendPage.tsx` — grid card Berjalan, modal card multi-budget, tabel resume Selesai; `Modal` menerima ukuran `lg`; `DateRangeField` menerima `id` unik untuk beberapa baris.
+- Tes: pgTAP `supabase/tests/48_ad_spend_cards.sql`, update `24_ad_spend_reports.sql` (satu baris per card) dan `44_ad_calendar.sql` (rentang cek upcoming yang tidak bergantung akhir bulan); API `packages/api/test/ad-spend.test.ts`; web `apps/web/test/report-spend-card.test.tsx`.

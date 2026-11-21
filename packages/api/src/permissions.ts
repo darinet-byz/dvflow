@@ -15,6 +15,19 @@ export async function requirePermission(context: RouteContext, permission: strin
   return actor
 }
 
+/** Salah satu izin cukup (mis. input_spend milik advertiser atau manage_spend milik manajer). */
+export async function requireAnyPermission(context: RouteContext, permissions: string[]): Promise<UserRow> {
+  const actor = await requireActiveUser(context)
+  if (isMasterAdminRole(actor.role)) return actor
+  if (permissions.some((permission) => permission === 'config.roles')) throw new ApiFailure('FORBIDDEN')
+  const rows = await context.db.selectRows<{ permission_key: string }>(
+    'app_role_permissions', { role_id: `eq.${actor.role}` }, 'permission_key',
+  )
+  const granted = new Set(rows.map((row) => row.permission_key))
+  if (!permissions.some((permission) => granted.has(permission))) throw new ApiFailure('FORBIDDEN')
+  return actor
+}
+
 /** Several permissions at once (e.g. module + action.delete_master) with one user lookup. */
 export async function requirePermissions(context: RouteContext, permissions: string[]): Promise<UserRow> {
   const actor = await requireActiveUser(context)

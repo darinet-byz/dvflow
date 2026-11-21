@@ -108,8 +108,12 @@ select is((select (x->>'discipline_on_time')::int from adc_perf, jsonb_array_ele
   where x->>'advertiser_code' = '91'), 1, 'satu batch tepat waktu');
 select is((select (x->>'discipline_late')::int from adc_perf, jsonb_array_elements(v->'advertisers') x
   where x->>'advertiser_code' = '91'), 1, 'satu batch terlambat');
-select is((select (x->>'discipline_upcoming')::int from adc_perf, jsonb_array_elements(v->'advertisers') x
-  where x->>'advertiser_code' = '91'), 1, 'satu batch belum jatuh tempo');
+-- Deadline "upcoming" bisa jatuh di bulan berikutnya saat tes dijalankan dekat akhir bulan;
+-- cek nilainya dengan rentang yang sengaja mencakup 30 hari ke depan.
+create temp table adc_upcoming on commit drop as
+  select public.advertiser_performance('91',null,null,date_trunc('month', current_date)::date,(current_date + 30)::date,'month') as v;
+select is((select (v->'summary'->>'discipline_upcoming')::int from adc_upcoming), 1,
+  'satu batch belum jatuh tempo');
 
 -- Detail pengiklan juga membawa ringkasan kedisiplinan.
 create temp table adc_detail on commit drop as

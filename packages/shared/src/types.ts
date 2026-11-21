@@ -41,6 +41,8 @@ export const FIELD_APP_ROLES: readonly string[] = ['pimpro', 'member']
 export const AD_SPEND_VIEW_PERMISSION = 'operasional.report_spend'
 export const AD_SPEND_INPUT_PERMISSION = 'action.input_spend'
 export const AD_SPEND_INPUT_ROLES: readonly string[] = ['advertiser']
+/** A87: owner/manajer/developer boleh mengubah card milik semua pengiklan di produk yang diakses. */
+export const AD_SPEND_MANAGE_PERMISSION = 'action.manage_spend'
 
 /**
  * A46: "Performa / Analitik" — halaman track record pengiklan. Izin terpisah supaya bisa
@@ -112,6 +114,7 @@ export type AppPermissionKey =
   | 'action.manual_checkin'
   | 'action.ots'
   | 'action.input_spend'
+  | 'action.manage_spend'
   | 'ui.field_app'
   | 'action.delete_master'
 

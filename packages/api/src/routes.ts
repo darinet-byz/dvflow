@@ -18,7 +18,14 @@ import { scannerManualCheckin, scannerSearch } from './scanner/handlers'
 import { deleteOts, listOts, listOtsEvents, otsDuplicates, otsFinanceReport, saveOts } from './ots/handlers'
 import { cancelRefund, refundOrder, rescheduleOrder } from './orders/handlers'
 import { getFollowUpContext, getFollowUpSummaries, getFollowUpTemplates, markFollowUp, saveFollowUpTemplates } from './follow-up/handlers'
-import { createAdSpend, deleteAdSpend, updateAdSpend } from './ad-spend/handlers'
+import {
+  createAdSpend,
+  createAdSpendCard,
+  deleteAdSpend,
+  deleteAdSpendCard,
+  updateAdSpend,
+  updateAdSpendCard,
+} from './ad-spend/handlers'
 import { listChatMessages, listChatRecipients, listChatThreads, sendChatMessage } from './chat/handlers'
 import { createEventCalendar, deleteEventCalendar, listEventCalendar, updateEventCalendar } from './event-calendar/handlers'
 import { createAdCalendar, deleteAdCalendar, listAdCalendar, updateAdCalendar } from './ad-calendar/handlers'
@@ -168,6 +175,10 @@ export const ROUTES: Route[] = [
   { method: 'POST', path: '/api/ad-spend-reports', handler: createAdSpend, auth: 'access' },
   { method: 'PATCH', path: '/api/ad-spend-reports/:id', handler: updateAdSpend, auth: 'access' },
   { method: 'DELETE', path: '/api/ad-spend-reports/:id', handler: deleteAdSpend, auth: 'access' },
+  // A87: Card Report Iklan — satu card berisi banyak baris budget dengan PPN masing-masing.
+  { method: 'POST', path: '/api/ad-spend-cards', handler: createAdSpendCard, auth: 'access' },
+  { method: 'PATCH', path: '/api/ad-spend-cards/:id', handler: updateAdSpendCard, auth: 'access' },
+  { method: 'DELETE', path: '/api/ad-spend-cards/:id', handler: deleteAdSpendCard, auth: 'access' },
 
   // Fitur 3.0: WA Admin Bot (seluruh data lewat backend; token tidak pernah dikirim).
   { method: 'GET', path: '/api/wa-bot', handler: waBotOverview, auth: 'access' },
