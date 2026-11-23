@@ -2,6 +2,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { authorizedRequest } from '../src/lib/session'
+import { supabaseRpc } from '../src/lib/supabase-rest'
 import { ReportSpendPage } from '../src/pages/report-spend/ReportSpendPage'
 
 /** A88: card template, laporan harian, tab Berjalan/Selesai, Aktifkan resume. */
@@ -44,7 +45,7 @@ const session = vi.hoisted(() => ({
 }))
 
 vi.mock('../src/lib/supabase-rest', () => ({
-  supabaseRpc: vi.fn(async () => fixture),
+  supabaseRpc: vi.fn(async (name: string) => (name === 'ad_spend_cards_list' ? fixture.cards : fixture)),
   supabaseSelect: vi.fn(async () => []),
 }))
 vi.mock('../src/lib/session', () => ({ authorizedRequest: vi.fn(async () => ({ action: 'updated' })) }))
@@ -70,6 +71,7 @@ vi.mock('../src/ui/Toast', () => ({ useToast: () => ({ show: vi.fn() }) }))
 afterEach(() => {
   cleanup()
   vi.mocked(authorizedRequest).mockClear()
+  vi.mocked(supabaseRpc).mockClear()
 })
 
 describe('Card Report A88', () => {
@@ -77,7 +79,7 @@ describe('Card Report A88', () => {
     render(<ReportSpendPage />)
     await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
     fireEvent.click(screen.getByRole('button', { name: 'Laporan Iklan' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Tambah Laporan' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Tambah Laporan' }))
 
     const budgets = screen.getAllByLabelText('Budget (Rp)') as HTMLInputElement[]
     const taxes = screen.getAllByLabelText('PPN (%)') as HTMLInputElement[]
@@ -145,20 +147,22 @@ describe('Card Report A88', () => {
     render(<ReportSpendPage />)
     await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
     fireEvent.click(screen.getByRole('button', { name: 'Laporan Iklan' }))
-    fireEvent.click(screen.getByRole('button', { name: 'Selesai' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Selesai' }))
     await waitFor(() => expect(authorizedRequest).toHaveBeenCalled())
     const [path] = vi.mocked(authorizedRequest).mock.calls.at(-1)!
     expect(path).toBe('/api/ad-spend-cards/card-1/finish')
   })
 
-  it('buat card hanya mengirim setting, tanpa budget', async () => {
+  it('buat card hanya mengirim setting, produk dari filter popup bukan filter halaman', async () => {
     render(<ReportSpendPage />)
     await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
-    fireEvent.change(screen.getByLabelText('Filter produk'), { target: { value: 'AAAA' } })
-    fireEvent.change(screen.getByLabelText('Filter batch'), { target: { value: '122' } })
+    fireEvent.change(screen.getByLabelText('Filter produk'), { target: { value: 'BBBB' } })
+    fireEvent.change(screen.getByLabelText('Filter batch'), { target: { value: '999' } })
     fireEvent.click(screen.getByRole('button', { name: 'Laporan Iklan' }))
+    fireEvent.change(screen.getByLabelText('Filter berdasarkan produk'), { target: { value: 'AAAA' } })
     fireEvent.click(screen.getByRole('button', { name: '+ Buat Kartu Baru' }))
     fireEvent.change(screen.getByLabelText('Nama Card'), { target: { value: 'Card Baru' } })
+    fireEvent.change(screen.getByLabelText('Batch'), { target: { value: '122' } })
     fireEvent.change(screen.getByLabelText('Jenis Acara'), { target: { value: 'Seminar Offline' } })
     fireEvent.click(screen.getByRole('button', { name: 'Simpan' }))
 
@@ -187,15 +191,18 @@ describe('Card Report A88', () => {
     expect(order(comparison, runningTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('tombol Laporan Iklan membuka popup kartu dengan filter produk', async () => {
+  it('tombol Laporan Iklan membuka popup dengan filter produk sendiri, lepas dari filter halaman', async () => {
     render(<ReportSpendPage />)
     await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
     expect(screen.queryByRole('button', { name: 'Tambah Laporan' })).toBeNull()
 
+    // Filter halaman tidak boleh membatasi daftar kartu di popup.
+    fireEvent.change(screen.getByLabelText('Filter produk'), { target: { value: 'BBBB' } })
     fireEvent.click(screen.getByRole('button', { name: 'Laporan Iklan' }))
     expect(screen.getByRole('button', { name: '+ Buat Kartu Baru' })).toBeTruthy()
     expect(screen.getByLabelText('Filter berdasarkan produk')).toBeTruthy()
-    expect(screen.getByRole('button', { name: 'Tambah Laporan' })).toBeTruthy()
+    expect(await screen.findByRole('button', { name: 'Tambah Laporan' })).toBeTruthy()
+    expect(vi.mocked(supabaseRpc)).toHaveBeenCalledWith('ad_spend_cards_list', {})
 
     fireEvent.change(screen.getByLabelText('Filter berdasarkan produk'), { target: { value: 'BBBB' } })
     expect(await screen.findByText('Tidak ada kartu laporan untuk produk ini.')).toBeTruthy()

@@ -286,6 +286,11 @@ A89: `cards[]` **privat per akun Advertiser** - akun Advertiser hanya menerima c
 `entries[]`, `resumes[]`, `summary`, `sessions`, dan `comparison` tetap memakai scope produk (A44), jadi laporan
 pengiklan lain di produk yang sama tetap terlihat bersama. Akun staff (tanpa `advertiser_id`) melihat semua card.
 
+A95: popup **Laporan Iklan** tidak memakai `cards[]` dari `ad_spend_report` karena hasil itu ikut terfilter filter
+halaman. Popup membaca RPC ringan `ad_spend_cards_list()` tanpa parameter: hanya card `berjalan` dalam scope produk
+aktor (A44) dengan privasi advertiser (A89), plus `own`/`can_edit` dengan bentuk JSON yang sama. Filter produk popup
+dilakukan di browser atas daftar itu.
+
 ### Card (setting saja)
 - `POST /api/ad-spend-cards` → 201 (200 `action: "existing"` bila card scope itu sudah ada)
 - `PATCH /api/ad-spend-cards/:id` → 200 (nama)

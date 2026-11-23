@@ -2343,3 +2343,20 @@ Permintaan pengguna: urutan bagian halaman **Report Spend Iklan** menjadi (1) Ca
 
 - Web `apps/web/src/pages/report-spend/ReportSpendPage.tsx`: state `reportListOpen` + `cardProductFilter`; bagian Card Report inline dihapus; blok Tiket Paid per Sesi di bawah KPI; blok Perbandingan Pengiklan di atas tabel; Modal `Laporan Iklan` berisi filter produk, tombol Buat Kartu Baru, dan kartu berjalan.
 - Tes: `apps/web/test/report-spend-card.test.tsx` diperbarui (semua aksi card lewat popup) dan menambah pemeriksaan urutan DOM KPI → Tiket Paid per Sesi → Perbandingan Pengiklan → tab Laporan Berjalan, serta tes popup + filter produk.
+
+## A95 - Popup Laporan Iklan memakai daftar kartu sendiri, lepas dari filter halaman (23 November 2026)
+
+Permintaan pengguna: filter produk di popup **Laporan Iklan** harus mengikuti filter produk milik popup itu sendiri, bukan filter produk halaman **Report Spend Iklan**.
+
+### Keputusan
+
+- **Daftar kartu popup dibaca dari RPC baru `ad_spend_cards_list()`** yang hanya memakai scope produk aktor (A44) dan privasi card advertiser (A89). RPC ini tidak menerima filter tanggal/produk/pengiklan/batch/jenis acara halaman.
+- **Filter produk popup bekerja di browser** atas daftar itu; halaman tetap memakai `ad_spend_report` seperti sebelumnya untuk KPI, Tiket per Sesi, Perbandingan Pengiklan, dan tabel.
+- **Form Buat Kartu Baru** mengambil produk dari filter popup (kosong bila "Semua produk") dan tidak lagi membawa batch/jenis acara dari filter halaman. Deep link `?new=1` tetap membawa konteks produk/batch/jenis acara dari URL halaman.
+- Bentuk JSON card sama dengan `cards[]` (`own`, `can_edit`) supaya komponen popup dipakai tanpa cabang.
+
+### Implementasi
+
+- Migrasi `20261123130000_ad_spend_cards_list.sql` (`schema_version` 94): fungsi `ad_spend_cards_list()` security definer, cek izin `operasional.report_spend`, filter `actor_can_product` + card milik advertiser sendiri, hanya status `berjalan`, grant execute `authenticated`.
+- Web `ReportSpendPage.tsx`: daftar kartu dimuat lewat `ad_spend_cards_list` saat popup dibuka (dan setelah refresh), dengan keadaan memuat/galat di popup; `openCreateCard()` menerima konteks opsional untuk deep link.
+- Tes: web `report-spend-card.test.tsx` (popup memanggil RPC sendiri walau filter halaman berbeda, form kartu memakai produk filter popup), pgTAP `49_ad_spend_cards_list.sql`.

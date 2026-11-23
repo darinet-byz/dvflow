@@ -431,12 +431,12 @@ export function ReportSpendPage() {
   const [activating, setActivating] = useState<SpendResume | null>(null)
   const [comparisonSort, setComparisonSort] = useState<ComparisonSort>('tickets')
 
-  function openCreateCard(): void {
+  function openCreateCard(seed?: { productCode: string; batch: string; eventType: string }): void {
     setCardForm({
       name: '',
-      productCode: cardProductFilter !== '' ? cardProductFilter : state.applied.productCode,
-      batch: state.applied.batch.trim(),
-      eventType: state.applied.eventType,
+      productCode: seed?.productCode ?? cardProductFilter,
+      batch: seed?.batch ?? '',
+      eventType: seed?.eventType ?? '',
     })
     setFormError(null)
   }
@@ -628,7 +628,12 @@ export function ReportSpendPage() {
 
   const controls = { filters: state.filters, lists, update: state.update }
   const chips = activeCommonFilters(state.filters)
-  const cards = data?.cards ?? []
+  // A95: popup Laporan Iklan memakai daftar card sendiri, tidak ikut filter halaman.
+  const cardList = useAsyncData<SpendCard[]>(
+    () => (reportListOpen ? supabaseRpc<SpendCard[]>('ad_spend_cards_list', {}) : Promise.resolve([])),
+    [reportListOpen, refresh],
+  )
+  const cards = cardList.data ?? []
   const entries = data?.entries ?? []
   const resumes = data?.resumes ?? []
   const summary = data?.summary
@@ -648,7 +653,11 @@ export function ReportSpendPage() {
       if (params.get('new') !== '1') return
       if (state.applied.productCode === '' || state.applied.batch.trim() === '') return
       setReportListOpen(true)
-      openCreateCard()
+      openCreateCard({
+        productCode: state.applied.productCode,
+        batch: state.applied.batch.trim(),
+        eventType: state.applied.eventType,
+      })
       const url = new URL(window.location.href)
       url.searchParams.delete('new')
       window.history.replaceState({}, '', url)
@@ -936,10 +945,14 @@ export function ReportSpendPage() {
                 onChange={setCardProductFilter}
               />
             </div>
-            {canInput ? <Button variant="primary" onClick={openCreateCard}>+ Buat Kartu Baru</Button> : null}
+            {canInput ? <Button variant="primary" onClick={() => openCreateCard()}>+ Buat Kartu Baru</Button> : null}
           </div>
 
-          {listedCards.length === 0 ? (
+          {cardList.error !== null ? (
+            <p className="rounded-md border border-danger/30 bg-danger-soft px-3 py-3 text-danger">{cardList.error}</p>
+          ) : cardList.loading && listedCards.length === 0 ? (
+            <p className="rounded-md border border-line px-3 py-6 text-center text-ink-soft">Memuat kartu laporan…</p>
+          ) : listedCards.length === 0 ? (
             <p className="rounded-md border border-line px-3 py-6 text-center text-ink-soft">
               {cards.length === 0
                 ? (canInput ? 'Belum ada kartu laporan. Buat kartu baru untuk mulai mencatat laporan.' : 'Belum ada kartu laporan aktif.')
