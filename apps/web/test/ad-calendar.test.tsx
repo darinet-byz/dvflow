@@ -149,6 +149,24 @@ describe('A80: Kalender Iklan', () => {
     })
   })
 
+  it('edit deadline bisa menandai beberapa pengiklan', async () => {
+    renderCalendar()
+    fireEvent.click(screen.getByRole('tab', { name: 'Kalender Iklan' }))
+    fireEvent.click((await screen.findByText(/Batch 392/)).closest('button') as HTMLElement)
+    fireEvent.click(await screen.findByRole('button', { name: 'Edit' }))
+
+    expect((screen.getByRole('checkbox', { name: /01/ }) as HTMLInputElement).checked).toBe(true)
+    fireEvent.click(screen.getByRole('checkbox', { name: /02/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Simpan' }))
+
+    await waitFor(() => {
+      expect(requestMock).toHaveBeenCalledWith(`/api/ad-calendar/${ROW_ID}`, expect.objectContaining({
+        method: 'PATCH',
+        body: expect.objectContaining({ event_id: EVENT_ID, advertiser_codes: ['01', '02'], batch: '392', deadline_date: '2026-11-10' }),
+      }))
+    })
+  })
+
   it('membuka detail deadline dari agenda', async () => {
     renderCalendar()
     fireEvent.click(screen.getByRole('tab', { name: 'Kalender Iklan' }))

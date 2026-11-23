@@ -38,6 +38,24 @@ function emptyForm(deadline: string): FormState {
   return { id: null, event_id: '', advertiserCodes: [], batch: '', deadline_date: deadline }
 }
 
+/** A93: satu deadline bisa dimiliki beberapa pengiklan; edit membawa seluruh anggotanya. */
+function deadlineAdvertiserCodes(
+  rows: AdCalendarRow[],
+  row: AdCalendarRow,
+  activeAdvertisers: Array<{ code: string }>,
+): string[] {
+  const active = new Set(activeAdvertisers.map((advertiser) => advertiser.code))
+  const codes = rows
+    .filter((item) =>
+      item.event_id === row.event_id
+      && item.product_code === row.product_code
+      && item.batch === row.batch
+      && item.deadline_date === row.deadline_date)
+    .map((item) => item.advertiser_code)
+    .filter((code): code is string => code !== null && active.has(code))
+  return [...new Set(codes)]
+}
+
 function displayDate(value: string): string {
   const [year, month, day] = value.split('-')
   return `${Number(day)} ${MONTH_NAMES[Number(month) - 1] ?? month} ${year}`
@@ -140,10 +158,6 @@ export function AdCalendarTab() {
     value: event.id,
     label: `${event.product_code} — ${event.category} · ${displayDate(event.event_date)} ${shortTime(event.start_time)}`,
   }))
-  const advertiserOptions = advertisers.map((advertiser) => ({
-    value: advertiser.code,
-    label: `${advertiser.code} — ${advertiser.name}`,
-  }))
   const today = toIsoDate(new Date())
 
   function shiftMonth(delta: number): void {
@@ -160,7 +174,7 @@ export function AdCalendarTab() {
     setForm({
       id: row.id,
       event_id: row.event_id ?? '',
-      advertiserCodes: row.advertiser_code === null ? [] : [row.advertiser_code],
+      advertiserCodes: deadlineAdvertiserCodes(rows, row, advertisers),
       batch: row.batch,
       deadline_date: row.deadline_date,
     })
@@ -206,12 +220,17 @@ export function AdCalendarTab() {
       } else {
         const payload: SaveAdCalendarInput = {
           event_id: form.event_id,
-          advertiser_code: form.advertiserCodes[0] ?? '',
+          advertiser_codes: form.advertiserCodes,
           batch: form.batch.trim(),
           deadline_date: form.deadline_date,
         }
         await updateAdCalendar(form.id, payload)
-        toast.show('Deadline iklan diperbarui.', 'success')
+        toast.show(
+          form.advertiserCodes.length > 1
+            ? `Deadline iklan diperbarui untuk ${form.advertiserCodes.length} pengiklan.`
+            : 'Deadline iklan diperbarui.',
+          'success',
+        )
       }
       setFormOpen(false)
       reload()
@@ -414,42 +433,32 @@ export function AdCalendarTab() {
             onChange={(value) => setForm((current) => ({ ...current, event_id: value }))}
             disabled={saving}
           />
-          {form.id === null ? (
-            <fieldset className="rounded-md border border-line p-3">
-              <legend className="px-1 text-[12px] font-semibold text-ink">Pengiklan</legend>
-              <p className="mb-2 text-[11px] text-ink-soft">
-                Boleh pilih lebih dari satu; tiap pengiklan mendapat deadline sendiri.
-              </p>
-              <div className="grid max-h-40 grid-cols-2 gap-2 overflow-y-auto p-1 sm:grid-cols-3">
-                {advertisers.map((advertiser) => {
-                  const checked = form.advertiserCodes.includes(advertiser.code)
-                  return (
-                    <label key={advertiser.code} className="flex cursor-pointer items-center gap-2 rounded p-1 text-[12px] hover:bg-soft">
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        disabled={saving}
-                        onChange={(event) => toggleAdvertiser(advertiser.code, event.target.checked)}
-                        className="h-3.5 w-3.5 rounded border-line text-primary focus:ring-primary"
-                      />
-                      <span className="truncate text-ink">{advertiser.code} — {advertiser.name}</span>
-                    </label>
-                  )
-                })}
-              </div>
-              {advertisers.length === 0 ? <p className="mt-1 text-[12px] text-ink-soft">Belum ada pengiklan aktif.</p> : null}
-            </fieldset>
-          ) : (
-            <Select
-              id="ad-calendar-advertiser"
-              label="Pengiklan"
-              value={form.advertiserCodes[0] ?? ''}
-              placeholder="Pilih pengiklan"
-              options={advertiserOptions}
-              onChange={(value) => setForm((current) => ({ ...current, advertiserCodes: value === '' ? [] : [value] }))}
-              disabled={saving}
-            />
-          )}
+          <fieldset className="rounded-md border border-line p-3">
+            <legend className="px-1 text-[12px] font-semibold text-ink">Pengiklan</legend>
+            <p className="mb-2 text-[11px] text-ink-soft">
+              {form.id === null
+                ? 'Boleh centang lebih dari satu; tiap pengiklan mendapat deadline sendiri.'
+                : 'Centang pengiklan yang ikut deadline ini. Pengiklan yang dicabut centangnya tidak lagi punya deadline untuk batch ini.'}
+            </p>
+            <div className="grid max-h-40 grid-cols-2 gap-2 overflow-y-auto p-1 sm:grid-cols-3">
+              {advertisers.map((advertiser) => {
+                const checked = form.advertiserCodes.includes(advertiser.code)
+                return (
+                  <label key={advertiser.code} className="flex cursor-pointer items-center gap-2 rounded p-1 text-[12px] hover:bg-soft">
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={saving}
+                      onChange={(event) => toggleAdvertiser(advertiser.code, event.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-line text-primary focus:ring-primary"
+                    />
+                    <span className="truncate text-ink">{advertiser.code} — {advertiser.name}</span>
+                  </label>
+                )
+              })}
+            </div>
+            {advertisers.length === 0 ? <p className="mt-1 text-[12px] text-ink-soft">Belum ada pengiklan aktif.</p> : null}
+          </fieldset>
           <div>
             <label htmlFor="ad-calendar-batch" className="mb-1 block text-[12px] font-semibold text-ink">Batch</label>
             <SuggestInput

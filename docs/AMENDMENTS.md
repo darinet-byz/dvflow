@@ -2309,3 +2309,37 @@ Permintaan pengguna: di tabel **Laporan Selesai**, kolom **Periode** berisi rent
 - Migrasi `20261123120000_ad_spend_resume_finished_at.sql` (`schema_version` 93): `ad_spend_report` memakai CTE baru `resume_list` (tanpa filter tanggal) untuk `resumes[]`; `resume_base` tetap dipakai `resume_totals`/`summary`; JSON resume menambah `finished_at`.
 - Web: `SpendResume.finished_at`, kolom **Ditandai Selesai** (`formatDateTime`), keterangan arsip di tab Selesai, teks kosong diperbarui.
 - Tes: pgTAP `48_ad_spend_cards.sql` (field `finished_at`, resume di luar rentang tetap tampil, summary tetap terfilter), web `report-spend-card.test.tsx`.
+
+## A93 - Edit Deadline Kalender Iklan bisa menandai beberapa pengiklan (23 November 2026)
+
+Permintaan pengguna: di Kalender Iklan, satu produk bisa diiklankan banyak pengiklan, tetapi form yang dipakai sekarang hanya bisa memilih satu pengiklan. Penandaan beberapa pengiklan harus berlaku juga saat melengkapi deadline yang sudah ada (termasuk deadline otomatis dari Citta).
+
+### Keputusan
+
+- **Form Edit Deadline memakai daftar centang pengiklan** yang sama dengan form Tambah Deadline. Saat dibuka, seluruh pengiklan pada deadline itu (event + produk + batch + tanggal yang sama) sudah tercentang, sehingga operator melihat anggota deadline yang sebenarnya.
+- **Satu simpan mengurus satu deadline**, bukan satu baris: pengiklan yang tetap dicentang mendapat tanggal deadline baru, pengiklan baru dibuatkan baris, dan pengiklan yang dicabut centangnya dihapus dari deadline tersebut. Baris tanpa pengiklan (deadline otomatis Citta) dipakai ulang untuk pengiklan pertama sehingga id dan tautan draft tetap.
+- **Client lama tetap aman**: body `advertiser_code` tunggal hanya mengubah baris itu dan tidak menghapus pengiklan lain pada deadline yang sama.
+- Pengiklan tambahan yang sudah punya deadline untuk produk + batch yang sama tetap ditolak `409 AD_CALENDAR_EXISTS` agar aturan unik per pengiklan + produk + batch tidak dilanggar.
+
+### Implementasi
+
+- API `packages/api/src/ad-calendar/handlers.ts`: PATCH memuat grup deadline dari baris yang diedit, menyelaraskan daftar `advertiser_codes[]` (update/insert/delete), lalu membalas `{ id, updated: true, advertiser_codes }`. `readAdCalendarInput` menandai apakah body memakai daftar kode. Baris milik pengiklan nonaktif tidak ikut diselaraskan agar tidak terhapus diam-diam.
+- Web `AdCalendarTab.tsx`: form edit memakai fieldset centang dengan prefill `deadlineAdvertiserCodes()` (hanya pengiklan aktif); `SaveAdCalendarInput` memakai `advertiser_codes[]`.
+- Tes: API `ad-calendar.test.ts` (tambah pengiklan, cabut centang, client lama tidak menghapus pengiklan lain, bentrok 409); web `ad-calendar.test.tsx` (edit dengan dua pengiklan).
+
+## A94 - Report Spend Iklan: urutan KPI → Tiket per Sesi → Perbandingan Pengiklan → tabel, Card Report jadi popup (23 November 2026)
+
+Permintaan pengguna: urutan bagian halaman **Report Spend Iklan** menjadi (1) Card KPI, (2) Tiket per Sesi, (3) Perbandingan Pengiklan, (4) tabel Laporan Berjalan & Laporan Selesai. **Card Report** tidak lagi tampil sebagai bagian halaman: tombol **Buat Card Report** diganti **Laporan Iklan** yang membuka popup berisi tombol **Buat Kartu Baru**, filter berdasarkan produk, dan kartu laporan yang sudah dibuat. Pembuatan kartu maupun pengisian laporan spend dilakukan dari popup itu.
+
+### Keputusan
+
+- **Urutan halaman final**: Card KPI → Tiket Paid per Sesi → Perbandingan Pengiklan → tabel Laporan Berjalan/Selesai. Perbandingan Pengiklan tetap hanya muncul saat filter produk + batch terisi.
+- **Card Report dipindah ke popup "Laporan Iklan"** yang dibuka dari header halaman. Tombol header selalu tampil agar kartu bisa dilihat semua pemegang izin lihat; tombol **+ Buat Kartu Baru** di dalam popup hanya muncul untuk pemegang izin input spend.
+- **Popup berisi filter produk** (default "Semua produk") yang menyaring kartu, tombol Buat Kartu Baru, dan grid kartu berjalan dengan aksi **Tambah Laporan / Selesai / Hapus**. Form buat kartu dan form laporan tetap modal yang menumpuk di atas popup.
+- **Produk pada form Buat Kartu Baru** mengikuti filter produk popup bila dipilih, lalu filter produk halaman.
+- `?new=1` (dari tautan lain) membuka popup sekaligus form Buat Kartu Baru.
+
+### Implementasi
+
+- Web `apps/web/src/pages/report-spend/ReportSpendPage.tsx`: state `reportListOpen` + `cardProductFilter`; bagian Card Report inline dihapus; blok Tiket Paid per Sesi di bawah KPI; blok Perbandingan Pengiklan di atas tabel; Modal `Laporan Iklan` berisi filter produk, tombol Buat Kartu Baru, dan kartu berjalan.
+- Tes: `apps/web/test/report-spend-card.test.tsx` diperbarui (semua aksi card lewat popup) dan menambah pemeriksaan urutan DOM KPI → Tiket Paid per Sesi → Perbandingan Pengiklan → tab Laporan Berjalan, serta tes popup + filter produk.

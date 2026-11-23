@@ -50,7 +50,7 @@ export type AdCalendarPage = {
 
 export type SaveAdCalendarInput = {
   event_id: string
-  advertiser_code: string
+  advertiser_codes: string[]
   batch: string
   deadline_date: string
 }

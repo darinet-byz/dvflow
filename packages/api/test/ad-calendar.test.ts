@@ -169,13 +169,77 @@ describe('A80: Kalender Iklan', () => {
     expect(state.adCalendar).toHaveLength(0)
   })
 
-  it('edit hanya menerima satu pengiklan per baris', async () => {
+  it('edit boleh menambah pengiklan pada deadline yang sama', async () => {
     const { request, state } = await setup(canManage)
     state.config.advertisers.push({ id: '33333333-3333-4333-8333-333333333333', name: 'Rina', code: '02', active: true })
     const created = await request('POST', '/api/ad-calendar', valid)
     const id = (await readBody<{ data: { calendars: Array<{ id: string }> } }>(created)).data.calendars[0]!.id
 
-    expect((await request('PATCH', `/api/ad-calendar/${id}`, { ...valid, advertiser_codes: ['01', '02'] })).status).toBe(400)
+    const updated = await request('PATCH', `/api/ad-calendar/${id}`, {
+      ...valid,
+      advertiser_codes: ['01', '02'],
+      deadline_date: '2026-11-20',
+    })
+    expect(updated.status).toBe(200)
+    expect(state.adCalendar).toHaveLength(2)
+    expect(state.adCalendar.every((row) => row['deadline_date'] === '2026-11-20')).toBe(true)
+    expect(state.adCalendar.map((row) => row['advertiser_id'])).toEqual([
+      state.config.advertisers[0]?.['id'],
+      '33333333-3333-4333-8333-333333333333',
+    ])
+    // Baris yang diedit tetap memakai id yang sama.
+    expect(state.adCalendar.some((row) => row['id'] === id)).toBe(true)
+  })
+
+  it('edit menghapus deadline pengiklan yang dicabut centangnya', async () => {
+    const { request, state } = await setup(canManage)
+    state.config.advertisers.push({ id: '33333333-3333-4333-8333-333333333333', name: 'Rina', code: '02', active: true })
+    const created = await request('POST', '/api/ad-calendar', { ...valid, advertiser_codes: ['01', '02'] })
+    const rows = (await readBody<{ data: { calendars: Array<{ id: string; advertiser_code: string }> } }>(created)).data.calendars
+    const zul = rows.find((row) => row.advertiser_code === '01')!
+
+    const updated = await request('PATCH', `/api/ad-calendar/${zul.id}`, { ...valid, advertiser_codes: ['01'] })
+    expect(updated.status).toBe(200)
+    expect(state.adCalendar).toHaveLength(1)
+    expect(state.adCalendar[0]?.['advertiser_id']).toBe(state.config.advertisers[0]?.['id'])
+  })
+
+  it('edit tidak menghapus deadline pengiklan yang sudah nonaktif', async () => {
+    const { request, state } = await setup(canManage)
+    state.config.advertisers.push({ id: '33333333-3333-4333-8333-333333333333', name: 'Rina', code: '02', active: true })
+    const created = await request('POST', '/api/ad-calendar', { ...valid, advertiser_codes: ['01', '02'] })
+    const rows = (await readBody<{ data: { calendars: Array<{ id: string; advertiser_code: string }> } }>(created)).data.calendars
+    const zul = rows.find((row) => row.advertiser_code === '01')!
+    state.config.advertisers[1]!['active'] = false
+
+    const updated = await request('PATCH', `/api/ad-calendar/${zul.id}`, { ...valid, advertiser_codes: ['01'] })
+    expect(updated.status).toBe(200)
+    expect(state.adCalendar).toHaveLength(2)
+    expect(state.adCalendar.some((row) => row['advertiser_id'] === '33333333-3333-4333-8333-333333333333')).toBe(true)
+  })
+
+  it('edit dengan advertiser_code tunggal tidak menghapus pengiklan lain', async () => {
+    const { request, state } = await setup(canManage)
+    state.config.advertisers.push({ id: '33333333-3333-4333-8333-333333333333', name: 'Rina', code: '02', active: true })
+    const created = await request('POST', '/api/ad-calendar', { ...valid, advertiser_codes: ['01', '02'] })
+    const rows = (await readBody<{ data: { calendars: Array<{ id: string; advertiser_code: string }> } }>(created)).data.calendars
+    const zul = rows.find((row) => row.advertiser_code === '01')!
+
+    const updated = await request('PATCH', `/api/ad-calendar/${zul.id}`, { ...valid, deadline_date: '2026-11-21' })
+    expect(updated.status).toBe(200)
+    expect(state.adCalendar).toHaveLength(2)
+    expect(state.adCalendar.find((row) => row['id'] === zul.id)?.['deadline_date']).toBe('2026-11-21')
+  })
+
+  it('edit ditolak bila pengiklan tambahan sudah punya deadline produk + batch yang sama', async () => {
+    const { request, state } = await setup(canManage)
+    state.config.advertisers.push({ id: '33333333-3333-4333-8333-333333333333', name: 'Rina', code: '02', active: true })
+    const created = await request('POST', '/api/ad-calendar', valid)
+    const id = (await readBody<{ data: { calendars: Array<{ id: string }> } }>(created)).data.calendars[0]!.id
+    await request('POST', '/api/ad-calendar', { ...valid, advertiser_codes: ['02'], deadline_date: '2026-11-25' })
+
+    const updated = await request('PATCH', `/api/ad-calendar/${id}`, { ...valid, advertiser_codes: ['01', '02'] })
+    expect(updated.status).toBe(409)
   })
 
   it('edit dan hapus; id tidak valid / tidak ada -> 404', async () => {

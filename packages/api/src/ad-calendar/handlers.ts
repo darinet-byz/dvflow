@@ -28,6 +28,14 @@ type EventRow = {
 
 type AdvertiserRow = { id: string; code: string; name: string }
 type AdCalendarRow = { id: string }
+type AdCalendarRecord = {
+  id: string
+  event_id: string | null
+  advertiser_id: string | null
+  product_code: string
+  batch: string
+  deadline_date: string
+}
 
 /** GET /api/ad-calendar?from=YYYY-MM-DD&to=YYYY-MM-DD */
 export async function listAdCalendar(context: RouteContext): Promise<Response> {
@@ -105,39 +113,132 @@ export async function createAdCalendar(context: RouteContext): Promise<Response>
   return ok({ calendars: created, skipped }, { status: 201 })
 }
 
-/** PATCH /api/ad-calendar/:id — edit satu baris (satu pengiklan). */
+/**
+ * PATCH /api/ad-calendar/:id — edit satu deadline.
+ *
+ * A93: bila client mengirim `advertiser_codes[]`, edit berlaku untuk seluruh
+ * pengiklan dalam deadline yang sama (event + produk + batch + tanggal):
+ * pengiklan yang tetap dicentang diperbarui, pengiklan baru dibuatkan baris,
+ * pengiklan yang dicabut centangnya dihapus. `advertiser_code` tunggal (client
+ * lama) hanya menyentuh baris ini agar tidak menghapus pengiklan lain.
+ */
 export async function updateAdCalendar(context: RouteContext): Promise<Response> {
   const actor = await requirePermission(context, 'action.manage_ad_calendar')
   const id = calendarId(context)
   const input = await readAdCalendarInput(context, actor)
-  if (input.advertisers.length !== 1) {
-    throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Satu deadline hanya untuk satu pengiklan.')
-  }
-  const advertiser = input.advertisers[0]
-  if (advertiser === undefined) throw new ApiFailure('INVALID_ARGUMENT', undefined, 'Pilih pengiklan.')
 
-  await assertCalendarExists(context, id)
-  const duplicates = await context.db.selectRows<AdCalendarRow>(
-    'ad_calendar',
-    { advertiser_id: `eq.${advertiser.id}`, product_code: `eq.${input.event.product_code}`, batch: `eq.${input.batch}` },
-    'id',
-  )
-  if (duplicates.some((row) => row.id !== id)) throw new ApiFailure('AD_CALENDAR_EXISTS')
-
-  await context.db.updateRows(
+  const currentRows = await context.db.selectRows<AdCalendarRecord>(
     'ad_calendar',
     { id: `eq.${id}` },
-    {
-      event_id: input.event.id,
-      advertiser_id: advertiser.id,
-      product_code: input.event.product_code,
-      batch: input.batch,
-      deadline_date: input.deadlineDate,
-      source: 'manual',
-      updated_by: context.claims?.sub ?? null,
-    },
+    'id,event_id,advertiser_id,product_code,batch,deadline_date',
   )
-  return ok({ id, updated: true })
+  const current = currentRows[0]
+  if (current === undefined) throw new ApiFailure('RESOURCE_NOT_FOUND')
+
+  const group = input.codeList ? await loadDeadlineGroup(context, current) : [current]
+  const groupIds = new Set(group.map((row) => row.id))
+  const activeIds = await activeAdvertiserIds(context, group)
+  const targetIds = input.advertisers.map((advertiser) => advertiser.id)
+
+  const duplicates = await context.db.selectRows<AdCalendarRow>(
+    'ad_calendar',
+    {
+      product_code: `eq.${input.event.product_code}`,
+      batch: `eq.${input.batch}`,
+      advertiser_id: `in.(${targetIds.map((advertiserId) => `"${advertiserId}"`).join(',')})`,
+    },
+    'id',
+  )
+  if (duplicates.some((row) => !groupIds.has(row.id))) throw new ApiFailure('AD_CALENDAR_EXISTS')
+
+  // Baris yang sedang diedit didahulukan supaya id-nya tetap bila pengiklannya
+  // masih dipilih; baris tanpa pengiklan (deadline otomatis) dipakai ulang.
+  const ordered = [...input.advertisers].sort((left, right) => {
+    if (left.id === current.advertiser_id) return -1
+    if (right.id === current.advertiser_id) return 1
+    return 0
+  })
+  const byAdvertiser = new Map<string, AdCalendarRecord>()
+  const unassigned: AdCalendarRecord[] = []
+  for (const row of group) {
+    // Deadline milik pengiklan nonaktif dibiarkan apa adanya: pengiklan itu
+    // tidak muncul di daftar centang, jadi edit tidak boleh menghapusnya diam-diam.
+    // Baris yang sedang diedit tetap boleh diperbarui.
+    if (row.id !== current.id && row.advertiser_id !== null && !activeIds.has(row.advertiser_id)) continue
+    if (row.advertiser_id === null) unassigned.push(row)
+    else byAdvertiser.set(row.advertiser_id, row)
+  }
+
+  const patch = {
+    event_id: input.event.id,
+    product_code: input.event.product_code,
+    batch: input.batch,
+    deadline_date: input.deadlineDate,
+    source: 'manual',
+    updated_by: context.claims?.sub ?? null,
+  }
+
+  let reusableIndex = 0
+  for (const advertiser of ordered) {
+    const existing = byAdvertiser.get(advertiser.id)
+    if (existing !== undefined) {
+      byAdvertiser.delete(advertiser.id)
+      await context.db.updateRows('ad_calendar', { id: `eq.${existing.id}` }, { ...patch, advertiser_id: advertiser.id })
+      continue
+    }
+    const reusable = unassigned[reusableIndex]
+    if (reusable !== undefined) {
+      reusableIndex += 1
+      await context.db.updateRows('ad_calendar', { id: `eq.${reusable.id}` }, { ...patch, advertiser_id: advertiser.id })
+      continue
+    }
+    await context.db.insertRow(
+      'ad_calendar',
+      {
+        event_id: input.event.id,
+        advertiser_id: advertiser.id,
+        product_code: input.event.product_code,
+        batch: input.batch,
+        deadline_date: input.deadlineDate,
+        source: 'manual',
+        created_by: actor.id,
+        updated_by: actor.id,
+      },
+      'id',
+    )
+  }
+
+  // Pengiklan yang dicabut centangnya tidak lagi punya deadline pada scope ini.
+  for (const row of [...byAdvertiser.values(), ...unassigned.slice(reusableIndex)]) {
+    await context.db.deleteRows('ad_calendar', { id: `eq.${row.id}` })
+  }
+
+  return ok({ id, updated: true, advertiser_codes: ordered.map((advertiser) => advertiser.code) })
+}
+
+/** Baris-baris deadline yang mewakili satu deadline: event + produk + batch + tanggal. */
+async function loadDeadlineGroup(context: RouteContext, current: AdCalendarRecord): Promise<AdCalendarRecord[]> {
+  return context.db.selectRows<AdCalendarRecord>(
+    'ad_calendar',
+    {
+      event_id: current.event_id === null ? 'is.null' : `eq.${current.event_id}`,
+      product_code: `eq.${current.product_code}`,
+      batch: `eq.${current.batch}`,
+      deadline_date: `eq.${current.deadline_date}`,
+    },
+    'id,event_id,advertiser_id,product_code,batch,deadline_date',
+  )
+}
+
+async function activeAdvertiserIds(context: RouteContext, rows: AdCalendarRecord[]): Promise<Set<string>> {
+  const ids = [...new Set(rows.map((row) => row.advertiser_id).filter((id): id is string => id !== null))]
+  if (ids.length === 0) return new Set()
+  const active = await context.db.selectRows<{ id: string }>(
+    'advertisers',
+    { id: `in.(${ids.map((id) => `"${id}"`).join(',')})`, active: 'is.true' },
+    'id',
+  )
+  return new Set(active.map((row) => row.id))
 }
 
 /** DELETE /api/ad-calendar/:id */
@@ -154,10 +255,13 @@ async function readAdCalendarInput(context: RouteContext, actor: UserRow): Promi
   advertisers: AdvertiserRow[]
   batch: string
   deadlineDate: string
+  /** True bila body memakai `advertiser_codes[]` (A93), bukan `advertiser_code` tunggal. */
+  codeList: boolean
 }> {
   const body = await readJsonObject(context.request)
   const eventId = (readString(body, 'event_id') ?? '').trim()
   const advertiserCodes = readAdvertiserCodes(body)
+  const codeList = body['advertiser_codes'] !== undefined
   const batchRaw = (readString(body, 'batch') ?? '').trim()
   const deadlineDate = (readString(body, 'deadline_date') ?? '').trim()
 
@@ -201,7 +305,7 @@ async function readAdCalendarInput(context: RouteContext, actor: UserRow): Promi
 
   assertProductAccess(await productAccess(context, actor), event.product_code)
 
-  return { event, advertisers: resolved, batch, deadlineDate }
+  return { event, advertisers: resolved, batch, deadlineDate, codeList }
 }
 
 /** Satu deadline boleh dibuat untuk beberapa pengiklan sekaligus (maks 50). */

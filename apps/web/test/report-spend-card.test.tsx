@@ -52,7 +52,10 @@ vi.mock('../src/lib/useSession', () => ({ useSession: () => ({ status: 'authenti
 vi.mock('../src/lib/useConfigLists', () => ({
   useConfigLists: () => ({
     lists: {
-      products: [{ value: 'AAAA', label: 'AAAA - Produk A' }],
+      products: [
+        { value: 'AAAA', label: 'AAAA - Produk A' },
+        { value: 'BBBB', label: 'BBBB - Produk B' },
+      ],
       advertisers: [{ value: '91', label: '91 - Zul' }],
       eventTypes: [],
       eventTypeNames: [],
@@ -72,7 +75,8 @@ afterEach(() => {
 describe('Card Report A88', () => {
   it('card hanya menampilkan setting + Tambah Laporan; simpan laporan mengirim budget per baris', async () => {
     render(<ReportSpendPage />)
-    await screen.findAllByText('Card Batch 122', {}, { timeout: 5000 })
+    await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
+    fireEvent.click(screen.getByRole('button', { name: 'Laporan Iklan' }))
     fireEvent.click(screen.getByRole('button', { name: 'Tambah Laporan' }))
 
     const budgets = screen.getAllByLabelText('Budget (Rp)') as HTMLInputElement[]
@@ -98,7 +102,7 @@ describe('Card Report A88', () => {
 
   it('edit laporan memakai entry yang ada; PPN baris lain tidak bergeser', async () => {
     render(<ReportSpendPage />)
-    await screen.findAllByText('Card Batch 122', {}, { timeout: 5000 })
+    await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
     fireEvent.click(screen.getByRole('button', { name: 'Edit' }))
 
     const budgets = screen.getAllByLabelText('Budget (Rp)') as HTMLInputElement[]
@@ -121,7 +125,7 @@ describe('Card Report A88', () => {
 
   it('tab Selesai menampilkan resume draft; Aktifkan memanggil endpoint activate', async () => {
     render(<ReportSpendPage />)
-    await screen.findAllByText('Card Batch 122', {}, { timeout: 5000 })
+    await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
     fireEvent.click(screen.getByRole('button', { name: 'Laporan Selesai' }))
     await screen.findByText('Card Selesai')
     expect(screen.getByText('Ditandai Selesai')).toBeTruthy()
@@ -139,7 +143,8 @@ describe('Card Report A88', () => {
 
   it('tombol Selesai di card memanggil finish', async () => {
     render(<ReportSpendPage />)
-    await screen.findAllByText('Card Batch 122', {}, { timeout: 5000 })
+    await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
+    fireEvent.click(screen.getByRole('button', { name: 'Laporan Iklan' }))
     fireEvent.click(screen.getByRole('button', { name: 'Selesai' }))
     await waitFor(() => expect(authorizedRequest).toHaveBeenCalled())
     const [path] = vi.mocked(authorizedRequest).mock.calls.at(-1)!
@@ -148,10 +153,11 @@ describe('Card Report A88', () => {
 
   it('buat card hanya mengirim setting, tanpa budget', async () => {
     render(<ReportSpendPage />)
-    await screen.findAllByText('Card Batch 122', {}, { timeout: 5000 })
+    await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
     fireEvent.change(screen.getByLabelText('Filter produk'), { target: { value: 'AAAA' } })
     fireEvent.change(screen.getByLabelText('Filter batch'), { target: { value: '122' } })
-    fireEvent.click(screen.getByRole('button', { name: '+ Buat Card Report' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Laporan Iklan' }))
+    fireEvent.click(screen.getByRole('button', { name: '+ Buat Kartu Baru' }))
     fireEvent.change(screen.getByLabelText('Nama Card'), { target: { value: 'Card Baru' } })
     fireEvent.change(screen.getByLabelText('Jenis Acara'), { target: { value: 'Seminar Offline' } })
     fireEvent.click(screen.getByRole('button', { name: 'Simpan' }))
@@ -162,5 +168,39 @@ describe('Card Report A88', () => {
     const body = (options as { body: Record<string, unknown> }).body
     expect(body).toMatchObject({ product_code: 'AAAA', batch: '122', event_type: 'Seminar Offline' })
     expect(body).not.toHaveProperty('spends')
+  })
+
+  it('urutan bagian: KPI, Tiket per Sesi, Perbandingan Pengiklan, lalu tabel laporan', async () => {
+    render(<ReportSpendPage />)
+    await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
+    fireEvent.change(screen.getByLabelText('Filter produk'), { target: { value: 'AAAA' } })
+    fireEvent.change(screen.getByLabelText('Filter batch'), { target: { value: '122' } })
+
+    const order = (left: HTMLElement, right: HTMLElement): number => left.compareDocumentPosition(right)
+    const kpi = screen.getByText('Jumlah Tiket')
+    const tickets = screen.getByText('Tiket Paid per Sesi')
+    const comparison = await screen.findByText('Perbandingan Pengiklan')
+    const runningTab = screen.getByRole('button', { name: 'Laporan Berjalan' })
+
+    expect(order(kpi, tickets) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(order(tickets, comparison) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+    expect(order(comparison, runningTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  })
+
+  it('tombol Laporan Iklan membuka popup kartu dengan filter produk', async () => {
+    render(<ReportSpendPage />)
+    await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
+    expect(screen.queryByRole('button', { name: 'Tambah Laporan' })).toBeNull()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Laporan Iklan' }))
+    expect(screen.getByRole('button', { name: '+ Buat Kartu Baru' })).toBeTruthy()
+    expect(screen.getByLabelText('Filter berdasarkan produk')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Tambah Laporan' })).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Filter berdasarkan produk'), { target: { value: 'BBBB' } })
+    expect(await screen.findByText('Tidak ada kartu laporan untuk produk ini.')).toBeTruthy()
+
+    fireEvent.change(screen.getByLabelText('Filter berdasarkan produk'), { target: { value: 'AAAA' } })
+    expect(await screen.findByRole('button', { name: 'Tambah Laporan' })).toBeTruthy()
   })
 })

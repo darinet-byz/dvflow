@@ -418,6 +418,8 @@ export function ReportSpendPage() {
 
   const [tab, setTab] = useState<Tab>('berjalan')
   const [showMore, setShowMore] = useState(false)
+  const [reportListOpen, setReportListOpen] = useState(false)
+  const [cardProductFilter, setCardProductFilter] = useState('')
   const [cardForm, setCardForm] = useState<CardFormState | null>(null)
   const [entryForm, setEntryForm] = useState<EntryFormState | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
@@ -432,7 +434,7 @@ export function ReportSpendPage() {
   function openCreateCard(): void {
     setCardForm({
       name: '',
-      productCode: state.applied.productCode,
+      productCode: cardProductFilter !== '' ? cardProductFilter : state.applied.productCode,
       batch: state.applied.batch.trim(),
       eventType: state.applied.eventType,
     })
@@ -636,6 +638,8 @@ export function ReportSpendPage() {
   const comparisonProduct = (lists?.products ?? []).find((item) => item.value === state.applied.productCode)?.label ?? state.applied.productCode
   const totalProfit = summary ? spendProfit(summary.omzet, summary.total_spend) : 0
   const productOptions = (lists?.products ?? []).map((item) => ({ value: item.value, label: item.label }))
+  const cardProductOptions = [{ value: '', label: 'Semua produk' }, ...productOptions]
+  const listedCards = cardProductFilter === '' ? cards : cards.filter((card) => card.product_code === cardProductFilter)
 
   useEffect(() => {
     const openFromQuery = () => {
@@ -643,6 +647,7 @@ export function ReportSpendPage() {
       const params = new URLSearchParams(window.location.search)
       if (params.get('new') !== '1') return
       if (state.applied.productCode === '' || state.applied.batch.trim() === '') return
+      setReportListOpen(true)
       openCreateCard()
       const url = new URL(window.location.href)
       url.searchParams.delete('new')
@@ -658,8 +663,8 @@ export function ReportSpendPage() {
     <>
       <PageHeader
         title="Report Spend Iklan"
-        description="Card untuk input laporan harian; hasilnya masuk ke Laporan Berjalan dan bisa di-resume."
-        action={canInput ? <Button variant="primary" onClick={openCreateCard}>+ Buat Card Report</Button> : undefined}
+        description="Laporan iklan per card: input spend harian, pantau Laporan Berjalan, dan arsipkan yang sudah selesai."
+        action={<Button variant="primary" onClick={() => setReportListOpen(true)}>Laporan Iklan</Button>}
       />
 
       <div className="filter-bar flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-card p-3.5">
@@ -734,51 +739,56 @@ export function ReportSpendPage() {
         </div>
       )}
 
-      <div className="mt-4">
-        <div className="mb-2 flex min-w-0 flex-wrap items-end justify-between gap-2">
-          <div className="min-w-0">
-            <h2 className="text-[14px] font-semibold text-ink">Card Report</h2>
-            <p className="mt-0.5 text-[12px] text-ink-soft">Card template. Klik Tambah Laporan untuk input laporan harian.</p>
-          </div>
-        </div>
-        {cards.length === 0 ? (
-          <Card>
-            <p className="py-4 text-center text-ink-soft">
-              {canInput ? 'Belum ada Card Report. Buat card untuk mulai mencatat laporan.' : 'Belum ada Card Report aktif.'}
-            </p>
+      {tab === 'berjalan' && matrix !== undefined ? (
+        <div className="mt-4">
+          <Card padding="none">
+            <div className="px-3.5 pb-2 pt-3">
+              <h2 className="text-[14px] font-semibold text-ink">Tiket Paid per Sesi</h2>
+              <p className="mt-0.5 text-[12px] text-ink-soft">Jumlah tiket (quantity) per sesi dari laporan harian aktif.</p>
+            </div>
+            {matrix.rows.length === 0 ? (
+              <p className="border-t border-line px-3 py-6 text-center text-ink-soft">Belum ada tiket Paid pada laporan berjalan.</p>
+            ) : (
+              <DataTable rowNumbers columns={matrixColumns(matrix)} stickyHeader={false}>
+                {matrix.rows.map((row) => (
+                  <TableRow key={`${row.session ?? ''}|${row.city ?? ''}|${row.event_type ?? ''}`}>
+                    <TableCell>{formatText(row.city)}</TableCell>
+                    <TableCell>{row.session ?? 'Tanpa sesi'}</TableCell>
+                    <TableCell>{row.event_type === null ? '-' : <Badge tone={eventTypeTone(row.event_type)}>{row.event_type}</Badge>}</TableCell>
+                    {matrix.advertisers.map((item) => (
+                      <TableCell key={item.advertiser_code ?? ''} align="right">
+                        {formatCount(sessionMatrixCell(row, item.advertiser_code))}
+                      </TableCell>
+                    ))}
+                    <TableCell align="right" className="font-semibold">{formatCount(row.tickets)}</TableCell>
+                  </TableRow>
+                ))}
+                <TableTotalRow>
+                  <TableCell>Total</TableCell>
+                  <TableCell>{''}</TableCell>
+                  <TableCell>{''}</TableCell>
+                  {matrix.advertisers.map((item) => (
+                    <TableCell key={item.advertiser_code ?? ''} align="right">{formatCount(item.tickets)}</TableCell>
+                  ))}
+                  <TableCell align="right">{formatCount(matrix.tickets)}</TableCell>
+                </TableTotalRow>
+              </DataTable>
+            )}
           </Card>
-        ) : (
-          <div className="grid min-w-0 gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {cards.map((card) => (
-              <Card key={card.id} className="flex min-w-0 flex-col gap-3">
-                <div className="min-w-0">
-                  <div className="flex min-w-0 items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h3 className="break-words text-[14px] font-semibold text-ink">{card.name}</h3>
-                      <p className="mt-0.5 break-words text-[12px] text-ink-soft">
-                        {card.product_name} · Batch {card.batch}{card.event_type === null ? '' : ` · ${card.event_type}`}
-                      </p>
-                      <p className="mt-0.5 text-[12px] text-ink-soft">{card.advertiser_name}</p>
-                    </div>
-                    <Badge tone="warning">Berjalan</Badge>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  <Button size="sm" variant="primary" onClick={() => openEntry(card)}>Tambah Laporan</Button>
-                  {card.can_edit ? (
-                    <>
-                      <Button size="sm" variant="secondary" loading={finishingId === card.id} disabled={saving && finishingId !== card.id} onClick={() => void finishCard(card)}>
-                        Selesai
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setDeletingCard(card)}>Hapus</Button>
-                    </>
-                  ) : null}
-                </div>
-              </Card>
-            ))}
-          </div>
-        )}
-      </div>
+        </div>
+      ) : null}
+
+      {showComparison ? (
+        <div className="mt-4">
+          <AdvertiserComparison
+            comparison={comparison}
+            productLabel={comparisonProduct}
+            batch={state.applied.batch.trim()}
+            sort={comparisonSort}
+            onSort={setComparisonSort}
+          />
+        </div>
+      ) : null}
 
       <div className="mt-4">
         <div className="flex min-w-0 flex-wrap items-center gap-1 rounded-lg border border-line bg-card p-1">
@@ -906,56 +916,68 @@ export function ReportSpendPage() {
         </div>
       </div>
 
-      {tab === 'berjalan' && matrix !== undefined ? (
-        <div className="mt-4">
-          <Card padding="none">
-            <div className="px-3.5 pb-2 pt-3">
-              <h2 className="text-[14px] font-semibold text-ink">Tiket Paid per Sesi</h2>
-              <p className="mt-0.5 text-[12px] text-ink-soft">Jumlah tiket (quantity) per sesi dari laporan harian aktif.</p>
+      <Modal
+        open={reportListOpen}
+        title="Laporan Iklan"
+        onClose={() => {
+          if (cardForm === null && entryForm === null && deletingCard === null) setReportListOpen(false)
+        }}
+        size="lg"
+        footer={<Button variant="secondary" onClick={() => setReportListOpen(false)}>Tutup</Button>}
+      >
+        <div className="flex min-w-0 flex-col gap-3">
+          <div className="flex min-w-0 flex-wrap items-end justify-between gap-2">
+            <div className="w-full sm:w-64">
+              <Select
+                id="report-card-product"
+                label="Filter berdasarkan produk"
+                value={cardProductFilter}
+                options={cardProductOptions}
+                onChange={setCardProductFilter}
+              />
             </div>
-            {matrix.rows.length === 0 ? (
-              <p className="border-t border-line px-3 py-6 text-center text-ink-soft">Belum ada tiket Paid pada laporan berjalan.</p>
-            ) : (
-              <DataTable rowNumbers columns={matrixColumns(matrix)} stickyHeader={false}>
-                {matrix.rows.map((row) => (
-                  <TableRow key={`${row.session ?? ''}|${row.city ?? ''}|${row.event_type ?? ''}`}>
-                    <TableCell>{formatText(row.city)}</TableCell>
-                    <TableCell>{row.session ?? 'Tanpa sesi'}</TableCell>
-                    <TableCell>{row.event_type === null ? '-' : <Badge tone={eventTypeTone(row.event_type)}>{row.event_type}</Badge>}</TableCell>
-                    {matrix.advertisers.map((item) => (
-                      <TableCell key={item.advertiser_code ?? ''} align="right">
-                        {formatCount(sessionMatrixCell(row, item.advertiser_code))}
-                      </TableCell>
-                    ))}
-                    <TableCell align="right" className="font-semibold">{formatCount(row.tickets)}</TableCell>
-                  </TableRow>
-                ))}
-                <TableTotalRow>
-                  <TableCell>Total</TableCell>
-                  <TableCell>{''}</TableCell>
-                  <TableCell>{''}</TableCell>
-                  {matrix.advertisers.map((item) => (
-                    <TableCell key={item.advertiser_code ?? ''} align="right">{formatCount(item.tickets)}</TableCell>
-                  ))}
-                  <TableCell align="right">{formatCount(matrix.tickets)}</TableCell>
-                </TableTotalRow>
-              </DataTable>
-            )}
-          </Card>
-        </div>
-      ) : null}
+            {canInput ? <Button variant="primary" onClick={openCreateCard}>+ Buat Kartu Baru</Button> : null}
+          </div>
 
-      {showComparison ? (
-        <div className="mt-4">
-          <AdvertiserComparison
-            comparison={comparison}
-            productLabel={comparisonProduct}
-            batch={state.applied.batch.trim()}
-            sort={comparisonSort}
-            onSort={setComparisonSort}
-          />
+          {listedCards.length === 0 ? (
+            <p className="rounded-md border border-line px-3 py-6 text-center text-ink-soft">
+              {cards.length === 0
+                ? (canInput ? 'Belum ada kartu laporan. Buat kartu baru untuk mulai mencatat laporan.' : 'Belum ada kartu laporan aktif.')
+                : 'Tidak ada kartu laporan untuk produk ini.'}
+            </p>
+          ) : (
+            <div className="grid min-w-0 gap-3 md:grid-cols-2">
+              {listedCards.map((card) => (
+                <div key={card.id} className="flex min-w-0 flex-col gap-3 rounded-md border border-line bg-soft/40 p-3">
+                  <div className="min-w-0">
+                    <div className="flex min-w-0 items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h3 className="break-words text-[14px] font-semibold text-ink">{card.name}</h3>
+                        <p className="mt-0.5 break-words text-[12px] text-ink-soft">
+                          {card.product_name} · Batch {card.batch}{card.event_type === null ? '' : ` · ${card.event_type}`}
+                        </p>
+                        <p className="mt-0.5 text-[12px] text-ink-soft">{card.advertiser_name}</p>
+                      </div>
+                      <Badge tone="warning">Berjalan</Badge>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Button size="sm" variant="primary" onClick={() => openEntry(card)}>Tambah Laporan</Button>
+                    {card.can_edit ? (
+                      <>
+                        <Button size="sm" variant="secondary" loading={finishingId === card.id} disabled={saving && finishingId !== card.id} onClick={() => void finishCard(card)}>
+                          Selesai
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => setDeletingCard(card)}>Hapus</Button>
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-      ) : null}
+      </Modal>
 
       <Modal
         open={cardForm !== null}
