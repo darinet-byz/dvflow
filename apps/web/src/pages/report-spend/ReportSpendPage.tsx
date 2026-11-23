@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { AD_SPEND_INPUT_PERMISSION } from '@dvflow/shared'
 import { presetRange } from '../../lib/date-range'
 import { activeCommonFilters, EMPTY_COMMON_FILTERS, toFilterArgs, type CommonFilters } from '../../lib/filters'
-import { formatCount, formatDate, formatMoney, formatText } from '../../lib/format'
+import { formatCount, formatDate, formatDateTime, formatMoney, formatText } from '../../lib/format'
 import { authorizedRequest } from '../../lib/session'
 import { supabaseRpc } from '../../lib/supabase-rest'
 import { useAsyncData } from '../../lib/useAsyncData'
@@ -94,6 +94,7 @@ export type SpendResume = {
   frozen: boolean
   date_from: string
   date_to: string
+  finished_at: string
   retention_until: string
   product_code: string
   product_name: string
@@ -230,6 +231,7 @@ const ENTRY_COLUMNS: readonly TableColumn[] = [
 const RESUME_COLUMNS: readonly TableColumn[] = [
   { key: 'name', header: 'Nama Card', minWidth: 190 },
   { key: 'period', header: 'Periode', minWidth: 170 },
+  { key: 'finished_at', header: 'Ditandai Selesai', minWidth: 170 },
   { key: 'product', header: 'Produk', minWidth: 160 },
   { key: 'advertiser', header: 'Pengiklan', minWidth: 130 },
   { key: 'batch', header: 'Batch', minWidth: 80 },
@@ -797,6 +799,11 @@ export function ReportSpendPage() {
         </div>
 
         <div className="mt-3">
+          {tab === 'selesai' ? (
+            <p className="mb-2 text-[12px] text-ink-soft">
+              Arsip semua laporan selesai; filter tanggal hanya berlaku untuk Laporan Berjalan dan KPI.
+            </p>
+          ) : null}
           {loading && data === null ? (
             <Card><SkeletonRows rows={8} /></Card>
           ) : tab === 'berjalan' ? (
@@ -853,6 +860,7 @@ export function ReportSpendPage() {
                     <TableRow key={resume.id}>
                       <TableCell><span className="font-medium text-ink">{resume.name}</span></TableCell>
                       <TableCell>{describeDates(resume.date_from, resume.date_to)}</TableCell>
+                      <TableCell>{formatDateTime(resume.finished_at)}</TableCell>
                       <TableCell>{resume.product_name}</TableCell>
                       <TableCell>{resume.advertiser_name}</TableCell>
                       <TableCell>{resume.batch}</TableCell>
@@ -890,7 +898,7 @@ export function ReportSpendPage() {
               </DataTable>
               {!loading && data !== null && resumes.length === 0 ? (
                 <p className="border-t border-line px-3 py-8 text-center text-ink-soft">
-                  Belum ada laporan selesai pada rentang tanggal ini.
+                  Belum ada laporan selesai.
                 </p>
               ) : null}
             </Card>

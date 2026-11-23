@@ -112,6 +112,8 @@ create temp table card_done on commit drop as
 select is((select jsonb_array_length(v->'cards') from card_done), 0, 'card Selesai keluar dari daftar aktif');
 select is((select jsonb_array_length(v->'entries') from card_done), 0, 'laporan harian keluar dari Laporan Berjalan');
 select is((select jsonb_array_length(v->'resumes') from card_done), 1, 'resume tampil di Laporan Selesai');
+select ok((select (x->>'finished_at') is not null from jsonb_array_elements((select v->'resumes' from card_done)) x),
+  'A92: resume membawa finished_at');
 select is((select (v->'summary'->>'spend')::numeric from card_done), 11000000.00::numeric, 'summary memakai resume');
 select is((select (v->'summary'->>'leads')::int from card_done), 3, 'summary resume tetap sekali');
 reset role;
@@ -191,6 +193,13 @@ select is((select x->>'status' from jsonb_array_elements(public.ad_spend_report(
   'final', 'resume lama berstatus Final');
 select is((select (x->>'can_activate')::boolean from jsonb_array_elements(public.ad_spend_report('2026-01-01','2026-01-01')->'resumes') x where x->>'batch' = '888'),
   false, 'resume Final tidak bisa diaktifkan');
+
+-- A92: daftar Laporan Selesai adalah arsip, tidak mengikuti filter tanggal;
+-- summary/KPI tetap mengikuti rentang tanggal halaman.
+select is((select jsonb_array_length(v->'resumes') from (select public.ad_spend_report('2026-02-01','2026-02-02') as v) q),
+  2, 'A92: semua resume tampil walau di luar rentang tanggal');
+select is((public.ad_spend_report('2026-02-01','2026-02-02')->'summary'->>'reports')::int, 0,
+  'A92: KPI tetap mengikuti filter tanggal');
 reset role;
 
 -- Card Selesai tidak bisa dihapus langsung.

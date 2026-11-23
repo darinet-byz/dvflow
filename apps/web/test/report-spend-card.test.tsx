@@ -25,7 +25,7 @@ const fixture = vi.hoisted(() => ({
   }],
   resumes: [{
     id: 'resume-1', card_id: 'card-2', name: 'Card Selesai', status: 'draft', frozen: false,
-    date_from: '2026-10-01', date_to: '2026-10-02', retention_until: '2027-01-02',
+    date_from: '2026-10-01', date_to: '2026-10-02', finished_at: '2026-10-03T12:00:00.000Z', retention_until: '2027-01-02',
     product_code: 'AAAA', product_name: 'Produk A', advertiser_code: '91', advertiser_name: 'Zul',
     batch: '200', event_type: 'Webinar Online', spend: 2000000, tax_amount: 0, tax_percent: 0,
     total_spend: 2000000, leads: 5, paid: 4, tickets: 4, omzet: 1000000,
@@ -124,6 +124,8 @@ describe('Card Report A88', () => {
     await screen.findAllByText('Card Batch 122', {}, { timeout: 5000 })
     fireEvent.click(screen.getByRole('button', { name: 'Laporan Selesai' }))
     await screen.findByText('Card Selesai')
+    expect(screen.getByText('Ditandai Selesai')).toBeTruthy()
+    expect(screen.getByText(/03 Okt 2026/)).toBeTruthy()
     fireEvent.click(screen.getByRole('button', { name: 'Detail' }))
     expect(await screen.findByText('Laporan Harian')).toBeTruthy()
     fireEvent.click(screen.getAllByRole('button', { name: 'Aktifkan' }).at(-1)!)

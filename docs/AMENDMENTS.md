@@ -2291,3 +2291,21 @@ Permintaan pengguna: preview di modal Template masih menampilkan `@Zul`, dan `{{
 - Shared: `WA_TEMPLATE_OFFERED_PLACEHOLDERS` tanpa `mention`; `mention` masuk daftar legacy. Helper `waMention` dihapus.
 - Web: `TemplateSection` memakai `PREVIEW_VALUES.advertiser_name = 'Mas Zul, Mas Andre'`, default content `{{advertiser_name}}`, dan keterangan bahwa variabel itu sudah bersapaan.
 - Tes: shared placeholder list, API preview helper, web preview template, pgTAP `37_wa_admin_bot.sql` memakai `{{advertiser_name}}`.
+
+## A92 - Laporan Selesai: kolom "Ditandai Selesai" + arsip tidak ikut filter tanggal (23 November 2026)
+
+Permintaan pengguna: di tabel **Laporan Selesai**, kolom **Periode** berisi rentang tanggal report. Pengguna ingin satu kolom lagi yang menunjukkan kapan card ditandai **Selesai**. Dengan kolom itu, tabel Laporan Selesai tidak perlu ikut filter tanggal halaman.
+
+### Keputusan
+
+- **Kolom baru `Ditandai Selesai`** memakai `ad_spend_resumes.finished_at` (tanggal + jam), terpisah dari `Periode` (`date_from..date_to` report).
+- **Daftar Laporan Selesai adalah arsip**: `resumes[]` tidak lagi difilter `p_date_from`/`p_date_to`. Filter produk, pengiklan, batch, dan jenis acara tetap berlaku, dan scope produk (A44) tetap dijaga.
+- **KPI/summary tetap mengikuti filter tanggal halaman** (permintaan pengguna). `summary.reports`, spend, PPN, leads, paid, tiket, dan omzet hanya menghitung entry + resume pada rentang tanggal.
+- **Laporan Berjalan tetap mengikuti filter tanggal.** Urutan daftar Selesai: `finished_at` terbaru lebih dulu, lalu periode dan nama.
+- Teks kosong tab Selesai berubah menjadi "Belum ada laporan selesai." dan ada keterangan bahwa filter tanggal hanya berlaku untuk Laporan Berjalan dan KPI.
+
+### Implementasi
+
+- Migrasi `20261123120000_ad_spend_resume_finished_at.sql` (`schema_version` 93): `ad_spend_report` memakai CTE baru `resume_list` (tanpa filter tanggal) untuk `resumes[]`; `resume_base` tetap dipakai `resume_totals`/`summary`; JSON resume menambah `finished_at`.
+- Web: `SpendResume.finished_at`, kolom **Ditandai Selesai** (`formatDateTime`), keterangan arsip di tab Selesai, teks kosong diperbarui.
+- Tes: pgTAP `48_ad_spend_cards.sql` (field `finished_at`, resume di luar rentang tetap tampil, summary tetap terfilter), web `report-spend-card.test.tsx`.

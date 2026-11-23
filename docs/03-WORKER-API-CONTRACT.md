@@ -277,6 +277,11 @@ Hasil RPC: `summary` (semua data: laporan harian aktif + resume), `cards[]` (tem
 selama draft), `sessions` (A43), dan `comparison` (A46, laporan harian aktif). KPI selalu semua data dan tetap
 mengikuti filter halaman; tab tidak mengubah KPI.
 
+A92: `resumes[]` adalah arsip dan **tidak mengikuti filter tanggal** (`p_date_from`/`p_date_to`); filter produk,
+pengiklan, batch, dan jenis acara tetap berlaku. Setiap resume membawa `finished_at` (kapan card ditandai Selesai)
+sebagai kolom terpisah dari `date_from`/`date_to` (periode report). `summary`/KPI tetap mengikuti filter tanggal.
+Urutan `resumes[]`: `finished_at` terbaru lebih dulu.
+
 A89: `cards[]` **privat per akun Advertiser** - akun Advertiser hanya menerima card milik pengiklannya sendiri.
 `entries[]`, `resumes[]`, `summary`, `sessions`, dan `comparison` tetap memakai scope produk (A44), jadi laporan
 pengiklan lain di produk yang sama tetap terlihat bersama. Akun staff (tanpa `advertiser_id`) melihat semua card.

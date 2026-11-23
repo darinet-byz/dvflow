@@ -303,6 +303,10 @@ acara hanya untuk advertiser yang memegang produk (setelah sync A88) **dan** pun
 `resumes[]` (Laporan Selesai), `summary` (semua data), `sessions`, dan `comparison` (laporan harian aktif). Angka order
 memakai `distinct order_id`; entry tidak bertumpuk sehingga order dihitung sekali per card.
 
+**A92 — arsip Laporan Selesai.** `resumes[]` tidak difilter `p_date_from`/`p_date_to` (arsip); filter produk,
+pengiklan, batch, dan jenis acara tetap berlaku. Resume membawa `finished_at` (kapan card ditandai Selesai) dan
+`retention_until`; kolom Periode tetap `date_from..date_to`. `summary`/KPI tetap mengikuti filter tanggal.
+
 ### 12b. RPC dashboard_session_summary (A59, 0064)
 Data per Sesi di Dashboard (dipindahkan dari Resume Batch): tiket Paid (`sum(quantity)`, order `app_status = Paid`,
 `product_parse_status = valid`) per (sesi, kota, jenis acara) untuk satu produk + batch (`normalize_batch`), dengan
