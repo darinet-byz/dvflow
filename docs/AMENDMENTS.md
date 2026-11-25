@@ -2360,3 +2360,49 @@ Permintaan pengguna: filter produk di popup **Laporan Iklan** harus mengikuti fi
 - Migrasi `20261123130000_ad_spend_cards_list.sql` (`schema_version` 94): fungsi `ad_spend_cards_list()` security definer, cek izin `operasional.report_spend`, filter `actor_can_product` + card milik advertiser sendiri, hanya status `berjalan`, grant execute `authenticated`.
 - Web `ReportSpendPage.tsx`: daftar kartu dimuat lewat `ad_spend_cards_list` saat popup dibuka (dan setelah refresh), dengan keadaan memuat/galat di popup; `openCreateCard()` menerima konteks opsional untuk deep link.
 - Tes: web `report-spend-card.test.tsx` (popup memanggil RPC sendiri walau filter halaman berbeda, form kartu memakai produk filter popup), pgTAP `49_ad_spend_cards_list.sql`.
+
+## A96 - Format ketiga nama produk: teks bebas dibaca dari belakang (25 November 2026)
+
+Permintaan pengguna: tambah satu template nama produk lagi yang diawali **teks bebas**, dengan kode produk di
+**paling belakang**, supaya operator bebas menulis apa saja di depan:
+
+```text
+Format 1 (kode):        MTIX01SO600 - S1 - Solo
+Format 2 (nama):        01 - SO600 - Master Tiktok Indonesia - S1 - Solo
+Format 3 (teks bebas):  Kelas Pagi - Live Zoom - S1 - MTIX01SO600
+```
+
+### Keputusan
+
+- Format 3 punya empat bagian: `[TEKS BEBAS] - [KOTA] - [SESI] - [PRODUK][PENGIKLAN][JENIS][BATCH]`.
+  **Sesi tetap ada**, sehingga tiket, akses Zoom per sesi, presensi, dan laporan tidak kehilangan dimensi.
+- Parser membaca **dari belakang**: tiga pemisah ` - ` terakhir adalah batas kode, sesi, dan kota; seluruh sisanya
+  teks bebas. Karena itu teks bebas boleh memuat ` - ` dan jumlah segmennya tidak dibatasi (minimal 4).
+- Pemisah tetap **literal ` - `** (spasi-strip-spasi), sama seperti dua format lain. Penulisan tanpa spasi tidak
+  diterima dan tetap menjadi Order Unmapped — lebih baik terlihat daripada tersimpan salah.
+- Format 3 hanya dikenali bila **segmen terakhir cocok dengan kombinasi kode konfigurasi**. Bila tidak, aturan lama
+  (3 segmen = format 1, 5 segmen = format 2) berlaku, sehingga format 1 dan 2 tidak berubah.
+- Teks 5 segmen yang valid di format 2 **dan** format 3 ditolak sebagai `AMBIGUOUS_PRODUCT_FORMAT`; parser tidak
+  memilih salah satu. Teks bebas tidak dicocokkan ke konfigurasi; sesi dan blok kode tetap harus tepat satu baris.
+- Generator menampilkan **tiga hasil** dengan tombol Copy terpisah. Teks bebas wajib diisi agar ketiga hasil muncul
+  bersamaan (D03: tidak ada hasil setengah jadi).
+
+### Implementasi
+
+- `packages/shared`: `buildTailName` + `validateProductNameAllFormats` / `buildProductNameAllFormats`
+  (`domain/product-name.ts`; fungsi format 1 dan 2 tidak berubah); `splitTailSegments` + `parseTailProduct` dan
+  deteksi dari belakang di `parseProductRaw` (`domain/product-parser.ts`), alasan gagal baru
+  `AMBIGUOUS_PRODUCT_FORMAT`.
+- Migrasi `20261125120000_tail_product_name_format.sql` (`schema_version` 95): `master_tail_parts`, lalu
+  `master_setting_parts` dan `master_is_used` mengenali format teks bebas untuk order, alias, dan key Zoom/tiket.
+- Web: `GeneratorPage.tsx` input **Teks bebas** + baris hasil **Format 3 — teks bebas** + tombol Copy.
+- Tes: `packages/shared/test/product-name.test.ts` dan `product-parser.test.ts` (round-trip tiga format, teks bebas
+  ber-` - `, kasus ambigu, sesi/kode tak dikenal), `apps/web/test/render-p9.test.tsx`, pgTAP
+  `50_tail_product_name_format.sql`.
+
+### Catatan operasional
+
+- Kota tidak boleh memuat ` - ` (sudah dijaga generator). Kota yang memakai strip tanpa spasi, mis.
+  `Jakarta-Selatan`, tetap aman karena hanya ` - ` yang dianggap pemisah.
+- Order lama tidak terpengaruh; order format 3 langsung terparse saat webhook masuk, tanpa backfill.
+

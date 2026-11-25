@@ -273,3 +273,66 @@ describe('parser format nama produk (A75)', () => {
     expect(parsed.product_code).toBe('KM')
   })
 })
+
+describe('parser format teks bebas (A96)', () => {
+  it('teks bebas - kota - sesi - kode menghasilkan field yang sama', () => {
+    const parsed = expectValid(parseProductRaw('Kelas Pagi - Solo - S1 - KM01SO392', TEST_CONFIG))
+
+    expect(parsed.product_code).toBe('KM')
+    expect(parsed.product_name).toBe('Kuliner Masteri')
+    expect(parsed.advertiser_code).toBe('01')
+    expect(parsed.event_type_code).toBe('SO')
+    expect(parsed.batch).toBe('392')
+    expect(parsed.session).toBe('S1')
+    expect(parsed.city).toBe('Solo')
+  })
+
+  it('teks bebas boleh memuat pemisah; kota dan sesi tetap dibaca dari belakang', () => {
+    const parsed = expectValid(
+      parseProductRaw('Kelas Pagi - Batch A - Live Zoom - ST - KM01SO7', TEST_CONFIG),
+    )
+
+    expect(parsed.product_code).toBe('KM')
+    expect(parsed.batch).toBe('7')
+    expect(parsed.session).toBe('ST')
+    expect(parsed.city).toBe('Live Zoom')
+  })
+
+  it('batch tetap string: nol depan diabaikan', () => {
+    expect(expectValid(parseProductRaw('Kelas - Solo - S1 - KM01SO0058', TEST_CONFIG)).batch).toBe('58')
+  })
+
+  it('besar-kecil huruf dan spasi di sekitar segmen tidak berpengaruh', () => {
+    const parsed = expectValid(parseProductRaw('  kelas pagi   -   solo   -   s1   -   km01so392  ', TEST_CONFIG))
+
+    expect(parsed.product_code).toBe('KM')
+    expect(parsed.session).toBe('S1')
+    expect(parsed.city).toBe('solo')
+  })
+
+  it('sesi dan kode tetap harus dikenal konfigurasi', () => {
+    expectInvalid(parseProductRaw('Kelas - Solo - S9 - KM01SO392', TEST_CONFIG), 'UNKNOWN_SESSION')
+    // Kode yang tidak dikenal membuat segmen terakhir bukan blok kode, sehingga
+    // jatuh ke aturan lama dan ditolak sebagai jumlah segmen yang salah.
+    expectInvalid(parseProductRaw('Kelas - Solo - S1 - XX01SO392', TEST_CONFIG), 'WRONG_SEGMENT_COUNT')
+  })
+
+  it('teks bebas, kota, atau sesi yang kosong ditolak', () => {
+    expectInvalid(parseProductRaw(' - Solo - S1 - KM01SO392', TEST_CONFIG), 'EMPTY_SEGMENT')
+    expectInvalid(parseProductRaw('Kelas -  - S1 - KM01SO392', TEST_CONFIG), 'EMPTY_SEGMENT')
+    expectInvalid(parseProductRaw('Kelas - Solo -  - KM01SO392', TEST_CONFIG), 'EMPTY_SEGMENT')
+  })
+
+  it('tanpa spasi tetap tidak diterima, sesuai pola literal " - "', () => {
+    expectInvalid(parseProductRaw('Kelas Pagi-Solo-S1-KM01SO392', TEST_CONFIG), 'WRONG_SEGMENT_COUNT')
+  })
+
+  it('teks 5 segmen yang valid di format 2 dan format 3 ditolak sebagai ambigu', () => {
+    const parsed = expectInvalid(
+      parseProductRaw('01 - SO392 - Kuliner Masteri - S1 - KM01SO392', TEST_CONFIG),
+      'AMBIGUOUS_PRODUCT_FORMAT',
+    )
+
+    expect(parsed.candidates).toEqual(expect.arrayContaining(['KM']))
+  })
+})

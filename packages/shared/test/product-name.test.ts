@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { normalizeBatch } from '../src/domain/text'
 import {
   buildProductName,
+  buildProductNameAllFormats,
   buildProductNameVariants,
   InvalidProductNameError,
   PRODUCT_SEGMENT_SEPARATOR,
+  validateProductNameAllFormats,
   validateProductNameInput,
   validateProductNameVariants,
 } from '../src/domain/product-name'
@@ -153,6 +155,67 @@ describe('Product Name Generator dua format (A75)', () => {
       const names = buildProductNameVariants(input)
 
       for (const generated of [names.legacy, names.detailed]) {
+        const parsed = parseProductRaw(generated, TEST_CONFIG)
+
+        expect(parsed.product_parse_status, `gagal parse: ${generated}`).toBe('valid')
+        if (parsed.product_parse_status !== 'valid') continue
+
+        expect(parsed.batch).toBe(normalizeBatch(input.batch))
+        expect(parsed.session).toBe(input.sessionCode)
+        expect(parsed.city).toBe(input.city.trim())
+        expect(parsed.product_code).toBe(input.productCode)
+        expect(parsed.advertiser_code).toBe(input.advertiserCode)
+      }
+    }
+  })
+})
+
+describe('Product Name Generator tiga format (A96)', () => {
+  const ALL_INPUT = { ...VALID_INPUT, productName: 'Kuliner Masteri', freeText: 'Kelas Pagi' } as const
+
+  it('menghasilkan tiga nama sekaligus; format 3 dibaca dari belakang', () => {
+    expect(buildProductNameAllFormats(ALL_INPUT)).toEqual({
+      legacy: 'KM01SO392 - S1 - Solo',
+      detailed: '01 - SO392 - Kuliner Masteri - S1 - Solo',
+      tail: 'Kelas Pagi - Solo - S1 - KM01SO392',
+    })
+  })
+
+  it('teks bebas boleh memuat pemisah segmen', () => {
+    expect(buildProductNameAllFormats({ ...ALL_INPUT, freeText: 'Kelas Pagi - Batch A' }).tail)
+      .toBe('Kelas Pagi - Batch A - Solo - S1 - KM01SO392')
+  })
+
+  it('teks bebas di-trim, wajib diisi, dan batch tetap ternormalisasi', () => {
+    expect(buildProductNameAllFormats({ ...ALL_INPUT, freeText: '  Kelas Pagi  ', batch: '0058' }).tail)
+      .toBe('Kelas Pagi - Solo - S1 - KM01SO58')
+    expect(validateProductNameAllFormats({ ...ALL_INPUT, freeText: '   ' }).ok).toBe(false)
+  })
+
+  it('error teks bebas baru muncul setelah field lain valid', () => {
+    const result = validateProductNameAllFormats({ ...ALL_INPUT, freeText: '', productCode: '' })
+
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('seharusnya gagal')
+    expect(result.errors.productCode).toBeDefined()
+    expect(result.errors.freeText).toBeUndefined()
+  })
+
+  it('buildProductNameAllFormats melempar bila input tidak valid', () => {
+    expect(() => buildProductNameAllFormats({ ...ALL_INPUT, freeText: '' })).toThrow(InvalidProductNameError)
+  })
+
+  it('round-trip: ketiga format dapat diparse kembali', () => {
+    const cases = [
+      ALL_INPUT,
+      { ...ALL_INPUT, batch: '058', freeText: 'Kelas Pagi - Batch A' },
+      { ...ALL_INPUT, sessionCode: 'ST', city: 'Live Zoom', typeCode: 'WO', productName: 'Master TikTok Indonesia', productCode: 'MT', freeText: 'Webinar' },
+    ]
+
+    for (const input of cases) {
+      const names = buildProductNameAllFormats(input)
+
+      for (const generated of [names.legacy, names.detailed, names.tail]) {
         const parsed = parseProductRaw(generated, TEST_CONFIG)
 
         expect(parsed.product_parse_status, `gagal parse: ${generated}`).toBe('valid')

@@ -145,11 +145,12 @@ Do NOT hardcode:
 
 Configuration must come from database-backed configuration.
 
-Canonical product patterns (BOTH valid since A75):
+Canonical product patterns (ALL valid since A75 / A96):
 
 ```text
 [PRODUCT_CODE][ADVERTISER_CODE][TYPE_CODE][BATCH] - [SESSION_CODE] - [CITY]
 [ADVERTISER_CODE] - [TYPE_CODE][BATCH] - [PRODUCT_NAME] - [SESSION_CODE] - [CITY]
+[FREE_TEXT] - [CITY] - [SESSION_CODE] - [PRODUCT_CODE][ADVERTISER_CODE][TYPE_CODE][BATCH]
 ```
 
 Examples:
@@ -157,9 +158,14 @@ Examples:
 ```text
 KM01SO392 - S1 - Solo
 01 - SO392 - Kuliner Masteri - S1 - Solo
+Kelas Pagi - Live Zoom - S1 - KM01SO392
 ```
 
-Segment count decides the format: 3 segments = code-based, 5 segments = name-based. 4 or 6+ is invalid.
+Format is decided thus: the free-text format is recognized first, by scanning from the BACK — the last three ` - `
+separators bound CODE / SESSION / CITY, and everything before them is FREE_TEXT (which may itself contain ` - `). Only if
+the last segment is not a configuration code block does segment count decide: 3 segments = code-based, 5 segments =
+name-based; 4 or 6+ is invalid. A 5-segment string that is valid in both the name-based and free-text formats is INVALID
+(`AMBIGUOUS_PRODUCT_FORMAT`) — never pick one.
 
 The name-based format uses `products.name` verbatim, so product names MUST be unique (case/whitespace-insensitive) and MUST
 NOT contain ` - `. Once a product is used (order/alias/Zoom key/report), its name MUST NOT change — deactivate and create a

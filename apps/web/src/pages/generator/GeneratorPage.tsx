@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PRODUCT_SEGMENT_SEPARATOR, validateProductNameVariants } from '@dvflow/shared'
+import { PRODUCT_SEGMENT_SEPARATOR, validateProductNameAllFormats } from '@dvflow/shared'
 import type { ConfigOption } from '../../lib/queries'
 import { useConfigLists } from '../../lib/useConfigLists'
 import { useSession } from '../../lib/useSession'
@@ -12,17 +12,18 @@ import { useToast } from '../../ui/Toast'
 import { cn } from '../../ui/cn'
 
 /**
- * Product Name Generator (PRD §70–§73, §163, 05 §D01–§D06, A75).
+ * Product Name Generator (PRD §70–§73, §163, 05 §D01–§D06, A75, A96).
  *
  * Seluruh logikanya ada di `packages/shared` dan sudah diuji
- * (`validateProductNameVariants`) — halaman ini tidak menyusun ulang stringnya
+ * (`validateProductNameAllFormats`) — halaman ini tidak menyusun ulang stringnya
  * sendiri. Itu penting: nama yang dihasilkan HARUS selalu dapat diparse kembali
  * oleh parser, dan satu-satunya cara menjaminnya adalah memakai fungsi yang sama.
  *
- * Sejak A75 generator menghasilkan DUA nama sekaligus:
+ * Sejak A96 generator menghasilkan TIGA nama sekaligus:
  *   * format lama (kode): `MTIX01SO60 - S1 - Tegal`
  *   * format baru (nama): `01 - SO60 - Master Tiktok Indonesia - S1 - Tegal`
- * Keduanya sah dan dapat diparse. Masing-masing punya tombol Copy sendiri.
+ *   * format teks bebas, dibaca dari belakang: `Kelas Pagi - Tegal - S1 - MTIX01SO60`
+ * Ketiganya sah dan dapat diparse. Masing-masing punya tombol Copy sendiri.
  *
  * Yang dijaga di sini:
  *   * hanya konfigurasi AKTIF yang ditawarkan (D02);
@@ -34,7 +35,7 @@ import { cn } from '../../ui/cn'
  */
 const TYPE_LABEL = 'Seminar / Webinar'
 
-type GeneratedNames = { legacy: string; detailed: string }
+type GeneratedNames = { legacy: string; detailed: string; tail: string }
 type GeneratedKey = keyof GeneratedNames
 
 /**
@@ -63,6 +64,7 @@ export function GeneratorPage() {
   const [sessionCode, setSessionCode] = useState('')
   const [batch, setBatch] = useState('')
   const [city, setCity] = useState('')
+  const [freeText, setFreeText] = useState('')
 
   const [errors, setErrors] = useState<Partial<Record<string, string>>>({})
   const [generated, setGenerated] = useState<GeneratedNames | null>(null)
@@ -70,7 +72,7 @@ export function GeneratorPage() {
 
   function generate(): void {
     const productName = productNameOf(lists?.products.find((item) => item.value === productCode))
-    const result = validateProductNameVariants({
+    const result = validateProductNameAllFormats({
       productCode,
       advertiserCode,
       typeCode,
@@ -78,6 +80,7 @@ export function GeneratorPage() {
       sessionCode,
       city,
       productName,
+      freeText,
     }, { strictCodes: true })
 
     if (!result.ok) {
@@ -166,6 +169,14 @@ export function GeneratorPage() {
               onChange={setCity}
               error={errors['city'] ?? null}
             />
+            <TextInput
+              id="generator-teks-bebas"
+              label="Teks bebas"
+              value={freeText}
+              placeholder="mis. Kelas Pagi"
+              onChange={setFreeText}
+              error={errors['freeText'] ?? null}
+            />
 
             <Button variant="primary" onClick={generate} className="mt-1">
               Generate
@@ -188,6 +199,12 @@ export function GeneratorPage() {
               value={generated?.detailed ?? null}
               copied={copied === 'detailed'}
               onCopy={() => void copy('detailed')}
+            />
+            <GeneratedNameRow
+              label="Format 3 — teks bebas"
+              value={generated?.tail ?? null}
+              copied={copied === 'tail'}
+              onCopy={() => void copy('tail')}
             />
             {generated === null ? (
               <p className="text-[12px] text-ink-soft">

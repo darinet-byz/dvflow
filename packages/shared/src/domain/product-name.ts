@@ -2,7 +2,7 @@ import { normalizeMasterCode, MASTER_CODE_RULES, type MasterCodeResource } from 
 /**
  * Pembentuk canonical product name (PRD §54, 01-IMPLEMENTATION-DECISIONS §10).
  *
- * Dua format yang SAMA-SAMA sah (A75):
+ * Tiga format yang SAMA-SAMA sah (A75, A96):
  *
  *   1. Berbasis kode (format lama):
  *      [PRODUCT_CODE][ADVERTISER_CODE][TYPE_CODE][BATCH] - [SESSION_CODE] - [CITY]
@@ -11,6 +11,10 @@ import { normalizeMasterCode, MASTER_CODE_RULES, type MasterCodeResource } from 
  *   2. Berbasis nama produk (format baru):
  *      [ADVERTISER_CODE] - [TYPE_CODE][BATCH] - [PRODUCT_NAME] - [SESSION_CODE] - [CITY]
  *      contoh: 01 - SO392 - Kuliner Masteri - S1 - Solo
+ *
+ *   3. Berbasis teks bebas, dibaca dari belakang (A96):
+ *      [FREE_TEXT] - [CITY] - [SESSION_CODE] - [PRODUCT_CODE][ADVERTISER_CODE][TYPE_CODE][BATCH]
+ *      contoh: Kelas Pagi - Live Zoom - S1 - KM01SO392
  *
  * Kontrak penting: nama yang dihasilkan builder ini HARUS selalu bisa diparse
  * kembali oleh product-parser. Karena itu batch, kota, dan NAMA PRODUK yang
@@ -54,6 +58,18 @@ export type ProductNameValidation =
 export type ProductNameVariantsValidation =
   | { ok: true; value: ProductNameVariants }
   | { ok: false; errors: Partial<Record<ProductNameDetailedField, string>> }
+
+/** Input lengkap tiga format (A96): enam field + nama produk + teks bebas. */
+export type ProductNameAllField = ProductNameDetailedField | 'freeText'
+
+export type ProductNameAllVariants = ProductNameVariants & {
+  /** Format 3: `[teks bebas] - [kota] - [sesi] - [kode]`. */
+  tail: string
+}
+
+export type ProductNameAllValidation =
+  | { ok: true; value: ProductNameAllVariants }
+  | { ok: false; errors: Partial<Record<ProductNameAllField, string>> }
 
 export class InvalidProductNameError extends Error {
   constructor(readonly errors: Partial<Record<ProductNameDetailedField, string>>) {
@@ -162,6 +178,16 @@ function buildDetailedName(fields: ValidatedFields, productName: string): string
 }
 
 /**
+ * Format 3 (A96): Kelas Pagi - Live Zoom - S1 - KM01SO392
+ *
+ * Teks bebas ada di depan supaya operator bebas menulis apa saja; parser membaca
+ * dari belakang sehingga teks bebas boleh memuat pemisah ` - `.
+ */
+function buildTailName(fields: ValidatedFields, freeText: string): string {
+  return `${freeText}${PRODUCT_SEGMENT_SEPARATOR}${fields.city}${PRODUCT_SEGMENT_SEPARATOR}${fields.sessionCode}${PRODUCT_SEGMENT_SEPARATOR}${fields.productCode}${fields.advertiserCode}${fields.typeCode}${normalizeBatch(fields.batch)}`
+}
+
+/**
  * Validasi input generator format lama. Tidak pernah menghasilkan kode yang salah:
  * kalau ada field bermasalah, hasilnya daftar error per field dan tanpa nilai.
  */
@@ -218,6 +244,49 @@ export function buildProductName(input: Partial<Record<ProductNameDetailedField,
  */
 export function buildProductNameVariants(input: Partial<Record<ProductNameDetailedField, unknown>>): ProductNameVariants {
   const result = validateProductNameVariants(input)
+  if (!result.ok) throw new InvalidProductNameError(result.errors)
+  return result.value
+}
+
+/**
+ * Validasi input generator TIGA format (A96).
+ *
+ * Teks bebas wajib diisi tetapi boleh memuat pemisah ` - `; kota tetap tidak
+ * boleh memuatnya supaya batas segmen dari belakang tidak goyah. Error teks
+ * bebas baru muncul setelah field lain valid, sama seperti nama produk.
+ */
+export function validateProductNameAllFormats(
+  input: Partial<Record<ProductNameAllField, unknown>>,
+  options: { strictCodes?: boolean } = {},
+): ProductNameAllValidation {
+  const errors: Partial<Record<ProductNameAllField, string>> = {}
+  const fields = validateFields(input, options, errors)
+  if (fields === null) return { ok: false, errors }
+
+  const productName = validateTextSegment('productName', input.productName, 'Nama produk', errors)
+  if (productName === null) return { ok: false, errors }
+
+  const freeText = toTrimmedOrNull(input.freeText)
+  if (freeText === null) {
+    errors.freeText = 'Teks bebas wajib diisi.'
+    return { ok: false, errors }
+  }
+
+  return {
+    ok: true,
+    value: {
+      legacy: buildLegacyName(fields),
+      detailed: buildDetailedName(fields, productName),
+      tail: buildTailName(fields, freeText),
+    },
+  }
+}
+
+/** Bentuk KETIGA nama produk sekaligus. Melempar bila input tidak valid. */
+export function buildProductNameAllFormats(
+  input: Partial<Record<ProductNameAllField, unknown>>,
+): ProductNameAllVariants {
+  const result = validateProductNameAllFormats(input)
   if (!result.ok) throw new InvalidProductNameError(result.errors)
   return result.value
 }

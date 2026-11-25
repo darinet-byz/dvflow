@@ -114,10 +114,12 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05, A75)', () => {
     choose('Sesi', 'S1')
     type('Batch', '392')
     type('Kota / Live Zoom', 'Solo')
+    type('Teks bebas', 'Kelas Pagi')
     fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
     expect(await screen.findByText('KULI01SO392 - S1 - Solo')).toBeDefined()
     expect(screen.getByText('01 - SO392 - Kuliner Masteri - S1 - Solo')).toBeDefined()
+    expect(screen.getByText('Kelas Pagi - Solo - S1 - KULI01SO392')).toBeDefined()
   })
 
   it('D05: batch "001" tidak kehilangan angka nol di depan (dua format)', async () => {
@@ -130,11 +132,13 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05, A75)', () => {
     choose('Sesi', 'S1')
     type('Batch', '058')
     type('Kota / Live Zoom', 'Solo')
+    type('Teks bebas', 'Kelas Pagi')
     fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
     // A33: nol di depan batch diabaikan; kode pengiklan 01 tetap utuh.
     expect(await screen.findByText('KULI01SO58 - S1 - Solo')).toBeDefined()
     expect(screen.getByText('01 - SO58 - Kuliner Masteri - S1 - Solo')).toBeDefined()
+    expect(screen.getByText('Kelas Pagi - Solo - S1 - KULI01SO58')).toBeDefined()
   })
 
   it('D04: spasi di sekitar kota dipangkas', async () => {
@@ -147,10 +151,12 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05, A75)', () => {
     choose('Sesi', 'S1')
     type('Batch', '392')
     type('Kota / Live Zoom', '   Solo   ')
+    type('Teks bebas', '  Kelas Pagi  ')
     fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
 
     expect(await screen.findByText('KULI01SO392 - S1 - Solo')).toBeDefined()
     expect(screen.getByText('01 - SO392 - Kuliner Masteri - S1 - Solo')).toBeDefined()
+    expect(screen.getByText('Kelas Pagi - Solo - S1 - KULI01SO392')).toBeDefined()
   })
 
   it('D03: input kurang -> tidak ada kode yang dihasilkan, hanya error', async () => {
@@ -176,9 +182,11 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05, A75)', () => {
     choose('Sesi', 'S1')
     type('Batch', '392')
     type('Kota / Live Zoom', 'Solo')
+    type('Teks bebas', 'Kelas Pagi')
 
     expect(screen.queryByText('KULI01SO392 - S1 - Solo')).toBeNull()
     expect(screen.queryByText('01 - SO392 - Kuliner Masteri - S1 - Solo')).toBeNull()
+    expect(screen.queryByText('Kelas Pagi - Solo - S1 - KULI01SO392')).toBeNull()
   })
 
   it('tombol Copy tiap format tidak aktif sebelum ada hasil', async () => {
@@ -187,6 +195,23 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05, A75)', () => {
 
     expect(screen.getByRole('button', { name: 'Copy Format 1 — kode' })).toHaveProperty('disabled', true)
     expect(screen.getByRole('button', { name: 'Copy Format 2 — nama produk' })).toHaveProperty('disabled', true)
+    expect(screen.getByRole('button', { name: 'Copy Format 3 — teks bebas' })).toHaveProperty('disabled', true)
+  })
+
+  it('teks bebas wajib diisi: tanpa itu tidak ada hasil yang muncul', async () => {
+    renderPage(<GeneratorPage />)
+    await waitForConfigOptions()
+
+    choose('Produk', 'KULI')
+    choose('Pengiklan', '01')
+    choose('Seminar / Webinar', 'SO')
+    choose('Sesi', 'S1')
+    type('Batch', '392')
+    type('Kota / Live Zoom', 'Solo')
+    fireEvent.click(screen.getByRole('button', { name: 'Generate' }))
+
+    expect((await screen.findAllByText('Teks bebas wajib diisi.')).length).toBeGreaterThan(0)
+    expect(screen.queryByText('KULI01SO392 - S1 - Solo')).toBeNull()
   })
 })
 

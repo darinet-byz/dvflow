@@ -1,7 +1,7 @@
 /**
  * Parser product_raw (PRD §67, 01-IMPLEMENTATION-DECISIONS §9 dan §10).
  *
- * Dua pola kanonik yang SAMA-SAMA diterima (A75):
+ * Tiga pola kanonik yang SAMA-SAMA diterima (A75, A96):
  *
  *   Berbasis kode — 3 segmen:
  *   [PRODUCT_CODE][ADVERTISER_CODE][TYPE_CODE][BATCH] - [SESSION_CODE] - [CITY]
@@ -11,19 +11,28 @@
  *   [ADVERTISER_CODE] - [TYPE_CODE][BATCH] - [PRODUCT_NAME] - [SESSION_CODE] - [CITY]
  *   contoh: 01 - SO392 - Kuliner Masteri - S1 - Solo
  *
+ *   Berbasis teks bebas — minimal 4 segmen, dibaca dari BELAKANG:
+ *   [FREE_TEXT] - [CITY] - [SESSION_CODE] - [PRODUCT_CODE][ADVERTISER_CODE][TYPE_CODE][BATCH]
+ *   contoh: Kelas Pagi - Live Zoom - S1 - KM01SO392
+ *
  * Segmen pertama format lama TIDAK punya pemisah internal, jadi ia harus dipecah
  * dengan mencocokkan kode konfigurasi. Algoritma ini deterministik dan tidak
  * pernah menebak:
  *
- *   1. trim, pecah pada pemisah persis " - " (3 segmen => format lama, 5 => format baru)
- *   2. segmen sesi harus cocok dengan TEPAT SATU baris sessions_config
- *   3. format lama: segmen kode harus cocok dengan TEPAT SATU kombinasi
+ *   1. format 3 dikenali lebih dulu: bila tiga pemisah ` - ` terakhir ada dan
+ *      segmen terakhir cocok dengan kombinasi kode konfigurasi, sisa di depannya
+ *      adalah teks bebas (boleh memuat ` - `)
+ *   2. selain itu jumlah segmen menentukan: trim, pecah pada pemisah persis " - "
+ *      (3 segmen => format lama, 5 => format baru)
+ *   3. segmen sesi harus cocok dengan TEPAT SATU baris sessions_config
+ *   4. format lama: segmen kode harus cocok dengan TEPAT SATU kombinasi
  *      (product, advertiser, event_type); sisanya menjadi batch
  *      format baru: pengiklan, tipe+batch, dan nama produk masing-masing harus
  *      cocok dengan TEPAT SATU baris konfigurasi
  *
  * Nol kandidat atau lebih dari satu kandidat => invalid. Ambiguitas tidak pernah
- * diselesaikan dengan tebakan.
+ * diselesaikan dengan tebakan. Bila sebuah teks 5 segmen valid di format 2 DAN
+ * format 3, hasilnya invalid (AMBIGUOUS_PRODUCT_FORMAT), bukan dipilih salah satu.
  *
  * Pencocokan memakai SELURUH baris konfigurasi (aktif maupun nonaktif). Menonaktifkan
  * sebuah produk tidak boleh membuat order lama yang sudah Paid kehilangan akses event.
@@ -60,6 +69,8 @@ export type ProductParseFailureReason =
   | 'AMBIGUOUS_TYPE_CODE'
   | 'UNKNOWN_PRODUCT_NAME'
   | 'AMBIGUOUS_PRODUCT_NAME'
+  // A96: format teks bebas yang valid di dua format sekaligus.
+  | 'AMBIGUOUS_PRODUCT_FORMAT'
 
 export type ProductParseCandidate = string
 
@@ -316,12 +327,115 @@ function parseDetailedProduct(
   }
 }
 
+type TailSegments = {
+  freeText: string
+  city: string
+  sessionText: string
+  codeText: string
+}
+
+/**
+ * Pecah format 3 dari BELAKANG: tiga pemisah ` - ` terakhir adalah batas
+ * kode / sesi / kota; sisanya teks bebas (boleh memuat ` - `).
+ * Mengembalikan null bila pemisah kurang dari tiga.
+ */
+function splitTailSegments(raw: string): TailSegments | null {
+  const codeSeparator = raw.lastIndexOf(PRODUCT_SEGMENT_SEPARATOR)
+  if (codeSeparator < 0) return null
+  const sessionSeparator = raw.lastIndexOf(PRODUCT_SEGMENT_SEPARATOR, codeSeparator - 1)
+  if (sessionSeparator < 0) return null
+  const citySeparator = raw.lastIndexOf(PRODUCT_SEGMENT_SEPARATOR, sessionSeparator - 1)
+  if (citySeparator < 0) return null
+
+  return {
+    freeText: raw.slice(0, citySeparator).trim(),
+    city: raw.slice(citySeparator + PRODUCT_SEGMENT_SEPARATOR.length, sessionSeparator).trim(),
+    sessionText: raw.slice(sessionSeparator + PRODUCT_SEGMENT_SEPARATOR.length, codeSeparator).trim(),
+    codeText: raw.slice(codeSeparator + PRODUCT_SEGMENT_SEPARATOR.length).trim(),
+  }
+}
+
+/**
+ * Format 3 (A96): Kelas Pagi - Live Zoom - S1 - KM01SO392
+ *
+ * Teks bebas tidak dicocokkan ke konfigurasi (memang bebas); sesi dan blok kode
+ * tetap harus menunjuk tepat satu baris konfigurasi.
+ */
+function parseTailProduct(tail: TailSegments, config: ProductConfigSet): ProductParseResult {
+  if (
+    tail.freeText.length === 0 ||
+    tail.city.length === 0 ||
+    tail.sessionText.length === 0 ||
+    tail.codeText.length === 0
+  ) {
+    return invalidProduct('EMPTY_SEGMENT')
+  }
+
+  const blockKey = normalizeCode(tail.codeText)
+  // Slice batch memakai indeks dari teks asli, jadi panjangnya harus sama.
+  if (blockKey.length !== tail.codeText.length) return invalidProduct('INVALID_CODE_BLOCK')
+
+  const sessionMatch = resolveSession(tail.sessionText, config)
+  if (!sessionMatch.ok) return sessionMatch.result
+
+  const combinations = listCodeCombinations(tail.codeText, config)
+  if (combinations.length === 0) return invalidProduct('UNKNOWN_CODE_COMBINATION')
+  if (combinations.length > 1) {
+    return invalidProduct(
+      'AMBIGUOUS_CODE_COMBINATION',
+      combinations.map(describeCodeCombination),
+    )
+  }
+  const combination = combinations[0]
+  if (combination === undefined) return invalidProduct('UNKNOWN_CODE_COMBINATION')
+
+  const batchRaw = tail.codeText.slice(combination.prefix.length)
+  if (batchRaw.length === 0) return invalidProduct('UNKNOWN_CODE_COMBINATION')
+
+  return {
+    product_parse_status: 'valid',
+    product_code: combination.product.code,
+    product_name: combination.product.name,
+    advertiser_code: combination.advertiser.code,
+    advertiser_name: combination.advertiser.name,
+    event_type: EVENT_TYPE_NAME_BY_KIND[combination.eventType.kind],
+    event_type_code: combination.eventType.code,
+    event_kind: combination.eventType.kind,
+    batch: normalizeBatch(batchRaw),
+    session: sessionMatch.session.code,
+    city: tail.city,
+    failure_reason: null,
+    candidates: [],
+  }
+}
+
 export function parseProductRaw(
   productRaw: string | null | undefined,
   config: ProductConfigSet,
 ): ProductParseResult {
   const raw = typeof productRaw === 'string' ? productRaw : ''
   if (raw.trim().length === 0) return invalidProduct('EMPTY_PRODUCT_RAW')
+
+  // Format 3 (A96) dikenali dari BELAKANG: hanya bila tiga pemisah terakhir ada
+  // dan segmen terakhir berbentuk blok kode konfigurasi. Selain itu aturan lama
+  // (3 atau 5 segmen) yang berlaku, sehingga format 1 dan 2 tidak berubah.
+  const tail = splitTailSegments(raw)
+  if (tail !== null && listCodeCombinations(tail.codeText, config).length > 0) {
+    const tailResult = parseTailProduct(tail, config)
+    if (tailResult.product_parse_status === 'valid') {
+      const detailedSegments = raw.split(PRODUCT_SEGMENT_SEPARATOR)
+      if (detailedSegments.length === 5) {
+        const detailedResult = parseDetailedProduct(detailedSegments, config)
+        if (detailedResult.product_parse_status === 'valid') {
+          return invalidProduct('AMBIGUOUS_PRODUCT_FORMAT', [
+            tailResult.product_code,
+            detailedResult.product_code,
+          ])
+        }
+      }
+    }
+    return tailResult
+  }
 
   // Sengaja TIDAK trim seluruh string sebelum split. 01 §10 meminta trim "di sekitar
   // segmen", dan memangkas tepi lebih dulu akan menghapus spasi milik pemisah
