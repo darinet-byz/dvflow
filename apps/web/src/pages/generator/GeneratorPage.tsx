@@ -23,7 +23,9 @@ import { cn } from '../../ui/cn'
  *   * format lama (kode): `MTIX01SO60 - S1 - Tegal`
  *   * format baru (nama): `01 - SO60 - Master Tiktok Indonesia - S1 - Tegal`
  *   * format teks bebas, dibaca dari belakang: `Kelas Pagi - Tegal - S1 - MTIX01SO60`
- * Ketiganya sah dan dapat diparse. Masing-masing punya tombol Copy sendiri.
+ * Ketiganya sah dan dapat diparse. Masing-masing punya tombol Copy sendiri, dan
+ * setiap baris menampilkan contoh polanya supaya ketiga opsi terlihat bahkan
+ * sebelum Generate — termasuk `(Area Teks bebas) - Solo - S1 - MTIX01SO600`.
  *
  * Yang dijaga di sini:
  *   * hanya konfigurasi AKTIF yang ditawarkan (D02);
@@ -190,18 +192,21 @@ export function GeneratorPage() {
           <div className="flex flex-col gap-3">
             <GeneratedNameRow
               label="Format 1 — kode"
+              pattern="MTIX01SO600 - S1 - Solo"
               value={generated?.legacy ?? null}
               copied={copied === 'legacy'}
               onCopy={() => void copy('legacy')}
             />
             <GeneratedNameRow
               label="Format 2 — nama produk"
+              pattern="01 - SO600 - Master Tiktok Indonesia - S1 - Solo"
               value={generated?.detailed ?? null}
               copied={copied === 'detailed'}
               onCopy={() => void copy('detailed')}
             />
             <GeneratedNameRow
               label="Format 3 — teks bebas"
+              pattern="(Area Teks bebas) - Solo - S1 - MTIX01SO600"
               value={generated?.tail ?? null}
               copied={copied === 'tail'}
               onCopy={() => void copy('tail')}
@@ -234,11 +239,13 @@ export function GeneratorPage() {
 
 function GeneratedNameRow({
   label,
+  pattern,
   value,
   copied,
   onCopy,
 }: {
   label: string
+  pattern: string
   value: string | null
   copied: boolean
   onCopy: () => void
@@ -253,7 +260,10 @@ function GeneratedNameRow({
       )}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-[12px] font-medium text-ink-soft">{label}</span>
+        <div className="min-w-0">
+          <span className="text-[12px] font-medium text-ink-soft">{label}</span>
+          <p className="mt-0.5 break-words font-mono text-[11px] text-ink-muted">{pattern}</p>
+        </div>
         <Button
           variant="secondary"
           size="sm"

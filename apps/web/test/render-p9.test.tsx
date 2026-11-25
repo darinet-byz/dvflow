@@ -198,6 +198,15 @@ describe('Product Name Generator (PRD §71, 05 §D01–§D05, A75)', () => {
     expect(screen.getByRole('button', { name: 'Copy Format 3 — teks bebas' })).toHaveProperty('disabled', true)
   })
 
+  it('menampilkan tiga pola format sebagai opsi, termasuk teks bebas', async () => {
+    renderPage(<GeneratorPage />)
+    await waitForConfigOptions()
+
+    expect(screen.getByText('MTIX01SO600 - S1 - Solo')).toBeDefined()
+    expect(screen.getByText('01 - SO600 - Master Tiktok Indonesia - S1 - Solo')).toBeDefined()
+    expect(screen.getByText('(Area Teks bebas) - Solo - S1 - MTIX01SO600')).toBeDefined()
+  })
+
   it('teks bebas wajib diisi: tanpa itu tidak ada hasil yang muncul', async () => {
     renderPage(<GeneratorPage />)
     await waitForConfigOptions()

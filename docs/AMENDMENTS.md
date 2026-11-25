@@ -2395,7 +2395,9 @@ Format 3 (teks bebas):  Kelas Pagi - Live Zoom - S1 - MTIX01SO600
   `AMBIGUOUS_PRODUCT_FORMAT`.
 - Migrasi `20261125120000_tail_product_name_format.sql` (`schema_version` 95): `master_tail_parts`, lalu
   `master_setting_parts` dan `master_is_used` mengenali format teks bebas untuk order, alias, dan key Zoom/tiket.
-- Web: `GeneratorPage.tsx` input **Teks bebas** + baris hasil **Format 3 — teks bebas** + tombol Copy.
+- Web: `GeneratorPage.tsx` input **Teks bebas** + baris hasil **Format 3 — teks bebas** + tombol Copy; setiap baris
+  menampilkan contoh pola, termasuk `(Area Teks bebas) - Solo - S1 - MTIX01SO600`, supaya ketiga opsi terlihat bahkan
+  sebelum Generate.
 - Tes: `packages/shared/test/product-name.test.ts` dan `product-parser.test.ts` (round-trip tiga format, teks bebas
   ber-` - `, kasus ambigu, sesi/kode tak dikenal), `apps/web/test/render-p9.test.tsx`, pgTAP
   `50_tail_product_name_format.sql`.
