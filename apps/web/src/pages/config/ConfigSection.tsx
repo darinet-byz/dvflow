@@ -3,6 +3,7 @@ import { hasPermission, hasAllProductAccess } from '../../lib/roles'
 import { useSession } from '../../lib/useSession'
 import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { ApiError } from '../../lib/api'
+import { invalidateConfigCaches } from '../../lib/queries'
 import { authorizedRequest } from '../../lib/session'
 import { supabaseSelect } from '../../lib/supabase-rest'
 import { useAsyncData } from '../../lib/useAsyncData'
@@ -91,6 +92,11 @@ export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged
     [spec.tableName],
   )
 
+  function notifyConfigChanged(): void {
+    invalidateConfigCaches()
+    onChanged?.()
+  }
+
   const rows = useMemo(() => {
     const all = data ?? []
     const term = search.trim().toLowerCase()
@@ -153,7 +159,7 @@ export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged
       setAdding(false)
       setEditing(null)
       reload()
-      onChanged?.()
+      notifyConfigChanged()
     } catch (failure) {
       toast.show(failure instanceof ApiError ? failure.message : 'Perubahan tidak dapat disimpan.', 'danger')
     } finally {
@@ -168,7 +174,7 @@ export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged
       toast.show(`${spec.title} dinonaktifkan.`, 'success')
       setConfirming(null)
       reload()
-      onChanged?.()
+      notifyConfigChanged()
     } catch (failure) {
       toast.show(failure instanceof ApiError ? failure.message : 'Tidak dapat menonaktifkan.', 'danger')
     } finally {
@@ -185,7 +191,7 @@ export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged
       toast.show(`${spec.title} berhasil dihapus.`, 'success')
       setDeleting(null)
       reload()
-      onChanged?.()
+      notifyConfigChanged()
     } catch (failure) {
       toast.show(failure instanceof ApiError ? failure.message : 'Tidak dapat menghapus.', 'danger')
     } finally {
@@ -202,7 +208,7 @@ export function ConfigSection({ spec, onChanged }: { spec: ConfigSpec; onChanged
       })
       toast.show(`${spec.title} diaktifkan kembali.`, 'success')
       reload()
-      onChanged?.()
+      notifyConfigChanged()
     } catch (failure) {
       toast.show(failure instanceof ApiError ? failure.message : 'Tidak dapat mengaktifkan.', 'danger')
     } finally {

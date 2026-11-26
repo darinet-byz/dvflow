@@ -10,6 +10,11 @@ import { useAsyncData } from './useAsyncData'
  */
 export function useConfigLists(refreshToken = 0): { lists: ConfigLists | null; error: string | null } {
   // `refreshToken` memuat ulang daftar saat halaman yang sama baru saja mengubah konfigurasi.
-  const { data, error } = useAsyncData(fetchConfigLists, [refreshToken])
+  // Selain itu, cache singkat di `fetchConfigLists` mencegah query konfigurasi berulang
+  // setiap halaman dipasang/pindah produk.
+  const { data, error } = useAsyncData(
+    () => fetchConfigLists({ fresh: refreshToken > 0 }),
+    [refreshToken],
+  )
   return { lists: data, error }
 }

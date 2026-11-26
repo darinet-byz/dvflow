@@ -30,16 +30,23 @@ export function DashboardPage() {
   const { lists } = useConfigLists()
 
   const sourceLabel = state.applied.source === 'ots' ? 'OTS' : state.applied.source === 'orderonline' ? 'Online' : 'Semua sumber'
-  const comparisonKey = JSON.stringify({ ...state.applied, source: '' })
-  const comparison = useAsyncData(() => Promise.all([
-    fetchDashboardSummary({ ...state.applied, source: 'orderonline' }),
-    fetchDashboardSummary({ ...state.applied, source: 'ots' }),
-  ]), [comparisonKey])
 
   const appliedKey = JSON.stringify(state.applied)
   const { data, loading, error, reload } = useAsyncData(
     () => fetchDashboardSummary(state.applied),
     [appliedKey],
+  )
+
+  // A100: tabel pembanding dimuat setelah KPI utama selesai supaya angka utama
+  // muncul lebih dulu. Saat filter sudah punya data (reload), pembanding boleh
+  // berjalan bersamaan agar perubahan filter tetap terasa responsif.
+  const comparisonKey = JSON.stringify({ ...state.applied, source: '' })
+  const comparison = useAsyncData(
+    () => (data === null ? Promise.resolve(null) : Promise.all([
+      fetchDashboardSummary({ ...state.applied, source: 'orderonline' }),
+      fetchDashboardSummary({ ...state.applied, source: 'ots' }),
+    ])),
+    [comparisonKey, data !== null],
   )
 
 

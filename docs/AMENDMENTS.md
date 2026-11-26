@@ -2520,3 +2520,26 @@ Permintaan pengguna: warna menu sidebar yang aktif terlalu bold; yang seharusnya
 - `ReportSpendPage.tsx`: hapus `cardProductFilter`/select popup; turunkan `globalProductCode` dari `state.applied`; filter `listedCards`; `openCreateCard` memakai produk global; opsi produk form dibatasi dan combobox dikunci saat produk global spesifik; empty state menyesuaikan.
 - Tes: `report-spend-card.test.tsx` (produk global spesifik vs Semua Produk, form terkunci), `sidebar-accordion.test.tsx` (class menu aktif/hover).
 - Gate: typecheck PASS; lint PASS; unit **931** (402 api + 180 shared + 3 wa-cron + 346 web); build PASS. Tidak ada migrasi.
+
+## A100 - Cache konfigurasi + picker overlay + Dashboard bertahap (26 November 2026)
+
+Permintaan pengguna: perpindahan produk A -> B terasa lama saat data muncul; cari bagian yang kurang efisien tanpa mengubah perilaku produk.
+
+### Keputusan
+
+- **Cache konfigurasi singkat (5 menit, per tab)** untuk `ConfigLists` dan opsi produk picker. Permintaan yang sedang berjalan digabung, hasil lama tidak boleh menimpa hasil baru, dan cache dibersihkan setiap Konfigurasi disimpan/dinonaktifkan/diaktifkan/dihapus. Setelah konfigurasi berubah, halaman yang memakai `refreshToken` tetap memaksa data baru.
+- **Picker ganti produk menjadi overlay** di atas shell, bukan mengganti seluruh shell. Shell, sidebar, chat, dan state halaman tetap terpasang di belakang overlay dan diberi `inert` + `aria-hidden`; **Batal** kembali ke halaman yang sama tanpa remount. Layar pilih awal (belum ada produk) tetap tanpa shell.
+- **Dashboard bertahap**: KPI utama diminta lebih dulu; tabel pembanding Online/OTS baru diminta setelah KPI utama selesai. Saat pengguna mengganti filter dan sudah ada data, pembanding tetap boleh berjalan bersamaan.
+- Tidak ada perubahan RPC/database; schema tetap 95.
+
+### Implementasi
+
+- `config-cache.ts`: cache generik per slot, dedupe in-flight, version guard, TTL 5 menit, dan registry `invalidateConfigCaches()` tanpa dependensi agar aman dipakai `session.ts`.
+- `queries.ts`: slot `configListsCache`/`productOptionsCache`, re-export konstanta dan invalidator; `fetchConfigLists`/`fetchProductOptions` memakai cache.
+- `useConfigLists.ts`: `fetchConfigLists({ fresh: refreshToken > 0 })`.
+- `ConfigSection.tsx`: `notifyConfigChanged()` memanggil `invalidateConfigCaches()` pada semua jalur sukses (simpan, nonaktifkan, hapus permanen, aktifkan).
+- `session.ts`: login dan logout membersihkan cache agar tab yang dipakai berganti user tidak mewarisi daftar konfigurasi lama.
+- `ProductScope.tsx`: `ProductPickerScreen({ overlay })`; `ProductScopeLock` mempertahankan shell dan memasang overlay `z-[80]`; picker tetap memakai opsi produk dari cache.
+- `DashboardPage.tsx`: tabel pembanding bergantung pada `data !== null` dari ringkasan utama.
+- Tes: `config-cache.test.ts` (cache, invalidasi, TTL), `dashboard-defer.test.tsx` (pembanding menunggu KPI utama), `product-scope.test.tsx` (shell tetap node yang sama + `inert` saat overlay, Batal melepas kunci).
+- Gate: typecheck PASS; lint PASS; unit **935** (402 api + 180 shared + 3 wa-cron + 350 web); build PASS. Tidak ada migrasi.

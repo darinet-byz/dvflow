@@ -1,7 +1,9 @@
 import { EVENT_TYPE_NAME_BY_KIND, type EventKind } from '@dvflow/shared'
-import { supabaseRpc, supabaseSelect } from './supabase-rest'
+import { cacheIsFresh, createConfigCache } from './config-cache'
 import type { CommonFilters, OrderFilters, PageSize, PresensiDateMode, PresensiFilters } from './filters'
 import { toFilterArgs, toOrderArgs, toPresensiArgs } from './filters'
+import { supabaseRpc, supabaseSelect } from './supabase-rest'
+export { CONFIG_CACHE_TTL_MS, invalidateConfigCaches } from './config-cache'
 
 /**
  * Akses data halaman baca.
@@ -382,26 +384,55 @@ export type ConfigLists = {
 type CodeRow = { code: string; name: string }
 type EventTypeRow = { code: string; name: string; kind: EventKind }
 
-export async function fetchConfigLists(): Promise<ConfigLists> {
-  const [products, advertisers, eventTypes, sessions, feeRules] = await Promise.all([
-    supabaseSelect<CodeRow>('products', { active: 'is.true' }, 'code,name'),
-    supabaseSelect<CodeRow>('advertisers', { active: 'is.true' }, 'code,name'),
-    supabaseSelect<EventTypeRow>('event_types', { active: 'is.true' }, 'code,name,kind'),
-    supabaseSelect<CodeRow>('sessions_config', { active: 'is.true' }, 'code,name'),
-    supabaseSelect<{ identifier: string }>('payment_fee_rules', { active: 'is.true' }, 'identifier'),
-  ])
+/**
+ * Cache singkat untuk daftar konfigurasi (A100).
+ *
+ * Konfigurasi berubah jarang, tetapi filter dibaca di hampir semua halaman.
+ * Tanpa cache, setiap halaman yang dipasang (termasuk saat pindah produk)
+ * mengirim 5 query yang sama. Cache ini per tab, TTL 5 menit, dan dibersihkan
+ * setelah Konfigurasi disimpan/diubah atau user berganti.
+ */
+const configListsCache = createConfigCache<ConfigLists>()
+const productOptionsCache = createConfigCache<ConfigOption[]>()
 
-  return {
-    products: toOptions(products),
-    advertisers: toOptions(advertisers),
-    eventTypes: toOptions(eventTypes),
-    // orders.event_type diturunkan dari kind (Seminar Offline/Webinar Online/Hybrid), bukan
-    // dari nama baris konfigurasi — filter harus memakai nilai turunan itu agar cocok.
-    eventTypeNames: [...new Set(eventTypes.map((row) => EVENT_TYPE_NAME_BY_KIND[row.kind]).filter(Boolean))]
-      .map((name) => ({ value: name, label: name }))
-      .sort((left, right) => left.label.localeCompare(right.label, 'id')),
-    sessions: toOptions(sessions),
-    paymentMethods: [...new Set(feeRules.map((row) => row.identifier))].sort(),
+export async function fetchConfigLists(options: { fresh?: boolean } = {}): Promise<ConfigLists> {
+  const fresh = options.fresh === true
+  const cached = configListsCache.read()
+  if (!fresh && cacheIsFresh(cached)) return cached.value
+  const inFlight = configListsCache.readInFlight()
+  if (!fresh && inFlight !== null) return inFlight
+
+  const version = configListsCache.nextVersion()
+  const request = (async () => {
+    const [products, advertisers, eventTypes, sessions, feeRules] = await Promise.all([
+      supabaseSelect<CodeRow>('products', { active: 'is.true' }, 'code,name'),
+      supabaseSelect<CodeRow>('advertisers', { active: 'is.true' }, 'code,name'),
+      supabaseSelect<EventTypeRow>('event_types', { active: 'is.true' }, 'code,name,kind'),
+      supabaseSelect<CodeRow>('sessions_config', { active: 'is.true' }, 'code,name'),
+      supabaseSelect<{ identifier: string }>('payment_fee_rules', { active: 'is.true' }, 'identifier'),
+    ])
+
+    return {
+      products: toOptions(products),
+      advertisers: toOptions(advertisers),
+      eventTypes: toOptions(eventTypes),
+      // orders.event_type diturunkan dari kind (Seminar Offline/Webinar Online/Hybrid), bukan
+      // dari nama baris konfigurasi — filter harus memakai nilai turunan itu agar cocok.
+      eventTypeNames: [...new Set(eventTypes.map((row) => EVENT_TYPE_NAME_BY_KIND[row.kind]).filter(Boolean))]
+        .map((name) => ({ value: name, label: name }))
+        .sort((left, right) => left.label.localeCompare(right.label, 'id')),
+      sessions: toOptions(sessions),
+      paymentMethods: [...new Set(feeRules.map((row) => row.identifier))].sort(),
+    }
+  })()
+
+  configListsCache.writeInFlight(request)
+  try {
+    const value = await request
+    if (version === configListsCache.currentVersion()) configListsCache.write(value)
+    return value
+  } finally {
+    if (configListsCache.readInFlight() === request) configListsCache.writeInFlight(null)
   }
 }
 
@@ -412,9 +443,27 @@ export async function fetchConfigLists(): Promise<ConfigLists> {
  * konfigurasi lain hanya untuk mengisi satu dropdown. RLS `products` sudah
  * membatasi hasil ke produk yang boleh diakses user.
  */
-export async function fetchProductOptions(): Promise<ConfigOption[]> {
-  const rows = await supabaseSelect<CodeRow>('products', { active: 'is.true', order: 'code.asc' }, 'code,name')
-  return toOptions(rows)
+export async function fetchProductOptions(options: { fresh?: boolean } = {}): Promise<ConfigOption[]> {
+  const fresh = options.fresh === true
+  const cached = productOptionsCache.read()
+  if (!fresh && cacheIsFresh(cached)) return cached.value
+  const inFlight = productOptionsCache.readInFlight()
+  if (!fresh && inFlight !== null) return inFlight
+
+  const version = productOptionsCache.nextVersion()
+  const request = (async () => {
+    const rows = await supabaseSelect<CodeRow>('products', { active: 'is.true', order: 'code.asc' }, 'code,name')
+    return toOptions(rows)
+  })()
+
+  productOptionsCache.writeInFlight(request)
+  try {
+    const value = await request
+    if (version === productOptionsCache.currentVersion()) productOptionsCache.write(value)
+    return value
+  } finally {
+    if (productOptionsCache.readInFlight() === request) productOptionsCache.writeInFlight(null)
+  }
 }
 
 /** A34: daftar produk & sesi untuk form OTS. RLS tetap membatasi produk sesuai scope user. */

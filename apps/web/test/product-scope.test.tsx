@@ -342,14 +342,20 @@ describe('product scope: ganti produk', () => {
     await screen.findByText('Pilih Produk Dulu')
     await chooseProduct('KM')
     expect(await screen.findByText('Halaman KM')).toBeTruthy()
+    const pageBefore = screen.getByText('Halaman KM')
 
     act(() => screen.getByRole('button', { name: /Ganti produk/ }).click())
     expect(await screen.findByText('Ganti Produk')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Batal' })).toBeTruthy()
     expect(screen.queryByRole('navigation', { name: 'Menu utama' })).toBeNull()
+    // A100: picker adalah overlay; shell tetap terpasang (node yang sama) dan inert.
+    expect(screen.getByText('Halaman KM')).toBe(pageBefore)
+    expect(pageBefore.closest('[inert]')).not.toBeNull()
 
     act(() => screen.getByRole('button', { name: 'Batal' }).click())
     expect(await screen.findByText('Halaman KM')).toBeTruthy()
+    expect(screen.getByText('Halaman KM')).toBe(pageBefore)
+    expect(pageBefore.closest('[inert]')).toBeNull()
     expect(screen.queryByText('Ganti Produk')).toBeNull()
     expect(stored()?.code).toBe('KM')
   })

@@ -1,4 +1,5 @@
 import { ApiError, apiRequest, type Profile, type SessionPayload } from './api'
+import { invalidateConfigCaches } from './config-cache'
 
 /**
  * Sesi aplikasi (01 §2, 04 §7).
@@ -83,6 +84,9 @@ export async function login(username: string, password: string): Promise<void> {
     body: { username, password },
   })
   applySessionPayload(payload)
+  // Pengguna bisa berganti di tab yang sama; jangan mewarisi daftar konfigurasi
+  // milik sesi sebelumnya.
+  invalidateConfigCaches()
 }
 
 /**
@@ -98,6 +102,7 @@ export async function logout(): Promise<void> {
     // diabaikan dengan sengaja
   }
   setSession({ status: 'anonymous', profile: null }, null)
+  invalidateConfigCaches()
 }
 
 export type ChangePasswordInput = {

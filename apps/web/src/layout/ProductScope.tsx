@@ -28,6 +28,9 @@ import { LOGIN_PATH } from './navigation'
  * user selama 24 jam; expiry dan logout mengembalikan pengguna ke layar ini.
  *
  * Ini hanya kebijakan tampilan; RLS/RPC tetap batas keamanan.
+ *
+ * A100: mode ganti produk memakai overlay; shell di belakangnya tetap terpasang
+ * dan inert agar state halaman/sidebar/chat tidak hilang saat Batal.
  */
 
 export type ProductScope = {
@@ -150,7 +153,8 @@ export function ProductScopeProvider({ children }: { children: ReactNode }) {
   }, [userId])
 
   const openPicker = useCallback(() => {
-    // Muat ulang opsi: admin bisa saja baru menambah produk lewat bypass konfigurasi.
+    // Muat ulang opsi; cache singkat dipakai bila konfigurasi belum berubah.
+    // Setelah Konfigurasi disimpan, cache dibersihkan sehingga produk baru muncul.
     reload()
     setPickerOpen(true)
   }, [reload])
@@ -251,7 +255,7 @@ export function ProductScopeProvider({ children }: { children: ReactNode }) {
  * (dibuka dari nama produk di sidebar/header) punya Batal agar pengguna dapat
  * kembali tanpa mengubah pilihan.
  */
-export function ProductPickerScreen() {
+export function ProductPickerScreen({ overlay = false }: { overlay?: boolean }) {
   const scope = useRequiredScope()
   const { profile } = useSession()
   const navigate = useNavigate()
@@ -276,103 +280,105 @@ export function ProductPickerScreen() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-page p-4 sm:p-6">
-      <Card className="w-full max-w-2xl">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <p className="text-[18px] font-bold tracking-tight text-ink">DVFLOW</p>
-            <p className="text-[11px] text-ink-muted">Operasional event</p>
+    <div className={cn(overlay ? 'fixed inset-0 z-[80] overflow-y-auto bg-page' : 'bg-page')}>
+      <div className="flex min-h-screen items-start justify-center p-4 sm:items-center sm:p-6">
+        <Card className="w-full max-w-2xl">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-[18px] font-bold tracking-tight text-ink">DVFLOW</p>
+              <p className="text-[11px] text-ink-muted">Operasional event</p>
+            </div>
+            {canCancel ? (
+              <Button variant="ghost" size="sm" onClick={scope.closePicker}>Batal</Button>
+            ) : null}
           </div>
-          {canCancel ? (
-            <Button variant="ghost" size="sm" onClick={scope.closePicker}>Batal</Button>
-          ) : null}
-        </div>
 
-        <h1 className="mt-4 text-[22px] font-bold tracking-tight text-ink">
-          {switching ? 'Ganti Produk' : 'Pilih Produk Dulu'}
-        </h1>
-        {scope.loading && scope.options.length === 0 ? (
-          <div className="mt-4" aria-busy="true"><Skeleton height={120} /></div>
-        ) : scope.error !== null && scope.options.length === 0 ? (
-          <div className="mt-4 flex flex-col items-start gap-3">
-            <p className="text-[13px] text-danger">{scope.error}</p>
-            <Button variant="secondary" size="sm" onClick={scope.reload}>Coba lagi</Button>
-          </div>
-        ) : (
-          <div className="mt-4 flex flex-col gap-2">
-            {scope.error === null ? null : (
-              <p className="text-[12px] text-danger">
-                {scope.error}{' '}
-                <button type="button" onClick={scope.reload} className="font-semibold underline underline-offset-2">Coba lagi</button>
-              </p>
-            )}
-
-            {scope.options.length === 0 ? (
-              <div className="rounded-md border border-dashed border-line px-4 py-5 text-center">
-                <p className="text-[13px] font-semibold text-ink">Belum ada produk yang ditugaskan.</p>
-                <p className="mt-1 text-[13px] text-ink-soft">
-                  {canManageProducts
-                    ? 'Tambahkan produk terlebih dahulu melalui Konfigurasi Produk.'
-                    : 'Hubungi admin untuk menambahkan produk.'}
+          <h1 className="mt-4 text-[22px] font-bold tracking-tight text-ink">
+            {switching ? 'Ganti Produk' : 'Pilih Produk Dulu'}
+          </h1>
+          {scope.loading && scope.options.length === 0 ? (
+            <div className="mt-4" aria-busy="true"><Skeleton height={120} /></div>
+          ) : scope.error !== null && scope.options.length === 0 ? (
+            <div className="mt-4 flex flex-col items-start gap-3">
+              <p className="text-[13px] text-danger">{scope.error}</p>
+              <Button variant="secondary" size="sm" onClick={scope.reload}>Coba lagi</Button>
+            </div>
+          ) : (
+            <div className="mt-4 flex flex-col gap-2">
+              {scope.error === null ? null : (
+                <p className="text-[12px] text-danger">
+                  {scope.error}{' '}
+                  <button type="button" onClick={scope.reload} className="font-semibold underline underline-offset-2">Coba lagi</button>
                 </p>
-                {canManageProducts ? (
-                  <Button variant="secondary" size="sm" className="mt-3" onClick={manageProducts}>Kelola Produk</Button>
-                ) : null}
-              </div>
-            ) : (
-              <>
-                <div className="max-h-[320px] overflow-y-auto rounded-md border border-line">
-                  {scope.options.map((option) => {
-                    const active = scope.chosen && option.value === scope.code
-                    return (
-                      <button
-                        key={option.value}
-                        type="button"
-                        aria-label={`${option.value} ${productOptionName(option)}`}
-                        onClick={() => scope.choose(option.value)}
-                        className={cn(
-                          'flex w-full items-center gap-3 border-b border-line px-4 py-3 text-left last:border-b-0',
-                          active ? 'bg-primary-soft' : 'hover:bg-soft',
-                        )}
-                      >
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-[13px] font-semibold text-ink">{option.value}</span>
-                          <span className="block text-[12px] text-ink-soft">{productOptionName(option)}</span>
-                        </span>
-                        {active ? <span className="shrink-0 text-[11px] font-semibold text-primary">Aktif</span> : null}
-                      </button>
-                    )
-                  })}
-                </div>
-                <button
-                  type="button"
-                  aria-label="Semua Produk"
-                  onClick={() => scope.choose('')}
-                  className={cn(
-                    'flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left',
-                    scope.chosen && scope.code === ''
-                      ? 'border-primary bg-primary-soft'
-                      : 'border-line bg-soft hover:border-primary/40',
-                  )}
-                >
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[13px] font-semibold text-ink">Semua Produk</span>
-                    <span className="block text-[12px] text-ink-soft">Data gabungan semua produk yang ditugaskan kepada Anda.</span>
-                  </span>
-                  {scope.chosen && scope.code === '' ? <span className="shrink-0 text-[11px] font-semibold text-primary">Aktif</span> : null}
-                </button>
-              </>
-            )}
-          </div>
-        )}
+              )}
 
-        <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
-          <p className="text-[11px] text-ink-soft">Hanya produk yang ditugaskan kepada Anda yang ditampilkan.</p>
-          <Button variant="ghost" size="sm" onClick={exit} disabled={leaving}>
-            {leaving ? 'Keluar…' : 'Keluar'}
-          </Button>
-        </div>
-      </Card>
+              {scope.options.length === 0 ? (
+                <div className="rounded-md border border-dashed border-line px-4 py-5 text-center">
+                  <p className="text-[13px] font-semibold text-ink">Belum ada produk yang ditugaskan.</p>
+                  <p className="mt-1 text-[13px] text-ink-soft">
+                    {canManageProducts
+                      ? 'Tambahkan produk terlebih dahulu melalui Konfigurasi Produk.'
+                      : 'Hubungi admin untuk menambahkan produk.'}
+                  </p>
+                  {canManageProducts ? (
+                    <Button variant="secondary" size="sm" className="mt-3" onClick={manageProducts}>Kelola Produk</Button>
+                  ) : null}
+                </div>
+              ) : (
+                <>
+                  <div className="max-h-[320px] overflow-y-auto rounded-md border border-line">
+                    {scope.options.map((option) => {
+                      const active = scope.chosen && option.value === scope.code
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          aria-label={`${option.value} ${productOptionName(option)}`}
+                          onClick={() => scope.choose(option.value)}
+                          className={cn(
+                            'flex w-full items-center gap-3 border-b border-line px-4 py-3 text-left last:border-b-0',
+                            active ? 'bg-primary-soft' : 'hover:bg-soft',
+                          )}
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-[13px] font-semibold text-ink">{option.value}</span>
+                            <span className="block text-[12px] text-ink-soft">{productOptionName(option)}</span>
+                          </span>
+                          {active ? <span className="shrink-0 text-[11px] font-semibold text-primary">Aktif</span> : null}
+                        </button>
+                      )
+                    })}
+                  </div>
+                  <button
+                    type="button"
+                    aria-label="Semua Produk"
+                    onClick={() => scope.choose('')}
+                    className={cn(
+                      'flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left',
+                      scope.chosen && scope.code === ''
+                        ? 'border-primary bg-primary-soft'
+                        : 'border-line bg-soft hover:border-primary/40',
+                    )}
+                  >
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[13px] font-semibold text-ink">Semua Produk</span>
+                      <span className="block text-[12px] text-ink-soft">Data gabungan semua produk yang ditugaskan kepada Anda.</span>
+                    </span>
+                    {scope.chosen && scope.code === '' ? <span className="shrink-0 text-[11px] font-semibold text-primary">Aktif</span> : null}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
+            <p className="text-[11px] text-ink-soft">Hanya produk yang ditugaskan kepada Anda yang ditampilkan.</p>
+            <Button variant="ghost" size="sm" onClick={exit} disabled={leaving}>
+              {leaving ? 'Keluar…' : 'Keluar'}
+            </Button>
+          </div>
+        </Card>
+      </div>
     </div>
   )
 }
@@ -441,15 +447,30 @@ export function ProductSwitcher({
 }
 
 /**
- * Kunci shell: selama produk belum dipilih (atau layar ganti dibuka), yang
- * dirender hanya layar penuh. Dengan begitu sidebar/menu tidak bisa dipakai.
+ * Kunci shell (A100).
+ *
+ * Saat produk belum dipilih, shell tidak dirender sama sekali. Saat pengguna
+ * membuka layar ganti produk, shell tetap terpasang di belakang overlay dan
+ * dibuat `inert` — sidebar/menu terkunci, tetapi state halaman, sidebar, dan
+ * chat tidak hilang saat pengguna menekan Batal.
  */
 export function ProductScopeLock({ children }: { children: ReactNode }) {
   const scope = useRequiredScope()
   const location = useLocation()
   const configBypass = scope.configBypass && location.pathname === '/konfigurasi-produk'
-  if (scope.pickerOpen || (!scope.chosen && !configBypass)) return <ProductPickerScreen />
-  return <>{children}</>
+  const keepShell = scope.chosen || configBypass
+  const showPicker = scope.pickerOpen || (!scope.chosen && !configBypass)
+
+  if (showPicker && !keepShell) return <ProductPickerScreen />
+
+  return (
+    <>
+      <div inert={showPicker} aria-hidden={showPicker || undefined}>
+        {children}
+      </div>
+      {showPicker ? <ProductPickerScreen overlay /> : null}
+    </>
+  )
 }
 
 /**
