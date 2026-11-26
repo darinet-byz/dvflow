@@ -5,7 +5,7 @@
 -- ke CTE paged setelah LIMIT/OFFSET supaya perhitungan hanya untuk 50/100
 -- baris yang benar-benar dikembalikan; total/ringkasan tetap dari filter.
 --
--- Definisi disalin dari produksi (termasuk p_source dari A101 sebelumnya)
+-- Definisi disalin dari produksi (termasuk p_source dari migrasi OTS)
 -- supaya CREATE OR REPLACE tidak membuat overload baru.
 
 create or replace function public.schema_version() returns integer
