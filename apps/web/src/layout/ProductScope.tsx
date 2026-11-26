@@ -413,22 +413,27 @@ export function ProductSwitcher({
         'group flex w-full min-w-0 items-center gap-2 text-left',
         compact
           ? 'text-[11px] text-ink-soft'
-          : 'rounded-md border border-line bg-card px-2.5 py-2 transition-colors hover:border-primary/40',
+          : 'rounded-md bg-primary px-2.5 py-2 text-white shadow-card transition-colors hover:bg-primary-hover',
         className,
       )}
     >
       <span className="min-w-0 flex-1">
-        <span className={cn('block truncate font-bold text-primary', compact ? 'text-[11px]' : 'text-[12px]')}>
+        <span className={cn('block truncate font-bold', compact ? 'text-primary' : 'text-white', compact ? 'text-[11px]' : 'text-[12px]')}>
           {name}
           {compact && scope.chosen && scope.code !== '' ? (
             <span className="ml-1 font-normal text-ink-soft">{scope.code}</span>
           ) : null}
         </span>
         {!compact && scope.chosen && scope.code !== '' ? (
-          <span className="block text-[10px] text-ink-soft">{scope.code}</span>
+          <span className="block text-[10px] text-white/75">{scope.code}</span>
         ) : null}
       </span>
-      <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0 text-ink-soft">
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 20 20"
+        fill="none"
+        className={cn('h-4 w-4 shrink-0', compact ? 'text-ink-soft' : 'text-white/80')}
+      >
         <path d="M5 7.5l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     </button>

@@ -2498,11 +2498,11 @@ Permintaan pengguna: sebelum produk dipilih, tampilkan satu layar penuh dan kunc
 
 ## A99 - Menu aktif soft + Laporan Iklan mengikuti produk global (26 November 2026)
 
-Permintaan pengguna: warna menu sidebar yang aktif terlalu bold; nama produk di atas (switcher) yang seharusnya menjadi aksen biru bold, sedangkan menu aktif dibuat lebih lembut. Selain itu, popup **Laporan Iklan** harus mengikuti produk global, sehingga kartu yang muncul saat **Tambah Laporan** hanya kartu produk yang dipilih.
+Permintaan pengguna: warna menu sidebar yang aktif terlalu bold; yang seharusnya menjadi aksen biru bold adalah **card/container nama produk** di atas (bukan sekadar teksnya), sedangkan menu aktif dibuat lebih lembut. Selain itu, popup **Laporan Iklan** harus mengikuti produk global, sehingga kartu yang muncul saat **Tambah Laporan** hanya kartu produk yang dipilih.
 
 ### Keputusan
 
-- **Nama produk** di `ProductSwitcher` (sidebar web dan header field app) menjadi `text-primary font-bold`; kode dan panah tetap `text-ink-soft`.
+- **Card produk** di `ProductSwitcher` sidebar memakai background `primary` penuh + teks putih + `shadow-card`; nama produk bold putih, kode dan panah putih lembut. Header field app tetap menampilkan nama produk `text-primary font-bold` (bukan card).
 - **Menu aktif** memakai background `primary-soft` + teks `ink` normal, tanpa gradient, teks putih, atau shadow. Hover menu non-aktif dibuat `primary/10` agar tetap lebih ringan daripada menu aktif.
 - **Filter produk di popup Laporan Iklan dihapus** (select, state, dan opsinya). Popup selalu mengikuti `state.applied.productCode`:
   - produk global spesifik → daftar kartu hanya produk itu;
