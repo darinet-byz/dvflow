@@ -15,6 +15,7 @@ import { describeRecentBatch, useRecentBatches } from '../../lib/recent-batches'
 import { hasPermission } from '../../lib/roles'
 import { useAsyncData } from '../../lib/useAsyncData'
 import { useSession } from '../../lib/useSession'
+import { useProductScope } from '../../layout/ProductScope'
 import { Badge, type BadgeTone } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
@@ -100,6 +101,9 @@ export function AdCalendarTab() {
   const { profile } = useSession()
   const toast = useToast()
   const canManage = hasPermission(profile, 'action.manage_ad_calendar')
+  // A97: kalender iklan hanya menampilkan produk yang sedang dipilih.
+  const productScope = useProductScope()
+  const scopeCode = productScope !== null && productScope.chosen ? productScope.code : ''
 
   const [month, setMonth] = useState(() => {
     const now = new Date()
@@ -120,9 +124,15 @@ export function AdCalendarTab() {
     [from, to],
   )
 
-  const rows = data?.rows ?? []
+  const rows = useMemo(() => {
+    const list = data?.rows ?? []
+    return scopeCode === '' ? list : list.filter((row) => row.product_code === scopeCode)
+  }, [data, scopeCode])
   const advertisers = data?.advertisers ?? []
-  const events = data?.events ?? []
+  const events = useMemo(() => {
+    const list = data?.events ?? []
+    return scopeCode === '' ? list : list.filter((event) => event.product_code === scopeCode)
+  }, [data, scopeCode])
   const cells = useMemo(() => monthGrid(month.getFullYear(), month.getMonth()), [month])
   const rowsByDate = useMemo(() => {
     const map = new Map<string, AdCalendarRow[]>()

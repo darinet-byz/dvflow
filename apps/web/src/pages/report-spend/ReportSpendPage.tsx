@@ -20,7 +20,7 @@ import { Modal } from '../../ui/Overlay'
 import { DataTable, TableCell, TableRow, TableTotalRow, type TableColumn } from '../../ui/Table'
 import { useToast } from '../../ui/Toast'
 import { DateRangeField } from '../shared/DateRangeField'
-import { AdvertiserFilter, BatchFilter, DateRangeFilters, EventTypeFilter, ProductFilter } from '../shared/FilterControls'
+import { AdvertiserFilter, BatchFilter, DateRangeFilters, EventTypeFilter } from '../shared/FilterControls'
 import { useFilterState } from '../shared/useFilterState'
 
 /**
@@ -627,7 +627,8 @@ export function ReportSpendPage() {
   }
 
   const controls = { filters: state.filters, lists, update: state.update }
-  const chips = activeCommonFilters(state.filters)
+  // Produk adalah scope global di bar atas; jangan tampilkan chip duplikat.
+  const chips = activeCommonFilters(state.filters).filter((chip) => chip.key !== 'productCode')
   // A95: popup Laporan Iklan memakai daftar card sendiri, tidak ikut filter halaman.
   const cardList = useAsyncData<SpendCard[]>(
     () => (reportListOpen ? supabaseRpc<SpendCard[]>('ad_spend_cards_list', {}) : Promise.resolve([])),
@@ -679,7 +680,6 @@ export function ReportSpendPage() {
       <div className="filter-bar flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-card p-3.5">
         <div className="filter-row flex min-w-0 flex-wrap items-center gap-2.5">
           <DateRangeFilters {...controls} />
-          <ProductFilter {...controls} />
           <BatchFilter {...controls} />
           <AdvertiserFilter {...controls} />
         </div>

@@ -117,7 +117,8 @@ export function PresensiPage() {
   // A30: Tampilan Apps Lapangan — filter dilipat, tabel menjadi kartu.
   const fieldMode = useFieldAppMode()
   const [showFilters, setShowFilters] = useState(false)
-  const activeFilterCount = activeCommonFilters(state.filters).length + (state.filters.attendanceStatus === '' ? 0 : 1)
+  // Produk adalah scope global di bar atas; jangan dihitung sebagai filter halaman (A97).
+  const activeFilterCount = activeCommonFilters(state.filters).filter((chip) => chip.key !== 'productCode').length + (state.filters.attendanceStatus === '' ? 0 : 1)
   const { lists } = useConfigLists()
   const [sort, setSort] = useState<{ key: PresensiSortKey; direction: SortDirection }>({
     key: 'latest_activity',

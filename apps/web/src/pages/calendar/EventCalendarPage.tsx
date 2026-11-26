@@ -13,6 +13,7 @@ import { MONTH_NAMES, WEEKDAYS, monthGrid, toIsoDate } from '../../lib/date-rang
 import { hasPermission } from '../../lib/roles'
 import { useAsyncData } from '../../lib/useAsyncData'
 import { useSession } from '../../lib/useSession'
+import { useProductScope } from '../../layout/ProductScope'
 import { Badge, type BadgeTone } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card } from '../../ui/Card'
@@ -26,8 +27,8 @@ const CATEGORY_OPTIONS = EVENT_CATEGORIES.map((category) => ({ value: category, 
 
 type EventForm = SaveEventInput
 
-function emptyForm(eventDate: string): EventForm {
-  return { product_code: '', category: 'Seminar', event_date: eventDate, start_time: '', location: '', city: '' }
+function emptyForm(eventDate: string, productCode = ''): EventForm {
+  return { product_code: productCode, category: 'Seminar', event_date: eventDate, start_time: '', location: '', city: '' }
 }
 
 function categoryTone(category: string): BadgeTone {
@@ -70,6 +71,9 @@ export function EventCalendarTab() {
   const { profile } = useSession()
   const toast = useToast()
   const canManage = hasPermission(profile, 'action.manage_event_calendar')
+  // A97: kalender hanya menampilkan produk yang sedang dipilih (kecuali Semua Produk).
+  const productScope = useProductScope()
+  const scopeCode = productScope !== null && productScope.chosen ? productScope.code : ''
 
   const [month, setMonth] = useState(() => {
     const now = new Date()
@@ -77,7 +81,7 @@ export function EventCalendarTab() {
   })
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<CalendarEvent | null>(null)
-  const [form, setForm] = useState<EventForm>(() => emptyForm(toIsoDate(new Date())))
+  const [form, setForm] = useState<EventForm>(() => emptyForm(toIsoDate(new Date()), scopeCode))
   const [formError, setFormError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [selected, setSelected] = useState<CalendarEvent | null>(null)
@@ -91,8 +95,12 @@ export function EventCalendarTab() {
     [from, to],
   )
 
-  const events = data?.events ?? []
+  const events = useMemo(() => {
+    const list = data?.events ?? []
+    return scopeCode === '' ? list : list.filter((event) => event.product_code === scopeCode)
+  }, [data, scopeCode])
   const products = data?.products ?? []
+  const scopedProducts = scopeCode === '' ? products : products.filter((product) => product.code === scopeCode)
   const cells = useMemo(() => monthGrid(month.getFullYear(), month.getMonth()), [month])
   const eventsByDate = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>()
@@ -115,7 +123,7 @@ export function EventCalendarTab() {
     })
   }, [events])
 
-  const productOptions = products.map((product) => ({ value: product.code, label: `${product.code} — ${product.name}` }))
+  const productOptions = scopedProducts.map((product) => ({ value: product.code, label: `${product.code} — ${product.name}` }))
   const today = toIsoDate(new Date())
 
   function shiftMonth(delta: number): void {
@@ -124,7 +132,7 @@ export function EventCalendarTab() {
 
   function startCreate(eventDate: string): void {
     setEditing(null)
-    setForm(emptyForm(eventDate))
+    setForm(emptyForm(eventDate, scopeCode))
     setFormError(null)
     setFormOpen(true)
   }
@@ -359,7 +367,7 @@ export function EventCalendarTab() {
           <TextInput id="event-location" label="Lokasi / Platform" value={form.location} onChange={(value) => setForm((current) => ({ ...current, location: value }))} maxLength={200} placeholder="mis. Hotel Solo / Zoom" disabled={saving} />
           <TextInput id="event-city" label="Kota (opsional)" value={form.city ?? ''} onChange={(value) => setForm((current) => ({ ...current, city: value }))} maxLength={80} placeholder="mis. Pekalongan" disabled={saving} />
           {formError === null ? null : <p className="text-[12px] text-danger">{formError}</p>}
-          {products.length === 0 ? <p className="text-[12px] text-ink-soft">Belum ada produk aktif. Tambahkan produk terlebih dahulu di Konfigurasi Produk.</p> : null}
+          {scopedProducts.length === 0 ? <p className="text-[12px] text-ink-soft">Belum ada produk aktif. Tambahkan produk terlebih dahulu di Konfigurasi Produk.</p> : null}
         </div>
       </Modal>
 

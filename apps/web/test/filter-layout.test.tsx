@@ -33,13 +33,14 @@ const pages: Array<[string, () => ReactElement, string[]]> = [
   ['Report Tax', () => <ReportTaxPage />, []],
 ]
 
-describe('filter ringkas (6 November 2026)', () => {
-  it.each(pages)('%s: baris utama Produk/Batch/Pengiklan; filter sekunder di Filter Lain', async (_name, page, extra) => {
+describe('filter ringkas (6 November 2026; A97)', () => {
+  it.each(pages)('%s: baris utama Tanggal/Batch/Pengiklan; produk di bar atas', async (_name, page, extra) => {
     render(<MemoryRouter>{page()}</MemoryRouter>)
     const bar = await screen.findByTestId('standard-filter-bar')
     const primary = bar.querySelector('[data-filter-row="primary"]') as HTMLElement
     const primaryLabels = Array.from(primary.querySelectorAll('input, select')).map((el) => el.getAttribute('aria-label'))
-    expect(primaryLabels).toContain('Filter produk')
+    // A97: produk bukan filter halaman lagi; satu kontrol ada di bar atas AppShell.
+    expect(primaryLabels).not.toContain('Filter produk')
     expect(primaryLabels).toContain('Filter batch')
     expect(primaryLabels).toContain('Filter pengiklan')
     expect(primary.textContent).toContain('Hari Ini')

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { authorizedRequest } from '../src/lib/session'
 import { formatSpendRoi, parseSpendInput, parseTaxPercent, ReportSpendPage, sessionMatrixCell, spendProfit, spendTax } from '../src/pages/report-spend/ReportSpendPage'
+import { WithProductScope } from './product-scope-fixture'
 
 /** A45: kartu Jumlah Tiket memakai tiket (sum quantity), bukan jumlah Order ID seperti `paid`. */
 const spendFixture = vi.hoisted(() => ({
@@ -130,11 +131,10 @@ describe('Report Spend Iklan: tiket per sesi × pengiklan (A43)', () => {
 })
 
 describe('Report Spend Iklan: perbandingan pengiklan (A46)', () => {
-  it('kartu perbandingan muncul saat produk + batch dipilih', async () => {
-    render(<ReportSpendPage />)
+  it('kartu perbandingan muncul saat produk (scope global) + batch dipilih', async () => {
+    render(<WithProductScope code="AAAA"><ReportSpendPage /></WithProductScope>)
     await screen.findByText('Jumlah Tiket', {}, { timeout: 5000 })
 
-    fireEvent.change(screen.getByLabelText('Filter produk'), { target: { value: 'AAAA' } })
     fireEvent.change(screen.getByLabelText('Filter batch'), { target: { value: '122' } })
 
     expect(await screen.findByText('Perbandingan Pengiklan')).toBeTruthy()

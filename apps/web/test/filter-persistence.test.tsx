@@ -1,10 +1,13 @@
 // @vitest-environment jsdom
 import { act, cleanup, renderHook } from '@testing-library/react'
+import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { presetRange } from '../src/lib/date-range'
 import { EMPTY_ORDER_FILTERS } from '../src/lib/filters'
 import { clearPersistedFilters, persistFilters, readPersistedFilters } from '../src/lib/filter-storage'
+import { ProductScopeContext } from '../src/layout/ProductScope'
 import { useFilterState } from '../src/pages/shared/useFilterState'
+import { testProductScope } from './product-scope-fixture'
 
 /** Filter adalah keadaan kerja tab: harus bertahan saat pindah halaman, lalu bersih saat logout. */
 describe('penyimpanan filter', () => {
@@ -61,5 +64,28 @@ describe('penyimpanan filter', () => {
     expect(second.result.current.filters.batch).toBe('')
     expect(second.result.current.filters.dateFrom).toBe(today.from)
     expect(second.result.current.filters.dateTo).toBe(today.to)
+  })
+
+  it('scope produk global mengisi produk, ganti produk mengosongkan batch, Clear All mempertahankan produk', () => {
+    let code = 'KM'
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <ProductScopeContext.Provider value={testProductScope(code)}>{children}</ProductScopeContext.Provider>
+    )
+    const { result, rerender } = renderHook(
+      () => useFilterState(EMPTY_ORDER_FILTERS, { storageKey: 'scope-test' }),
+      { wrapper },
+    )
+
+    expect(result.current.filters.productCode).toBe('KM')
+    act(() => result.current.update('batch', '392'))
+    expect(result.current.filters.batch).toBe('392')
+
+    code = 'SO'
+    rerender()
+    expect(result.current.filters.productCode).toBe('SO')
+    expect(result.current.filters.batch).toBe('')
+
+    act(() => result.current.clearAll())
+    expect(result.current.filters.productCode).toBe('SO')
   })
 })

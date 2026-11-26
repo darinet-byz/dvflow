@@ -184,6 +184,7 @@ const breakdown: PerformanceBreakdown = {
 }
 
 const { PerformancePage, formatAxisMoney, formatPeriodLabel } = await import('../src/pages/performance/PerformancePage')
+const { WithProductScope } = await import('./product-scope-fixture')
 
 beforeEach(() => {
   vi.mocked(useSession).mockReturnValue({ status: 'authenticated', profile: null })
@@ -248,11 +249,12 @@ describe('Performa / Analitik: halaman', () => {
   it('menampilkan semua pengiklan sebagai kartu, lalu detail saat diklik', async () => {
     vi.mocked(supabaseRpc).mockImplementation(async (fn, args) => {
       if (fn === 'advertiser_breakdown') return breakdown
+      if (fn === 'recent_batches') return { batches: [] }
       const advertiser = (args as { p_advertiser_code?: string | null }).p_advertiser_code
       return advertiser === null || advertiser === undefined ? dashboard : detail
     })
 
-    render(<PerformancePage />)
+    render(<WithProductScope code="PAAA"><PerformancePage /></WithProductScope>)
 
     expect(await screen.findByText('Semua Pengiklan')).toBeTruthy()
     expect(screen.getByText('Zul (01)')).toBeTruthy()
@@ -277,12 +279,7 @@ describe('Performa / Analitik: halaman', () => {
     expect(productChart.querySelector('polyline')).toBeNull()
     expect(screen.getByText('Per Produk — 2 Batch Terakhir')).toBeTruthy()
 
-    // A57: kartu Per Batch butuh produk dipilih.
-    expect(screen.getByText('Pilih produk di filter atas untuk melihat 5 batch terakhir.')).toBeTruthy()
-    expect(screen.queryByRole('img', { name: 'Grafik per batch' })).toBeNull()
-
-    fireEvent.change(screen.getByLabelText('Filter produk'), { target: { value: 'PAAA' } })
-
+    // A97: produk berasal dari scope global, jadi kartu Per Batch langsung terisi.
     expect(await screen.findByRole('img', { name: 'Grafik per batch' })).toBeTruthy()
     expect(screen.getByText('Per Batch — 5 Terakhir')).toBeTruthy()
     expect(screen.getByText('Aktivitas Terakhir')).toBeTruthy()
@@ -309,6 +306,7 @@ describe('Performa / Analitik: halaman', () => {
   it('A56: hover grafik utama menampilkan angka real', async () => {
     vi.mocked(supabaseRpc).mockImplementation(async (fn, args) => {
       if (fn === 'advertiser_breakdown') return breakdown
+      if (fn === 'recent_batches') return { batches: [] }
       const advertiser = (args as { p_advertiser_code?: string | null }).p_advertiser_code
       return advertiser === null || advertiser === undefined ? dashboard : detail
     })

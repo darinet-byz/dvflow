@@ -150,7 +150,8 @@ export function OrderPage() {
   }
 
   const activeFilterCount =
-    activeCommonFilters(state.filters).length +
+    // Produk adalah scope global di bar atas; jangan dihitung sebagai filter halaman (A97).
+    activeCommonFilters(state.filters).filter((chip) => chip.key !== 'productCode').length +
     (state.filters.appStatus === '' ? 0 : 1) +
     (state.filters.paymentMethod.trim() === '' ? 0 : 1)
 

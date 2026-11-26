@@ -9,9 +9,11 @@ import type { ConfigLists } from '../../lib/queries'
  * Kontrol filter bersama (PRD §34, §41, §47, §108).
  *
  * Aturan yang dipegang:
- *   * Produk, pengiklan, event type, dan sesi selalu berupa PILIHAN dari
- *     konfigurasi — tidak diketik bebas dan tidak pernah di-hardcode
- *     (CLAUDE.md §4). Hanya konfigurasi aktif yang ditawarkan (05 §D02).
+ *   * Pengiklan, event type, dan sesi selalu berupa PILIHAN dari konfigurasi —
+ *     tidak diketik bebas dan tidak pernah di-hardcode (CLAUDE.md §4). Hanya
+ *     konfigurasi aktif yang ditawarkan (05 §D02).
+ *   * Produk tidak lagi menjadi filter halaman: produk adalah scope global di
+ *     bar atas (A97).
  *   * Batch, kota, dan payment method berupa teks: nilainya berasal dari order,
  *     dan dokumen tidak menentukan sumber daftar pilihannya. Sejak A65 batch
  *     menampilkan saran 3 terbaru dari data order, tetapi tetap boleh diketik bebas.
@@ -27,21 +29,6 @@ export type FilterControlsProps<T extends CommonFilters> = {
 
 /** Lebar seragam semua kontrol filter (A28); di layar sempit penuh lewat `.filter-row` di styles.css. */
 export const CONTROL_WIDTH = 'w-[190px]'
-
-export function ProductFilter<T extends CommonFilters>(props: FilterControlsProps<T>) {
-  return (
-    <Select
-      id="filter-produk"
-      ariaLabel="Filter produk"
-      className={CONTROL_WIDTH}
-      value={props.filters.productCode}
-      placeholder="Semua produk"
-      disabled={props.disabled === true}
-      options={props.lists?.products ?? []}
-      onChange={(value) => props.update('productCode' as keyof T, value)}
-    />
-  )
-}
 
 export function AdvertiserFilter<T extends CommonFilters>(props: FilterControlsProps<T>) {
   return (

@@ -40,6 +40,7 @@ import {
   type TopProduct,
 } from '../../lib/performance'
 import { PageHeader } from '../../layout/PageHeader'
+import { useProductScope } from '../../layout/ProductScope'
 import { Badge } from '../../ui/Badge'
 import { Button } from '../../ui/Button'
 import { Card, CardHeader, KpiCard } from '../../ui/Card'
@@ -174,9 +175,12 @@ export function PerformancePage() {
   const ownAdvertiser = (profile?.advertiser_code ?? '').trim()
   const ownScope = ownAdvertiser !== ''
   const fullAccess = hasAllProductAccess(profile)
+  // A97: produk berasal dari scope global di bar atas.
+  const productScope = useProductScope()
+  const scopeProduct = productScope !== null && productScope.chosen ? productScope.code : null
   const [filters, setFilters] = useState<PerformanceFilters>({
     advertiserCode: '',
-    productCode: '',
+    productCode: scopeProduct ?? '',
     batch: '',
     dateFrom: initial.from,
     dateTo: initial.to,
@@ -188,6 +192,15 @@ export function PerformancePage() {
   const [customPeriod, setCustomPeriod] = useState(false)
   // Pilihan pengiklan untuk akun berproduk terbatas (Pimpro): hanya yang muncul di hasil RPC.
   const [advertiserChoices, setAdvertiserChoices] = useState<AdvertiserPerformance[]>([])
+
+  // A97: scope global menang; batch lama dibuang saat produk berganti.
+  useEffect(() => {
+    if (scopeProduct === null) return
+    setFilters((current) => {
+      if (current.productCode === scopeProduct) return current
+      return { ...current, productCode: scopeProduct, batch: '' }
+    })
+  }, [scopeProduct])
 
   const { lists } = usePerformanceLists(fullAccess)
   const effectiveGranularity = resolveGranularity(granularityMode, filters.dateFrom, filters.dateTo)
@@ -371,7 +384,8 @@ export function PerformancePage() {
 
   function clearAll(): void {
     const range = periodPresetRange(DEFAULT_PERIOD)
-    setFilters({ advertiserCode: '', productCode: '', batch: '', dateFrom: range.from, dateTo: range.to })
+    // Produk adalah scope global: Clear All tidak boleh melepasnya (A97).
+    setFilters({ advertiserCode: '', productCode: scopeProduct ?? '', batch: '', dateFrom: range.from, dateTo: range.to })
     setGranularityMode('auto')
     setCustomPeriod(false)
     setSearch('')
@@ -389,11 +403,6 @@ export function PerformancePage() {
       label: `Pengiklan: ${advertiserOptions.find((item) => item.value === filters.advertiserCode)?.label ?? filters.advertiserCode}`,
       onRemove: () => changeFilters({ advertiserCode: '' }),
     },
-    filters.productCode === '' ? null : {
-      key: 'product',
-      label: `Produk: ${productOptions.find((item) => item.value === filters.productCode)?.label ?? filters.productCode}`,
-      onRemove: () => changeFilters({ productCode: '' }),
-    },
     detailMode || filters.batch.trim() === '' ? null : {
       key: 'batch',
       label: `Batch: ${filters.batch}`,
@@ -409,15 +418,6 @@ export function PerformancePage() {
   const controls = (
     <div className="filter-bar flex min-w-0 flex-col gap-2.5 rounded-lg border border-line bg-card p-3.5">
       <div className="filter-row flex min-w-0 flex-wrap items-center gap-2.5">
-        <Select
-          id="filter-produk-performa"
-          ariaLabel="Filter produk"
-          className={CONTROL_WIDTH}
-          value={filters.productCode}
-          placeholder="Semua produk"
-          options={productOptions}
-          onChange={(value) => changeFilters({ productCode: value })}
-        />
         {detailMode ? null : (
           <SuggestInput
             id="filter-batch-performa"
@@ -477,13 +477,15 @@ export function PerformancePage() {
         {chips.map((chip) => (
           <FilterChip key={chip.key} label={chip.label} onRemove={chip.onRemove} />
         ))}
-        <button
-          type="button"
-          onClick={detailMode ? () => changeFilters({ productCode: '' }) : clearAll}
-          className="ml-auto text-[12px] font-semibold text-ink-soft underline-offset-2 hover:text-ink hover:underline"
-        >
-          {detailMode ? 'Clear Produk' : 'Clear All'}
-        </button>
+        {detailMode ? null : (
+          <button
+            type="button"
+            onClick={clearAll}
+            className="ml-auto text-[12px] font-semibold text-ink-soft underline-offset-2 hover:text-ink hover:underline"
+          >
+            Clear All
+          </button>
+        )}
       </div>
     </div>
   )
@@ -1120,7 +1122,7 @@ function BatchBreakdownCard({
           title="Per Batch — 5 Terakhir"
           description="Filter tanggal tidak dipakai; batch diurutkan dari tanggal aktivitas terbaru."
         />
-        <p className="text-[13px] text-ink-soft">Pilih produk di filter atas untuk melihat 5 batch terakhir.</p>
+        <p className="text-[13px] text-ink-soft">Pilih produk spesifik di bar atas untuk melihat 5 batch terakhir.</p>
       </Card>
     )
   }

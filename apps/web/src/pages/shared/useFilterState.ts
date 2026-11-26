@@ -10,6 +10,7 @@ import {
 } from '../../lib/filters'
 import { presetRange } from '../../lib/date-range'
 import { persistFilters, readPersistedFilters } from '../../lib/filter-storage'
+import { useProductScope } from '../../layout/ProductScope'
 
 /**
  * Keadaan filter + halaman untuk halaman baca.
@@ -48,6 +49,10 @@ export function useFilterState<T extends CommonFilters>(
   initial: T,
   options: { storageKey?: string } = {},
 ): FilterState<T> {
+  // A97: produk berasal dari scope global; null berarti tidak ada provider (mis. tes).
+  const scope = useProductScope()
+  const scopeCode = scope !== null && scope.chosen ? scope.code : null
+
   // Filter awal tanpa tanggal berarti "pakai default Hari Ini"; "Semua tanggal" tetap bisa dipilih manual.
   const [filters, setFilters] = useState<T>(() => {
     const base = initial.dateFrom === '' && initial.dateTo === '' ? withDefaultDates(initial) : initial
@@ -57,10 +62,27 @@ export function useFilterState<T extends CommonFilters>(
       const value = params.get(String(key))
       if (value !== null && (key !== 'source' || ['', 'ots', 'orderonline'].includes(value))) saved[key] = value as T[keyof T]
     }
+    // Scope global selalu menang atas filter tersimpan/URL. Batch milik produk lama
+    // tidak boleh terbawa saat produknya berbeda.
+    if (scopeCode !== null) {
+      if (saved.productCode !== scopeCode) {
+        saved.productCode = scopeCode
+        saved.batch = ''
+      }
+    }
     return saved
   })
   const [page, setPage] = useState(1)
   const [pageSize, setPageSizeState] = useState<PageSize>(DEFAULT_PAGE_SIZE)
+
+  // A97: saat produk global berganti, filter produk halaman ikut dan batch lama dibuang.
+  useEffect(() => {
+    if (scopeCode === null) return
+    setFilters((current) => {
+      if (current.productCode === scopeCode) return current
+      return { ...current, productCode: scopeCode, batch: '' } as T
+    })
+  }, [scopeCode])
 
   // Tautan dari panel Notes membawa filter lewat query string. Saat pengguna sudah
   // berada di halaman yang sama, komponen tidak remount; sinkronkan query baru.
@@ -121,8 +143,13 @@ export function useFilterState<T extends CommonFilters>(
       setPage(1)
     },
     update: (key, value) => setFilters((current) => ({ ...current, [key]: value })),
-    removeFilter: (key) => setFilters((current) => clearFilter(current, key)),
-    // Clear All kembali ke Hari Ini, bukan ke semua data.
-    clearAll: () => setFilters((current) => withDefaultDates({ ...clearAllFilters(current), source: initial.source })),
+    // Produk adalah scope global; chip/hapus filter produk tidak boleh melepasnya.
+    removeFilter: (key) => setFilters((current) => (key === 'productCode' && scopeCode !== null ? current : clearFilter(current, key))),
+    // Clear All kembali ke Hari Ini, bukan ke semua data; produk global tetap.
+    clearAll: () => setFilters((current) => withDefaultDates({
+      ...clearAllFilters(current),
+      source: initial.source,
+      productCode: scopeCode ?? '',
+    } as T)),
   }
 }

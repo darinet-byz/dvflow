@@ -2408,3 +2408,63 @@ Format 3 (teks bebas):  Kelas Pagi - Live Zoom - S1 - MTIX01SO600
   `Jakarta-Selatan`, tetap aman karena hanya ` - ` yang dianggap pemisah.
 - Order lama tidak terpengaruh; order format 3 langsung terparse saat webhook masuk, tanpa backfill.
 
+
+## A97 - Product scope global di UI: pilih produk sekali di bar atas (26 November 2026)
+
+Permintaan pengguna: saat berpindah ke Dashboard, Order, Presensi, Report Spend, Report Tax,
+Performa, dan Kalender, produk tidak perlu dipilih ulang di setiap halaman. Produk dipilih
+sekali di bagian atas DVFLOW, lalu seluruh halaman data mengikuti produk tersebut.
+
+### Keputusan
+
+- **Satu scope produk global** di shell web. Bar **Produk** di atas konten berisi daftar
+  produk aktif (RLS tetap membatasi sesuai akses user) + opsi **Semua Produk**. Pilihan
+  disimpan per user di `localStorage` selama **24 jam** sejak pemilihan/menggantian produk.
+- **Halaman data digate** sampai pengguna memilih produk atau "Semua Produk":
+  `/`, `/order`, `/order-refund`, `/presensi`, `/kalender`, `/report-spend`, `/report-tax`,
+  `/performa`. Halaman konfigurasi, status, OTS, scan, cari peserta, order unmapped, generator,
+  template follow-up, dan Tampilan Apps Lapangan tidak diubah.
+- **Setelah 24 jam** pilihan dianggap kedaluwarsa dan gate muncul lagi. Pengecekan dilakukan
+  saat mount, lewat timer, dan saat tab kembali aktif (`focus`/`visibilitychange`). Logout
+  menandai pilihan kedaluwarsa dan menghapus kode produk dari perangkat, sehingga login
+  berikutnya selalu meminta pilihan lagi. Berpindah halaman tidak memperpanjang masa berlaku;
+  hanya memilih/mengganti produk yang memulai timer baru.
+- **User dengan satu produk** otomatis memilih produk itu saat pertama kali. Setelah expiry,
+  auto-select tidak diulang: pengguna harus memilih lagi.
+- **"Semua Produk"** adalah pilihan yang sah dan diingat seperti produk biasa; nilainya
+  diterjemahkan menjadi `p_product_code = null` pada RPC.
+- **Dropdown produk di filter halaman dihapus** (termasuk chip "Produk: ...") supaya hanya ada
+  satu sumber kebenaran. Filter batch dikosongkan saat produk berganti karena batch milik
+  produk tertentu; konten halaman di-remount agar drawer/modal lama tidak menampilkan data
+  produk sebelumnya.
+- **Deep link `?productCode=...`** (mis. dari WA Bot) tetap dihormati: produk langsung dipilih,
+  timer 24 jam dimulai ulang, dan parameter URL lama dihapus saat expiry agar refresh tidak
+  mengaktifkan kembali pilihan lama.
+- **Tidak ada perubahan database/RLS/RPC.** TTL 24 jam adalah kebijakan UI, bukan batas
+  keamanan; akses data tetap ditentukan RLS/RPC.
+
+### Implementasi
+
+- Baru `apps/web/src/lib/product-scope.ts`: kunci per user `dvflow.productScope.<user_id>`,
+  `chosenAt`, `PRODUCT_SCOPE_TTL_MS` (24 jam), daftar path ber-scope, serta helper baca/tulis/
+  hapus (termasuk pembersihan semua user saat logout).
+- Baru `apps/web/src/layout/ProductScope.tsx`: `ProductScopeProvider`, `ProductScopeBar`,
+  `ProductPickerGate` ("Pilih Produk Dulu"), dan `ProductScopeOutlet` (gate + remount konten
+  saat produk berganti). Auto-select satu produk hanya sekali saat inisialisasi.
+- `AppShell.tsx`: provider + bar produk di header + gate untuk halaman ber-scope.
+- `useFilterState.ts`: produk global mengisi `productCode`; batch dikosongkan saat produk
+  berganti; `Clear All` dan penghapusan chip tidak melepas produk global.
+- `StandardFilterBar.tsx`, `ReportSpendPage.tsx`, `PerformancePage.tsx`: dropdown/chip produk
+  halaman dihapus. Filter produk popup Laporan Iklan tetap mandiri (A89/A95).
+- `EventCalendarPage.tsx` + `AdCalendarTab.tsx`: daftar event/deadline difilter ke produk
+  scope; form tambah default ke produk itu dan pilihan produk/event dibatasi saat spesifik.
+- `LogoutPage.tsx`: `expireAllStoredProductScopes()` bersama `clearPersistedFilters()`.
+  Marker `{ expired: true }` tanpa kode produk memaksa gate setelah logout, termasuk untuk
+  user dengan satu produk.
+- `queries.ts`: `fetchProductOptions()` ringan untuk mengisi bar.
+- Tes: baru `apps/web/test/product-scope.test.tsx` (gate, auto-select, "Semua Produk", deep
+  link, TTL 24 jam, expiry saat tab terbuka, single-product setelah expiry, integrasi
+  AppShell); `filter-persistence.test.tsx` (produk scope + batch reset + Clear All); update
+  `filter-layout`, `report-spend`, `report-spend-card`, dan `performance`.
+- Gate: typecheck PASS; unit **929** (402 api + 180 shared + 3 wa-cron + 344 web) PASS;
+  build PASS. Tidak ada migrasi.

@@ -405,6 +405,18 @@ export async function fetchConfigLists(): Promise<ConfigLists> {
   }
 }
 
+/**
+ * Daftar produk aktif untuk pemilih produk global (A97).
+ *
+ * Dipisah dari `fetchConfigLists` supaya shell tidak perlu membaca tabel
+ * konfigurasi lain hanya untuk mengisi satu dropdown. RLS `products` sudah
+ * membatasi hasil ke produk yang boleh diakses user.
+ */
+export async function fetchProductOptions(): Promise<ConfigOption[]> {
+  const rows = await supabaseSelect<CodeRow>('products', { active: 'is.true', order: 'code.asc' }, 'code,name')
+  return toOptions(rows)
+}
+
 /** A34: daftar produk & sesi untuk form OTS. RLS tetap membatasi produk sesuai scope user. */
 export type OtsReferenceData = {
   products: Array<{ code: string; name: string }>

@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { authorizedRequest } from '../src/lib/session'
 import { supabaseRpc } from '../src/lib/supabase-rest'
 import { ReportSpendPage } from '../src/pages/report-spend/ReportSpendPage'
+import { WithProductScope } from './product-scope-fixture'
 
 /** A88: card template, laporan harian, tab Berjalan/Selesai, Aktifkan resume. */
 const fixture = vi.hoisted(() => ({
@@ -153,10 +154,9 @@ describe('Card Report A88', () => {
     expect(path).toBe('/api/ad-spend-cards/card-1/finish')
   })
 
-  it('buat card hanya mengirim setting, produk dari filter popup bukan filter halaman', async () => {
-    render(<ReportSpendPage />)
+  it('buat card hanya mengirim setting, produk dari filter popup bukan produk halaman', async () => {
+    render(<WithProductScope code="BBBB"><ReportSpendPage /></WithProductScope>)
     await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
-    fireEvent.change(screen.getByLabelText('Filter produk'), { target: { value: 'BBBB' } })
     fireEvent.change(screen.getByLabelText('Filter batch'), { target: { value: '999' } })
     fireEvent.click(screen.getByRole('button', { name: 'Laporan Iklan' }))
     fireEvent.change(screen.getByLabelText('Filter berdasarkan produk'), { target: { value: 'AAAA' } })
@@ -175,9 +175,8 @@ describe('Card Report A88', () => {
   })
 
   it('urutan bagian: KPI, Tiket per Sesi, Perbandingan Pengiklan, lalu tabel laporan', async () => {
-    render(<ReportSpendPage />)
+    render(<WithProductScope code="AAAA"><ReportSpendPage /></WithProductScope>)
     await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
-    fireEvent.change(screen.getByLabelText('Filter produk'), { target: { value: 'AAAA' } })
     fireEvent.change(screen.getByLabelText('Filter batch'), { target: { value: '122' } })
 
     const order = (left: HTMLElement, right: HTMLElement): number => left.compareDocumentPosition(right)
@@ -191,13 +190,12 @@ describe('Card Report A88', () => {
     expect(order(comparison, runningTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('tombol Laporan Iklan membuka popup dengan filter produk sendiri, lepas dari filter halaman', async () => {
-    render(<ReportSpendPage />)
+  it('tombol Laporan Iklan membuka popup dengan filter produk sendiri, lepas dari produk halaman', async () => {
+    render(<WithProductScope code="BBBB"><ReportSpendPage /></WithProductScope>)
     await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
     expect(screen.queryByRole('button', { name: 'Tambah Laporan' })).toBeNull()
 
-    // Filter halaman tidak boleh membatasi daftar kartu di popup.
-    fireEvent.change(screen.getByLabelText('Filter produk'), { target: { value: 'BBBB' } })
+    // Produk halaman (scope global) tidak boleh membatasi daftar kartu di popup.
     fireEvent.click(screen.getByRole('button', { name: 'Laporan Iklan' }))
     expect(screen.getByRole('button', { name: '+ Buat Kartu Baru' })).toBeTruthy()
     expect(screen.getByLabelText('Filter berdasarkan produk')).toBeTruthy()

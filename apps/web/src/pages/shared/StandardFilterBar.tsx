@@ -9,17 +9,18 @@ import {
   CityFilter,
   DateRangeFilters,
   EventTypeFilter,
-  ProductFilter,
   SessionFilter,
 } from './FilterControls'
 
 /**
  * Bar filter bersama untuk Dashboard, Order, Presensi, Refund, dan Report Tax.
  *
- * Susunan baru (permintaan pengguna 6 November 2026):
- *   Baris 1  Cari · Tanggal · Produk · Batch · Pengiklan
+ * Susunan baru (permintaan pengguna 6 November 2026; A97):
+ *   Baris 1  Cari · Tanggal · Batch · Pengiklan
  *   Baris 2  Filter Lain (Sumber, Jenis Acara, Sesi, Kota, filter khusus halaman)
  *   Baris 3  chip aktif · toggle Filter Lain · Clear All
+ *
+ * Produk tidak lagi ada di sini: produk adalah scope global di bar atas (A97).
  *
  * Filter sekunder tidak hilang: hanya dilipat. Chip tetap terlihat, dan baris
  * otomatis terbuka bila salah satu filter sekunder sedang aktif.
@@ -51,7 +52,8 @@ export function StandardFilterBar<T extends CommonFilters>({
   dateLabel?: string
 }) {
   const [showMore, setShowMore] = useState(false)
-  const chips = activeCommonFilters(filters, { date: dateLabel })
+  // Produk adalah scope global di bar atas; chip produk di sini hanya akan menjadi duplikat.
+  const chips = activeCommonFilters(filters, { date: dateLabel }).filter((chip) => chip.key !== 'productCode')
   const controls = { filters, lists, update }
   const activeSecondary = [filters.eventType, filters.session, filters.city].filter((value) => value.trim() !== '').length
   const expanded = showMore
@@ -60,7 +62,6 @@ export function StandardFilterBar<T extends CommonFilters>({
       <div className="filter-row flex min-w-0 flex-wrap items-center gap-2.5" data-filter-row="primary">
         {search}
         <DateRangeFilters {...controls} label={dateLabel} />
-        <ProductFilter {...controls} />
         <BatchFilter {...controls} />
         <AdvertiserFilter {...controls} />
         {viewControls}
