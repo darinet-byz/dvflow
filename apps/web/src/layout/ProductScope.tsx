@@ -260,12 +260,6 @@ export function ProductPickerScreen() {
   // Admin yang membuka picker dari bypass konfigurasi juga harus bisa kembali.
   const canCancel = scope.pickerOpen && (scope.chosen || scope.configBypass)
   const canManageProducts = canAccessPath(profile, '/konfigurasi-produk')
-  const currentOption = scope.options.find((option) => option.value === scope.code)
-  const currentName = scope.chosen
-    ? scope.code === ''
-      ? 'Semua Produk'
-      : currentOption === undefined ? scope.code : productOptionName(currentOption)
-    : ''
 
   async function exit(): Promise<void> {
     if (leaving) return
@@ -297,10 +291,6 @@ export function ProductPickerScreen() {
         <h1 className="mt-4 text-[22px] font-bold tracking-tight text-ink">
           {switching ? 'Ganti Produk' : 'Pilih Produk Dulu'}
         </h1>
-        {switching ? (
-          <p className="mt-1 text-[12px] text-ink-soft">Produk aktif: <span className="font-semibold text-ink">{currentName}</span></p>
-        ) : null}
-
         {scope.loading && scope.options.length === 0 ? (
           <div className="mt-4" aria-busy="true"><Skeleton height={120} /></div>
         ) : scope.error !== null && scope.options.length === 0 ? (
