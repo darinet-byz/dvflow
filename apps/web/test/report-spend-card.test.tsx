@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { authorizedRequest } from '../src/lib/session'
 import { supabaseRpc } from '../src/lib/supabase-rest'
 import { ReportSpendPage } from '../src/pages/report-spend/ReportSpendPage'
@@ -154,13 +154,15 @@ describe('Card Report A88', () => {
     expect(path).toBe('/api/ad-spend-cards/card-1/finish')
   })
 
-  it('buat card hanya mengirim setting, produk dari filter popup bukan produk halaman', async () => {
+  it('produk global mengunci form Buat Kartu Baru', async () => {
     render(<WithProductScope code="BBBB"><ReportSpendPage /></WithProductScope>)
     await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
-    fireEvent.change(screen.getByLabelText('Filter batch'), { target: { value: '999' } })
     fireEvent.click(screen.getByRole('button', { name: 'Laporan Iklan' }))
-    fireEvent.change(screen.getByLabelText('Filter berdasarkan produk'), { target: { value: 'AAAA' } })
+    expect(await screen.findByText('Tidak ada kartu laporan untuk produk ini.')).toBeTruthy()
+    expect(screen.queryByLabelText('Filter berdasarkan produk')).toBeNull()
+
     fireEvent.click(screen.getByRole('button', { name: '+ Buat Kartu Baru' }))
+    expect((screen.getByLabelText('Produk') as HTMLInputElement).value).toBe('BBBB - Produk B')
     fireEvent.change(screen.getByLabelText('Nama Card'), { target: { value: 'Card Baru' } })
     fireEvent.change(screen.getByLabelText('Batch'), { target: { value: '122' } })
     fireEvent.change(screen.getByLabelText('Jenis Acara'), { target: { value: 'Seminar Offline' } })
@@ -170,7 +172,7 @@ describe('Card Report A88', () => {
     const [path, options] = vi.mocked(authorizedRequest).mock.calls.at(-1)!
     expect(path).toBe('/api/ad-spend-cards')
     const body = (options as { body: Record<string, unknown> }).body
-    expect(body).toMatchObject({ product_code: 'AAAA', batch: '122', event_type: 'Seminar Offline' })
+    expect(body).toMatchObject({ product_code: 'BBBB', batch: '122', event_type: 'Seminar Offline' })
     expect(body).not.toHaveProperty('spends')
   })
 
@@ -190,22 +192,26 @@ describe('Card Report A88', () => {
     expect(order(comparison, runningTab) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   })
 
-  it('tombol Laporan Iklan membuka popup dengan filter produk sendiri, lepas dari produk halaman', async () => {
+  it('popup Laporan Iklan mengikuti produk global', async () => {
     render(<WithProductScope code="BBBB"><ReportSpendPage /></WithProductScope>)
     await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
     expect(screen.queryByRole('button', { name: 'Tambah Laporan' })).toBeNull()
 
-    // Produk halaman (scope global) tidak boleh membatasi daftar kartu di popup.
     fireEvent.click(screen.getByRole('button', { name: 'Laporan Iklan' }))
-    expect(screen.getByRole('button', { name: '+ Buat Kartu Baru' })).toBeTruthy()
-    expect(screen.getByLabelText('Filter berdasarkan produk')).toBeTruthy()
-    expect(await screen.findByRole('button', { name: 'Tambah Laporan' })).toBeTruthy()
+    const dialog = screen.getByRole('dialog')
+    expect(within(dialog).queryByLabelText('Filter berdasarkan produk')).toBeNull()
+    expect(await within(dialog).findByText('Tidak ada kartu laporan untuk produk ini.')).toBeTruthy()
+    expect(within(dialog).queryByText('Card Batch 122')).toBeNull()
     expect(vi.mocked(supabaseRpc)).toHaveBeenCalledWith('ad_spend_cards_list', {})
+  })
 
-    fireEvent.change(screen.getByLabelText('Filter berdasarkan produk'), { target: { value: 'BBBB' } })
-    expect(await screen.findByText('Tidak ada kartu laporan untuk produk ini.')).toBeTruthy()
+  it('Semua Produk: popup menampilkan semua kartu', async () => {
+    render(<WithProductScope code=""><ReportSpendPage /></WithProductScope>)
+    await screen.findByText('Tiket Paid per Sesi', {}, { timeout: 5000 })
+    fireEvent.click(screen.getByRole('button', { name: 'Laporan Iklan' }))
 
-    fireEvent.change(screen.getByLabelText('Filter berdasarkan produk'), { target: { value: 'AAAA' } })
-    expect(await screen.findByRole('button', { name: 'Tambah Laporan' })).toBeTruthy()
+    expect(await screen.findByText('Card Batch 122')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Tambah Laporan' })).toBeTruthy()
+    expect(screen.queryByLabelText('Filter berdasarkan produk')).toBeNull()
   })
 })

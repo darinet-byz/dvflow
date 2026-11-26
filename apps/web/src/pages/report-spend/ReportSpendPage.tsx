@@ -401,6 +401,8 @@ export function ReportSpendPage() {
     { storageKey: 'report-spend' },
   )
   const { lists } = useConfigLists()
+  // A99: popup Laporan Iklan selalu mengikuti scope produk global.
+  const globalProductCode = state.applied.productCode
   const [refresh, setRefresh] = useState(0)
 
   const appliedKey = JSON.stringify(state.applied)
@@ -419,7 +421,6 @@ export function ReportSpendPage() {
   const [tab, setTab] = useState<Tab>('berjalan')
   const [showMore, setShowMore] = useState(false)
   const [reportListOpen, setReportListOpen] = useState(false)
-  const [cardProductFilter, setCardProductFilter] = useState('')
   const [cardForm, setCardForm] = useState<CardFormState | null>(null)
   const [entryForm, setEntryForm] = useState<EntryFormState | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
@@ -434,7 +435,7 @@ export function ReportSpendPage() {
   function openCreateCard(seed?: { productCode: string; batch: string; eventType: string }): void {
     setCardForm({
       name: '',
-      productCode: seed?.productCode ?? cardProductFilter,
+      productCode: seed?.productCode ?? globalProductCode,
       batch: seed?.batch ?? '',
       eventType: seed?.eventType ?? '',
     })
@@ -644,8 +645,12 @@ export function ReportSpendPage() {
   const comparisonProduct = (lists?.products ?? []).find((item) => item.value === state.applied.productCode)?.label ?? state.applied.productCode
   const totalProfit = summary ? spendProfit(summary.omzet, summary.total_spend) : 0
   const productOptions = (lists?.products ?? []).map((item) => ({ value: item.value, label: item.label }))
-  const cardProductOptions = [{ value: '', label: 'Semua produk' }, ...productOptions]
-  const listedCards = cardProductFilter === '' ? cards : cards.filter((card) => card.product_code === cardProductFilter)
+  const cardFormProductOptions = globalProductCode === ''
+    ? productOptions
+    : productOptions.filter((item) => item.value === globalProductCode)
+  const listedCards = globalProductCode === ''
+    ? cards
+    : cards.filter((card) => card.product_code === globalProductCode)
 
   useEffect(() => {
     const openFromQuery = () => {
@@ -935,18 +940,11 @@ export function ReportSpendPage() {
         footer={<Button variant="secondary" onClick={() => setReportListOpen(false)}>Tutup</Button>}
       >
         <div className="flex min-w-0 flex-col gap-3">
-          <div className="flex min-w-0 flex-wrap items-end justify-between gap-2">
-            <div className="w-full sm:w-64">
-              <Select
-                id="report-card-product"
-                label="Filter berdasarkan produk"
-                value={cardProductFilter}
-                options={cardProductOptions}
-                onChange={setCardProductFilter}
-              />
+          {canInput ? (
+            <div className="flex min-w-0 flex-wrap items-center justify-end gap-2">
+              <Button variant="primary" onClick={() => openCreateCard()}>+ Buat Kartu Baru</Button>
             </div>
-            {canInput ? <Button variant="primary" onClick={() => openCreateCard()}>+ Buat Kartu Baru</Button> : null}
-          </div>
+          ) : null}
 
           {cardList.error !== null ? (
             <p className="rounded-md border border-danger/30 bg-danger-soft px-3 py-3 text-danger">{cardList.error}</p>
@@ -956,7 +954,7 @@ export function ReportSpendPage() {
             <p className="rounded-md border border-line px-3 py-6 text-center text-ink-soft">
               {cards.length === 0
                 ? (canInput ? 'Belum ada kartu laporan. Buat kartu baru untuk mulai mencatat laporan.' : 'Belum ada kartu laporan aktif.')
-                : 'Tidak ada kartu laporan untuk produk ini.'}
+                : globalProductCode === '' ? 'Tidak ada kartu laporan.' : 'Tidak ada kartu laporan untuk produk ini.'}
             </p>
           ) : (
             <div className="grid min-w-0 gap-3 md:grid-cols-2">
@@ -1017,8 +1015,9 @@ export function ReportSpendPage() {
               id="card-product"
               label="Produk"
               value={cardForm.productCode}
-              options={productOptions}
+              options={cardFormProductOptions}
               placeholder="Cari produk…"
+              disabled={globalProductCode !== ''}
               onChange={(value) => setCardForm({ ...cardForm, productCode: value })}
             />
             <TextInput

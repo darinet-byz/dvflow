@@ -2495,3 +2495,28 @@ Permintaan pengguna: sebelum produk dipilih, tampilkan satu layar penuh dan kunc
 - Tes: `product-scope` (full-screen, filter produk ditugaskan, single-product tanpa auto-select, ganti/Batal, expiry, bypass konfigurasi), `field-app` (gating + switcher), update sidebar/filter terkait.
 - Revisi 26 November 2026: paragraf penjelasan di layar pilih dan teks "Assign"/"Produk aktif" dihapus; switcher hanya berisi nama produk + kode + panah.
 - Gate: typecheck PASS; lint PASS; unit **930** (402 api + 180 shared + 3 wa-cron + 345 web); build PASS. Tidak ada migrasi.
+
+## A99 - Menu aktif soft + Laporan Iklan mengikuti produk global (26 November 2026)
+
+Permintaan pengguna: warna menu sidebar yang aktif terlalu bold; nama produk di atas (switcher) yang seharusnya menjadi aksen biru bold, sedangkan menu aktif dibuat lebih lembut. Selain itu, popup **Laporan Iklan** harus mengikuti produk global, sehingga kartu yang muncul saat **Tambah Laporan** hanya kartu produk yang dipilih.
+
+### Keputusan
+
+- **Nama produk** di `ProductSwitcher` (sidebar web dan header field app) menjadi `text-primary font-bold`; kode dan panah tetap `text-ink-soft`.
+- **Menu aktif** memakai background `primary-soft` + teks `ink` normal, tanpa gradient, teks putih, atau shadow. Hover menu non-aktif dibuat `primary/10` agar tetap lebih ringan daripada menu aktif.
+- **Filter produk di popup Laporan Iklan dihapus** (select, state, dan opsinya). Popup selalu mengikuti `state.applied.productCode`:
+  - produk global spesifik → daftar kartu hanya produk itu;
+  - produk global **Semua Produk** → semua kartu dalam scope user.
+- **+ Buat Kartu Baru**:
+  - produk global spesifik → produk terisi dan combobox produk dikunci ke produk itu;
+  - Semua Produk → form tetap bisa memilih produk seperti biasa.
+- **Tambah Laporan** hanya tersedia pada kartu yang lolos filter produk global. Tidak ada perubahan RPC/database; penyaringan memakai hasil `ad_spend_cards_list()` di browser.
+- A95 (filter produk popup independen) digantikan untuk kasus produk global spesifik; saat Semua Produk tidak ada filter popup lagi.
+
+### Implementasi
+
+- `Sidebar.tsx`: class menu aktif `bg-primary-soft text-ink`; hover non-aktif `hover:bg-primary/10`.
+- `ProductScope.tsx`: nama di `ProductSwitcher` `font-bold text-primary`.
+- `ReportSpendPage.tsx`: hapus `cardProductFilter`/select popup; turunkan `globalProductCode` dari `state.applied`; filter `listedCards`; `openCreateCard` memakai produk global; opsi produk form dibatasi dan combobox dikunci saat produk global spesifik; empty state menyesuaikan.
+- Tes: `report-spend-card.test.tsx` (produk global spesifik vs Semua Produk, form terkunci), `sidebar-accordion.test.tsx` (class menu aktif/hover).
+- Gate: typecheck PASS; lint PASS; unit **931** (402 api + 180 shared + 3 wa-cron + 346 web); build PASS. Tidak ada migrasi.

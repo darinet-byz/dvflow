@@ -418,7 +418,7 @@ export function ProductSwitcher({
       )}
     >
       <span className="min-w-0 flex-1">
-        <span className={cn('block truncate font-semibold text-ink', compact ? 'text-[11px]' : 'text-[12px]')}>
+        <span className={cn('block truncate font-bold text-primary', compact ? 'text-[11px]' : 'text-[12px]')}>
           {name}
           {compact && scope.chosen && scope.code !== '' ? (
             <span className="ml-1 font-normal text-ink-soft">{scope.code}</span>

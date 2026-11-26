@@ -199,9 +199,9 @@ function NavItemLink({
         cn(
           'flex min-h-11 items-center rounded-[11px] px-2.5 py-2 text-[12px] font-medium leading-tight tracking-[-0.01em] transition-colors',
           isActive
-            ? // Guideline §7 memakai gradien primary untuk item aktif.
-              'bg-[linear-gradient(135deg,#564cff,#424bf4)] text-white shadow-card'
-            : 'text-ink hover:bg-primary/30',
+            ? // A99: menu aktif lembut; aksen biru bold ada di nama produk.
+              'bg-primary-soft text-ink'
+            : 'text-ink hover:bg-primary/10',
         )
       }
     >

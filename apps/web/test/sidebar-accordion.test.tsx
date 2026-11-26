@@ -82,7 +82,7 @@ describe('Sidebar accordion (A47)', () => {
     expect(childClasses).toContain('border-primary/20')
   })
 
-  it('A49: item nonaktif lebih besar dan gelap; item aktif tetap putih', () => {
+  it('A49/A99: item nonaktif lebih besar dan gelap; menu aktif lavender soft', () => {
     render(<MemoryRouter initialEntries={['/']}><Sidebar /></MemoryRouter>)
 
     const active = screen.getByText('Dashboard').closest('a')
@@ -90,7 +90,8 @@ describe('Sidebar accordion (A47)', () => {
     const activeClasses = active!.className.split(/\s+/)
     expect(activeClasses).toContain('text-[12px]')
     expect(activeClasses).not.toContain('uppercase')
-    expect(activeClasses).toContain('text-white')
+    expect(activeClasses).toContain('bg-primary-soft')
+    expect(activeClasses).toContain('text-ink')
 
     const accordion = screen.getByRole('button', { name: 'Acara' })
     const accordionClasses = accordion.className.split(/\s+/)
@@ -104,6 +105,6 @@ describe('Sidebar accordion (A47)', () => {
     const inactiveClasses = inactive!.className.split(/\s+/)
     expect(inactiveClasses).toContain('text-[12px]')
     expect(inactiveClasses).toContain('text-ink')
-    expect(inactiveClasses).toContain('hover:bg-primary/30')
+    expect(inactiveClasses).toContain('hover:bg-primary/10')
   })
 })
