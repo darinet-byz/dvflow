@@ -231,7 +231,7 @@ describe('Report Tax (PRD §84–§86, 04 §1)', () => {
     expect(await screen.findByText('Jumlah transaksi')).toBeDefined()
     expect(screen.getAllByText('Total Tax').length).toBeGreaterThan(0)
     expect(await screen.findByText('QRIS')).toBeDefined()
-    expect(supabaseRpc).toHaveBeenCalledWith('tax_report', expect.objectContaining({ p_dimension: 'payment_method' }))
+    expect(supabaseRpc).toHaveBeenCalledWith('tax_report', expect.objectContaining({ p_dimension: 'payment_method' }), expect.anything())
   })
 
   it('menawarkan tujuh dimensi breakdown, tidak lebih', async () => {

@@ -100,7 +100,7 @@ export function TeamPage() {
     [],
   )
 
-  const { data: configLists } = useAsyncData(fetchConfigLists, [])
+  const { data: configLists } = useAsyncData(() => fetchConfigLists(), [])
   // Role kustom dari Konfigurasi Role juga harus dapat dipilih (bukan hanya daftar tetap).
   const { data: roleList } = useAsyncData(
     () => authorizedRequest<{ roles: { id: string; name: string }[] }>('/api/roles'),

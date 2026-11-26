@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Select, TextInput } from '../../ui/Field'
 import { SuggestInput } from '../../ui/SuggestInput'
 import { describeRecentBatch, useRecentBatches } from '../../lib/recent-batches'
@@ -96,7 +97,10 @@ export function DateRangeFilters<T extends CommonFilters>(
 }
 
 export function BatchFilter<T extends CommonFilters>(props: FilterControlsProps<T>) {
-  const { batches } = useRecentBatches(props.filters.productCode, props.filters.advertiserCode)
+  // A101: saran batch baru diminta saat field dibuka. Sebelumnya setiap halaman
+  // yang memasang filter bar langsung memanggil `recent_batches`.
+  const [suggestOpen, setSuggestOpen] = useState(false)
+  const { batches } = useRecentBatches(props.filters.productCode, props.filters.advertiserCode, suggestOpen)
   const options = batches.map((batch) => {
     const described = describeRecentBatch(batch)
     return { value: batch.batch, label: described.label, hint: described.hint }
@@ -110,6 +114,7 @@ export function BatchFilter<T extends CommonFilters>(props: FilterControlsProps<
       disabled={props.disabled === true}
       placeholder={props.filters.productCode === '' ? 'Batch (pilih produk untuk saran)' : 'Batch (mis. 392)'}
       options={options}
+      onFocus={() => setSuggestOpen(true)}
       onChange={(value) => props.update('batch' as keyof T, value)}
     />
   )

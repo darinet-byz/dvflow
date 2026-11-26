@@ -277,23 +277,25 @@ export type RescheduleHistoryRow = {
  * PRD §41: Dashboard memakai satu set filter yang sama untuk seluruh KPI.
  * Tidak ada KPI yang boleh memakai filter sendiri.
  */
-export async function fetchDashboardSummary(filters: CommonFilters): Promise<DashboardSummary> {
-  return supabaseRpc<DashboardSummary>('dashboard_summary', toFilterArgs(filters))
+export async function fetchDashboardSummary(filters: CommonFilters, signal?: AbortSignal): Promise<DashboardSummary> {
+  return supabaseRpc<DashboardSummary>('dashboard_summary', toFilterArgs(filters), signal)
 }
 
 export async function fetchPresensiSummary(
   filters: CommonFilters,
   dateMode: PresensiDateMode = 'order',
+  signal?: AbortSignal,
 ): Promise<PresensiSummary> {
   return supabaseRpc<PresensiSummary>('presensi_summary', {
     ...toFilterArgs(filters),
     p_date_mode: dateMode,
-  })
+  }, signal)
 }
 
 export async function fetchOrdersPage(
   filters: OrderFilters,
   options: { sort: OrderSortKey; direction: SortDirection; page: number; pageSize: PageSize; exporting?: boolean },
+  signal?: AbortSignal,
 ): Promise<OrdersPage> {
   return supabaseRpc<OrdersPage>(options.exporting ? 'export_orders_page' : 'orders_page', {
     ...toOrderArgs(filters),
@@ -301,13 +303,14 @@ export async function fetchOrdersPage(
     p_sort_dir: options.direction,
     p_page: options.page,
     p_page_size: options.pageSize,
-  })
+  }, signal)
 }
 
 export async function fetchPresensiPage(
   filters: PresensiFilters,
   options: { sort: PresensiSortKey; direction: SortDirection; page: number; pageSize: PageSize; exporting?: boolean },
   dateMode: PresensiDateMode = 'order',
+  signal?: AbortSignal,
 ): Promise<PresensiPage> {
   return supabaseRpc<PresensiPage>(options.exporting ? 'export_presensi_page' : 'presensi_page', {
     ...toPresensiArgs(filters, dateMode),
@@ -315,20 +318,21 @@ export async function fetchPresensiPage(
     p_sort_dir: options.direction,
     p_page: options.page,
     p_page_size: options.pageSize,
-  })
+  }, signal)
 }
 
 /**
  * A59: data per sesi di Dashboard. Produk + batch wajib diisi; parameter lain
  * mengikuti filter Dashboard yang sama.
  */
-export async function fetchDashboardSessionSummary(filters: CommonFilters): Promise<SessionSummary> {
-  return supabaseRpc<SessionSummary>('dashboard_session_summary', toFilterArgs(filters))
+export async function fetchDashboardSessionSummary(filters: CommonFilters, signal?: AbortSignal): Promise<SessionSummary> {
+  return supabaseRpc<SessionSummary>('dashboard_session_summary', toFilterArgs(filters), signal)
 }
 
 export async function fetchRefundPage(
   filters: CommonFilters,
   options: { sort: RefundSortKey; direction: SortDirection; page: number; pageSize: PageSize; exporting?: boolean },
+  signal?: AbortSignal,
 ): Promise<RefundPage> {
   return supabaseRpc<RefundPage>(options.exporting ? 'export_refund_page' : 'refund_page', {
     ...toFilterArgs(filters),
@@ -336,7 +340,7 @@ export async function fetchRefundPage(
     p_sort_dir: options.direction,
     p_page: options.page,
     p_page_size: options.pageSize,
-  })
+  }, signal)
 }
 
 /**

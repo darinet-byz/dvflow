@@ -33,7 +33,7 @@ export function DashboardPage() {
 
   const appliedKey = JSON.stringify(state.applied)
   const { data, loading, error, reload } = useAsyncData(
-    () => fetchDashboardSummary(state.applied),
+    (signal) => fetchDashboardSummary(state.applied, signal),
     [appliedKey],
   )
 
@@ -42,9 +42,9 @@ export function DashboardPage() {
   // berjalan bersamaan agar perubahan filter tetap terasa responsif.
   const comparisonKey = JSON.stringify({ ...state.applied, source: '' })
   const comparison = useAsyncData(
-    () => (data === null ? Promise.resolve(null) : Promise.all([
-      fetchDashboardSummary({ ...state.applied, source: 'orderonline' }),
-      fetchDashboardSummary({ ...state.applied, source: 'ots' }),
+    (signal) => (data === null ? Promise.resolve(null) : Promise.all([
+      fetchDashboardSummary({ ...state.applied, source: 'orderonline' }, signal),
+      fetchDashboardSummary({ ...state.applied, source: 'ots' }, signal),
     ])),
     [comparisonKey, data !== null],
   )

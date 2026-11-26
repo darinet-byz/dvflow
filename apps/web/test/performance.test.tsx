@@ -261,7 +261,7 @@ describe('Performa / Analitik: halaman', () => {
     expect(screen.getByText('Rina (02)')).toBeTruthy()
     expect(screen.getAllByText(/Top 2 Event/).length).toBeGreaterThan(0)
     expect(screen.getAllByText(/Kedisiplinan/).length).toBeGreaterThan(0)
-    expect(supabaseRpc).toHaveBeenCalledWith('advertiser_performance', expect.objectContaining({ p_advertiser_code: null }))
+    expect(supabaseRpc).toHaveBeenCalledWith('advertiser_performance', expect.objectContaining({ p_advertiser_code: null }), expect.anything())
 
     fireEvent.click(screen.getByRole('button', { name: /Zul \(01\)/ }))
 
@@ -288,6 +288,7 @@ describe('Performa / Analitik: halaman', () => {
     expect(supabaseRpc).toHaveBeenCalledWith(
       'advertiser_performance_year',
       expect.objectContaining({ p_advertiser_code: '01', p_product_code: 'PAAA' }),
+      expect.anything(),
     )
     expect(supabaseRpc).toHaveBeenCalledWith(
       'advertiser_breakdown',
@@ -297,6 +298,7 @@ describe('Performa / Analitik: halaman', () => {
         p_recent_batches_per_product: 2,
         p_batch_limit: 5,
       }),
+      expect.anything(),
     )
     const breakdownCall = vi.mocked(supabaseRpc).mock.calls.find(([fn]) => fn === 'advertiser_breakdown')
     expect(breakdownCall?.[1]).not.toHaveProperty('p_date_from')
@@ -356,6 +358,7 @@ describe('Performa / Analitik: halaman', () => {
     expect(supabaseRpc).toHaveBeenCalledWith(
       'advertiser_performance_year',
       expect.objectContaining({ p_advertiser_code: '01' }),
+      expect.anything(),
     )
   }, 20_000)
 

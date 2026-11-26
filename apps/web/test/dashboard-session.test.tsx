@@ -97,6 +97,7 @@ describe('Data per Sesi: kartu Dashboard', () => {
           dateFrom: '2026-10-01',
           dateTo: '2026-10-31',
         }),
+        expect.anything(),
       ),
     )
 

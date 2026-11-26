@@ -406,7 +406,7 @@ export function ReportSpendPage() {
   const [refresh, setRefresh] = useState(0)
 
   const appliedKey = JSON.stringify(state.applied)
-  const { data, loading, error, reload } = useAsyncData(() => {
+  const { data, loading, error, reload } = useAsyncData((signal) => {
     const args = toFilterArgs(state.applied)
     return supabaseRpc<SpendReport>('ad_spend_report', {
       p_date_from: args['p_date_from'],
@@ -415,7 +415,7 @@ export function ReportSpendPage() {
       p_advertiser_code: args['p_advertiser_code'],
       p_batch: args['p_batch'],
       p_event_type: args['p_event_type'],
-    })
+    }, signal)
   }, [appliedKey, refresh])
 
   const [tab, setTab] = useState<Tab>('berjalan')

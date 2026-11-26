@@ -22,7 +22,7 @@ export type AsyncState<T> = {
   reload: () => void
 }
 
-export function useAsyncData<T>(loader: () => Promise<T>, deps: readonly unknown[]): AsyncState<T> {
+export function useAsyncData<T>(loader: (signal: AbortSignal) => Promise<T>, deps: readonly unknown[]): AsyncState<T> {
   const [data, setData] = useState<T | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -33,11 +33,15 @@ export function useAsyncData<T>(loader: () => Promise<T>, deps: readonly unknown
 
   useEffect(() => {
     let active = true
+    // A101: hentikan permintaan lama saat filter/parameter berubah. Tanpa ini,
+    // respons lambat dari filter lama tetap berjalan dan bisa menghabiskan
+    // bandwidth/kuota database meski hasilnya sudah diabaikan.
+    const controller = new AbortController()
     setLoading(true)
     setError(null)
     setErrorCode(null)
 
-    loader()
+    loader(controller.signal)
       .then((result) => {
         if (!active) return
         setData(result)
@@ -54,6 +58,7 @@ export function useAsyncData<T>(loader: () => Promise<T>, deps: readonly unknown
 
     return () => {
       active = false
+      controller.abort()
     }
     // `deps` sengaja disebar: pemanggil yang menentukan kapan data perlu dimuat
     // ulang (filter, sort, halaman), bukan dihitung di dalam hook.

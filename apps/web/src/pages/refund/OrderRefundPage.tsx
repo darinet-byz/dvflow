@@ -72,13 +72,13 @@ export function OrderRefundPage() {
 
   const appliedKey = JSON.stringify(state.applied)
   const { data, loading, error, reload } = useAsyncData(
-    () =>
+    (signal) =>
       fetchRefundPage(state.applied, {
         sort: sort.key,
         direction: sort.direction,
         page: state.page,
         pageSize: state.pageSize,
-      }),
+      }, signal),
     [appliedKey, sort.key, sort.direction, state.page, state.pageSize],
   )
 

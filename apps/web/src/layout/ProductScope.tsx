@@ -95,7 +95,7 @@ export function ProductScopeProvider({ children }: { children: ReactNode }) {
   const [selection, setSelection] = useState<Selection>(() => initialSelection(userId, location.search))
   const [pickerOpen, setPickerOpen] = useState(false)
   const [configBypass, setConfigBypass] = useState(false)
-  const { data, loading, error, reload } = useAsyncData(fetchProductOptions, [])
+  const { data, loading, error, reload } = useAsyncData(() => fetchProductOptions(), [])
 
   /*
    * Produk hanya yang ditugaskan: RLS sudah membatasi, tetapi daftar profil

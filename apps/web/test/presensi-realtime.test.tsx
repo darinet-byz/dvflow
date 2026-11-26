@@ -63,8 +63,8 @@ describe('A68: tab Presensi Acara', () => {
     const orderTab = await screen.findByRole('tab', { name: 'Berdasarkan Order' })
     expect(orderTab.getAttribute('aria-selected')).toBe('true')
     expect(await screen.findByText(/Online 2 · OTS 1/)).toBeDefined()
-    expect(queries.fetchPresensiPage).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'order')
-    expect(queries.fetchPresensiSummary).toHaveBeenCalledWith(expect.anything(), 'order')
+    expect(queries.fetchPresensiPage).toHaveBeenCalledWith(expect.anything(), expect.anything(), 'order', expect.anything())
+    expect(queries.fetchPresensiSummary).toHaveBeenCalledWith(expect.anything(), 'order', expect.anything())
   })
 
   it('tab Realtime Presensi memakai p_date_mode attendance dan card Total Peserta Hari Ini', async () => {
@@ -74,8 +74,8 @@ describe('A68: tab Presensi Acara', () => {
 
     expect(await screen.findByText('Total Peserta Hari Ini')).toBeDefined()
     expect(screen.getByText(/tiap 5 detik/)).toBeDefined()
-    expect(queries.fetchPresensiPage).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), 'attendance')
-    expect(queries.fetchPresensiSummary).toHaveBeenLastCalledWith(expect.anything(), 'attendance')
+    expect(queries.fetchPresensiPage).toHaveBeenLastCalledWith(expect.anything(), expect.anything(), 'attendance', expect.anything())
+    expect(queries.fetchPresensiSummary).toHaveBeenLastCalledWith(expect.anything(), 'attendance', expect.anything())
   })
 
   it('A73: kartu Sisa Tiket membuka daftar order Hadir Sebagian dan bisa ditutup', async () => {
@@ -91,6 +91,7 @@ describe('A68: tab Presensi Acara', () => {
       expect.objectContaining({ attendanceStatus: 'Hadir Sebagian' }),
       expect.anything(),
       'attendance',
+      expect.anything(),
     )
     expect(
       (await screen.findByRole('button', { name: 'Tampilkan order penyumbang Sisa Tiket' })).getAttribute('aria-pressed'),
@@ -102,6 +103,7 @@ describe('A68: tab Presensi Acara', () => {
       expect.objectContaining({ attendanceStatus: '' }),
       expect.anything(),
       'attendance',
+      expect.anything(),
     )
   })
 

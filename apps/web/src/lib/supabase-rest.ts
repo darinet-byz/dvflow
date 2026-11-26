@@ -16,20 +16,35 @@ import { getAccessToken, refreshProfile } from './session'
 
 export type Query = Record<string, string>
 
-export async function supabaseSelect<T>(table: string, query: Query, columns: string): Promise<T[]> {
+export async function supabaseSelect<T>(
+  table: string,
+  query: Query,
+  columns: string,
+  signal?: AbortSignal,
+): Promise<T[]> {
   const rows: T[] = []
   for (let offset = 0; ; offset += 500) {
-    const page = await restRequest<T[]>(`/${table}?${buildQuery({ ...query, order: query['order'] ?? 'id.asc', limit: '500', offset: String(offset), select: columns })}`, 'GET')
+    const page = await restRequest<T[]>(
+      `/${table}?${buildQuery({ ...query, order: query['order'] ?? 'id.asc', limit: '500', offset: String(offset), select: columns })}`,
+      'GET',
+      undefined,
+      signal,
+    )
     rows.push(...page)
     if (page.length < 500) return rows
   }
 }
 
-export async function supabaseRpc<T>(fn: string, args: Record<string, unknown>): Promise<T> {
-  return restRequest<T>(`/rpc/${encodeURIComponent(fn)}`, 'POST', args)
+export async function supabaseRpc<T>(fn: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<T> {
+  return restRequest<T>(`/rpc/${encodeURIComponent(fn)}`, 'POST', args, signal)
 }
 
-async function restRequest<T>(path: string, method: 'GET' | 'POST', body?: unknown): Promise<T> {
+async function restRequest<T>(
+  path: string,
+  method: 'GET' | 'POST',
+  body?: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
   const env = readPublicEnv()
   const token = getAccessToken()
   if (token === null) throw new ApiError('SESSION_INVALID', 'Belum login.', 401)
@@ -42,6 +57,7 @@ async function restRequest<T>(path: string, method: 'GET' | 'POST', body?: unkno
 
   const init: RequestInit = { method, headers }
   if (body !== undefined) init.body = JSON.stringify(body)
+  if (signal !== undefined) init.signal = signal
 
   const response = await fetch(`${env.supabaseUrl.replace(/\/+$/, '')}/rest/v1${path}`, init)
   if (!response.ok) {

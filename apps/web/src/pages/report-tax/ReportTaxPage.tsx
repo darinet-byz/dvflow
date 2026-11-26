@@ -79,11 +79,11 @@ export function ReportTaxPage() {
 
   const appliedKey = JSON.stringify(state.applied)
   const { data, loading, error, errorCode, reload } = useAsyncData(
-    () =>
+    (signal) =>
       supabaseRpc<TaxReport>('tax_report', {
         p_dimension: dimension,
         ...toFilterArgs(state.applied as CommonFilters),
-      }),
+      }, signal),
     [appliedKey, dimension],
   )
 

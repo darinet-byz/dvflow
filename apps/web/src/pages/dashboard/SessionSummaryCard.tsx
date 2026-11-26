@@ -57,9 +57,9 @@ export function SessionSummaryCard({ filters }: { filters: CommonFilters }) {
   useEffect(() => { setSelected(null) }, [filterKey])
 
   const { data, loading, error, reload } = useAsyncData(
-    () =>
+    (signal) =>
       ready
-        ? fetchDashboardSessionSummary({ ...filters, batch, city })
+        ? fetchDashboardSessionSummary({ ...filters, batch, city }, signal)
         : Promise.resolve(null),
     [
       ready,

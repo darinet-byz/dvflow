@@ -149,7 +149,7 @@ export function PresensiPage() {
 
   const appliedKey = JSON.stringify(state.applied)
   const table = useAsyncData(
-    () =>
+    (signal) =>
       fetchPresensiPage(
         state.applied,
         {
@@ -159,6 +159,7 @@ export function PresensiPage() {
           pageSize: state.pageSize,
         },
         dateMode,
+        signal,
       ),
     [appliedKey, sort.key, sort.direction, state.page, state.pageSize, dateMode],
   )
@@ -171,7 +172,7 @@ export function PresensiPage() {
    * Dashboard). Dipisah dari tabel supaya pergantian halaman tidak memuat ulang KPI.
    */
   const summary = useAsyncData(
-    () => fetchPresensiSummary(toCommonFilters(state.applied), dateMode),
+    (signal) => fetchPresensiSummary(toCommonFilters(state.applied), dateMode, signal),
     [`${appliedKey}:kpi`, dateMode],
   )
 

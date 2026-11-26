@@ -2543,3 +2543,24 @@ Permintaan pengguna: perpindahan produk A -> B terasa lama saat data muncul; car
 - `DashboardPage.tsx`: tabel pembanding bergantung pada `data !== null` dari ringkasan utama.
 - Tes: `config-cache.test.ts` (cache, invalidasi, TTL), `dashboard-defer.test.tsx` (pembanding menunggu KPI utama), `product-scope.test.tsx` (shell tetap node yang sama + `inert` saat overlay, Batal melepas kunci).
 - Gate: typecheck PASS; lint PASS; unit **935** (402 api + 180 shared + 3 wa-cron + 350 web); build PASS. Tidak ada migrasi.
+
+## A101 - Batalkan request lama + saran batch lazy + attendance per halaman (26 November 2026)
+
+Permintaan pengguna: jalankan P2 sekalian setelah P0/P1 — permintaan lama masih berjalan saat filter/produk berganti, saran batch dimuat walau field belum dibuka, dan `orders_page` menghitung `has_attendance` untuk semua baris filter.
+
+### Keputusan
+
+- **`useAsyncData` membuat `AbortController` per efek** dan membatalkannya saat deps berubah atau komponen dilepas. Signal diteruskan ke `supabaseSelect`/`supabaseRpc` dan loader halaman utama, sehingga respons filter lama berhenti di jaringan, bukan hanya diabaikan setelah tiba.
+- **Saran batch lazy**: `useRecentBatches` mendapat `enabled`; filter batch bersama dan Performa baru meminta saran saat field difokuskan. Halaman yang memasang filter bar tidak lagi memanggil `recent_batches` saat mount.
+- **`orders_page`/`export_orders_page`**: `EXISTS attendance_events` dipindah dari CTE `filtered` ke CTE `paged`, setelah `ORDER BY` + `LIMIT/OFFSET`. Total/ringkasan tetap dihitung dari filter; bentuk baris dan nilai `has_attendance` tidak berubah. Definisi mengikuti produksi 16 argumen (termasuk `p_source`) agar tidak membuat overload baru.
+- Migrasi `20261126150000_orders_page_attendance_paged.sql`, `schema_version` 96.
+
+### Implementasi
+
+- `useAsyncData.ts`: signal ke loader + abort pada cleanup.
+- `supabase-rest.ts`: `supabaseSelect`/`supabaseRpc`/`restRequest` menerima `AbortSignal`.
+- `queries.ts` + halaman Dashboard/Order/Presensi/Refund/Report Spend/Report Tax/Performa: meneruskan signal ke RPC.
+- `recent-batches.ts`, `FilterControls.tsx`, `PerformancePage.tsx`, `SuggestInput.tsx`: saran batch baru dimuat saat field dibuka.
+- Tes: `async-data-abort.test.tsx` (signal + abort saat deps berubah/unmount), `recent-batches-lazy.test.tsx` (RPC tidak dipanggil saat nonaktif), penyesuaian assertion signal di tes Presensi/Dashboard/Performa/Report Tax.
+- Dry-run produksi dalam transaksi: total 2019 dan 50 baris tetap sama, `has_attendance` ada dan nilainya identik, urutan `order_id` identik; migrasi diterapkan (`schema_version` 95 -> 96).
+- Gate: typecheck PASS; lint PASS; unit **938** (402 api + 180 shared + 3 wa-cron + 353 web); build PASS.

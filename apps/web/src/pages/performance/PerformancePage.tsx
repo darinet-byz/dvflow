@@ -150,12 +150,12 @@ type PerformanceLists = {
  * izin konfigurasi lain.
  */
 function usePerformanceLists(includeAdvertisers: boolean): { lists: PerformanceLists | null; error: string | null } {
-  const { data, error } = useAsyncData(async () => {
+  const { data, error } = useAsyncData(async (signal) => {
     const [products, advertisers] = await Promise.all([
-      supabaseSelect<CodeRow>('products', { active: 'is.true' }, 'code,name'),
+      supabaseSelect<CodeRow>('products', { active: 'is.true' }, 'code,name', signal),
       // Akun berproduk terbatas memakai pilihan dari hasil RPC, bukan seluruh tabel pengiklan.
       includeAdvertisers
-        ? supabaseSelect<CodeRow>('advertisers', { active: 'is.true' }, 'code,name')
+        ? supabaseSelect<CodeRow>('advertisers', { active: 'is.true' }, 'code,name', signal)
         : Promise.resolve([] as CodeRow[]),
     ])
     const toOptions = (rows: CodeRow[]) =>
@@ -192,6 +192,8 @@ export function PerformancePage() {
   const [customPeriod, setCustomPeriod] = useState(false)
   // Pilihan pengiklan untuk akun berproduk terbatas (Pimpro): hanya yang muncul di hasil RPC.
   const [advertiserChoices, setAdvertiserChoices] = useState<AdvertiserPerformance[]>([])
+  // A101: saran batch baru dimuat saat pengguna membuka field, bukan saat halaman dipasang.
+  const [batchSuggestOpen, setBatchSuggestOpen] = useState(false)
 
   // A97: scope global menang; batch lama dibuang saat produk berganti.
   useEffect(() => {
@@ -215,7 +217,7 @@ export function PerformancePage() {
   const [kpiInput, setKpiInput] = useState('')
   const [kpiBusy, setKpiBusy] = useState(false)
   const [kpiMessage, setKpiMessage] = useState<{ tone: 'success' | 'danger'; text: string } | null>(null)
-  const { batches: recentBatches } = useRecentBatches(filters.productCode, effectiveAdvertiserCode)
+  const { batches: recentBatches } = useRecentBatches(filters.productCode, effectiveAdvertiserCode, batchSuggestOpen)
   const batchSuggestions = recentBatches.map((batch) => {
     const described = describeRecentBatch(batch)
     return { value: batch.batch, label: described.label, hint: described.hint }
@@ -224,12 +226,12 @@ export function PerformancePage() {
   const loadKey = detailMode
     ? JSON.stringify(['year', effectiveAdvertiserCode, filters.productCode])
     : JSON.stringify([filters, effectiveAdvertiserCode, effectiveGranularity])
-  const { data, loading, error, reload } = useAsyncData<PerformanceDashboard | PerformanceDetail>(() => {
+  const { data, loading, error, reload } = useAsyncData<PerformanceDashboard | PerformanceDetail>((signal) => {
     if (detailMode) {
       return supabaseRpc<PerformanceDetail>('advertiser_performance_year', {
         p_advertiser_code: effectiveAdvertiserCode,
         p_product_code: emptyToNull(filters.productCode),
-      })
+      }, signal)
     }
     return supabaseRpc<PerformanceDashboard>('advertiser_performance', {
       p_advertiser_code: null,
@@ -238,7 +240,7 @@ export function PerformancePage() {
       p_date_from: emptyToNull(filters.dateFrom),
       p_date_to: emptyToNull(filters.dateTo),
       p_granularity: effectiveGranularity,
-    })
+    }, signal)
   }, [loadKey])
 
   const detail = data !== null && 'summary' in data ? data : null
@@ -254,7 +256,7 @@ export function PerformancePage() {
     loading: breakdownLoading,
     error: breakdownError,
     reload: reloadBreakdown,
-  } = useAsyncData<{ key: string; value: PerformanceBreakdown } | null>(() => {
+  } = useAsyncData<{ key: string; value: PerformanceBreakdown } | null>((signal) => {
     const code = effectiveAdvertiserCode.trim()
     if (code === '') return Promise.resolve(null)
     return supabaseRpc<PerformanceBreakdown>('advertiser_breakdown', {
@@ -266,7 +268,7 @@ export function PerformancePage() {
       // hanya setelah produk dipilih).
       p_recent_batches_per_product: PRODUCT_RECENT_BATCHES,
       p_batch_limit: BATCH_RECENT_LIMIT,
-    }).then((value) => ({ key: breakdownKey, value }))
+    }, signal).then((value) => ({ key: breakdownKey, value }))
   }, [breakdownKey])
   const breakdown = breakdownState !== null && breakdownState.key === breakdownKey ? breakdownState.value : null
   // Saat kunci berubah, useAsyncData belum menyalakan `loading` pada render pertama.
@@ -426,6 +428,7 @@ export function PerformancePage() {
             value={filters.batch}
             placeholder={filters.productCode === '' ? 'Batch (pilih produk untuk saran)' : 'Batch (mis. 392)'}
             options={batchSuggestions}
+            onFocus={() => setBatchSuggestOpen(true)}
             onChange={(value) => changeFilters({ batch: value })}
           />
         )}

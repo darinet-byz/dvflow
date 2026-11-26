@@ -19,22 +19,22 @@ export type RecentBatch = {
  * menerapkan scope produk user, jadi akun dengan produk terbatas tidak melihat
  * batch produk lain.
  */
-export function useRecentBatches(productCode: string, advertiserCode: string): {
+export function useRecentBatches(productCode: string, advertiserCode: string, enabled = true): {
   batches: RecentBatch[]
   loading: boolean
 } {
   const product = useDebouncedValue(productCode.trim())
   const advertiser = useDebouncedValue(advertiserCode.trim())
   const { data, loading } = useAsyncData(
-    async () => {
-      if (product === '') return { batches: [] as RecentBatch[] }
+    async (signal) => {
+      if (!enabled || product === '') return { batches: [] as RecentBatch[] }
       return supabaseRpc<{ batches: RecentBatch[] }>('recent_batches', {
         p_product_code: product,
         p_advertiser_code: advertiser === '' ? null : advertiser,
         p_limit: 3,
-      })
+      }, signal)
     },
-    [product, advertiser],
+    [product, advertiser, enabled],
   )
   return { batches: data?.batches ?? [], loading }
 }

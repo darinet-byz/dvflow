@@ -24,6 +24,7 @@ export function SuggestInput({
   placeholder,
   disabled = false,
   className,
+  onFocus,
   emptyMessage = 'Belum ada saran batch. Batch tetap bisa diketik manual.',
   maxResults = 5,
 }: {
@@ -35,6 +36,8 @@ export function SuggestInput({
   placeholder?: string
   disabled?: boolean
   className?: string
+  /** Dipakai filter batch untuk memuat saran secara lazy saat field dibuka. */
+  onFocus?: () => void
   emptyMessage?: string
   maxResults?: number
 }) {
@@ -116,7 +119,10 @@ export function SuggestInput({
         value={query}
         placeholder={placeholder}
         onChange={handleChange}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          setOpen(true)
+          onFocus?.()
+        }}
         onBlur={() => window.setTimeout(() => setOpen(false), 100)}
         onKeyDown={handleKeyDown}
         className={cn(
