@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { logout } from '../lib/session'
 import { clearPersistedFilters } from '../lib/filter-storage'
-import { expireAllStoredProductScopes } from '../lib/product-scope'
+import { clearAllStoredProductScopes } from '../lib/product-scope'
 import { Skeleton } from '../ui/Feedback'
 import { LOGIN_PATH } from '../layout/navigation'
 
@@ -20,7 +20,7 @@ export function LogoutPage() {
     // Filter dan pilihan produk adalah keadaan kerja perangkat ini; user berikutnya
     // tidak boleh mewarisinya (A97).
     clearPersistedFilters()
-    expireAllStoredProductScopes()
+    clearAllStoredProductScopes()
     void logout().then(() => {
       if (active) setDone(true)
     })

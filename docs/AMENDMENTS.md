@@ -2468,3 +2468,29 @@ sekali di bagian atas DVFLOW, lalu seluruh halaman data mengikuti produk tersebu
   `filter-layout`, `report-spend`, `report-spend-card`, dan `performance`.
 - Gate: typecheck PASS; unit **929** (402 api + 180 shared + 3 wa-cron + 344 web) PASS;
   build PASS. Tidak ada migrasi.
+
+## A98 - Pilih produk full-screen + switcher di sidebar + pencarian di kanan atas (26 November 2026)
+
+Permintaan pengguna: sebelum produk dipilih, tampilkan satu layar penuh dan kunci semua menu; opsi tetap hanya produk yang ditugaskan + Semua Produk. Setelah memilih, pindahkan pencarian ke pojok kanan atas, tampilkan nama produk + Assign di bawah brand DVFLOW, dan klik nama produk membuka layar pilih produk penuh. Berlaku juga di Tampilan Apps Lapangan.
+
+### Keputusan
+
+- `ProductScopeLock` merender layar pilih produk penuh sebelum shell web/field app selama belum ada produk. Sidebar, header, menu, chat, dan pencarian tidak dirender; navigasi langsung ke halaman data tetap menampilkan layar pilih.
+- Opsi: produk yang ditugaskan (RLS + `allowed_product_codes` di klien) + **Semua Produk** (gabungan produk yang ditugaskan). Master admin / all-access melihat semua produk aktif.
+- **Auto-select dihapus**: user dengan satu produk tetap harus memilih.
+- Setelah memilih: web menampilkan nama produk + `Assign ▾` di bawah DVFLOW; field app di bawah judul halaman. Klik membuka layar pilih produk penuh mode ganti dengan tombol **Batal**; bukan dropdown.
+- Pencarian menu global dipindah dari sidebar ke pojok kanan atas header konten (desktop berupa kolom, HP berupa ikon). Search filter halaman tidak berubah.
+- 24 jam/logout: key produk dihapus dan layar pilih muncul. Marker `expired` dan logika auto-select dihapus.
+- Belum ada produk: pesan + **Keluar**; admin dengan izin `config.produk` mendapat tombol **Kelola Produk** yang membuka shell di `/konfigurasi-produk` (bypass) agar tidak dead-end.
+- Tidak ada perubahan database/RLS/RPC.
+
+### Implementasi
+
+- `ProductScope.tsx`: layar picker full-screen (mode awal/ganti), `ProductSwitcher` (sidebar/field), `ProductScopeLock`; filter opsi; state `pickerOpen`/`configBypass`; deep link dan timer 24 jam tetap.
+- `AppShell.tsx`: provider + lock membungkus shell web dan field app; bar produk di header dihapus; `GlobalSearchButton` ke kanan atas header.
+- `Sidebar.tsx`: `GlobalSearchButton` dihapus; blok **Produk aktif** + Assign di bawah DVFLOW.
+- `FieldAppShell.tsx`: nama produk + Assign di header; tetap di dalam lock.
+- `product-scope.ts`: TTL 24 jam; expiry/logout menghapus key; helper marker dihapus.
+- `LogoutPage.tsx`: `clearAllStoredProductScopes()`.
+- Tes: `product-scope` (full-screen, filter produk ditugaskan, single-product tanpa auto-select, ganti/Batal, expiry, bypass konfigurasi), `field-app` (gating + switcher), update sidebar/filter terkait.
+- Gate: typecheck PASS; lint PASS; unit **930** (402 api + 180 shared + 3 wa-cron + 345 web); build PASS. Tidak ada migrasi.

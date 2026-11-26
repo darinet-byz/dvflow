@@ -21,6 +21,11 @@ export function testProductScope(code: string): ProductScope {
     reload: () => {},
     choose: () => {},
     selectedLabel: code === '' ? 'Semua Produk' : code,
+    pickerOpen: false,
+    openPicker: () => {},
+    closePicker: () => {},
+    configBypass: false,
+    openConfigBypass: () => {},
   }
 }
 

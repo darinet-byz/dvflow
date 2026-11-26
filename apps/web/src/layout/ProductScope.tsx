@@ -1,38 +1,39 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Link, Outlet, useLocation } from 'react-router-dom'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { clearPersistedFilters } from '../lib/filter-storage'
 import { fetchProductOptions, type ConfigOption } from '../lib/queries'
-import { useAsyncData } from '../lib/useAsyncData'
-import { useSession } from '../lib/useSession'
 import {
-  ALL_PRODUCTS,
-  PRODUCT_SCOPE_TTL_MS,
-  markProductScopeExpired,
+  clearAllStoredProductScopes,
+  clearStoredProductScope,
   persistProductScope,
   productScopeExpiresAt,
   productScopeStorageKey,
   readStoredProductScope,
-  readStoredProductScopeState,
 } from '../lib/product-scope'
-import { canAccessPath } from '../lib/roles'
+import { canAccessPath, hasAllProductAccess } from '../lib/roles'
+import { logout } from '../lib/session'
+import { useAsyncData } from '../lib/useAsyncData'
+import { useSession } from '../lib/useSession'
 import { Button } from '../ui/Button'
 import { Card } from '../ui/Card'
 import { Skeleton } from '../ui/Feedback'
 import { cn } from '../ui/cn'
+import { LOGIN_PATH } from './navigation'
 
 /**
- * Product scope global (A97).
+ * Product scope global (A97/A98).
  *
- * Satu produk dipilih di bar atas dan dipakai seluruh halaman data. Pilihan
- * disimpan per user selama 24 jam, lalu pengguna harus memilih lagi. Logout
- * menghapus pilihan sepenuhnya.
+ * Produk dipilih di layar penuh sebelum shell dibuka. Selama belum dipilih,
+ * sidebar/menu/header/chat tidak dirender sama sekali. Pilihan disimpan per
+ * user selama 24 jam; expiry dan logout mengembalikan pengguna ke layar ini.
  *
- * Provider ini hanya dipasang di shell web (bukan Tampilan Apps Lapangan).
+ * Ini hanya kebijakan tampilan; RLS/RPC tetap batas keamanan.
  */
 
 export type ProductScope = {
-  /** `''` berarti "Semua Produk". */
+  /** `''` berarti "Semua Produk" (gabungan produk yang ditugaskan). */
   code: string
-  /** `false` = belum pernah memilih atau pilihan sudah kedaluwarsa. */
+  /** `false` = belum memilih atau pilihan sudah kedaluwarsa. */
   chosen: boolean
   chosenAt: number | null
   expiresAt: number | null
@@ -42,6 +43,13 @@ export type ProductScope = {
   reload: () => void
   choose: (code: string) => void
   selectedLabel: string
+  /** Layar pilih produk dibuka untuk mengganti produk yang sudah dipilih. */
+  pickerOpen: boolean
+  openPicker: () => void
+  closePicker: () => void
+  /** Pengecualian admin saat belum ada produk: buka Konfigurasi Produk. */
+  configBypass: boolean
+  openConfigBypass: () => void
 }
 
 type Selection = {
@@ -63,41 +71,55 @@ function useRequiredScope(): ProductScope {
   return scope
 }
 
-type InitialSelection = {
-  selection: Selection
-  /** Pilihan lama ada tetapi sudah lewat 24 jam/rusak: jangan auto-select lagi. */
-  expired: boolean
-}
-
-function initialSelection(userId: string | null, search: string): InitialSelection {
+function initialSelection(userId: string | null, search: string): Selection {
   // Deep link dianggap pilihan baru: timer 24 jam dimulai ulang.
   const urlCode = new URLSearchParams(search).get('productCode')
   if (urlCode !== null && urlCode !== '') {
-    return { selection: { code: urlCode, chosenAt: Date.now() }, expired: false }
+    return { code: urlCode, chosenAt: Date.now() }
   }
 
-  const stored = readStoredProductScopeState(userId)
-  if (stored.status === 'valid') return { selection: stored.scope, expired: false }
-  if (stored.status === 'expired') return { selection: { code: '', chosenAt: null }, expired: true }
-  return { selection: { code: '', chosenAt: null }, expired: false }
+  return readStoredProductScope(userId) ?? { code: '', chosenAt: null }
+}
+
+function productOptionName(option: ConfigOption): string {
+  return option.name ?? option.label
 }
 
 export function ProductScopeProvider({ children }: { children: ReactNode }) {
   const { profile } = useSession()
   const userId = profile?.user_id ?? null
   const location = useLocation()
-  const [initial] = useState<InitialSelection>(() => initialSelection(userId, location.search))
-  const [selection, setSelection] = useState<Selection>(initial.selection)
-  const expiredOnMount = useRef(initial.expired)
+  const [selection, setSelection] = useState<Selection>(() => initialSelection(userId, location.search))
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [configBypass, setConfigBypass] = useState(false)
   const { data, loading, error, reload } = useAsyncData(fetchProductOptions, [])
-  const options = data ?? NO_OPTIONS
+
+  /*
+   * Produk hanya yang ditugaskan: RLS sudah membatasi, tetapi daftar profil
+   * (`allowed_product_codes`) dipakai sekali lagi supaya opsi yang tampil tidak
+   * pernah melebar tanpa sengaja. Master admin / "Semua Produk" tetap melihat
+   * semua produk aktif.
+   */
+  const allAccess = hasAllProductAccess(profile)
+  const allowedCodes = !allAccess && Array.isArray(profile?.allowed_product_codes)
+    ? profile.allowed_product_codes
+    : null
+  const allowedCodesKey = allowedCodes === null ? '' : allowedCodes.join('\u0000')
+  const options = useMemo(() => {
+    const list = data ?? NO_OPTIONS
+    if (allowedCodesKey === '') return list
+    const allowed = new Set(allowedCodesKey.split('\u0000'))
+    return list.filter((option) => allowed.has(option.value))
+  }, [data, allowedCodesKey])
 
   const chosen = selection.chosenAt !== null
   const expiresAt = selection.chosenAt === null ? null : productScopeExpiresAt({ code: selection.code, chosenAt: selection.chosenAt })
 
   const expire = useCallback(() => {
-    markProductScopeExpired(userId)
+    clearStoredProductScope(userId)
     setSelection({ code: '', chosenAt: null })
+    setPickerOpen(false)
+    setConfigBypass(false)
     try {
       const url = new URL(window.location.href)
       if (url.searchParams.has('productCode')) {
@@ -106,27 +128,41 @@ export function ProductScopeProvider({ children }: { children: ReactNode }) {
         window.history.replaceState(window.history.state, '', url)
       }
     } catch {
-      // URL tidak dapat diubah (mis. lingkungan tanpa history): state tetap aman.
+      // URL tidak dapat diubah: state tetap aman.
     }
   }, [userId])
 
   const choose = useCallback((code: string) => {
     const stored = persistProductScope(userId, code)
     setSelection(stored)
+    setPickerOpen(false)
+    setConfigBypass(false)
     try {
       const url = new URL(window.location.href)
       if (url.searchParams.has('productCode')) {
         if (code === '') url.searchParams.delete('productCode')
         else url.searchParams.set('productCode', code)
-        // Sama seperti expire: state history milik router harus dipertahankan.
         window.history.replaceState(window.history.state, '', url)
       }
     } catch {
-      // Sama seperti expire: kegagalan menulis URL tidak boleh menghalangi pilihan.
+      // Kegagalan menulis URL tidak boleh menghalangi pilihan.
     }
   }, [userId])
 
-  // Deep link / perubahan query string: hormati produk yang diminta dan mulai timer baru.
+  const openPicker = useCallback(() => {
+    // Muat ulang opsi: admin bisa saja baru menambah produk lewat bypass konfigurasi.
+    reload()
+    setPickerOpen(true)
+  }, [reload])
+
+  const closePicker = useCallback(() => setPickerOpen(false), [])
+
+  const openConfigBypass = useCallback(() => {
+    setConfigBypass(true)
+    setPickerOpen(false)
+  }, [])
+
+  // Deep link / perubahan query string: hormati produk yang diminta.
   const handledSearch = useRef<string | null>(null)
   useEffect(() => {
     if (handledSearch.current === location.search) return
@@ -136,22 +172,7 @@ export function ProductScopeProvider({ children }: { children: ReactNode }) {
     choose(urlCode)
   }, [location.search, choose])
 
-  // Auto-pilih hanya sekali saat inisialisasi, tidak setelah expiry.
-  const autoSelectDone = useRef(false)
-  useEffect(() => {
-    if (autoSelectDone.current) return
-    if (loading || error !== null) return
-    autoSelectDone.current = true
-    // Pilihan lama sudah kedaluwarsa: gate harus muncul walau produknya hanya satu.
-    if (expiredOnMount.current) return
-    if (selection.chosenAt !== null) return
-    if (options.length !== 1) return
-    const onlyOption = options[0]
-    if (onlyOption === undefined) return
-    choose(onlyOption.value)
-  }, [loading, error, options, selection.chosenAt, choose])
-
-  // Produk tersimpan yang nonaktif / aksesnya dicabut: buang dan tampilkan gate.
+  // Produk tersimpan yang nonaktif / aksesnya dicabut: buang dan tampilkan layar pilih.
   useEffect(() => {
     if (loading || error !== null) return
     if (selection.chosenAt === null) return
@@ -163,7 +184,7 @@ export function ProductScopeProvider({ children }: { children: ReactNode }) {
   // Timer 24 jam; browser menunda timer di tab background, jadi cek juga pada focus/visibility.
   useEffect(() => {
     if (selection.chosenAt === null) return
-    const at = selection.chosenAt + PRODUCT_SCOPE_TTL_MS
+    const at = productScopeExpiresAt({ code: selection.code, chosenAt: selection.chosenAt })
     const check = () => {
       if (Date.now() >= at) expire()
     }
@@ -177,7 +198,7 @@ export function ProductScopeProvider({ children }: { children: ReactNode }) {
       document.removeEventListener('visibilitychange', check)
       window.removeEventListener('focus', check)
     }
-  }, [selection.chosenAt, expire])
+  }, [selection.chosenAt, selection.code, expire])
 
   // Sinkronisasi antar-tab: logout / ganti produk di tab lain ikut terlihat di sini.
   useEffect(() => {
@@ -186,6 +207,8 @@ export function ProductScopeProvider({ children }: { children: ReactNode }) {
       if (event.key !== null && event.key !== key) return
       const stored = readStoredProductScope(userId)
       setSelection(stored === null ? { code: '', chosenAt: null } : stored)
+      setPickerOpen(false)
+      setConfigBypass(false)
     }
     window.addEventListener('storage', onStorage)
     return () => window.removeEventListener('storage', onStorage)
@@ -208,146 +231,236 @@ export function ProductScopeProvider({ children }: { children: ReactNode }) {
     reload,
     choose,
     selectedLabel,
-  }), [selection.code, selection.chosenAt, chosen, expiresAt, options, loading, error, reload, choose, selectedLabel])
+    pickerOpen,
+    openPicker,
+    closePicker,
+    configBypass,
+    openConfigBypass,
+  }), [
+    selection.code, selection.chosenAt, chosen, expiresAt, options, loading, error, reload,
+    choose, selectedLabel, pickerOpen, openPicker, closePicker, configBypass, openConfigBypass,
+  ])
 
   return <ProductScopeContext.Provider value={value}>{children}</ProductScopeContext.Provider>
 }
 
 /**
- * Bar produk di atas konten. Selalu tampil di shell web supaya produk dapat
- * diganti dari halaman mana pun.
+ * Layar penuh untuk memilih / mengganti produk.
+ *
+ * Mode awal (belum ada produk) tidak punya tombol Batal. Mode ganti produk
+ * (dibuka dari nama produk di sidebar/header) punya Batal agar pengguna dapat
+ * kembali tanpa mengubah pilihan.
  */
-export function ProductScopeBar() {
+export function ProductPickerScreen() {
   const scope = useRequiredScope()
-  const value = !scope.chosen ? '' : scope.code === '' ? ALL_PRODUCTS : scope.code
-  const missingOption = scope.chosen && scope.code !== '' && !scope.options.some((option) => option.value === scope.code)
-  const emptyOptions = scope.loading && scope.options.length === 0
+  const { profile } = useSession()
+  const navigate = useNavigate()
+  const [leaving, setLeaving] = useState(false)
+  const switching = scope.chosen && scope.pickerOpen
+  // Admin yang membuka picker dari bypass konfigurasi juga harus bisa kembali.
+  const canCancel = scope.pickerOpen && (scope.chosen || scope.configBypass)
+  const canManageProducts = canAccessPath(profile, '/konfigurasi-produk')
+  const currentOption = scope.options.find((option) => option.value === scope.code)
+  const currentName = scope.chosen
+    ? scope.code === ''
+      ? 'Semua Produk'
+      : currentOption === undefined ? scope.code : productOptionName(currentOption)
+    : ''
+
+  async function exit(): Promise<void> {
+    if (leaving) return
+    setLeaving(true)
+    clearPersistedFilters()
+    clearAllStoredProductScopes()
+    await logout()
+    navigate(LOGIN_PATH, { replace: true })
+  }
+
+  function manageProducts(): void {
+    scope.openConfigBypass()
+    navigate('/konfigurasi-produk')
+  }
 
   return (
-    <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
-      <label htmlFor="global-product-scope" className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
-        Produk
-      </label>
-      <select
-        id="global-product-scope"
-        aria-label="Pilih produk aktif"
-        value={value}
-        disabled={emptyOptions}
-        onChange={(event) => {
-          const next = event.target.value
-          if (next === '') return
-          scope.choose(next === ALL_PRODUCTS ? '' : next)
-        }}
-        className={cn(
-          'h-9 w-full min-w-0 rounded-sm border bg-card px-2 text-[13px] font-semibold text-ink focus:border-primary focus:outline-none sm:w-[240px]',
-          scope.chosen ? 'border-line' : 'border-primary text-primary',
-          emptyOptions && 'opacity-60',
+    <div className="flex min-h-screen items-center justify-center bg-page p-4 sm:p-6">
+      <Card className="w-full max-w-2xl">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-[18px] font-bold tracking-tight text-ink">DVFLOW</p>
+            <p className="text-[11px] text-ink-muted">Operasional event</p>
+          </div>
+          {canCancel ? (
+            <Button variant="ghost" size="sm" onClick={scope.closePicker}>Batal</Button>
+          ) : null}
+        </div>
+
+        <h1 className="mt-4 text-[22px] font-bold tracking-tight text-ink">
+          {switching ? 'Ganti Produk' : 'Pilih Produk Dulu'}
+        </h1>
+        <p className="mt-1 text-[13px] text-ink-soft">
+          Pilih produk yang ditugaskan untuk membuka dashboard, order, laporan, dan data acara. Pilihan berlaku 24 jam.
+        </p>
+        {switching ? (
+          <p className="mt-1 text-[12px] text-ink-soft">Produk aktif: <span className="font-semibold text-ink">{currentName}</span></p>
+        ) : null}
+
+        {scope.loading && scope.options.length === 0 ? (
+          <div className="mt-4" aria-busy="true"><Skeleton height={120} /></div>
+        ) : scope.error !== null && scope.options.length === 0 ? (
+          <div className="mt-4 flex flex-col items-start gap-3">
+            <p className="text-[13px] text-danger">{scope.error}</p>
+            <Button variant="secondary" size="sm" onClick={scope.reload}>Coba lagi</Button>
+          </div>
+        ) : (
+          <div className="mt-4 flex flex-col gap-2">
+            {scope.error === null ? null : (
+              <p className="text-[12px] text-danger">
+                {scope.error}{' '}
+                <button type="button" onClick={scope.reload} className="font-semibold underline underline-offset-2">Coba lagi</button>
+              </p>
+            )}
+
+            {scope.options.length === 0 ? (
+              <div className="rounded-md border border-dashed border-line px-4 py-5 text-center">
+                <p className="text-[13px] font-semibold text-ink">Belum ada produk yang ditugaskan.</p>
+                <p className="mt-1 text-[13px] text-ink-soft">
+                  {canManageProducts
+                    ? 'Tambahkan produk terlebih dahulu melalui Konfigurasi Produk.'
+                    : 'Hubungi admin untuk menambahkan produk.'}
+                </p>
+                {canManageProducts ? (
+                  <Button variant="secondary" size="sm" className="mt-3" onClick={manageProducts}>Kelola Produk</Button>
+                ) : null}
+              </div>
+            ) : (
+              <>
+                <div className="max-h-[320px] overflow-y-auto rounded-md border border-line">
+                  {scope.options.map((option) => {
+                    const active = scope.chosen && option.value === scope.code
+                    return (
+                      <button
+                        key={option.value}
+                        type="button"
+                        aria-label={`${option.value} ${productOptionName(option)}`}
+                        onClick={() => scope.choose(option.value)}
+                        className={cn(
+                          'flex w-full items-center gap-3 border-b border-line px-4 py-3 text-left last:border-b-0',
+                          active ? 'bg-primary-soft' : 'hover:bg-soft',
+                        )}
+                      >
+                        <span className="min-w-0 flex-1">
+                          <span className="block text-[13px] font-semibold text-ink">{option.value}</span>
+                          <span className="block text-[12px] text-ink-soft">{productOptionName(option)}</span>
+                        </span>
+                        {active ? <span className="shrink-0 text-[11px] font-semibold text-primary">Aktif</span> : null}
+                      </button>
+                    )
+                  })}
+                </div>
+                <button
+                  type="button"
+                  aria-label="Semua Produk"
+                  onClick={() => scope.choose('')}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-md border px-4 py-3 text-left',
+                    scope.chosen && scope.code === ''
+                      ? 'border-primary bg-primary-soft'
+                      : 'border-line bg-soft hover:border-primary/40',
+                  )}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-semibold text-ink">Semua Produk</span>
+                    <span className="block text-[12px] text-ink-soft">Data gabungan semua produk yang ditugaskan kepada Anda.</span>
+                  </span>
+                  {scope.chosen && scope.code === '' ? <span className="shrink-0 text-[11px] font-semibold text-primary">Aktif</span> : null}
+                </button>
+              </>
+            )}
+          </div>
         )}
-      >
-        <option value="" disabled>Pilih Produk…</option>
-        <option value={ALL_PRODUCTS}>Semua Produk</option>
-        {missingOption ? <option value={scope.code}>{scope.code}</option> : null}
-        {scope.options.map((option) => (
-          <option key={option.value} value={option.value}>{option.label}</option>
-        ))}
-      </select>
-      {scope.error === null ? null : (
-        <button
-          type="button"
-          onClick={scope.reload}
-          className="shrink-0 text-[12px] font-semibold text-danger underline underline-offset-2"
-        >
-          Muat ulang
-        </button>
-      )}
+
+        <div className="mt-5 flex flex-wrap items-center justify-between gap-2 border-t border-line pt-3">
+          <p className="text-[11px] text-ink-soft">Hanya produk yang ditugaskan kepada Anda yang ditampilkan.</p>
+          <Button variant="ghost" size="sm" onClick={exit} disabled={leaving}>
+            {leaving ? 'Keluar…' : 'Keluar'}
+          </Button>
+        </div>
+      </Card>
     </div>
   )
 }
 
 /**
- * Gate halaman data: pengguna harus memilih produk (atau "Semua Produk")
- * sebelum konten halaman ditampilkan.
+ * Tombol nama produk + "Assign ▾". Dipakai di sidebar web dan header field app.
+ * Klik membuka layar pilih produk penuh (mode ganti).
  */
-export function ProductPickerGate() {
-  const scope = useRequiredScope()
-  const { profile } = useSession()
-  const canManageProducts = canAccessPath(profile, '/konfigurasi-produk')
+export function ProductSwitcher({
+  compact = false,
+  className,
+  onOpen,
+}: {
+  compact?: boolean
+  className?: string
+  /** Dipakai drawer HP: tutup panel sebelum layar pilih produk menggantikan shell. */
+  onOpen?: () => void
+}) {
+  const scope = useProductScope()
+  if (scope === null) return null
+
+  const selected = scope.options.find((option) => option.value === scope.code)
+  const name = !scope.chosen
+    ? 'Pilih Produk'
+    : scope.code === ''
+      ? 'Semua Produk'
+      : selected === undefined ? scope.code : productOptionName(selected)
 
   return (
-    <Card className="mx-auto mt-4 w-full max-w-2xl">
-      <h2 className="text-[22px] font-bold tracking-tight text-ink">Pilih Produk Dulu</h2>
-      <p className="mt-1 text-[13px] text-ink-soft">
-        Pilih produk untuk membuka dashboard, order, laporan, dan data acara. Pilihan berlaku 24 jam dan bisa diganti kapan saja dari bar atas.
-      </p>
-
-      {scope.loading ? (
-        <div className="mt-4" aria-busy="true"><Skeleton height={120} /></div>
-      ) : scope.error !== null ? (
-        <div className="mt-4 flex flex-col items-start gap-3">
-          <p className="text-[13px] text-danger">{scope.error}</p>
-          <Button onClick={scope.reload}>Coba lagi</Button>
-        </div>
-      ) : (
-        <div className="mt-4 flex flex-col gap-2">
-          {scope.options.length === 0 ? (
-            <div className="rounded-md border border-dashed border-line px-4 py-5 text-center">
-              <p className="text-[13px] font-semibold text-ink">Belum ada produk aktif.</p>
-              <p className="mt-1 text-[13px] text-ink-soft">
-                {canManageProducts
-                  ? <>Tambahkan produk terlebih dahulu di <Link to="/konfigurasi-produk" className="font-semibold text-primary underline">Konfigurasi Produk</Link>.</>
-                  : 'Hubungi admin untuk menambahkan produk.'}
-              </p>
-            </div>
-          ) : (
-            <div className="max-h-[320px] overflow-y-auto rounded-md border border-line">
-              {scope.options.map((option) => (
-                <button
-                  key={option.value}
-                  type="button"
-                  onClick={() => scope.choose(option.value)}
-                  className="flex w-full flex-col items-start gap-0.5 border-b border-line px-4 py-3 text-left last:border-b-0 hover:bg-soft"
-                >
-                  <span className="text-[13px] font-semibold text-ink">{option.value}</span>
-                  <span className="text-[12px] text-ink-soft">{option.name ?? option.label}</span>
-                </button>
-              ))}
-            </div>
-          )}
-          {scope.options.length === 0 ? null : (
-            <button
-              type="button"
-              onClick={() => scope.choose('')}
-              className="flex w-full flex-col items-start gap-0.5 rounded-md border border-line bg-soft px-4 py-3 text-left hover:border-primary/40"
-            >
-              <span className="text-[13px] font-semibold text-ink">Semua Produk</span>
-              <span className="text-[12px] text-ink-soft">Data gabungan semua produk yang Anda akses.</span>
-            </button>
-          )}
-        </div>
+    <button
+      type="button"
+      onClick={() => {
+        onOpen?.()
+        scope.openPicker()
+      }}
+      aria-label={scope.chosen ? `Ganti produk (${name})` : 'Pilih produk'}
+      className={cn(
+        'group flex w-full min-w-0 items-center gap-2 text-left',
+        compact
+          ? 'text-[11px] text-ink-soft'
+          : 'rounded-md border border-line bg-card px-2.5 py-2 transition-colors hover:border-primary/40',
+        className,
       )}
-    </Card>
+    >
+      <span className="min-w-0 flex-1">
+        <span className={cn('block truncate font-semibold text-ink', compact ? 'text-[11px]' : 'text-[12px]')}>
+          {name}
+        </span>
+        {!compact && scope.chosen && scope.code !== '' ? (
+          <span className="block text-[10px] text-ink-soft">{scope.code}</span>
+        ) : null}
+      </span>
+      <span className={cn('shrink-0 font-semibold text-primary', compact ? 'text-[10px]' : 'text-[11px]')}>Assign ▾</span>
+    </button>
   )
 }
 
 /**
- * Isi `<main>`: gate untuk halaman ber-scope, dan remount halaman saat produk
- * berganti agar drawer/modal lama tidak menampilkan data produk sebelumnya.
+ * Kunci shell: selama produk belum dipilih (atau layar ganti dibuka), yang
+ * dirender hanya layar penuh. Dengan begitu sidebar/menu tidak bisa dipakai.
+ */
+export function ProductScopeLock({ children }: { children: ReactNode }) {
+  const scope = useRequiredScope()
+  const location = useLocation()
+  const configBypass = scope.configBypass && location.pathname === '/konfigurasi-produk'
+  if (scope.pickerOpen || (!scope.chosen && !configBypass)) return <ProductPickerScreen />
+  return <>{children}</>
+}
+
+/**
+ * Isi `<main>`: remount halaman data saat produk berganti agar drawer/modal
+ * lama tidak menampilkan data produk sebelumnya.
  */
 export function ProductScopeOutlet({ scoped }: { scoped: boolean }) {
   const scope = useRequiredScope()
   if (!scoped) return <Outlet />
-  if (!scope.chosen) {
-    if (scope.loading && scope.error === null) {
-      return (
-        <div aria-busy="true">
-          <Card className="mx-auto mt-4 w-full max-w-2xl">
-            <Skeleton height={28} className="max-w-[220px]" />
-            <Skeleton height={120} className="mt-4" />
-          </Card>
-        </div>
-      )
-    }
-    return <ProductPickerGate />
-  }
   return <div key={scope.code} className="min-w-0"><Outlet /></div>
 }

@@ -12,8 +12,8 @@ import { NAV_SECTIONS, type NavItem } from './navigation'
  * berupa navigasi. Daftar dibatasi izin role yang sedang login, jadi menu yang
  * tidak boleh dibuka tidak pernah muncul sebagai hasil.
  *
- * Satu dialog dipasang di shell; tombol di sidebar/header hanya memicu event,
- * supaya Ctrl/Cmd+K tidak membuka dua dialog saat sidebar desktop dan drawer HP
+ * Satu dialog dipasang di shell; tombol di header hanya memicu event, supaya
+ * Ctrl/Cmd+K tidak membuka dua dialog saat header desktop dan header HP
  * sama-sama ter-mount.
  */
 const OPEN_EVENT = 'dvflow:open-global-search'

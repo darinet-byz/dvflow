@@ -4,7 +4,7 @@ import { cn } from '../ui/cn'
 import { useSession } from '../lib/useSession'
 import { ROLE_LABELS, canAccessPath } from '../lib/roles'
 import { NAV_SECTIONS, type NavSection } from './navigation'
-import { GlobalSearchButton } from './GlobalSearch'
+import { ProductSwitcher, useProductScope } from './ProductScope'
 
 const OPEN_SECTION_KEY = 'dvflow.sidebar.open'
 
@@ -36,6 +36,7 @@ function activeSectionTitle(pathname: string): string | null {
  */
 export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
   const session = useSession()
+  const productScope = useProductScope()
   const location = useLocation()
   const [openTitle, setOpenTitle] = useState<string | null>(() => readOpenSection())
   const activeTitle = activeSectionTitle(location.pathname)
@@ -70,7 +71,12 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
         <p className="text-[11px] text-ink-muted">Operasional event</p>
       </div>
 
-      <GlobalSearchButton />
+      {productScope === null ? null : (
+        <div className="px-1">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-soft">Produk aktif</p>
+          <ProductSwitcher onOpen={onNavigate} />
+        </div>
+      )}
 
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
         {NAV_SECTIONS.map((section, index) => {

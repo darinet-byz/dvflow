@@ -7,6 +7,7 @@ import { useSession } from '../lib/useSession'
 import { FieldAppContext } from '../lib/field-app'
 import { cn } from '../ui/cn'
 import { GlobalSearchButton, GlobalSearchDialog } from './GlobalSearch'
+import { ProductSwitcher } from './ProductScope'
 
 /**
  * Tampilan Apps Lapangan (A30) — hanya untuk Pimpro/Staff/Member berizin `ui.field_app` di HP.
@@ -79,8 +80,11 @@ export function FieldAppShell() {
     <FieldAppContext.Provider value={true}>
       <div className="field-app flex min-h-[100dvh] flex-col bg-app" data-testid="field-app-shell">
         <GlobalSearchDialog />
-        <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-line bg-card/95 px-4 py-3 backdrop-blur" style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}>
-          <p className="text-[16px] font-bold text-ink">{TITLES[location.pathname] ?? 'DVFLOW'}</p>
+        <header className="sticky top-0 z-30 flex items-center gap-2 border-b border-line bg-card/95 px-4 py-2.5 backdrop-blur" style={{ paddingTop: 'max(10px, env(safe-area-inset-top))' }}>
+          <div className="min-w-0 flex-1">
+            <p className="text-[16px] font-bold text-ink">{TITLES[location.pathname] ?? 'DVFLOW'}</p>
+            <ProductSwitcher compact className="mt-0.5" />
+          </div>
           <div className="ml-auto flex items-center gap-2">
             <GlobalSearchButton compact />
             {profile ? (

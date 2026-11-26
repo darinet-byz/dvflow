@@ -1,44 +1,47 @@
 // @vitest-environment jsdom
-import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import {
-  ALL_PRODUCTS,
   PRODUCT_SCOPE_TTL_MS,
+  clearAllStoredProductScopes,
   clearStoredProductScope,
-  expireAllStoredProductScopes,
   isProductScopedPath,
   persistProductScope,
   productScopeStorageKey,
   readStoredProductScope,
-  readStoredProductScopeState,
 } from '../src/lib/product-scope'
-import { ProductScopeBar, ProductScopeOutlet, ProductScopeProvider, useProductScope } from '../src/layout/ProductScope'
+import { useProductScope } from '../src/layout/ProductScope'
 
-/** A97: produk dipilih sekali, dipakai semua halaman data, kedaluwarsa 24 jam. */
+/** A97/A98: pilih produk full-screen, lalu shell baru terbuka. */
 
 vi.mock('../src/lib/queries', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/queries')>()),
   fetchProductOptions: vi.fn(),
 }))
 
-vi.mock('../src/lib/useSession', () => ({
-  useSession: () => ({
-    status: 'authenticated',
-    profile: {
-      user_id: 'u1',
-      username: 'u1',
-      display_name: 'Uji',
-      role: 'developer',
-      avatar_emoji: null,
-      permissions: [],
-    },
-  }),
+const session = vi.hoisted(() => ({
+  profile: {
+    user_id: 'u1',
+    username: 'u1',
+    display_name: 'Uji',
+    role: 'developer',
+    avatar_emoji: null,
+    permissions: [],
+  } as Record<string, unknown>,
 }))
 
-// AppShell membawa sidebar, pencarian global, dan chat; fokus tes ini adalah scope produk.
-vi.mock('../src/layout/Sidebar', () => ({ Sidebar: () => <nav>Menu</nav> }))
-vi.mock('../src/layout/GlobalSearch', () => ({ GlobalSearchButton: () => null, GlobalSearchDialog: () => null }))
+vi.mock('../src/lib/useSession', () => ({
+  useSession: () => ({ status: 'authenticated', profile: session.profile }),
+}))
+
+// Fokus tes ini adalah scope produk; komponen global lain cukup menjadi penanda.
+vi.mock('../src/layout/GlobalSearch', () => ({
+  GlobalSearchButton: ({ compact }: { compact?: boolean }) => (
+    <button type="button" data-testid={compact ? 'search-compact' : 'search-full'}>Cari menu</button>
+  ),
+  GlobalSearchDialog: () => null,
+}))
 vi.mock('../src/pages/chat/ChatWorkspace', () => ({ ChatWorkspace: () => null }))
 
 const { fetchProductOptions } = await import('../src/lib/queries')
@@ -63,27 +66,18 @@ const PRODUCTS = [
   { value: 'SO', label: 'SO — Seminar Online', name: 'Seminar Online' },
 ]
 const USER_ID = 'u1'
-
-function Shell() {
-  const location = useLocation()
-  return (
-    <ProductScopeProvider>
-      <ProductScopeBar />
-      <ProductScopeOutlet scoped={isProductScopedPath(location.pathname)} />
-    </ProductScopeProvider>
-  )
-}
+const DEVELOPER_PROFILE = { ...session.profile }
 
 function ScopeProbe() {
   const scope = useProductScope()
   return <p>{scope?.chosen ? `Halaman ${scope.code || 'semua'}` : 'Halaman tanpa scope'}</p>
 }
 
-function renderScope(initialEntry = '/') {
+function renderShell(initialEntry = '/') {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
-        <Route element={<Shell />}>
+        <Route element={<AppShell />}>
           <Route path="*" element={<ScopeProbe />} />
         </Route>
       </Routes>
@@ -93,11 +87,21 @@ function renderScope(initialEntry = '/') {
 
 function stored(userId = USER_ID) {
   const raw = window.localStorage.getItem(productScopeStorageKey(userId))
-  return raw === null ? null : JSON.parse(raw) as { code?: string; chosenAt?: number; expired?: boolean }
+  return raw === null ? null : JSON.parse(raw) as { code?: string; chosenAt?: number }
+}
+
+async function chooseProduct(code: string): Promise<void> {
+  const button = await screen.findByRole('button', { name: new RegExp(`\\b${code}\\b`) })
+  act(() => button.click())
+}
+
+function mainNav(): HTMLElement {
+  return screen.getByRole('navigation', { name: 'Menu utama' })
 }
 
 beforeEach(() => {
   window.localStorage.clear()
+  session.profile = { ...DEVELOPER_PROFILE }
   vi.mocked(fetchProductOptions).mockResolvedValue(PRODUCTS)
 })
 
@@ -134,13 +138,10 @@ describe('product scope: penyimpanan & TTL', () => {
     persistProductScope(USER_ID, 'KM')
     vi.setSystemTime(base + PRODUCT_SCOPE_TTL_MS - 1)
     expect(readStoredProductScope(USER_ID)?.code).toBe('KM')
-    expect(readStoredProductScopeState(USER_ID).status).toBe('valid')
 
     vi.setSystemTime(base + PRODUCT_SCOPE_TTL_MS)
-    expect(readStoredProductScopeState(USER_ID).status).toBe('expired')
     expect(readStoredProductScope(USER_ID)).toBeNull()
-    expect(stored()?.expired).toBe(true)
-    expect(stored()?.code).toBeUndefined()
+    expect(window.localStorage.getItem(productScopeStorageKey(USER_ID))).toBeNull()
   })
 
   it('timestamp rusak / di masa depan dianggap kedaluwarsa', () => {
@@ -152,17 +153,15 @@ describe('product scope: penyimpanan & TTL', () => {
     expect(readStoredProductScope(USER_ID)).toBeNull()
   })
 
-  it('logout menandai semua pilihan kedaluwarsa tanpa menyimpan kode produk', () => {
+  it('logout menghapus semua pilihan produk, bukan kunci lain', () => {
     persistProductScope('u1', 'KM')
     persistProductScope('u2', 'SO')
     window.localStorage.setItem('dvflow.filters.order', 'tetap')
 
-    expireAllStoredProductScopes()
+    clearAllStoredProductScopes()
 
-    expect(stored('u1')?.expired).toBe(true)
-    expect(stored('u1')?.code).toBeUndefined()
-    expect(stored('u2')?.expired).toBe(true)
-    expect(stored('u2')?.code).toBeUndefined()
+    expect(window.localStorage.getItem(productScopeStorageKey('u1'))).toBeNull()
+    expect(window.localStorage.getItem(productScopeStorageKey('u2'))).toBeNull()
     expect(window.localStorage.getItem('dvflow.filters.order')).toBe('tetap')
   })
 
@@ -175,64 +174,78 @@ describe('product scope: penyimpanan & TTL', () => {
   })
 })
 
-describe('product scope: gate & pilihan', () => {
-  it('gate muncul di halaman data saat belum memilih', async () => {
-    renderScope('/')
+describe('product scope: layar pilih full-screen', () => {
+  it('belum memilih: layar penuh tampil, menu dan search tidak dirender', async () => {
+    renderShell('/')
     expect(await screen.findByText('Pilih Produk Dulu')).toBeTruthy()
+    expect(screen.queryByRole('navigation', { name: 'Menu utama' })).toBeNull()
+    expect(screen.queryByTestId('search-full')).toBeNull()
     expect(screen.queryByText('Halaman tanpa scope')).toBeNull()
+    expect(await screen.findByRole('button', { name: /KM/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /SO/ })).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Semua Produk/ })).toBeTruthy()
   })
 
-  it('halaman konfigurasi tidak digate', async () => {
-    renderScope('/konfigurasi-produk')
-    expect(await screen.findByText('Halaman tanpa scope')).toBeTruthy()
-    expect(screen.queryByText('Pilih Produk Dulu')).toBeNull()
-  })
-
-  it('memilih produk membuka halaman, menyimpan pilihan, dan dipakai lagi saat remount', async () => {
-    const first = renderScope('/')
+  it('memilih produk membuka shell, menampilkan nama produk, dan mengingat pilihan', async () => {
+    renderShell('/')
     await screen.findByText('Pilih Produk Dulu')
-    act(() => screen.getByRole('button', { name: /KM/ }).click())
+    await chooseProduct('KM')
 
     expect(await screen.findByText('Halaman KM')).toBeTruthy()
     expect(screen.queryByText('Pilih Produk Dulu')).toBeNull()
+    expect(mainNav()).toBeTruthy()
+    expect(screen.getByText('Produk aktif')).toBeTruthy()
+    expect(screen.getByText('Kuliner Masteri')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Ganti produk/ })).toBeTruthy()
+    expect(screen.getByTestId('search-full')).toBeTruthy()
+    expect(within(mainNav()).queryByTestId('search-full')).toBeNull()
     expect(stored()?.code).toBe('KM')
-
-    first.unmount()
-    renderScope('/')
-    expect(await screen.findByText('Halaman KM')).toBeTruthy()
-    expect(screen.queryByText('Pilih Produk Dulu')).toBeNull()
   })
 
   it('"Semua Produk" adalah pilihan yang sah', async () => {
-    renderScope('/')
+    renderShell('/')
     await screen.findByText('Pilih Produk Dulu')
-    act(() => screen.getByRole('button', { name: /Semua Produk/ }).click())
+    const all = await screen.findByRole('button', { name: /Semua Produk/ })
+    act(() => all.click())
 
     expect(await screen.findByText('Halaman semua')).toBeTruthy()
     expect(stored()?.code).toBe('')
   })
 
-  it('hanya satu produk -> auto-pilih tanpa gate', async () => {
+  it('hanya satu produk: tetap harus memilih, tidak auto-select', async () => {
     vi.mocked(fetchProductOptions).mockResolvedValue([PRODUCTS[0]!])
-    renderScope('/')
-    expect(await screen.findByText('Halaman KM')).toBeTruthy()
-    expect(screen.queryByText('Pilih Produk Dulu')).toBeNull()
-    expect(stored()?.code).toBe('KM')
+    renderShell('/')
+    expect(await screen.findByText('Pilih Produk Dulu')).toBeTruthy()
+    expect(await screen.findByRole('button', { name: /KM/ })).toBeTruthy()
+    expect(screen.queryByText('Halaman KM')).toBeNull()
+  })
+
+  it('hanya produk yang ditugaskan yang tampil', async () => {
+    session.profile = {
+      ...DEVELOPER_PROFILE,
+      role: 'pimpro',
+      has_all_product_access: false,
+      allowed_product_codes: ['KM'],
+    }
+    renderShell('/')
+    expect(await screen.findByText('Pilih Produk Dulu')).toBeTruthy()
+    expect(await screen.findByRole('button', { name: /KM/ })).toBeTruthy()
+    expect(screen.queryByRole('button', { name: /SO/ })).toBeNull()
+    expect(screen.getByRole('button', { name: /Semua Produk/ })).toBeTruthy()
   })
 
   it('deep link productCode langsung memilih produk', async () => {
-    renderScope('/order?productCode=SO')
+    renderShell('/order?productCode=SO')
     expect(await screen.findByText('Halaman SO')).toBeTruthy()
     expect(screen.queryByText('Pilih Produk Dulu')).toBeNull()
     expect(stored()?.code).toBe('SO')
   })
 
-  it('produk tersimpan yang tidak ada di opsi dibuang dan gate muncul', async () => {
+  it('produk tersimpan yang tidak ada di opsi dibuang', async () => {
     window.localStorage.setItem(productScopeStorageKey(USER_ID), JSON.stringify({ code: 'ZZ', chosenAt: Date.now() }))
-    renderScope('/')
+    renderShell('/')
     expect(await screen.findByText('Pilih Produk Dulu')).toBeTruthy()
-    await waitFor(() => expect(stored()?.expired).toBe(true))
-    expect(readStoredProductScope(USER_ID)).toBeNull()
+    await waitFor(() => expect(readStoredProductScope(USER_ID)).toBeNull())
   })
 
   it('pilihan tersimpan yang sudah lewat 24 jam dibuang saat mount', async () => {
@@ -240,37 +253,47 @@ describe('product scope: gate & pilihan', () => {
       productScopeStorageKey(USER_ID),
       JSON.stringify({ code: 'KM', chosenAt: Date.now() - PRODUCT_SCOPE_TTL_MS }),
     )
-    renderScope('/')
+    renderShell('/')
     expect(await screen.findByText('Pilih Produk Dulu')).toBeTruthy()
+    expect(stored()).toBeNull()
   })
 
-  it('pilihan lama kedaluwarsa + satu produk: gate muncul, bukan auto-select', async () => {
-    vi.useFakeTimers({ toFake: ['Date'] })
-    const base = new Date('2026-11-26T08:00:00.000Z').getTime()
-    vi.setSystemTime(base)
-    persistProductScope(USER_ID, 'KM', base)
-    vi.mocked(fetchProductOptions).mockResolvedValue([PRODUCTS[0]!])
-    vi.setSystemTime(base + PRODUCT_SCOPE_TTL_MS)
-
-    renderScope('/')
-    expect(await screen.findByText('Pilih Produk Dulu')).toBeTruthy()
-  })
-
-  it('tidak ada produk aktif -> arahan, tanpa opsi Semua Produk', async () => {
+  it('tidak ada produk: arahan tanpa opsi Semua Produk, dan admin bisa ke Konfigurasi', async () => {
     vi.mocked(fetchProductOptions).mockResolvedValue([])
-    renderScope('/')
-    expect(await screen.findByText('Belum ada produk aktif.')).toBeTruthy()
+    renderShell('/konfigurasi-produk')
+    expect(await screen.findByText('Belum ada produk yang ditugaskan.')).toBeTruthy()
     expect(screen.queryByRole('button', { name: /Semua Produk/ })).toBeNull()
+
+    const manage = await screen.findByRole('button', { name: 'Kelola Produk' })
+    act(() => manage.click())
+    expect(await screen.findByText('Halaman tanpa scope')).toBeTruthy()
+    expect(screen.queryByText('Pilih Produk Dulu')).toBeNull()
+    expect(mainNav()).toBeTruthy()
   })
 
-  it('kedaluwarsa saat tab terbuka: focus memunculkan gate lagi', async () => {
+  it('admin di Konfigurasi Produk bisa membuka picker lalu Batal kembali', async () => {
+    vi.mocked(fetchProductOptions).mockResolvedValue([])
+    renderShell('/konfigurasi-produk')
+    await screen.findByText('Belum ada produk yang ditugaskan.')
+    act(() => screen.getByRole('button', { name: 'Kelola Produk' }).click())
+    expect(await screen.findByText('Halaman tanpa scope')).toBeTruthy()
+
+    act(() => screen.getByRole('button', { name: /Pilih produk/ }).click())
+    expect(await screen.findByText('Pilih Produk Dulu')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Batal' })).toBeTruthy()
+
+    act(() => screen.getByRole('button', { name: 'Batal' }).click())
+    expect(await screen.findByText('Halaman tanpa scope')).toBeTruthy()
+  })
+
+  it('kedaluwarsa saat tab terbuka: focus memunculkan layar pilih lagi', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     const base = new Date('2026-11-26T08:00:00.000Z').getTime()
     vi.setSystemTime(base)
 
-    renderScope('/')
+    renderShell('/')
     await screen.findByText('Pilih Produk Dulu')
-    act(() => screen.getByRole('button', { name: /KM/ }).click())
+    await chooseProduct('KM')
     expect(await screen.findByText('Halaman KM')).toBeTruthy()
 
     act(() => {
@@ -279,18 +302,18 @@ describe('product scope: gate & pilihan', () => {
     })
 
     expect(await screen.findByText('Pilih Produk Dulu')).toBeTruthy()
-    expect(stored()?.expired).toBe(true)
-    expect(stored()?.code).toBeUndefined()
+    expect(stored()).toBeNull()
+    expect(screen.queryByRole('navigation', { name: 'Menu utama' })).toBeNull()
   })
 
-  it('setelah expiry, user satu produk tidak auto-select ulang', async () => {
+  it('setelah expiry, reload tetap memunculkan layar pilih (satu produk)', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
     const base = new Date('2026-11-26T08:00:00.000Z').getTime()
     vi.setSystemTime(base)
     vi.mocked(fetchProductOptions).mockResolvedValue([PRODUCTS[0]!])
 
     persistProductScope(USER_ID, 'KM', base)
-    const view = renderScope('/')
+    const view = renderShell('/')
     expect(await screen.findByText('Halaman KM')).toBeTruthy()
 
     act(() => {
@@ -299,52 +322,50 @@ describe('product scope: gate & pilihan', () => {
     })
     expect(await screen.findByText('Pilih Produk Dulu')).toBeTruthy()
 
-    // Reload setelah expiry: marker tetap memaksa gate, bukan auto-select.
     view.unmount()
-    renderScope('/')
+    renderShell('/')
     expect(await screen.findByText('Pilih Produk Dulu')).toBeTruthy()
   })
 
-  it('logout + satu produk: gate muncul, bukan auto-select', async () => {
+  it('logout + satu produk: layar pilih muncul, bukan auto-select', async () => {
     persistProductScope(USER_ID, 'KM')
-    expireAllStoredProductScopes()
+    clearAllStoredProductScopes()
     vi.mocked(fetchProductOptions).mockResolvedValue([PRODUCTS[0]!])
 
-    renderScope('/')
+    renderShell('/')
     expect(await screen.findByText('Pilih Produk Dulu')).toBeTruthy()
-  })
-
-  it('bar memakai sentinel "Semua Produk"', async () => {
-    renderScope('/konfigurasi-produk')
-    await screen.findByText('Halaman tanpa scope')
-    const select = screen.getByLabelText('Pilih produk aktif') as HTMLSelectElement
-    expect(Array.from(select.options).some((option) => option.value === ALL_PRODUCTS)).toBe(true)
   })
 })
 
-describe('product scope: integrasi AppShell', () => {
-  function renderShell(initialEntry: string) {
-    return render(
-      <MemoryRouter initialEntries={[initialEntry]}>
-        <Routes>
-          <Route element={<AppShell />}>
-            <Route path="*" element={<ScopeProbe />} />
-          </Route>
-        </Routes>
-      </MemoryRouter>,
-    )
-  }
-
-  it('bar produk tampil dan gate muncul di halaman data', async () => {
+describe('product scope: ganti produk', () => {
+  it('klik nama produk membuka layar penuh; Batal kembali ke produk lama', async () => {
     renderShell('/')
-    expect(await screen.findByText('Pilih Produk Dulu')).toBeTruthy()
-    expect(screen.getByLabelText('Pilih produk aktif')).toBeTruthy()
+    await screen.findByText('Pilih Produk Dulu')
+    await chooseProduct('KM')
+    expect(await screen.findByText('Halaman KM')).toBeTruthy()
+
+    act(() => screen.getByRole('button', { name: /Ganti produk/ }).click())
+    expect(await screen.findByText('Ganti Produk')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Batal' })).toBeTruthy()
+    expect(screen.queryByRole('navigation', { name: 'Menu utama' })).toBeNull()
+
+    act(() => screen.getByRole('button', { name: 'Batal' }).click())
+    expect(await screen.findByText('Halaman KM')).toBeTruthy()
+    expect(screen.queryByText('Ganti Produk')).toBeNull()
+    expect(stored()?.code).toBe('KM')
   })
 
-  it('halaman konfigurasi bisa dibuka tanpa memilih produk', async () => {
-    renderShell('/konfigurasi-produk')
-    expect(await screen.findByText('Halaman tanpa scope')).toBeTruthy()
-    expect(screen.queryByText('Pilih Produk Dulu')).toBeNull()
-    expect(screen.getByLabelText('Pilih produk aktif')).toBeTruthy()
+  it('memilih produk lain dari layar ganti memperbarui halaman dan pilihan', async () => {
+    renderShell('/')
+    await screen.findByText('Pilih Produk Dulu')
+    await chooseProduct('KM')
+    expect(await screen.findByText('Halaman KM')).toBeTruthy()
+
+    act(() => screen.getByRole('button', { name: /Ganti produk/ }).click())
+    expect(await screen.findByText('Ganti Produk')).toBeTruthy()
+    await chooseProduct('SO')
+
+    expect(await screen.findByText('Halaman SO')).toBeTruthy()
+    expect(stored()?.code).toBe('SO')
   })
 })

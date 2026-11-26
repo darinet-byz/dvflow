@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { canUseFieldApp, FieldAppContext } from '../src/lib/field-app'
+import { persistProductScope, productScopeStorageKey } from '../src/lib/product-scope'
 
 /** A30: Tampilan Apps Lapangan — hanya Pimpro/Staff/Member berizin, hanya di HP. */
 const session = vi.hoisted(() => ({ profile: null as Record<string, unknown> | null }))
@@ -11,6 +12,7 @@ vi.mock('../src/lib/session', () => ({ authorizedRequest: vi.fn(async () => ({})
 vi.mock('../src/ui/Toast', () => ({ useToast: () => ({ show: vi.fn() }) }))
 vi.mock('../src/lib/queries', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/lib/queries')>()),
+  fetchProductOptions: vi.fn(async () => [{ value: 'KULI', label: 'KULI — Kuliner Masteri', name: 'Kuliner Masteri' }]),
   fetchConfigLists: vi.fn(async () => ({ products: [], advertisers: [], eventTypes: [], eventTypeNames: [], sessions: [], paymentMethods: [] })),
   fetchPresensiSummary: vi.fn(async () => ({ paid_tickets: 1, sudah_hadir: 1, belum_hadir: 0, attendance_rate: 1 })),
   fetchPresensiPage: vi.fn(async () => ({ total: 1, page: 1, page_size: 50, rows: [{
@@ -48,7 +50,12 @@ function renderShell(path = '/scan-qr') {
   )
 }
 
-beforeEach(() => { phone = true; memory.clear() })
+beforeEach(() => {
+  phone = true
+  memory.clear()
+  // A97/A98: shell baru terbuka setelah produk dipilih.
+  persistProductScope('1', 'KULI')
+})
 afterEach(cleanup)
 
 describe('canUseFieldApp', () => {
@@ -72,6 +79,31 @@ describe('AppShell memilih kerangka', () => {
     // A77: Akun pindah ke menu avatar kanan atas.
     expect(screen.queryByRole('link', { name: 'Akun' })).toBeNull()
     expect(screen.getByRole('button', { name: 'Menu akun' })).toBeDefined()
+  })
+
+  it('field app terkunci di layar pilih produk sampai produk dipilih', async () => {
+    session.profile = profile('member', FIELD_PERMS)
+    memory.delete(productScopeStorageKey('1'))
+    renderShell('/scan-qr')
+
+    expect(await screen.findByText('Pilih Produk Dulu')).toBeTruthy()
+    expect(screen.queryByTestId('field-app-shell')).toBeNull()
+
+    fireEvent.click(await screen.findByRole('button', { name: /KULI/ }))
+    expect(await screen.findByTestId('field-app-shell')).toBeTruthy()
+    expect(screen.getByText('Kuliner Masteri')).toBeTruthy()
+  })
+
+  it('nama produk di header field app membuka layar pilih produk', async () => {
+    session.profile = profile('member', FIELD_PERMS)
+    renderShell('/scan-qr')
+
+    fireEvent.click(await screen.findByRole('button', { name: /Ganti produk/ }))
+    expect(await screen.findByText('Ganti Produk')).toBeTruthy()
+    expect(screen.getByRole('button', { name: 'Batal' })).toBeTruthy()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Batal' }))
+    expect(await screen.findByTestId('field-app-shell')).toBeTruthy()
   })
 
   it('menu akun berisi Profil, Ganti Password, Tampilan Web, Logout', () => {
