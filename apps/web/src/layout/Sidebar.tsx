@@ -73,7 +73,6 @@ export function Sidebar({ onNavigate }: { onNavigate?: () => void }) {
 
       {productScope === null ? null : (
         <div className="px-1">
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-soft">Produk aktif</p>
           <ProductSwitcher onOpen={onNavigate} />
         </div>
       )}

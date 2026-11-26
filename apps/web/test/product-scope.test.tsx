@@ -194,7 +194,6 @@ describe('product scope: layar pilih full-screen', () => {
     expect(await screen.findByText('Halaman KM')).toBeTruthy()
     expect(screen.queryByText('Pilih Produk Dulu')).toBeNull()
     expect(mainNav()).toBeTruthy()
-    expect(screen.getByText('Produk aktif')).toBeTruthy()
     expect(screen.getByText('Kuliner Masteri')).toBeTruthy()
     expect(screen.getByRole('button', { name: /Ganti produk/ })).toBeTruthy()
     expect(screen.getByTestId('search-full')).toBeTruthy()

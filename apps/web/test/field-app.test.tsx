@@ -91,7 +91,7 @@ describe('AppShell memilih kerangka', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /KULI/ }))
     expect(await screen.findByTestId('field-app-shell')).toBeTruthy()
-    expect(screen.getByText('Kuliner Masteri')).toBeTruthy()
+    expect(screen.getByRole('button', { name: /Ganti produk \(Kuliner Masteri\)/ })).toBeTruthy()
   })
 
   it('nama produk di header field app membuka layar pilih produk', async () => {

@@ -297,9 +297,6 @@ export function ProductPickerScreen() {
         <h1 className="mt-4 text-[22px] font-bold tracking-tight text-ink">
           {switching ? 'Ganti Produk' : 'Pilih Produk Dulu'}
         </h1>
-        <p className="mt-1 text-[13px] text-ink-soft">
-          Pilih produk yang ditugaskan untuk membuka dashboard, order, laporan, dan data acara. Pilihan berlaku 24 jam.
-        </p>
         {switching ? (
           <p className="mt-1 text-[12px] text-ink-soft">Produk aktif: <span className="font-semibold text-ink">{currentName}</span></p>
         ) : null}
@@ -391,7 +388,7 @@ export function ProductPickerScreen() {
 }
 
 /**
- * Tombol nama produk + "Assign ▾". Dipakai di sidebar web dan header field app.
+ * Tombol nama produk + kode + panah. Dipakai di sidebar web dan header field app.
  * Klik membuka layar pilih produk penuh (mode ganti).
  */
 export function ProductSwitcher({
@@ -433,12 +430,17 @@ export function ProductSwitcher({
       <span className="min-w-0 flex-1">
         <span className={cn('block truncate font-semibold text-ink', compact ? 'text-[11px]' : 'text-[12px]')}>
           {name}
+          {compact && scope.chosen && scope.code !== '' ? (
+            <span className="ml-1 font-normal text-ink-soft">{scope.code}</span>
+          ) : null}
         </span>
         {!compact && scope.chosen && scope.code !== '' ? (
           <span className="block text-[10px] text-ink-soft">{scope.code}</span>
         ) : null}
       </span>
-      <span className={cn('shrink-0 font-semibold text-primary', compact ? 'text-[10px]' : 'text-[11px]')}>Assign ▾</span>
+      <svg aria-hidden="true" viewBox="0 0 20 20" fill="none" className="h-4 w-4 shrink-0 text-ink-soft">
+        <path d="M5 7.5l5 5 5-5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
     </button>
   )
 }
